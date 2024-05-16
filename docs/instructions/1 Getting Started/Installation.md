@@ -21,15 +21,14 @@ If there is no version for your platform and OS, then you'll have to do it the h
 #### Step 2
 
 - Clone the GIT repository.  If that doesn't make sense to you, then you should go find that Linux guru.
-- I suggest creating a folder called Reality2, and cloning the repository into that folder.  You will end up with a folder inside the Reality2 folder called 'reality2' (which I usually then rename to 'Reality2').  In the main Reality2 folder, you can create useful files for private API keys without them ending up in the repository.  For example, below, we create a file to hold your OpenAI API key.
+- I suggest creating a folder called Reality2, and cloning the repository into that folder.  You will end up with a folder inside the Reality2 folder called 'reality2-node-core-elixir'.  In the main Reality2 folder, you can create useful files for private API keys without them ending up in the repository.  For example, below, we create a file to hold your OpenAI API key.
 
 ```bash
 mkdir Reality2
 cd Reality2
-git clone https://github.com/roycdavies/reality2.git
-mv reality2 Reality2
+git clone https://github.com/reality2-roycdavies/reality2-node-core-elixir.git
 echo sk-[YOUR OPENAI API KEY HERE] > OPENAI_API_KEY.txt
-cd Reality2
+cd reality2-node-core-elixir
 ```
 
 #### Step 3
@@ -38,7 +37,7 @@ cd Reality2
 
 ```bash
 pwd
-/Users/rdav031/Development/Reality2/Reality2
+/Users/rdav031/Development/Reality2/reality2-node-core-elixir
 ```
 
 
