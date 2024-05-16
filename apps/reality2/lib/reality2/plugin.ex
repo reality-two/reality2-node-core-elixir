@@ -10,17 +10,21 @@ defmodule Reality2.Plugin do
 
     @doc false
     use GenServer, restart: :transient
+    alias Reality2.Helpers.R2Process, as: R2Process
+    alias Reality2.Helpers.R2Map, as: R2Map
+    alias Reality2.Helpers.JsonPath, as: JsonPath
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
     # Supervisor Callbacks
     # -----------------------------------------------------------------------------------------------------------------------------------------
     @doc false
     def start_link({_sentant_name, id, _sentant_map}, plugin_map) do
-      case Helpers.Map.get(plugin_map, "name") do
+      case R2Map.get(plugin_map, "name") do
         nil ->
           {:error, :definition}
         plugin_name ->
-          GenServer.start_link(__MODULE__, {plugin_name, id, plugin_map}, name: String.to_atom(id <> "|plugin|" <> plugin_name))
+          GenServer.start_link(__MODULE__, {plugin_name, id, plugin_map})
+          |> R2Process.register(id <> "|plugin|" <> plugin_name)
       end
     end
 
@@ -43,9 +47,15 @@ defmodule Reality2.Plugin do
     # Synchronous Calls
     # -----------------------------------------------------------------------------------------------------------------------------------------
     @impl true
+    # Time to die.
+    def handle_call(:delete, _from, {name, id, plugin_map, state}) do
+      delete(id, name)
+      {:reply, {:ok}, {name, id, plugin_map, state}}
+    end
+
     def handle_call(command, _from, {name, id, plugin_map, state}) do
 
-      case Helpers.Map.get(plugin_map, "type") do
+      case R2Map.get(plugin_map, "type") do
         "internal" ->
           # Internal Plugin
           case sendto(id, name, command) do
@@ -60,28 +70,28 @@ defmodule Reality2.Plugin do
           # External Plugin
 
           # Get the parameters
-          parameters = Helpers.Map.get(command, "parameters", %{})
+          parameters = R2Map.get(command, "parameters", %{})
 
           # Get any passthrough
-          passthrough = Helpers.Map.get(command, "passthrough", %{})
+          passthrough = R2Map.get(command, "passthrough", %{})
 
           # Get the headers
           headers = plugin_map
-          |> Helpers.Map.get("headers", %{})
+          |> R2Map.get("headers", %{})
           |> replace_variable_in_map(parameters)
           |> Map.to_list()
 
           # Get the body
           body = plugin_map
-          |> Helpers.Map.get("body", %{})
+          |> R2Map.get("body", %{})
           |> replace_variable_in_map(parameters)
           |> Jason.encode!
 
           # Get the method
-          method = Helpers.Map.get(plugin_map, "method", :post)
+          method = R2Map.get(plugin_map, "method", :post)
 
           # Get the url
-          case Helpers.Map.get(plugin_map, "url") do
+          case R2Map.get(plugin_map, "url") do
             nil -> {:reply, {:error, :url}, {name, id, plugin_map, state}}
             url ->
               case Finch.build(method, url, headers, body) |> Finch.request(Reality2.HTTPClient) do
@@ -90,17 +100,17 @@ defmodule Reality2.Plugin do
                   %Finch.Response{body: body} = result
                   body_json = Jason.decode!(body)
 
-                  output = Helpers.Map.get(plugin_map, "output", %{})
-                  output_pattern = Helpers.Map.get(output, "value", "")
+                  output = R2Map.get(plugin_map, "output", %{})
+                  output_pattern = R2Map.get(output, "value", "")
 
-                  case Helpers.Json.get_value(body_json, output_pattern) do
+                  case JsonPath.get_value(body_json, output_pattern) do
                     {:error, reason} -> {:reply, {:error, reason}, {name, id, plugin_map, state}}
                     {:ok, answer} ->
-                      case Helpers.Map.get(output, "event") do
+                      case R2Map.get(output, "event") do
                         nil -> {:reply, {:ok, answer}, {name, id, plugin_map, state}}
                         event ->
                           # Send the event to the Sentant
-                          output_key = Helpers.Map.get(output, "key", "result")
+                          output_key = R2Map.get(output, "key", "result")
                          Reality2.Sentants.sendto(%{id: id}, %{event: event, parameters: Map.merge(parameters, %{output_key => answer}), passthrough: passthrough})
                       end
                       {:reply, {:ok, %{}}, {name, id, plugin_map, state}}
@@ -120,11 +130,6 @@ defmodule Reality2.Plugin do
     # Asynchronous Casts
     # -----------------------------------------------------------------------------------------------------------------------------------------
     @impl true
-    # Time to die.
-    def handle_cast(:delete, {name, id, plugin_map, state}) do
-      delete(id, name)
-      {:noreply, {name, id, plugin_map, state}}
-    end
     # Time to reinitialise.
     def handle_cast({:reinit, new_plugin_map}, {name, id, _plugin_map, state}) do
       init_plugin({name, id})
@@ -132,7 +137,7 @@ defmodule Reality2.Plugin do
     end
     # Time to send a command to the plugin.
     def handle_cast(command, {name, id, plugin_map, state}) do
-      case Helpers.Map.get(plugin_map, "type") do
+      case R2Map.get(plugin_map, "type") do
         "internal" ->
           sendto(id, name, command)
         _ ->
@@ -158,11 +163,10 @@ defmodule Reality2.Plugin do
     # Terminate the instance of the Plugin in the App
     # -----------------------------------------------------------------------------------------------------------------------------------------
     defp delete(id, name) do
-
       app_name_atom = app_name_underscore_atom(name)
 
       # Check that there is an App with the name of the plugin
-      case Enum.any?(Application.loaded_applications(), fn({app_name, _, _}) -> app_name == app_name_atom end) do
+      case Enum.any?(Application.loaded_applications(), fn({app_name, _, _}) -> app_name === app_name_atom end) do
         true ->
           # Run the 'delete' function in the App referenced to by the plugin name, in the module named Main
           # This should be defined to delete the plugin.
@@ -253,7 +257,7 @@ defmodule Reality2.Plugin do
     defp replace_string(map, string) do
       case Regex.named_captures(~r/^__(?<content>.+?)__$/, string) do
         %{"content" => content} ->
-          Helpers.Map.get(map, content, string)
+          R2Map.get(map, content, string)
         _ -> string
       end
     end

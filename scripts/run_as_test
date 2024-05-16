@@ -1,5 +1,7 @@
 #!/bin/bash
-cd ..
+if ! [ -d "scripts" ]; then
+  cd ..
+fi
 
 # Start the Elixir application
 MIX_ENV=test iex -S mix phx.server

@@ -12,6 +12,7 @@ defmodule Reality2.Application do
       # {DNSCluster, query: Application.get_env(:reality2, :dns_cluster_query) || :ignore},
       # {Phoenix.PubSub, name: Reality2.PubSub},
       {PartitionSupervisor, child_spec: DynamicSupervisor, name: Reality2.Sentants},
+      %{id: Reality2.Helpers.R2Process, start: {Reality2.Helpers.R2Process, :start_link, [Reality2.Helpers.R2Process]}},
       %{id: :SentantNames, start: {Reality2.Metadata, :start_link, [:SentantNames]}},
       %{id: :SentantIDs, start: {Reality2.Metadata, :start_link, [:SentantIDs]}},
       {Finch, name: Reality2.HTTPClient, start: {Finch, :start_link, []}}

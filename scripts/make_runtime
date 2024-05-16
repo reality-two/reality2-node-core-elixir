@@ -1,13 +1,11 @@
 #!/bin/bash
+
 cd ..
 
 RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)
 ARCH=$(uname -m)
 OS=$(uname -o | sed 's/\//_/g')
 BUILD_FOLDER=${ARCH}_${OS}
-
-arch=$(uname -m)
-os=$(uname -o)
 
 if [ ! -d "builds" ]; then
     mkdir "builds"
@@ -20,6 +18,12 @@ echo "********************************************************************"
 echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
 echo "********************************************************************"
 
+echo "***** Generating new Certificates..."
+cd apps/reality2_web/priv/cert
+./generate_certificates
+cd ../../../..
+
+echo "***** Cleaning up the previous build..."
 rm -rf "_build/prod"
 
 # Set the environment variables
@@ -30,17 +34,18 @@ export POOLSIZE=10
 export MIX_ENV=prod
 
 # Build the Reality2 Node
-echo "Building the Reality2 Node..."
+echo "***** Building the Reality2 Node..."
 mix release
 
-echo "Copying the Reality2 Node to the release directory..."
+echo "***** Copying the Reality2 Demos to the release directory..."
 cp "scripts/runtime_run" "_build/prod/rel/reality2/run"
-cp -r python "_build/prod/rel/reality2"
+cp -r demos/python "_build/prod/rel/reality2"
+cp -r demos/SBC "_build/prod/rel/reality2"
 
-echo "Creating the Reality2 Node tarball..."
+echo "***** Creating the Reality2 Node tarball..."
 tar -zcf "_build/prod/rel/reality2_${RELEASE}.tar.gz" --directory=_build/prod/rel reality2
 
-echo "Moving the Reality2 Node tarball to the builds directory..."
+echo "***** Moving the Reality2 Node tarball to the builds directory..."
 mv "_build/prod/rel/reality2_${RELEASE}.tar.gz" "builds/${BUILD_FOLDER}"
 
 echo "********************************************************************"
