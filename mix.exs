@@ -5,7 +5,7 @@ defmodule Reality2.Umbrella.MixProject do
     [
       apps_path: "apps",
       apps: [ :ai_reality2_vars, :reality2, :reality2_web, :ai_reality2_geospatial, :ai_reality2_pns, :ai_reality2_auth],
-      version: "0.1.5",
+      version: "0.1.6",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
