@@ -9,7 +9,7 @@ Inside the main folder, there is a folder called 'python' which, perhaps not sur
 Start yourself a new terminal, leaving the other one you used to start the Reality2 node running, and type the following (I'm assuming you have python3 installed - most linux distributions do):
 
 ```bash
-cd python
+cd demos/python
 python3 simple_light_and_switch.py
 ```
 
