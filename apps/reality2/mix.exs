@@ -4,7 +4,7 @@ defmodule Reality2.MixProject do
   def project do
     [
       app: :reality2,
-      version: "0.1.4",
+      version: "0.1.5",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -57,9 +57,9 @@ defmodule Reality2.MixProject do
       {:toml, "~> 0.7"},
       {:finch, "~> 0.16"},
       {:validate, "~> 1.3"},
-      {:geohash, "~> 1.0"},
-      {:ai_reality2_vars, in_umbrella: true},
-      {:ai_reality2_geospatial, in_umbrella: true}
+      {:geohash, "~> 1.0"}
+      # {:ai_reality2_vars, in_umbrella: true},
+      # {:ai_reality2_geospatial, in_umbrella: true}
     ]
   end
 

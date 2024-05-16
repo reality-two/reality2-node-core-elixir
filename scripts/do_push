@@ -6,5 +6,6 @@ if [ $# -ne 1 ]; then
 else
 	git add -A
 	git commit -a -m $1
-	git push
+    git push --tags
+    git push
 fi

@@ -6,7 +6,7 @@ export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
 export SECRET_KEY_BASE=$(openssl rand -hex 32)
 export PORT=4001
 export POOLSIZE=10
-export MIX_ENV=prod mix compile
+export MIX_ENV=dev
 
 # Run the Reality2 Node
 echo "**************************************"

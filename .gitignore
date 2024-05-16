@@ -26,3 +26,7 @@ erl_crash.dump
 /tmp/
 
 **/.tool-versions
+
+.elixir_ls
+
+**/__pycache__

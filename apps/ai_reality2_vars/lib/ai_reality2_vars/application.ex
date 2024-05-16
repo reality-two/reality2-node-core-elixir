@@ -8,6 +8,7 @@ defmodule AiReality2Vars.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      %{id: AiReality2Vars.Processes, start: {Reality2.Helpers.R2Process, :start_link, [AiReality2Vars.Processes]}},
       %{id: AiReality2Vars.Main, start: {AiReality2Vars.Main, :start_link, [AiReality2Vars.Main]}}
     ]
 

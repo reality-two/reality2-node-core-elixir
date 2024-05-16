@@ -1,5 +1,6 @@
 defmodule RPN do
 
+  alias Reality2.Helpers.R2Map, as: R2Map
 
   @binary_ops ~w(+ - / * ^ atan2 fmod pow geohash)
   @unary_ops ~w(+ - acos acosh asin asinh atan atanh ceil cos cosh exp floor log log10 log2 sin sinh sqrt tan tanh, latlong)
@@ -64,7 +65,7 @@ defmodule RPN do
     number = case safe_convert(num_str) do
       {:ok, num} -> num
       {:str, _} ->
-        case Helpers.Map.get(context, num_str) do
+        case R2Map.get(context, num_str) do
           nil -> %{error: "unknown variable #{num_str}"}
           num2 ->
             case safe_convert(num2) do

@@ -10,6 +10,7 @@ defmodule Reality2.Swarm do
 # *******************************************************************************************************************************************
 
   alias Reality2.Types
+  alias Reality2.Helpers.R2Map, as: R2Map
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @spec create(Types.swarm() | String.t()) ::
@@ -39,9 +40,9 @@ defmodule Reality2.Swarm do
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp create_from_map(definition_map) do
-    name = Helpers.Map.get(definition_map, "name", "")
-    description = Helpers.Map.get(definition_map, "description", "")
-    case Helpers.Map.get(definition_map, "sentants") do
+    name = R2Map.get(definition_map, "name", "")
+    description = R2Map.get(definition_map, "description", "")
+    case R2Map.get(definition_map, "sentants") do
       nil ->
         {:ok, %{name: name, description: description, sentants: []}}
       sentants ->

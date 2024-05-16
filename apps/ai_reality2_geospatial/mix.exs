@@ -4,7 +4,7 @@ defmodule AiReality2Geospatial.MixProject do
   def project do
     [
       app: :ai_reality2_geospatial,
-      version: "0.1.4",
+      version: "0.1.5",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -40,7 +40,8 @@ defmodule AiReality2Geospatial.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
       # {:sibling_app_in_umbrella, in_umbrella: true}
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
-      {:geohash, "~> 1.0"}
+      {:geohash, "~> 1.0"},
+      {:reality2, in_umbrella: true}
     ]
   end
 end

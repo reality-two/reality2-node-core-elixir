@@ -9,6 +9,7 @@ defmodule Reality2Web.SentantResolver do
 # *******************************************************************************************************************************************
 
 # alias Absinthe.PubSub
+alias Reality2.Helpers.R2Map, as: R2Map
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Puplic Functions
@@ -84,7 +85,7 @@ defmodule Reality2Web.SentantResolver do
                 # Something went wrong
                 {:error, reason}
             end
-          {:error, {error_code, reason}} -> {:error, Atom.to_string(error_code) <> ":" <> reason}
+          {:error, {_, reason}} -> {:error, reason}
           {:error, reason} -> {:error, reason}
         end
     end
@@ -142,9 +143,9 @@ defmodule Reality2Web.SentantResolver do
           {:error, {error_code, reason}} -> {:error, Atom.to_string(error_code) <> ":" <> reason}
           {:error, reason} -> {:error, reason}
           {:ok, swarm} ->
-            name = Helpers.Map.get(swarm, "name", "")
-            description = Helpers.Map.get(swarm, "description", "")
-            sentant_ids = Helpers.Map.get(swarm, "sentants", [])
+            name = R2Map.get(swarm, "name", "")
+            description = R2Map.get(swarm, "description", "")
+            sentant_ids = R2Map.get(swarm, "sentants", [])
 
             # Create a list of the sentants' details
             sentants = Enum.map(sentant_ids, fn id ->
@@ -188,7 +189,7 @@ defmodule Reality2Web.SentantResolver do
             # Check if this is a valid event that can be sent from outside, and if so, send it.
             case Reality2.Sentants.read(%{id: sentantid}, :definition) do
               {:ok, sentant} ->
-                events = get_event_list(Helpers.Map.get(sentant, :events, [])) #sentant |> Helpers.Map.get(:automations, []) |> find_events_in_automations(false)
+                events = get_event_list(R2Map.get(sentant, :events, [])) #sentant |> R2Map.get(:automations, []) |> find_events_in_automations(false)
                 if Enum.member?(events, event) do
                   case Reality2.Sentants.sendto(%{id: sentantid}, %{event: event, parameters: parameters, passthrough: passthrough}) do
                     {:ok, _} ->
@@ -220,7 +221,7 @@ defmodule Reality2Web.SentantResolver do
   def check_subscribe_allowed(sentantid, signal) do
     case Reality2.Sentants.read(%{id: sentantid}, :definition) do
       {:ok, sentant} ->
-        ((sentant |> Helpers.Map.get(:signals, [])) ++ ["debug"]) |> Enum.member?(signal)
+        ((sentant |> R2Map.get(:signals, [])) ++ ["debug"]) |> Enum.member?(signal)
       _ -> false
     end
   end

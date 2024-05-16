@@ -1,5 +1,6 @@
 defmodule TestSentants do
   use ExUnit.Case
+  alias Reality2.Helpers.R2Process, as: R2Process
 
   # -------------------------------------------------------------------------------------------------------------------
   # Test functionality of Reality.Sentants
@@ -16,25 +17,25 @@ defmodule TestSentants do
 
     {result, id} = Reality2.Sentants.create sentant_definition
     assert result == :ok
-    assert id |> String.to_atom |> Process.whereis != nil
+    assert id |> R2Process.whereis != nil
 
     result2 = Reality2.Sentants.sendto( %{ name: "fred" }, %{ command: "test", parameters: %{ } } )
     assert result2 == :ok
 
     {result3, id} = Reality2.Sentants.delete %{ name: "fred" }
     assert result3 == :ok
-    assert id |> String.to_atom |> Process.whereis == nil
+    assert id |> R2Process.whereis == nil
 
     {result4, id2} = Reality2.Sentants.create sentant_map
     assert result4 == :ok
-    assert id2 |> String.to_atom |> Process.whereis != nil
+    assert id2 |> R2Process.whereis != nil
 
     result5 = Reality2.Sentants.sendto( %{ id: id2 }, %{ command: "test", parameters: %{ } } )
     assert result5 == :ok
 
     {result6, id2} = Reality2.Sentants.delete %{ name: "george" }
     assert result6 == :ok
-    assert id2 |> String.to_atom |> Process.whereis == nil
+    assert id2 |> R2Process.whereis == nil
 
   end
 

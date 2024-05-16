@@ -9,12 +9,15 @@ defmodule Reality2.Sentant.Comms do
 # *******************************************************************************************************************************************
   use GenServer
   # alias Absinthe.Subscription
+  alias Reality2.Helpers.R2Process, as: R2Process
+  alias Reality2.Helpers.R2Map, as: R2Map
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
   def start_link({name, id, sentant_map}) do
-    GenServer.start_link(__MODULE__, {name, id, sentant_map}, name: String.to_atom(id <> "|comms"))
+    GenServer.start_link(__MODULE__, {name, id, sentant_map})
+    |> R2Process.register(id <> "|comms")
   end
 
   @impl true
@@ -42,7 +45,7 @@ defmodule Reality2.Sentant.Comms do
   # Return the states of all the Automations on the Sentant
   def handle_call(command_and_parameters, _from, {id, sentant_map}) do
 
-    result = String.to_atom(id <> "|automations")
+    result = R2Process.pid(id <> "|automations")
     |> DynamicSupervisor.which_children()
     |> Enum.map( fn {_, pid_or_restarting, _, _} ->
       # Send the message to each child
@@ -74,7 +77,7 @@ defmodule Reality2.Sentant.Comms do
   @impl true
   def handle_cast(command_and_parameters, {id, sentant_map}) do
 
-    String.to_atom(id <> "|automations")
+    R2Process.pid(id <> "|automations")
     |> DynamicSupervisor.which_children()
     |> Enum.each( fn {_, pid_or_restarting, _, _} ->
       # Send the message to each child
@@ -109,18 +112,6 @@ defmodule Reality2.Sentant.Comms do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # defp convert_key_strings_to_atoms(data) when is_map(data) do
-  #   Enum.reduce(data, %{}, fn {key, value}, acc ->
-  #     Map.put(acc, String.to_atom(key), convert_key_strings_to_atoms(value))
-  #   end)
-  # end
-  # defp convert_key_strings_to_atoms(data) when is_list(data) do
-  #   Enum.map(data, &convert_key_strings_to_atoms/1)
-  # end
-  # defp convert_key_strings_to_atoms(data) do
-  #   data
-  # end
-  # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Convert map keys to atoms
@@ -144,7 +135,7 @@ defmodule Reality2.Sentant.Comms do
   # Tweak the raw Sentant data to remove private elements
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp convert_for_output(data) when is_map(data) do
-    automations = data |> Helpers.Map.get(:automations, [])
+    automations = data |> R2Map.get(:automations, [])
     events = automations |> find_events_in_automations
     signals = automations |> find_signals_in_automations
 
@@ -157,25 +148,25 @@ defmodule Reality2.Sentant.Comms do
   defp convert_for_output(data), do: data
 
   defp find_events_in_automations(automations) do
-    Enum.map(automations, fn(automation) -> automation |> Helpers.Map.get(:transitions, []) |> find_events end) |> List.flatten |> Enum.uniq
+    Enum.map(automations, fn(automation) -> automation |> R2Map.get(:transitions, []) |> find_events end) |> List.flatten |> Enum.uniq
   end
   defp find_events([]), do: []
   defp find_events([transition | rest]) do
     # Only include the event if it is marked as public = true
-    case Helpers.Map.get(transition, :public, false) do
+    case R2Map.get(transition, :public, false) do
       true ->
-          [%{event: Helpers.Map.get(transition, :event), parameters: Helpers.Map.get(transition, :parameters, %{})} | find_events(rest)]
+          [%{event: R2Map.get(transition, :event), parameters: R2Map.get(transition, :parameters, %{})} | find_events(rest)]
 
       _ -> find_events(rest)
     end
   end
 
   defp find_signals_in_automations(automations) do
-    Enum.map(automations, fn(automation) -> automation |> Helpers.Map.get(:transitions, []) |> find_signals end) |> List.flatten |> Enum.uniq
+    Enum.map(automations, fn(automation) -> automation |> R2Map.get(:transitions, []) |> find_signals end) |> List.flatten |> Enum.uniq
   end
   defp find_signals([]), do: []
   defp find_signals([transition | rest]) do
-    case Helpers.Map.get(transition, :actions, []) do
+    case R2Map.get(transition, :actions, []) do
       [] -> find_signals(rest)
       actions ->
         signals = Enum.map(actions, fn(action) -> get_signal_from_action(action) end) |> List.flatten
@@ -183,14 +174,14 @@ defmodule Reality2.Sentant.Comms do
     end
   end
   defp get_signal_from_action(action) do
-    case Helpers.Map.get(action, :command) do
+    case R2Map.get(action, :command) do
       "signal" ->
-        case Helpers.Map.get(action, :parameters) do
+        case R2Map.get(action, :parameters) do
           nil -> []
           parameters ->
-            case Helpers.Map.get(action, :public, false) or Helpers.Map.get(parameters, :public, false) do
+            case R2Map.get(action, :public, false) or R2Map.get(parameters, :public, false) do
               false -> []
-              true -> [Helpers.Map.get(parameters, :event, [])]
+              true -> [R2Map.get(parameters, :event, [])]
             end
         end
       _ -> []

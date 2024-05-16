@@ -10,17 +10,21 @@ defmodule Reality2.Automation do
 
   @doc false
   use GenServer, restart: :transient
+  alias Reality2.Helpers.R2Map, as: R2Map
+  alias Reality2.Helpers.JsonPath, as: JsonPath
+  alias Reality2.Helpers.R2Process, as: R2Process
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc false
   def start_link({_sentant_name, id, _sentant_map}, automation_map) do
-    case Helpers.Map.get(automation_map, :name) do
+    case R2Map.get(automation_map, :name) do
       nil ->
         {:error, :definition}
       automation_name ->
-        GenServer.start_link(__MODULE__, {automation_name, id, automation_map}, name: String.to_atom(id <> "|automation|" <> automation_name))
+        GenServer.start_link(__MODULE__, {automation_name, id, automation_map})
+        |> R2Process.register(id <> "|automation|" <> automation_name)
     end
   end
 
@@ -57,13 +61,13 @@ defmodule Reality2.Automation do
   @impl true
   def handle_cast(args, {name, id, automation_map, state}) do
 
-    parameters = Helpers.Map.get(args, :parameters, %{})
-    passthrough = Helpers.Map.get(args, :passthrough, %{})
+    parameters = R2Map.get(args, :parameters, %{})
+    passthrough = R2Map.get(args, :passthrough, %{})
 
-    case Helpers.Map.get(args, :event) do
+    case R2Map.get(args, :event) do
       nil -> {:noreply, {name, id, automation_map, state}}
       event ->
-        case Helpers.Map.get(automation_map, "transitions") do
+        case R2Map.get(automation_map, "transitions") do
           nil ->
             {:noreply, {name, id, automation_map, state}}
           transitions ->
@@ -85,8 +89,9 @@ defmodule Reality2.Automation do
 
   # Used for sending events in the future using Process.send_after
   @impl true
-  def handle_info({:send, name_or_id, details}, {name, id, automation_map, state}) do
+  def handle_info({:send, name_or_id, %{event: event} = details}, {name, id, automation_map, state}) do
     Reality2.Sentants.sendto(name_or_id, details)
+    R2Process.deregister(id <> "|timers|" <> event)
     {:noreply, {name, id, automation_map, state}}
   end
   def handle_info(_, {name, id, automation_map, state}) do
@@ -103,7 +108,7 @@ defmodule Reality2.Automation do
   # Check the Transition Map to see if it matches the current state and event
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp check_transition(id, transition_map, event, parameters, passthrough, state) do
-    case Helpers.Map.get(transition_map, :from, "*") do
+    case R2Map.get(transition_map, :from, "*") do
       "*" -> check_event(id, transition_map, event, parameters, passthrough, state)
       ^state -> check_event(id, transition_map, event, parameters, passthrough, state)
       _ -> {:no_match, state}
@@ -117,11 +122,11 @@ defmodule Reality2.Automation do
   # Check the Event Map to see if it matches the current event, and do appropiate actions and state change if it does
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp check_event(id, transition_map, event, parameters, passthrough, state) do
-    case Helpers.Map.get(transition_map, :event) do
+    case R2Map.get(transition_map, :event) do
       nil ->
         {:no_match, state}
       ^event ->
-        case Helpers.Map.get(transition_map, :to, "*") do
+        case R2Map.get(transition_map, :to, "*") do
           "*" ->
             do_actions(id, transition_map, parameters, passthrough)
             {:ok, state}
@@ -141,7 +146,7 @@ defmodule Reality2.Automation do
   # Do the Actions in the Transition Map when the Transition triggers
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp do_actions(id, transition_map, parameters, passthrough) do
-    case Helpers.Map.get(transition_map, :actions) do
+    case R2Map.get(transition_map, :actions) do
       nil ->
         parameters # No actions, so result is just the parameters
       actions ->
@@ -169,15 +174,15 @@ defmodule Reality2.Automation do
   # }
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp do_action(id, action_map, accumulated_parameters, passthrough) do
-    action_parameters = Helpers.Map.get(action_map, :parameters, %{})
+    action_parameters = R2Map.get(action_map, :parameters, %{})
 
     # Both the functions below return a map that becomes the accumulater parameters of the next action
-    case Helpers.Map.get(action_map, :plugin) do
+    case R2Map.get(action_map, :plugin) do
       nil ->
-        Helpers.Map.get(action_map, :command)
+        R2Map.get(action_map, :command)
         |> do_inbuilt_action(id, action_parameters, accumulated_parameters, passthrough)
       plugin ->
-        Helpers.Map.get(action_map, :command)
+        R2Map.get(action_map, :command)
         |> do_plugin_action(plugin, id, action_parameters, accumulated_parameters, passthrough)
     end
   end
@@ -189,7 +194,7 @@ defmodule Reality2.Automation do
   # Do a Plugin Action
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp do_plugin_action(action, plugin, id, action_parameters, accumulated_parameters, passthrough) do
-    override = Helpers.Map.get(action_parameters, :override, false)
+    override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
       Map.merge(accumulated_parameters, action_parameters)
     else
@@ -198,7 +203,7 @@ defmodule Reality2.Automation do
     |> interpret()
 
     # When the sentant begins, there is a small possibiity that the plugin has not yet started.
-    case test_and_wait(String.to_atom(id <> "|plugin|" <> plugin), 5) do
+    case test_and_wait(id <> "|plugin|" <> plugin, 5) do
       nil ->
         accumulated_parameters
         |> Map.merge(%{result: %{error: :plugin_error}})
@@ -218,7 +223,7 @@ defmodule Reality2.Automation do
 
   defp test_and_wait(_, 0), do: nil
   defp test_and_wait(name, count) do
-    case Process.whereis(name) do
+    case R2Process.whereis(name) do
       nil ->
         Process.sleep(100)
         test_and_wait(name, count - 1)
@@ -254,7 +259,7 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp send(id, action_parameters, accumulated_parameters, passthrough) do
 
-    override = Helpers.Map.get(action_parameters, :override, false)
+    override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
       Map.merge(accumulated_parameters, action_parameters)
     else
@@ -263,7 +268,7 @@ defmodule Reality2.Automation do
     |> interpret()
 
     # Get the 'to' parameter, if it exists.  If not, return an empty list.
-    to_field = Helpers.Map.get(combined_parameters, :to, [id])
+    to_field = R2Map.get(combined_parameters, :to, [id])
 
     # If the 'to' parameter was not a list, turn it into one with a single element.
     to_list = case is_list(to_field) do
@@ -282,26 +287,25 @@ defmodule Reality2.Automation do
           %{id: id}    # Must have been a name.
       end
 
-      IO.puts("Name or ID: " <> inspect(name_or_id))
-
       # Get the event to send.
-      event = Helpers.Map.get(combined_parameters, :event, "event")
-      event_parameters = Helpers.Map.get(action_parameters, :parameters, %{})
+      event = R2Map.get(combined_parameters, :event, "event")
+      event_parameters = R2Map.get(action_parameters, :parameters, %{})
 
       # Make sure there is no timer for this event already in process.  If so, cancel it before doing the new one.
-      case Reality2.Metadata.get(String.to_atom(id <> "|timers"), event) do
+      case R2Process.whereis(id <> "|timers|" <> event) do
         nil -> :ok
         timer ->
           Process.cancel_timer(timer)
+          R2Process.deregister(id <> "|timers|" <> event)
       end
 
       # Send the event either immediately or after a delay.
-      case Helpers.Map.get(combined_parameters, :delay) do
+      case R2Map.get(combined_parameters, :delay) do
         nil ->
           Reality2.Sentants.sendto(name_or_id, %{event: event, parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough: passthrough})
         delay ->
           timer = Process.send_after(self(), {:send, name_or_id, %{event: event, parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough: passthrough}}, delay)
-          Reality2.Metadata.set(String.to_atom(id <> "|timers"), event, timer)
+          R2Process.register(id <> "|timers|" <> event, timer)
       end
 
     end
@@ -317,7 +321,7 @@ defmodule Reality2.Automation do
   # Send a signal on the Sentant's subscription channel
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp signal(id, action_parameters, accumulated_parameters, passthrough) do
-    override = Helpers.Map.get(action_parameters, :override, false)
+    override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
       Map.merge(accumulated_parameters, action_parameters)
     else
@@ -326,15 +330,16 @@ defmodule Reality2.Automation do
     |> interpret()
 
     # Send off a signal to any listening device
-    case Helpers.Map.get(combined_parameters, :event) do
+    case R2Map.get(combined_parameters, :event) do
       nil -> nil
       event ->
-        case Process.whereis(String.to_atom(id <> "|comms")) do
+        case R2Process.whereis(id <> "|comms") do
           nil ->
             nil
           _pid ->
-            event_parameters = Helpers.Map.get(action_parameters, :parameters, %{})
-            Reality2Web.SentantResolver.send_signal(id, event, Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough)
+            event_parameters = R2Map.get(action_parameters, :parameters, %{})
+            apply(Reality2Web.SentantResolver, :send_signal, [id, event, Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough])
+            # Reality2Web.SentantResolver.send_signal(id, event, Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough)
         end
     end
 
@@ -349,7 +354,8 @@ defmodule Reality2.Automation do
   # Send debug info to the debug channel
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp debug(id, _action_parameters, accumulated_parameters, passthrough) do
-    Reality2Web.SentantResolver.send_signal(id, "debug", accumulated_parameters, passthrough)
+    apply(Reality2Web.SentantResolver, :send_signal, [id, "debug", accumulated_parameters, passthrough])
+    # Reality2Web.SentantResolver.send_signal(id, "debug", accumulated_parameters, passthrough)
 
     accumulated_parameters |> Map.merge(%{result: :ok})
   end
@@ -361,7 +367,7 @@ defmodule Reality2.Automation do
   # Set a key / value in the accumulated parameters
   # -----------------------------------------------------------------------------------------------------------------------------------------
   defp set(_id, action_parameters, accumulated_parameters, _passthrough) do
-    override = Helpers.Map.get(action_parameters, :override, false)
+    override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
       Map.merge(accumulated_parameters, action_parameters)
     else
@@ -369,22 +375,20 @@ defmodule Reality2.Automation do
     end
     |> interpret()
 
-    key = Helpers.Map.get(combined_parameters, :key)
+    key = R2Map.get(combined_parameters, :key)
 
     # Get the value, and then process it to replace
-    value = replace_variable_in_map(Helpers.Map.get(combined_parameters, :value), combined_parameters)
-    IO.puts("Key: " <> inspect(key))
-    IO.puts("Value: " <> inspect(value))
+    value = replace_variable_in_map(R2Map.get(combined_parameters, :value), combined_parameters)
 
     if value == nil do
       accumulated_parameters
       |> interpret()
-      |> Helpers.Map.delete(key)
+      |> R2Map.delete(key)
       |> Map.merge(%{result: :ok})
     else
       # If the value includes %{jsonpath: "the path"} then extract the element from the combined parameters rather than the facevalue"
-      if (is_map(value) && Helpers.Map.get(value, :jsonpath) != nil) do
-        case Helpers.Json.get_value(combined_parameters, Helpers.Map.get(value, :jsonpath)) do
+      if (is_map(value) && R2Map.get(value, :jsonpath) != nil) do
+        case JsonPath.get_value(combined_parameters, R2Map.get(value, :jsonpath)) do
           {:ok, value2} ->
             accumulated_parameters
             |> interpret()
@@ -396,8 +400,8 @@ defmodule Reality2.Automation do
             |> Map.merge(%{result: %{error: :jsonpath_error}})
         end
       else
-        if (is_map(value) && Helpers.Map.get(value, :expr) != nil) do
-          case RPN.convert(Helpers.Map.get(value, :expr), combined_parameters) do
+        if (is_map(value) && R2Map.get(value, :expr) != nil) do
+          case RPN.convert(R2Map.get(value, :expr), combined_parameters) do
             value2 ->
               accumulated_parameters
               |> interpret()
@@ -442,7 +446,7 @@ defmodule Reality2.Automation do
     Regex.replace(pattern, data, fn match ->
       variable_name = String.trim(match, "__")
       # If the variable exists, replace it with the value, otherwise, just leave it as it is.
-      to_string(Helpers.Map.get(variable_map, variable_name, "__" <> variable_name <> "__"))
+      to_string(R2Map.get(variable_map, variable_name, "__" <> variable_name <> "__"))
     end)
   end
 
