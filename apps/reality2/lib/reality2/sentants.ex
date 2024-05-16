@@ -20,6 +20,8 @@ defmodule Reality2.Sentants do
   @doc false
   use DynamicSupervisor
   alias Reality2.Types
+  alias Reality2.Helpers.R2Process, as: R2Process
+  alias Reality2.Helpers.R2Map, as: R2Map
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks
@@ -87,7 +89,6 @@ defmodule Reality2.Sentants do
           :ok ->
             create_from_map(add_defaults(sentant_map))
           {:error, error} ->
-            IO.puts("Error: #{inspect(error)}")
             {:error, error}
         end
       _ ->
@@ -119,7 +120,7 @@ defmodule Reality2.Sentants do
                 end
               existing_id ->
                 # Remove automations from Sentant
-                terminate_all_children(String.to_atom(existing_id <> "|automations"))
+                terminate_all_children(R2Process.pid(existing_id <> "|automations"))
                 # Remove plugins from Sentant
                 remove_plugins_from_sentant(existing_id)
 
@@ -137,7 +138,7 @@ defmodule Reality2.Sentants do
   end
 
   defp add_automations_to_sentant(id, sentant_map) do
-    case Helpers.Map.get(sentant_map, "automations") do
+    case R2Map.get(sentant_map, "automations") do
       nil ->
         :ok
       automations ->
@@ -155,7 +156,7 @@ defmodule Reality2.Sentants do
     Reality2.Plugins.create(id, %{"name" => "ai.reality2.vars", "type" => "internal"})
     Reality2.Plugins.create(id, %{"name" => "ai.reality2.geospatial", "type" => "internal"})
 
-    case Helpers.Map.get(sentant_map, "plugins") do
+    case R2Map.get(sentant_map, "plugins") do
       nil ->
         :ok
       plugins ->
@@ -224,13 +225,13 @@ defmodule Reality2.Sentants do
   end
 
   def read(%{:id => uuid}, command) do
-    case Process.whereis(String.to_atom(uuid <> "|comms")) do
-      nil ->
+    case wait_until_alive(uuid <> "|comms", 10) do
+      {:error} ->
         {:error, :id}
-      pid ->
+      {:ok, pid} ->
         result = GenServer.call(pid, command)
         {:ok, result}
-      end
+    end
   end
 
   def read(_, _), do: {:error, :existance}
@@ -303,13 +304,12 @@ defmodule Reality2.Sentants do
   end
 
   def delete(%{:id => id}) do
-    case Process.whereis(String.to_atom(id)) do
+    case R2Process.whereis(id) do
       nil ->
         {:error, :id}
       pid ->
         # Remove the Apps associated with plugins from the Sentant
         remove_plugins_from_sentant(id)
-
         # TODO: Close any websockets for this Sentant
 
         # Remove the Sentant processes.  Potentially, if this fails, the sentant could be left running, but with no plugin processes in the Apps.
@@ -334,7 +334,7 @@ defmodule Reality2.Sentants do
   defp remove_plugins_from_sentant(id) do
     # Get the children of the plugins supervisor
 
-    String.to_atom(id <> "|plugins")
+    R2Process.pid(id <> "|plugins")
     |> Supervisor.which_children()
     |> Enum.map( fn {_, pid_or_restarting, _, _} ->
       # Send the message to each child
@@ -343,7 +343,7 @@ defmodule Reality2.Sentants do
           # Ignore
           :ok
         pid ->
-          GenServer.cast(pid, :delete)
+          GenServer.call(pid, :delete)
       end
     end)
   end
@@ -387,13 +387,13 @@ defmodule Reality2.Sentants do
   end
 
   def sendto(%{:id => id}, message_map) do
-    case Process.whereis(String.to_atom(id <> "|comms")) do
-      nil ->
+    case wait_until_alive(id <> "|comms", 10) do
+      {:error} ->
         {:error, :id}
-      pid ->
+      {:ok, pid} ->
         GenServer.cast(pid, message_map)
         {:ok, pid}
-      end
+    end
   end
 
   def sendto(_, _), do: {:error, :existance}
@@ -481,7 +481,7 @@ defmodule Reality2.Sentants do
   # Returns a list of all the children of the PartitionSupervisor's children.
   defp get_all_sentant_comms do
     Reality2.Metadata.all(:SentantIDs)
-    |> Enum.map(fn {_, id} -> Process.whereis(String.to_atom(id <> "|comms")) end)
+    |> Enum.map(fn {_, id} -> R2Process.whereis(id <> "|comms") end)
     |> Enum.filter(&(&1 != nil))
   end
 
@@ -529,5 +529,25 @@ defmodule Reality2.Sentants do
     end
   end
   defp convert_input(_), do: {:error, :definition}
+
+  # Wait until the process is alive (and return the pid), or until the count is zero (in which case return an error)
+  # This is used to wait for the Sentant processes to be created before sending a message to it.
+  defp wait_until_alive(_, 0) do
+    {:error}
+  end
+  defp wait_until_alive(name, count) do
+    case R2Process.whereis(name) do
+      pid when is_pid(pid) ->
+        if Process.alive?(pid) do
+          {:ok, pid}
+        else
+          Process.sleep(100)
+          wait_until_alive(name, count - 1)
+        end
+      _ ->
+        Process.sleep(100)
+        wait_until_alive(name, count - 1)
+    end
+  end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 end

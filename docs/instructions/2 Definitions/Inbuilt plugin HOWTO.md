@@ -171,7 +171,7 @@ def create(sentant_id) do
     # Return {:ok} or {:error, :some_error}
     
     name = sentant_id <> "|" <> app_name()
-    case Process.whereis(String.to_atom(name)) do
+    case R2Process.whereis(name) do
       nil->
         case DynamicSupervisor.start_child(__MODULE__, AiReality2Vars.Data.child_spec(String.to_atom(name))) do
           {:ok, _pid} ->
@@ -198,7 +198,7 @@ def delete(sentant_id) do
     # Return {:ok} or {:error, :some_error}
     
     name = sentant_id <> "|" <> app_name()
-    case Process.whereis(String.to_atom(name)) do
+    case R2Process.whereis(name) do
       nil->
         # It is not an error if the child does not exist
         {:ok}
@@ -217,7 +217,7 @@ Returns a process ID that can be used for communication with the plugin for the 
 ```elixir
 def whereis(sendant_id) do
     # Get the Process ID or return nil if one doesn't exist.
-    sentant_id <> "|" <> app_name() |> String.to_atom() |> Process.whereis()
+    sentant_id <> "|" <> app_name() |> R2Process.whereis()
 end
 ```
 

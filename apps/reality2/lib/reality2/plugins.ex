@@ -11,12 +11,14 @@ defmodule Reality2.Plugins do
     @doc false
     use DynamicSupervisor
     alias Reality2.Types
+    alias Reality2.Helpers.R2Process, as: R2Process
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
     # Supervisor Callbacks
     # -----------------------------------------------------------------------------------------------------------------------------------------
     def start_link({_name, id, _plugin_map} = init_arg) do
-      DynamicSupervisor.start_link(__MODULE__, init_arg, name: String.to_atom(id <> "|plugins"))
+      DynamicSupervisor.start_link(__MODULE__, init_arg)
+      |> R2Process.register(id <> "|plugins")
     end
 
     @impl true
@@ -43,7 +45,7 @@ defmodule Reality2.Plugins do
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
     def create(id, plugin_map) do
-      case Process.whereis(String.to_atom(id <> "|plugins")) do
+      case R2Process.whereis(id <> "|plugins") do
         nil->
           {:error, :existence}
         pid ->

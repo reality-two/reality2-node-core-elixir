@@ -10,7 +10,9 @@ defmodule AiReality2Geospatial.Application do
     children = [
       # Starts a worker by calling: AiReality2Geospatial.Worker.start_link(arg)
       # {AiReality2Geospatial.Worker, arg}
-      %{id: AiReality2Geospatial.Main, start: {AiReality2Geospatial.Main, :start_link, [AiReality2Geospatial.Main]}}
+      %{id: AiReality2Geospatial.Processes, start: {Reality2.Helpers.R2Process, :start_link, [AiReality2Geospatial.Processes]}},
+      %{id: AiReality2Geospatial.Main, start: {AiReality2Geospatial.Main, :start_link, [AiReality2Geospatial.Main]}},
+      %{id: AiReality2Geospatial.GeohashSearch, start: {AiReality2Geospatial.GeohashSearch, :start_link, [AiReality2Geospatial.GeohashSearch]}}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
