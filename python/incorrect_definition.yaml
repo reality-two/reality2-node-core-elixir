@@ -1,0 +1,17 @@
+sentant:
+  name: Incorrect
+  description: Incorrect definition
+  automations:
+      name: Incorrect
+      description: Incorrect definition
+      transitions:
+        - event: "Incorrect"
+          parameters:
+            question: string
+          public: true
+          to: ready
+          actions:
+            - command: set
+              key: answer
+              value: "The answer is __question__."
+            - command: debug

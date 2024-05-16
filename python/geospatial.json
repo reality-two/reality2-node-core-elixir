@@ -1,0 +1,46 @@
+{
+    "sentant": {
+        "automations": [
+            {"name": "geospatial", "transitions": [
+                {
+                    "event": "get_position", 
+                    "public": true, 
+                    "actions":
+                    [
+                        {"command": "get", "plugin": "ai.reality2.geospatial"},
+                        {"command": "signal", "parameters": {"event": "get", "public": true}}
+                    ]
+                },
+                {
+                    "event": "set_position", 
+                    "public": true, 
+                    "parameters": {"latitude": "number", "longitude": "number", "altitude": "number", "radius": "number"}, 
+                    "actions": 
+                    [
+                        {"command": "set", "plugin": "ai.reality2.geospatial"}, 
+                        {"command": "signal", "parameters": {"event": "set", "public": true}}
+                    ]
+                },
+                {
+                    "event": "Broadcast to nearby", 
+                    "public": true, 
+                    "parameters": {"radius": "number", "message": "string"}, 
+                    "actions": 
+                    [
+                        {"command": "search",   "plugin": "ai.reality2.geospatial"},
+                        {"command": "set",      "parameters": {"key": "to", "value": {"jsonpath": "sentants.[].id"}}},
+                        {"command": "set",      "parameters": {"key": "sentants"}},
+                        {"command": "debug"},
+                        {"command": "send",     "parameters": {"event": "hello"}}
+                    ]
+                },
+                {
+                    "event": "hello",
+                    "actions": [
+                        {"command": "signal", "parameters": {"event": "hello", "public": true}}
+                    ]
+                }
+            ]}
+        ]
+    }
+}

@@ -1,0 +1,5 @@
+#!/bin/bash
+cd ..
+
+# Start the Elixir application
+MIX_ENV=dev iex -S mix phx.server

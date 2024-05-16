@@ -1,0 +1,93 @@
+# ******************************************************************************************************************************************************
+# * Reality2 Swarm Definition representing a light and switch
+# ******************************************************************************************************************************************************
+
+swarm:
+  # ----------------------------------------------------------------------------------------------------------------------------------------------------
+  # The Swarm details
+  # ----------------------------------------------------------------------------------------------------------------------------------------------------
+  name: A Light and Switch demo
+  class: ai.reality2.swarm.light_and_switch
+  version: 1.0.0
+  description: |
+    This swarm is an example of a light and a switch.
+    It is used in the Reality2 demo.
+  author: 
+    - name: Reality2 Developer
+      email: dev@reality2.ai
+
+  # ----------------------------------------------------------------------------------------------------------------------------------------------------
+  # The Sentants
+  # ----------------------------------------------------------------------------------------------------------------------------------------------------
+  sentants:
+    # --------------------------------------------------------------------------------------------------------------------------------------------------
+    # A Switch that can either be on or off, and responds to events switch_on and switch_off
+    # --------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Switch
+      description: This sentant represents a switch.
+      class: ai.reality2.default
+      version: 1.0.0
+      automations:
+        - name: Switch
+          transitions:
+            - from: start
+              to: "off"
+              event: init
+              actions: 
+                - command: set
+                  parameters: { description: "off" }
+
+            - from: "off"
+              to: "on"
+              event: switch_on
+              actions: 
+                - command: send
+                  parameters: { event: light_on, sentant: Light }
+                - command: set
+                  parameters: { description: "on" }
+
+            - from: "on"
+              to: "off"
+              event: switch_off
+              actions: 
+                - command: send
+                  parameters: { event: light_off, sentant: Light }
+                - command: set
+                  parameters: { description: "off" }
+    # --------------------------------------------------------------------------------------------------------------------------------------------------
+
+    # --------------------------------------------------------------------------------------------------------------------------------------------------
+    # A Light that can either be on or off, and responds to events light_on and light_off
+    # --------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Light
+      description: This sentant represents a light.
+      class: ai.reality2.default
+      version: 1.0.0
+      automations:
+        - name: Light
+          transitions:
+            - from: start
+              to: "off"
+              event: init
+              actions: 
+                - command: set
+                  parameters: { description: "off" }
+
+            - from: "off"
+              to: "on"
+              event: light_on
+              actions: 
+                - command: set
+                  parameters: { description: "on" }
+                - command: trigger
+                  parameters: { event: light_on }
+
+            - from: "on"
+              to: "off"
+              event: light_off
+              actions: 
+                - command: set
+                  parameters: { description: "off" }
+                - command: trigger
+                  parameters: { event: light_off }
+    # --------------------------------------------------------------------------------------------------------------------------------------------------

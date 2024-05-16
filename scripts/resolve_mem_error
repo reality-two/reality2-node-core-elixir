@@ -1,0 +1,6 @@
+# Resolve an issue with the latest Erlang build on some platforms when running mix deps.get
+# Workaround is to compile Hex from scratch
+
+# https://elixirforum.com/t/crash-dump-when-installing-phoenix-on-mac-m2-eheap-alloc-cannot-allocate-x-bytes-of-memory-of-type-heap-frag/62154/7
+
+mix archive.install github hexpm/hex branch latest

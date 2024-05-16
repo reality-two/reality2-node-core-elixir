@@ -1,0 +1,75 @@
+{
+    "sentant": {
+        "name": "Test Parameters",
+        "automations": [
+            {
+                "name": "Automation1",
+                "transitions": [
+                    {
+                        "event": "Event1",
+                        "parameters": {
+                            "param1": "string",
+                            "param2": "number"
+                        },
+                        "public": true,
+                        "actions": [
+                            {
+                                "command": "debug"
+                            },
+                            {
+                                "command": "signal",
+                                "parameters": {
+                                    "event": "Response",
+                                    "public": true
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "event": "Event2",
+                        "parameters": {
+                            "param1": "string",
+                            "param2": "number"
+                        },
+                        "public": true,
+                        "actions": [
+                            {
+                                "command": "set",
+                                "parameters": {
+                                    "key": "new_param",
+                                    "value": "A new order has arisen"
+                                }
+                            },
+                            {
+                                "command": "set",
+                                "parameters": {
+                                    "key": "param1",
+                                    "value": "overwritten value"
+                                }
+                            },
+                            {
+                                "command": "set",
+                                "parameters": {
+                                    "key": "param2",
+                                    "value": {
+                                        "jsonpath": "param6.key1.[].a"
+                                    }
+                                }
+                            },
+                            {
+                                "command": "debug"
+                            },
+                            {
+                                "command": "signal",
+                                "parameters": {
+                                    "event": "Response",
+                                    "public": true
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

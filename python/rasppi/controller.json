@@ -1,0 +1,20 @@
+{
+    "sentant": {
+        "name": ".raspberry_pi",
+        "description": "A Raspberry PI controlling Sentant, to be used by the Raspberry PI Control Script.",
+        "automations": [
+            {
+                "name": "Raspberry PI Controller",
+                "transitions": [
+                    { "from": "start", "to": "ready", "event": "init" },
+                    { "event": "setup", "public": true, "parameters": {"pin": "number", "type": "string"}, "actions": [
+                        { "command": "signal", "parameters": {"public": true, "event": "setup"}}
+                    ]},
+                    { "event" : "set_pin", "public": true, "parameters": {"pin": "number", "state": "string"}, "actions": [
+                        { "command": "signal", "parameters": {"public": true, "event": "set_pin"}}
+                    ]}
+                ]
+            }
+        ]
+    }
+}

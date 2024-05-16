@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cd /root/Reality2/Reality2/
+
+# Start your Elixir application
+MIX_ENV=dev iex -S mix phx.server

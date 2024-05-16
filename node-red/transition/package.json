@@ -1,0 +1,17 @@
+{
+  "name": "reality2-Sentant-Definition",
+  "version": "0.1.0",
+  "description": "Reality2 Sentant Definition Nodes",
+  "main": "sentant.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Roy Davies",
+  "license": "ISC",
+  "node-red" : {
+    "nodes": {
+        "transition": "transition.js",
+        "action": "action.js"
+    }
+}
+}

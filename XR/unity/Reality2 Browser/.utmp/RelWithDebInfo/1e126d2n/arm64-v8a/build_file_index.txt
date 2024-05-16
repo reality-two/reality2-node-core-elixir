@@ -1,0 +1,3 @@
+/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/CMakeLists.txt
+/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/FramePacing/CMakeLists.txt
+/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/CMakeLists.txt

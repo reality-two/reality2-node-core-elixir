@@ -1,0 +1,41 @@
+<script type="text/javascript">
+    RED.nodes.registerType('transition',{
+        category: 'reality2',
+        color: '#a6bbcf',
+        defaults: {
+            name: {value:"transition"},
+            from: {value:""},
+            event: {value:""},
+            to: {value:""}
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "file.svg",
+        label: function() {
+            return this.name||"transition";
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="transition">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-from"><i class="fa fa-tag"></i> From</label>
+        <input type="text" id="node-input-from" placeholder="from">
+    </div>
+    <div class="form-row">
+        <label for="node-input-event"><i class="fa fa-tag"></i> Event</label>
+        <input type="text" id="node-input-event" placeholder="event">
+    </div>
+    <div class="form-row">
+        <label for="node-input-to"><i class="fa fa-tag"></i> To</label>
+        <input type="text" id="node-input-to" placeholder="to">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="transition">
+    <p>A Reality2 transition</p>
+</script>
