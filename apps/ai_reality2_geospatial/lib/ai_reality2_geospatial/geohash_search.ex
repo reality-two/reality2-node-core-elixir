@@ -56,6 +56,9 @@ defmodule AiReality2Geospatial.GeohashSearch do
     # Store a Sentant in the quadtree using the Geohash, with the data stored at the leaves at the depth given
     # -----------------------------------------------------------------------------------------------------------------------------------------
     defp store(quadtree, %{:geohash => geohash}, sentantid, depth \\ 6) do
+      # Remove the item from the quadtree if it exists.
+      quadtree = remove(quadtree,  sentantid)
+
       # Convert the geohash to a list of characters of the desired length
       geohash_list = geohash
         |> String.slice(0..depth - 1)
