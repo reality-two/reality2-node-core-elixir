@@ -42,6 +42,9 @@ cp "scripts/runtime_run" "_build/prod/rel/reality2/run"
 cp -r demos/python "_build/prod/rel/reality2"
 cp -r demos/SBC "_build/prod/rel/reality2"
 
+echo "***** Adding some useful extras..."
+cp -r extras "_build/prod/rel/reality2"
+
 echo "***** Creating the Reality2 Node tarball..."
 tar -zcf "_build/prod/rel/reality2_${RELEASE}.tar.gz" --directory=_build/prod/rel reality2
 
