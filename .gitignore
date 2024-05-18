@@ -30,3 +30,5 @@ erl_crash.dump
 .elixir_ls
 
 **/__pycache__
+
+/mix.lock
