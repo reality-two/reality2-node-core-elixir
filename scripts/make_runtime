@@ -51,6 +51,10 @@ tar -zcf "_build/prod/rel/reality2_${RELEASE}.tar.gz" --directory=_build/prod/re
 echo "***** Moving the Reality2 Node tarball to the builds directory..."
 mv "_build/prod/rel/reality2_${RELEASE}.tar.gz" "builds/${BUILD_FOLDER}"
 
+echo "***** Making a zip file for loading to GitHub..."
+cd "builds"
+zip -r "${BUILD_FOLDER}.zip" "${BUILD_FOLDER}"
+
 echo "********************************************************************"
 echo "Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} has been built."
 echo "********************************************************************"
