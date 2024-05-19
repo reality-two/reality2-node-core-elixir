@@ -4,4 +4,4 @@ if ! [ -d "scripts" ]; then
 fi
 
 # Start the Elixir application
-MIX_ENV=dev iex -S mix phx.server
+MIX_ENV=dev iex --name localhost@reality2.ai -S mix phx.server
