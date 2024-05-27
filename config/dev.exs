@@ -41,8 +41,8 @@ config :reality2_web, Reality2Web.Endpoint,
     ip: {0, 0, 0, 0},
     port: 4001,
     cipher_suite: :strong,
-    keyfile: "priv/cert/server.key",
-    certfile: "priv/cert/server.crt"
+    certfile: "priv/cert/selfsigned.pem",
+    keyfile: "priv/cert/selfsigned_key.pem"
   ],
   check_origin: false,
   code_reloader: true,

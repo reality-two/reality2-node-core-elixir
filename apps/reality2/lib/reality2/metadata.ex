@@ -19,11 +19,11 @@ defmodule Reality2.Metadata do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc false
   def start_link(name)                                 do
-    result = GenServer.start_link(__MODULE__, %{}, name: name)
-    IO.puts("Metadata: Starting Metadata GenServer: " <> inspect(result) <> " : " <> inspect(name))
-    result2 = R2Process.register(result, name)
-    IO.puts("Metadata: Registering Metadata GenServer: " <> inspect(result2))
-    result |> R2Process.register(name)
+    GenServer.start_link(__MODULE__, %{}, name: name) |> R2Process.register(name)
+    # IO.puts("Metadata: Starting Metadata GenServer: " <> inspect(result) <> " : " <> inspect(name))
+    # result2 = R2Process.register(result, name)
+    # IO.puts("Metadata: Registering Metadata GenServer: " <> inspect(result2))
+    # result |> R2Process.register(name)
   end
 
   @doc false

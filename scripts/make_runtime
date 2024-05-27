@@ -19,15 +19,19 @@ echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
 echo "********************************************************************"
 
 echo "***** Generating new Certificates..."
-cd apps/reality2_web/priv/cert
-./generate_certificates
-cd ../../../..
+# cd apps/reality2_web/priv/cert
+# ./generate_certificates
+# cd ../../../..
+
+cd apps/reality2_web
+mix phx.gen.cert
+cd ../..
 
 echo "***** Cleaning up the previous build..."
 rm -rf "_build/prod"
 
 # Set the environment variables
-export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
+# export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
 export SECRET_KEY_BASE=$(openssl rand -hex 32)
 export PORT=4001
 export POOLSIZE=10
