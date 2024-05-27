@@ -49,6 +49,20 @@ orbitControls = NodePath("User Experience/OrbitControls")
 UX = NodePath("User Experience/Interface")
 reality2_object = NodePath("Center/R2Center")
 
+[node name="XROrigin3D" type="XROrigin3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2.08165e-12)
+
+[node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 20)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="XROrigin3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 2.08165e-12, 20)
+light_temperature = 7500.0
+light_energy = 2.0
+light_indirect_energy = 2.0
+light_volumetric_fog_energy = 0.0
+light_angular_distance = 90.0
+
 [node name="Center" type="Node3D" parent="."]
 
 [node name="OuterShell" type="MeshInstance3D" parent="Center"]
@@ -65,6 +79,7 @@ startingNode = "localhost"
 [node name="Interface" parent="User Experience" instance=ExtResource("9_84jqk")]
 
 [node name="OrbitControls" type="Control" parent="User Experience"]
+visible = false
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
@@ -78,10 +93,12 @@ max_zoom = 75.0
 
 [node name="Camera3D" type="Camera3D" parent="User Experience"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 2.08165e-12, 20)
+visible = false
 doppler_tracking = 2
 current = true
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="User Experience/Camera3D"]
+visible = false
 light_temperature = 7500.0
 light_energy = 2.0
 light_indirect_energy = 2.0
