@@ -33,3 +33,5 @@ erl_crash.dump
 **/__pycache__
 
 mix.lock
+
+/.mnesia/
