@@ -1,7 +1,25 @@
 #!/bin/bash
+export NODENAME="reality2@server"
+export MIX_ENV=dev
+
+# If in the Scripts directory, move up one level
 if ! [ -d "scripts" ]; then
   cd ..
 fi
 
+# Create the mnesia directory structure if it doesn't exist
+if ! [ -d ".mnesia" ]; then
+  mkdir .mnesia
+fi
+cd .mnesia
+if ! [ -d $MIX_ENV ]; then
+  mkdir $MIX_ENV
+fi
+cd $MIX_ENV
+if ! [ -d $NODENAME ]; then
+  mkdir $NODENAME
+fi
+cd ../..
+
 # Start the Elixir application
-MIX_ENV=dev iex --name localhost@reality2.ai -S mix phx.server
+iex --name $NODENAME -S mix phx.server
