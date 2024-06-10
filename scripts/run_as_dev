@@ -21,5 +21,7 @@ if ! [ -d $NODENAME ]; then
 fi
 cd ../..
 
+# export MNESIA="$PWD/.mnesia/$MIX_ENV/$NODENAME"
+
 # Start the Elixir application
 iex --name $NODENAME -S mix phx.server
