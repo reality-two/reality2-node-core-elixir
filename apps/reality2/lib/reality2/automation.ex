@@ -205,9 +205,11 @@ defmodule Reality2.Automation do
     # When the sentant begins, there is a small possibiity that the plugin has not yet started.
     case test_and_wait(id <> "|plugin|" <> plugin, 5) do
       nil ->
+        IO.puts("Plugin not yet started: #{plugin}")
         accumulated_parameters
         |> Map.merge(%{result: %{error: :plugin_error}})
       pid ->
+        IO.puts("Calling Plugin: #{plugin}")
         # Call the plugin on the Sentant, which in turn will call the appropriate internal App or external plugin
         case GenServer.call(pid, %{command: action, parameters: combined_parameters, passthrough: passthrough}) do
           {:ok, result} ->

@@ -155,6 +155,7 @@ defmodule Reality2.Sentants do
     # Add the default plugins
     Reality2.Plugins.create(id, %{"name" => "ai.reality2.vars", "type" => "internal"})
     Reality2.Plugins.create(id, %{"name" => "ai.reality2.geospatial", "type" => "internal"})
+    Reality2.Plugins.create(id, %{"name" => "ai.reality2.backup", "type" => "internal"})
 
     case R2Map.get(sentant_map, "plugins") do
       nil ->

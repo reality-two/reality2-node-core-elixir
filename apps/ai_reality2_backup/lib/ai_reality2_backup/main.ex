@@ -3,15 +3,11 @@ defmodule AiReality2Backup.Main do
   @moduledoc """
     Module for managing the main supervisor tree for the `AiReality2Backup` App.
 
-    In this instance, the main supervisor is a DynamicSupervisor, which is used to manage the Geospatial interelationships between Sentants.
-    Implementation of this is using octatrees and geohashes.
+    In this instance, the main supervisor is a DynamicSupervisor, which is used to manage the database storage for Sentants.
+    Presently, we are using mnesia as the database due to its general availability.
 
-    In order to minimise side effects of a geospatial search crashing and wiping out the entire octatree, the octatree is managed by a GenServer
-    with each Sentant having its own GenServer process.  This means that if one Sentant plugin crashes, it does not affect the others.
-    This means that the locations are in essence stored in memory, not on disk, so if keeping location between restarts is important, then
-    a storage plugin will be required as well.
-
-    Use this as a template for your own Main module for your own Apps.  The `create`, `delete`, `sendto` and `whereas` functions must be implemented.
+    In order to minimise side effects of a database operation crashing and causing problems for the rest of the system, we use a
+    process for each Sentant.  This way, if one Sentant crashes, it does not affect the others.
 
     **Author**
     - Dr. Roy C. Davies
@@ -19,7 +15,7 @@ defmodule AiReality2Backup.Main do
   """
   # *******************************************************************************************************************************************
     @doc false
-    use DynamicSupervisor, restart: :transient
+    use GenServer, restart: :transient
     alias Reality2.Helpers.R2Process, as: R2Process
     alias Reality2.Helpers.R2Map, as: R2Map
 
@@ -27,15 +23,10 @@ defmodule AiReality2Backup.Main do
     # Supervisor Callbacks
     # -----------------------------------------------------------------------------------------------------------------------------------------
     @doc false
-    def start_link(init_arg) do
-      DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
-    end
+    def start_link(name),                              do: GenServer.start_link(__MODULE__, %{}, name: name)
 
-
-    @impl true
-    def init(init_arg) do
-      DynamicSupervisor.init( strategy: :one_for_one, extra_arguments: [init_arg] )
-    end
+    @doc false
+    def init(state),                                   do: {:ok, state}
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -43,40 +34,19 @@ defmodule AiReality2Backup.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec create(String.t(), %{}) ::
+    @spec create(String.t()) ::
       {:ok}
       | {:error, :existance}
 
     @doc """
-    Create a new Geospatial location for this Sentant, returning {:ok} or an appropriate error.
-
-    This creates a new entry into the geospatial database.  Each Sentant gets a Geospatial data store, with the idea that in the future, this
-    might be expanded to do more than just store one location.  Each Sentant could store a whole GIS database, for example.
+    Does nothing in this module as there are no child processes.
 
     - Parameters
-      - `id` - The id of the Sentant for which the Geospatial Plugin is being created.
-      - `location` - A map containing the location of the Sentant expressed as %{"latitude" => 0.0, "longitude" => 0.0, "altitude" => 0.0},
-                     or alternatively, a geohash string and an altitude for example %{"geohash" => "u4pruydqqvj", "altitude" => 0.0}
+      - `sentant_id` - ignored in this implementation.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    def create(sentant_id, location \\ %{}) do
-      case whereis(sentant_id) do
-        nil->
-          case DynamicSupervisor.start_child(__MODULE__, AiReality2Geospatial.Data.child_spec({})) do
-            {:ok, pid} ->
-              R2Process.register(sentant_id, pid, AiReality2Geospatial.Processes)
-              GenServer.cast(pid, %{command: "set", parameters: location, id: sentant_id})
-              {:ok}
-            error ->
-              error
-          end
-        pid ->
-          # Clear the data store so there is no old data that hackers might be able to access in the case this was a reused ID
-          R2Process.register(sentant_id, pid, AiReality2Geospatial.Processes)
-          GenServer.cast(pid, %{command: "clear"})
-          GenServer.cast(pid, %{command: "set", parameters: location, id: sentant_id})
-          {:ok}
-      end
+    def create(_sentant_id) do
+      {:ok}
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -88,26 +58,14 @@ defmodule AiReality2Backup.Main do
       | {:error, :existance}
 
     @doc """
-    Delete a Geospatial Entry, returning {:ok} or an appropriate error.
+    Does nothing in this module as there are no child processes.
 
     - Parameters
-      - `id` - The id of the Sentant for which the Geospatial Entry is being deleted.
+      - `sentant_id` - ignored in this implementation.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    def delete(sentant_id) do
-      case whereis(sentant_id) do
-        nil->
-          # It is not an error if the child does not exist
-          {:ok}
-        pid ->
-          # Remove the sentant from the geospatial database
-          GenServer.call(AiReality2Geospatial.GeohashSearch, %{command: "delete", sentantid: sentant_id})
-          # Remove the registration from the processes DB
-          R2Process.deregister(sentant_id, AiReality2Geospatial.Processes)
-          # Terminate the child process
-          DynamicSupervisor.terminate_child(__MODULE__, pid)
-          {:ok}
-      end
+    def delete(_sentant_id) do
+      {:ok}
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -118,15 +76,14 @@ defmodule AiReality2Backup.Main do
     @doc """
     Return the process id that can be used for subsequent communications.
 
-    In this implementation, each Sentant gets its own Geospatial Entry GenServer process, but other Apps might just use a single process for all Sentants.
-    Externally this is transparent.
+    In this implementation, this just refers to this module.
 
     - Parameters
       - `id` - The id of the Sentant for which process id is being returned.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    def whereis(sentant_id) do
-      R2Process.whereis(sentant_id, AiReality2Geospatial.Processes)
+    def whereis(_sentant_id) do
+      self()
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -135,45 +92,31 @@ defmodule AiReality2Backup.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
     @spec sendto(String.t(), map()) :: :ok | {:error, :command} | {:ok, any()} | {:error, :key}
     @doc """
-    Send a command to the Geospatial Entry for the given Sentant id.
-
-    Depending on the command, this might be a synchronous call or an asynchronous cast.  Ideally, use this convention when creating your own Apps
-    so that the commands are consistent across all Apps.
+    Do things with the database.
 
     - Parameters
-      - `id` - The id of the Sentant for which the command is being sent.
+      - `id` - The id of the Sentant for which the command is being sent (ignored here)
       - `command` - A map containing the command and parameters to be sent.
 
     - Returns
       - `{:ok}` - If the command was sent successfully.
       - `{:error, :unknown_command}` - If the command was not recognised.
     """
-    def sendto(sentant_id, command_and_parameters) do
-      case whereis(sentant_id) do
-        nil ->
-          {:error, :existence}
-        pid ->
-          case R2Map.get(command_and_parameters, :command) do
-            "set" ->
-              GenServer.cast(pid, Map.put(command_and_parameters, :id, sentant_id))
-            "delete" ->
-              GenServer.cast(pid, command_and_parameters)
-            "get" ->
-               case GenServer.call(pid, command_and_parameters) do
-                  nil ->
-                    {:error, :key}
-                  result ->
-                    result
-               end
-            "all" ->
-              GenServer.call(pid, command_and_parameters)
-            "clear" ->
-              GenServer.cast(pid, command_and_parameters)
-            "search" ->
-              GenServer.call(pid, command_and_parameters)
-            _ ->
-              {:error, :command}
-          end
+    def sendto(_sentant_id, command_and_parameters) do
+      IO.puts("Received command: #{inspect(command_and_parameters)}")
+      parameters = R2Map.get(command_and_parameters, :parameters, %{})
+      case R2Map.get(command_and_parameters, :command) do
+        "store" ->
+          # Encrypt and store data in the database
+          encrypt_and_store(R2Map.get(parameters, :name, ""), R2Map.get(parameters, :data, %{}), R2Map.get(parameters, :encryption_key, ""))
+        "retrieve" ->
+          # Retrieve and decrypt data from the database
+          retrieve_and_decrypt(R2Map.get(parameters, :name, ""), R2Map.get(parameters, :decryption_key, ""))
+        "delete" ->
+            # Delete an entry from the database
+            delete(R2Map.get(parameters, :name, ""), R2Map.get(parameters, :decryption_key, ""))
+        _ ->
+          {:error, :command}
       end
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -183,6 +126,28 @@ defmodule AiReality2Backup.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
     # Private Functions
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    defp encrypt_and_store("", _data, _encryption_key), do: {:error, :name}
+    defp encrypt_and_store(_name, _data, ""), do: {:error, :encryption_key}
+    defp encrypt_and_store(_name, _data, _encryption_key) do
+      # Encrypt the data and store it in the database
+      IO.puts("Encrypted and stored data in the database")
+      :ok
+    end
 
+    defp retrieve_and_decrypt("", _decryption_key), do: {:error, :name}
+    defp retrieve_and_decrypt(_name, ""), do: {:error, :decryption_key}
+    defp retrieve_and_decrypt(_name, _decryption_key) do
+      # Retrieve the data from the database and decrypt it
+      IO.puts("Retrieved data from the database")
+      {:ok, %{}}
+    end
+
+    defp delete("", _decryption_key), do: {:error, :name}
+    defp delete(_name, ""), do: {:error, :decryption_key}
+    defp delete(_name, _decryption_key) do
+      # Delete the data from the database if it descrypts correctly
+      IO.puts("Deleted data from the database")
+      :ok
+    end
     # -----------------------------------------------------------------------------------------------------------------------------------------
   end

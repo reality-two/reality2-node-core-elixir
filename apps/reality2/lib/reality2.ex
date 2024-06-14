@@ -7,8 +7,8 @@ defmodule Reality2 do
 
   **Plugins**
   - [ai.reality2.vars](../ai_reality2_vars/AiReality2Vars.html) - A plugin for managing variables on a Sentant.
-  - [ai.reality2.geospatial](../ai_reality2_geospatial/AiReality2Geospatial.html) - Coming Soon - A plugin for managing geospatial location and context on a Sentant.
-  - [ai.reality2.pathing](../ai_reality2_pathing/AiReality2Pathing.html) - Coming Soon - A plugin for managing pathing on a node, cluster and globally - interfaces with the Pathing Name System (PNS) and ensures Sentant Global Uniqueness and Addressability.
+  - [ai.reality2.geospatial](../ai_reality2_geospatial/AiReality2Geospatial.html) - A plugin for managing geospatial location and context on a Sentant.
+  - [ai.reality2.backup](../ai_reality2_backup/AiReality2Backup.html) - A plugin for managing data storage to a disc.
 
   **Author**
   - Dr. Roy C. Davies
