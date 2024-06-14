@@ -66,7 +66,8 @@ defmodule Reality2.Umbrella.MixProject do
           ai_reality2_geospatial: :permanent,
           ai_reality2_vars: :permanent,
           ai_reality2_pns: :permanent,
-          ai_reality2_auth: :permanent
+          ai_reality2_auth: :permanent,
+          ai_reality2_backup: :permanent
         ]
       ]
     ]
