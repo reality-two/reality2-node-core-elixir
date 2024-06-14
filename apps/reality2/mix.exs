@@ -32,7 +32,7 @@ defmodule Reality2.MixProject do
   def application do
     [
       mod: {Reality2.Application, []},
-      extra_applications: [:logger, :runtime_tools, :os_mon, :geohash, :mnesia] #, :gun]
+      extra_applications: [:logger, :runtime_tools, :os_mon, :geohash] #, :gun]
     ]
   end
 

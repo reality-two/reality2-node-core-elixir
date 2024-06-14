@@ -1,0 +1,21 @@
+sentant:
+  name: Test Backup
+  description: Test data storage and retrieval from the database
+
+  automations:
+    - name: Database Storage
+      description: Store to Database
+      transitions:
+        - public: true
+          event: "Store to Database"
+          actions:
+            - command: set
+              parameters:
+                key: "test"
+                value: 42
+            - plugin: ai.reality2.backup
+              command: store
+              parameters:
+                name: "Test Backup"
+                encryption_key: "test"
+ 
