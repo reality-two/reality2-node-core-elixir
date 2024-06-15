@@ -51,15 +51,22 @@ def main(host):
 
         print("+---- Test Backup ----------------------------------------+")
         print("| Press the enter key to backup the current data.         |")
+        print("| Press s, followed by the enter key to store the data.   |")
+        print("| Press r, followed by the enter key to retrieve the data.|")
         print("| Press q, followed by the enter key to quit.             |")
         print("+---------------------------------------------------------+")
         while (True):
             input_str = input()
             if (input_str == "q"):
                 break
-            else:
+            elif (input_str == "s"):
                 # Send the event to the Sentant
+                print("Sending store to database event.")
                 r2_node.sentantSend(id, "Store to Database")
+            elif (input_str == "r"):
+                # Send the event to the Sentant
+                print("Sending retreive from database event.")
+                r2_node.sentantSend(id, "Retrieve from Database")
     else:
         print("Failed to load the Sentant.")
 

@@ -16,8 +16,9 @@ defmodule AiReality2Backup.Main do
   # *******************************************************************************************************************************************
     @doc false
     use GenServer, restart: :transient
-    alias Reality2.Helpers.R2Process, as: R2Process
     alias Reality2.Helpers.R2Map, as: R2Map
+    alias :mnesia, as: Mnesia
+    alias :crypto, as: Crypto
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
     # Supervisor Callbacks
@@ -26,7 +27,17 @@ defmodule AiReality2Backup.Main do
     def start_link(name),                              do: GenServer.start_link(__MODULE__, %{}, name: name)
 
     @doc false
-    def init(state),                                   do: {:ok, state}
+    def init(state) do
+      IO.puts("Creating the database")
+      Mnesia.stop()
+      IO.puts("Creating the schema")
+      Mnesia.create_schema([node()])
+      IO.puts("Starting the database")
+      Mnesia.start()
+      Mnesia.create_table(:backup, [attributes: [:name, :data], disc_only_copies: [node()]])
+      Mnesia.add_table_index(:backup, :name)
+      {:ok, state}
+    end
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -105,10 +116,12 @@ defmodule AiReality2Backup.Main do
     def sendto(_sentant_id, command_and_parameters) do
       IO.puts("Received command: #{inspect(command_and_parameters)}")
       parameters = R2Map.get(command_and_parameters, :parameters, %{})
+      data = parameters |> R2Map.delete(:name) |> R2Map.delete(:encryption_key) |> R2Map.delete(:decryption_key)
+      IO.puts("Data: #{inspect(data)}")
       case R2Map.get(command_and_parameters, :command) do
         "store" ->
           # Encrypt and store data in the database
-          encrypt_and_store(R2Map.get(parameters, :name, ""), R2Map.get(parameters, :data, %{}), R2Map.get(parameters, :encryption_key, ""))
+          encrypt_and_store(R2Map.get(parameters, :name, ""), data, R2Map.get(parameters, :encryption_key, ""))
         "retrieve" ->
           # Retrieve and decrypt data from the database
           retrieve_and_decrypt(R2Map.get(parameters, :name, ""), R2Map.get(parameters, :decryption_key, ""))
@@ -128,25 +141,40 @@ defmodule AiReality2Backup.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
     defp encrypt_and_store("", _data, _encryption_key), do: {:error, :name}
     defp encrypt_and_store(_name, _data, ""), do: {:error, :encryption_key}
-    defp encrypt_and_store(_name, _data, _encryption_key) do
+    defp encrypt_and_store(name, data, _encryption_key) do
       # Encrypt the data and store it in the database
-      IO.puts("Encrypted and stored data in the database")
+      do_write = fn name, data ->
+        Mnesia.write({:backup, name, data})
+      end
+      result = Mnesia.transaction(do_write, [name, data])
+      IO.puts("Encrypted and stored data in the database: #{name} - #{inspect(data)}")
+      IO.puts(inspect(result))
       :ok
     end
 
     defp retrieve_and_decrypt("", _decryption_key), do: {:error, :name}
     defp retrieve_and_decrypt(_name, ""), do: {:error, :decryption_key}
-    defp retrieve_and_decrypt(_name, _decryption_key) do
+    defp retrieve_and_decrypt(name, _decryption_key) do
       # Retrieve the data from the database and decrypt it
-      IO.puts("Retrieved data from the database")
+      do_read = fn name ->
+        Mnesia.read({:backup, name})
+      end
+      result = Mnesia.transaction(do_read, [name])
+      IO.puts("Retrieved data from the database: #{name}")
+      IO.puts(inspect(result))
       {:ok, %{}}
     end
 
     defp delete("", _decryption_key), do: {:error, :name}
     defp delete(_name, ""), do: {:error, :decryption_key}
-    defp delete(_name, _decryption_key) do
+    defp delete(name, _decryption_key) do
       # Delete the data from the database if it descrypts correctly
+      do_delete = fn name ->
+        Mnesia.delete({:backup, name})
+      end
+      result = Mnesia.transaction(do_delete, [name])
       IO.puts("Deleted data from the database")
+      IO.puts(inspect(result))
       :ok
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------

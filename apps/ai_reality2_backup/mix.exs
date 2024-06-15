@@ -28,8 +28,8 @@ defmodule AiReality2Backup.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
-      mod: {AiReality2Backup.Application, [:mnesia]}
+      extra_applications: [:logger, :mnesia, :crypto],
+      mod: {AiReality2Backup.Application, []}
     ]
   end
 
