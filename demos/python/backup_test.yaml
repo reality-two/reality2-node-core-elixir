@@ -4,7 +4,7 @@ sentant:
 
   automations:
     - name: Database Storage
-      description: Store to Database
+      description: Database Operations
       transitions:
         - public: true
           event: "Store to Database"
@@ -18,4 +18,21 @@ sentant:
               parameters:
                 name: "Test Backup"
                 encryption_key: "test"
+        - public: true
+          event: "Retrieve from Database"
+          actions:
+            - plugin: ai.reality2.backup
+              command: retrieve
+              parameters:
+                name: "Test Backup"
+                decryption_key: "test"
+            - command: print
+        - public: true
+          event: "Delete from Database"
+          actions:
+            - plugin: ai.reality2.backup
+              command: delete
+              parameters:
+                name: "Test Backup"
+                decryption_key: "test"
  
