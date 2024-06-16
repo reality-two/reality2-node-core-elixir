@@ -116,7 +116,7 @@ defmodule AiReality2Backup.Main do
     def sendto(_sentant_id, command_and_parameters) do
       IO.puts("Received command: #{inspect(command_and_parameters)}")
       parameters = R2Map.get(command_and_parameters, :parameters, %{})
-      data = parameters |> R2Map.delete(:name) |> R2Map.delete(:encryption_key) |> R2Map.delete(:decryption_key)
+      data = parameters |> R2Map.delete(:name) |> R2Map.delete(:encryption_key) |> R2Map.delete(:result) |> R2Map.delete(:decryption_key)
       IO.puts("Data: #{inspect(data)}")
       case R2Map.get(command_and_parameters, :command) do
         "store" ->
@@ -141,41 +141,72 @@ defmodule AiReality2Backup.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
     defp encrypt_and_store("", _data, _encryption_key), do: {:error, :name}
     defp encrypt_and_store(_name, _data, ""), do: {:error, :encryption_key}
-    defp encrypt_and_store(name, data, _encryption_key) do
+    defp encrypt_and_store(name, data, encryption_key) do
       # Encrypt the data and store it in the database
       do_write = fn name, data ->
         Mnesia.write({:backup, name, data})
       end
-      result = Mnesia.transaction(do_write, [name, data])
-      IO.puts("Encrypted and stored data in the database: #{name} - #{inspect(data)}")
-      IO.puts(inspect(result))
-      :ok
+      case Jason.encode(data) do
+        {:ok, data_string} ->
+          encrypted_data = encrypt(data_string, encryption_key)
+          result = Mnesia.transaction(do_write, [name, encrypted_data])
+          IO.puts("Encrypted and stored data in the database: #{name} - #{inspect(encrypted_data)}")
+          IO.puts(inspect(result))
+          :ok
+        _ -> {:error, :data}
+      end
     end
 
     defp retrieve_and_decrypt("", _decryption_key), do: {:error, :name}
     defp retrieve_and_decrypt(_name, ""), do: {:error, :decryption_key}
-    defp retrieve_and_decrypt(name, _decryption_key) do
+    defp retrieve_and_decrypt(name, decryption_key) do
       # Retrieve the data from the database and decrypt it
       do_read = fn name ->
         Mnesia.read({:backup, name})
       end
       result = Mnesia.transaction(do_read, [name])
-      IO.puts("Retrieved data from the database: #{name}")
-      IO.puts(inspect(result))
-      {:ok, %{}}
+      IO.puts("Retrieved data from the database for decryption: #{name} - #{inspect(result)}")
+      case result do
+        {:atomic, [{:backup, name, encrypted_data}]} ->
+          try do
+            data_string = decrypt(encrypted_data, decryption_key)
+            case Jason.decode(data_string) do
+              {:ok, decrypted_data} ->
+                IO.puts("Decrypted data from the database: #{name} - #{inspect(decrypted_data)}")
+                {:ok, decrypted_data}
+              _ -> {:error, :decryption}
+            end
+          rescue
+            _ -> {:error, :decryption}
+          end
+        _ ->
+          {:error, :name}
+      end
     end
 
     defp delete("", _decryption_key), do: {:error, :name}
     defp delete(_name, ""), do: {:error, :decryption_key}
-    defp delete(name, _decryption_key) do
+    defp delete(name, decryption_key) do
       # Delete the data from the database if it descrypts correctly
       do_delete = fn name ->
         Mnesia.delete({:backup, name})
       end
-      result = Mnesia.transaction(do_delete, [name])
-      IO.puts("Deleted data from the database")
-      IO.puts(inspect(result))
-      :ok
+      case retrieve_and_decrypt(name, decryption_key) do
+        {:ok, _} ->
+          result = Mnesia.transaction(do_delete, [name])
+          IO.puts("Deleted data from the database")
+          IO.puts(inspect(result))
+          :ok
+        _ -> {:error, :decryption}
+      end
+    end
+
+    defp encrypt(data, _key) do
+      data
+    end
+
+    defp decrypt(data, _key) do
+      data
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
   end

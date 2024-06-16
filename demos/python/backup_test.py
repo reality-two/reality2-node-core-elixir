@@ -15,13 +15,12 @@ import sys
 # Print out the result from an awaitSignal
 # ----------------------------------------------------------------------------------------------------
 def printout(data):
-    quote = R2.JSONPath(data, "awaitSignal.parameters.quote")
-    author = R2.JSONPath(data, "awaitSignal.parameters.author")
-    if (quote == None):
-        print(data)
-    else:
-        print("QUOTE:  ", quote)
-        print("AUTHOR: ", author)
+    event = R2.JSONPath(data, "awaitSignal.event")
+    
+    if (event == "debug"):
+        print("DEBUG\n", R2.JSONPath(data, "awaitSignal.parameters")) 
+    else: 
+        print(R2.JSONPath(data, "awaitSignal.event"), " : ", R2.JSONPath(data, "awaitSignal.parameters"), " :: ", R2.JSONPath(data, "awaitSignal.passthrough"))
 # ----------------------------------------------------------------------------------------------------
     
 
@@ -48,11 +47,13 @@ def main(host):
     if (id != None):
         # Start the subscription to the Sentant
         # r2_node.awaitSignal(id, "Zenquote Response", printout)
+        r2_node.awaitSignal(id, "debug", printout)
 
         print("+---- Test Backup ----------------------------------------+")
         print("| Press the enter key to backup the current data.         |")
         print("| Press s, followed by the enter key to store the data.   |")
         print("| Press r, followed by the enter key to retrieve the data.|")
+        print("| Press d, followed by the enter key to delete the data.  |")
         print("| Press q, followed by the enter key to quit.             |")
         print("+---------------------------------------------------------+")
         while (True):
@@ -67,6 +68,10 @@ def main(host):
                 # Send the event to the Sentant
                 print("Sending retreive from database event.")
                 r2_node.sentantSend(id, "Retrieve from Database")
+            elif (input_str == "d"):
+                # Send the event to the Sentant
+                print("Sending delete from database event.")
+                r2_node.sentantSend(id, "Delete from Database")
     else:
         print("Failed to load the Sentant.")
 
