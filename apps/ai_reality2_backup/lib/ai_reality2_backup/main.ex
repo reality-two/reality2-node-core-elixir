@@ -141,7 +141,7 @@ defmodule AiReality2Backup.Main do
       case Jason.encode(data) do
         {:ok, data_string} ->
           encrypted_data = encrypt(data_string, encryption_key)
-          result = Mnesia.transaction(do_write, [name, encrypted_data])
+          Mnesia.transaction(do_write, [name, encrypted_data])
           :ok
         _ -> {:error, :data}
       end
@@ -156,7 +156,7 @@ defmodule AiReality2Backup.Main do
       end
       result = Mnesia.transaction(do_read, [name])
       case result do
-        {:atomic, [{:backup, name, encrypted_data}]} ->
+        {:atomic, [{:backup, ^name, encrypted_data}]} ->
           try do
             data_string = decrypt(encrypted_data, decryption_key)
             case Jason.decode(data_string) do
@@ -181,7 +181,7 @@ defmodule AiReality2Backup.Main do
       end
       case retrieve_and_decrypt(name, decryption_key) do
         {:ok, _} ->
-          result = Mnesia.transaction(do_delete, [name])
+          Mnesia.transaction(do_delete, [name])
           :ok
         _ -> {:error, :decryption}
       end
