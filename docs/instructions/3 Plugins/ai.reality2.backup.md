@@ -4,54 +4,47 @@
 
 The Data backup plugin allows you to save the current data stream to disk as an encrypted blob, and retrieve it later.
 
-#### Future plans:
-
-This plugin could store a range of Geospatial data such as lines and polygons (as well as points), and manage efficient operations on these.  It could also integrate with other Plugins for location by image recognition, or wifi triangulation, for example.  Further, more complex scenarios may be created using geospatial paths.
 
 ### Definition
 
-The core geospatial functions, presently, are set, get and search.
+The core backup functions, presently, are store, retrieve and delete.
 
-#### set
+#### store
 
-Sets the geospatial position of a Sentant using either latitude and longitude or geohash.
-
-```yaml
-command: set
-parameters: 
-  plugin: ai.reality2.geospatial
-  parameters:
-    latitude: -36.860426874915866
-    longitude: 174.77767677926224
-    altitude: 100
-    radius: 100
-```
-
-or
+Stores the current data stream (ie any values read from other sources, calculated or set) to a named encrypted blob in the database.
 
 ```yaml
-command: set
-parameters:
-  plugin: ai.reality2.geospatial
-  parameters:
-    geohash: rckq31v0rn3
-    altitude: 100
-    radius: 100
+- command: store
+  plugin: ai.reality2.stpre
+  parameters: 
+    name: "Test Backup"
+    encryption_key: __encryption_key__
 ```
 
-The radius, if set, determines how close (in meters) the searching Sentant has to be in order to be able to find this one.  This allows Sentants to be findable only if the searching Sentnat is close enough - great for Treasure Hunts.  It can also effectively hide from being found by setting a very small radius.  **A radius of zero means 'ignore the radius'.**
+The encryption key is a base64 encoded 32 byte binary sequence.  This may be created in python like this:
 
-#### get
+```python
+binary_key = os.urandom(32)
+encryption_key = base64.b64encode(binary_key).decode('utf-8')
+```
+
+Ideally, you would want to create this externally to your python code and store it somewherre safe if you intend being able to read and decrypt the data later...  The backup_test.py demo is a good example.
+
+#### retrieve
 
 Gets the currrent position of a Sentant (returns latitude, longitude, geohash, altitude and radius).
 
 ```yaml
-command: get
-parameters:
-  plugin: ai.reality2.geospatial
+- command: retrieve
+  plugin: ai.reality2.stpre
+  parameters: 
+    name: "Test Backup"
+    encryption_key: __decryption_key__
 ```
 
-#### search
+The decryption key in this case is the same as the encryption key as it usses a symmetric encryption algorithm.  This may change later.  Both the name and encryption key have to match or the data will not be retreived.
+
+#### delete
 
 Searches in a radius (in meters) around the current Sentant for other Sentants.  Returns an array of tuples of Sentant IDs and distances (in meters), ie
 
@@ -60,67 +53,8 @@ Searches in a radius (in meters) around the current Sentant for other Sentants. 
 Only Sentants that are within range, and whose own radius encompasses the searching Sentant, will be found.
 
 ```yaml
-command: search
-parameters:
-  radius: 100
+- command: delete
+  parameters: 
+    name: "Test Backup"
+    encryption_key: __decryption_key__
 ```
-
-***
-
-There are other functions that are not so relevant yet:
-
-#### all
-
-Gets all the geospatial data on this Sentant, which presently is just one point.
-
-```yaml
-command: all
-```
-
-#### delete
-
-Deletes the geolocation from the Sentant.
-
-```yaml
-command: delete
-```
-
-#### clear
-
-Clears all the geolocation data from this Sentant.  Currently, with only one point stored, that is the same as the delete command above.
-
-```yaml
-command: clear
-```
-
-### Future functionality
-
-#### distance
-
-Returns the distance in meters between the current Sentant and the one given (if it has a geospatial location).
-
-```yaml
-command: distance
-parameters:
-  id: dc383bda-ffbc-11ee-a338-18c04dee389e
-```
-
-or
-
-```yaml
-command: distance
-parameters:
-  name: The Domain
-```
-
-### GIS
-
-Add some basic GIS capability with different geographical entities, and the ability to perform analysis.
-
-#### Automated movement
-
-Setting a Sentant on a path, just like NPCs in games, could allow for some complex interaction scenarios.  These may be triggered, for example, to sense when someone comes near to a given location, and to start movement along a given path to lead the person on a journey.
-
-#### Persistance
-
-Presently, the Geospatial information is stored only in memory.  Oftentimes, if Sentants are moving around, it may be desirable to store the current position (and other Geospatial data) in long-term storage.  This might be through a database plugin.
