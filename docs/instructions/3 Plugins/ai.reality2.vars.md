@@ -2,7 +2,7 @@
 
 ### Description
 
-The Variables plugin allows you to create kay/value pairs in memory that are remembered from one event to the next.  This might be useful, for example, for a counter that is activated each time the event fires.
+The Variables plugin allows you to create key/value pairs in memory that are remembered from one event to the next.  This might be useful, for example, for a counter that is activated each time the event fires.
 
 
 ### Definition
