@@ -32,29 +32,25 @@ Ideally, you would want to create this externally to your python code and store 
 
 #### retrieve
 
-Gets the currrent position of a Sentant (returns latitude, longitude, geohash, altitude and radius).
+Retrieves and decrypts the data.
 
 ```yaml
 - command: retrieve
   plugin: ai.reality2.stpre
   parameters: 
     name: "Test Backup"
-    encryption_key: __decryption_key__
+    decryption_key: __decryption_key__
 ```
 
-The decryption key in this case is the same as the encryption key as it usses a symmetric encryption algorithm.  This may change later.  Both the name and encryption key have to match or the data will not be retreived.
+The decryption key in this case has to be the same as the encryption key as it usses a symmetric encryption algorithm.  This may change later.  Both the name and encryption/decryption key have to match or the data will not be retreived.
 
 #### delete
 
-Searches in a radius (in meters) around the current Sentant for other Sentants.  Returns an array of tuples of Sentant IDs and distances (in meters), ie
-
-`'sentants': [{'id': 'dc4029b2-ffbc-11ee-8189-18c04dee389e', 'distance': 64.64886814019957}]`
-
-Only Sentants that are within range, and whose own radius encompasses the searching Sentant, will be found.
+Deletes the data, if and only if the name and decryption key match.
 
 ```yaml
 - command: delete
   parameters: 
     name: "Test Backup"
-    encryption_key: __decryption_key__
+    decryption_key: __decryption_key__
 ```
