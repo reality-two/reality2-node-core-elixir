@@ -238,7 +238,7 @@ Binary operaors
 
 `+ - * / ^`
 
-atan2 fmod pow
+`atan2 fmod pow`
 
 `geohash`
 

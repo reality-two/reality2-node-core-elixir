@@ -4,6 +4,8 @@
 
 The Variables plugin allows you to create key/value pairs in memory that are remembered from one event to the next.  This might be useful, for example, for a counter that is activated each time the event fires.
 
+Note that at present, unlike the set command that operates on the data stream which can have expressions, and include other variables using double underscores at beginning and end - the set command here does not do the same.
+
 
 ### Definition
 

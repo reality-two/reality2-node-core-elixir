@@ -29,7 +29,7 @@ binary_key = os.urandom(32)
 encryption_key = base64.b64encode(binary_key).decode('utf-8')
 ```
 
-Ideally, you would want to create this externally to your python code and store it somewherre safe if you intend being able to read and decrypt the data later...  The backup_test.py demo is a good example.
+Ideally, you would want to create this externally to your python code and store it somewherre safe if you intend being able to read and decrypt the data later.  The `backup_test.py` demo is a good example.
 
 #### retrieve
 
