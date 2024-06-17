@@ -16,6 +16,10 @@ Let's look at some inbuilt definitions and plugin definitions that you might fin
 
    - In-memory storage of variables for use between Automations.
 
+3. [ai.reality2.backup](ai.reality2.backup.md)
+
+   - Storage of variables to a persistent database on a node.
+
 3. ai.reality2.auth
 
    - (to come) Authentication and user ID management.
