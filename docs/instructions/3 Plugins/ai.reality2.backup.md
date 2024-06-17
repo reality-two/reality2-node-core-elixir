@@ -11,17 +11,18 @@ The core backup functions, presently, are store, retrieve and delete.
 
 #### store
 
-Stores the current data stream (ie any values read from other sources, calculated or set) to a named encrypted blob in the database.
+Stores the current data stream (ie any values read from other sources, calculated or set) to a named encrypted blob in the database.  The decryption key is required in case there is already data stored under that name, to ensure you have the authority (by knowing the key) to decrypt it, and hence replace it.  In this implementation, the encryption and decryption keys are the same, so just the former may be included.
 
 ```yaml
 - command: store
-  plugin: ai.reality2.stpre
+  plugin: ai.reality2.backup
   parameters: 
     name: "Test Backup"
     encryption_key: __encryption_key__
+    decryption_key: __decryption_key__
 ```
 
-The encryption key is a base64 encoded 32 byte binary sequence.  This may be created in python like this:
+The encryption and decryption keys are base64 encoded 32 byte binary sequence.  This may be created in python like this:
 
 ```python
 binary_key = os.urandom(32)
@@ -36,7 +37,7 @@ Retrieves and decrypts the data.
 
 ```yaml
 - command: retrieve
-  plugin: ai.reality2.stpre
+  plugin: ai.reality2.backup
   parameters: 
     name: "Test Backup"
     decryption_key: __decryption_key__
@@ -50,6 +51,7 @@ Deletes the data, if and only if the name and decryption key match.
 
 ```yaml
 - command: delete
+  plugin: ai.reality2.backup
   parameters: 
     name: "Test Backup"
     decryption_key: __decryption_key__

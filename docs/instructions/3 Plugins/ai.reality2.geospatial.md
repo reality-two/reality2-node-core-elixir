@@ -17,10 +17,9 @@ The core geospatial functions, presently, are set, get and search.
 Sets the geospatial position of a Sentant using either latitude and longitude or geohash.
 
 ```yaml
-command: set
-parameters: 
+- command: set
   plugin: ai.reality2.geospatial
-  parameters:
+  parameters: 
     latitude: -36.860426874915866
     longitude: 174.77767677926224
     altitude: 100
@@ -30,8 +29,7 @@ parameters:
 or
 
 ```yaml
-command: set
-parameters:
+- command: set
   plugin: ai.reality2.geospatial
   parameters:
     geohash: rckq31v0rn3
@@ -46,8 +44,7 @@ The radius, if set, determines how close (in meters) the searching Sentant has t
 Gets the currrent position of a Sentant (returns latitude, longitude, geohash, altitude and radius).
 
 ```yaml
-command: get
-parameters:
+- command: get
   plugin: ai.reality2.geospatial
 ```
 
@@ -60,9 +57,10 @@ Searches in a radius (in meters) around the current Sentant for other Sentants. 
 Only Sentants that are within range, and whose own radius encompasses the searching Sentant, will be found.
 
 ```yaml
-command: search
-parameters:
-  radius: 100
+- command: search
+  plugin: ai.reality2.geospatial
+  parameters:
+    radius: 100
 ```
 
 ***
@@ -74,7 +72,8 @@ There are other functions that are not so relevant yet:
 Gets all the geospatial data on this Sentant, which presently is just one point.
 
 ```yaml
-command: all
+- command: all
+  plugin: ai.reality2.geospatial
 ```
 
 #### delete
@@ -82,7 +81,8 @@ command: all
 Deletes the geolocation from the Sentant.
 
 ```yaml
-command: delete
+- command: delete
+  plugin: ai.reality2.geospatial
 ```
 
 #### clear
@@ -90,7 +90,8 @@ command: delete
 Clears all the geolocation data from this Sentant.  Currently, with only one point stored, that is the same as the delete command above.
 
 ```yaml
-command: clear
+- command: clear
+  plugin: ai.reality2.geospatial
 ```
 
 ### Future functionality
@@ -100,17 +101,19 @@ command: clear
 Returns the distance in meters between the current Sentant and the one given (if it has a geospatial location).
 
 ```yaml
-command: distance
-parameters:
-  id: dc383bda-ffbc-11ee-a338-18c04dee389e
+- command: distance
+  plugin: ai.reality2.geospatial
+  parameters:
+    id: dc383bda-ffbc-11ee-a338-18c04dee389e
 ```
 
 or
 
 ```yaml
-command: distance
-parameters:
-  name: The Domain
+- command: distance
+  plugin: ai.reality2.geospatial
+  parameters:
+    name: The Domain
 ```
 
 ### GIS

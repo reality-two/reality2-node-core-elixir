@@ -113,7 +113,7 @@ defmodule AiReality2Backup.Main do
       case R2Map.get(command_and_parameters, :command) do
         "store" ->
           # Encrypt and store data in the database
-          encrypt_and_store(R2Map.get(parameters, :name, ""), data, R2Map.get(parameters, :encryption_key, ""))
+          encrypt_and_store(R2Map.get(parameters, :name, ""), data, R2Map.get(parameters, :encryption_key, ""), R2Map.get(parameters, :decryption_key, ""))
         "retrieve" ->
           # Retrieve and decrypt data from the database
           retrieve_and_decrypt(R2Map.get(parameters, :name, ""), R2Map.get(parameters, :decryption_key, ""))
@@ -131,19 +131,25 @@ defmodule AiReality2Backup.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
     # Private Functions
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    defp encrypt_and_store("", _data, _encryption_key), do: {:error, :name}
-    defp encrypt_and_store(_name, _data, ""), do: {:error, :encryption_key}
-    defp encrypt_and_store(name, data, encryption_key) do
+    defp encrypt_and_store("", _data, _encryption_key, _decryption_key), do: {:error, :name}
+    defp encrypt_and_store(_name, _data, "", _decryption_key), do: {:error, :encryption_key}
+    defp encrypt_and_store(name, data, encryption_key, ""), do: encrypt_and_store(name, data, encryption_key, encryption_key)
+    defp encrypt_and_store(name, data, encryption_key, decryption_key) do
       # Encrypt the data and store it in the database
       do_write = fn name, data ->
         Mnesia.write({:backup, name, data})
       end
-      case Jason.encode(data) do
-        {:ok, data_string} ->
-          encrypted_data = encrypt(data_string, encryption_key)
-          Mnesia.transaction(do_write, [name, encrypted_data])
+      case retrieve_and_decrypt(name, decryption_key) do
+        {:ok, _} ->
+          case Jason.encode(data) do
+            {:ok, data_string} ->
+              encrypted_data = encrypt(data_string, encryption_key)
+              Mnesia.transaction(do_write, [name, encrypted_data])
+              :ok
+            _ -> {:error, :data}
+          end
           :ok
-        _ -> {:error, :data}
+        _ -> {:error, :decryption}
       end
     end
 
