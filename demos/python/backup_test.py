@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------------------------------
 from reality2 import Reality2 as R2
 import sys
+import base64
 # ----------------------------------------------------------------------------------------------------
 
 
@@ -28,6 +29,13 @@ def printout(data):
 # Main function
 # ----------------------------------------------------------------------------------------------------
 def main(host):
+    # You can create an encryption key with os.urandom(32)
+    # This is required for storing and retrieving to and from the database
+    # At the moment, we use symmetric encryption, so the encryption and decryption keys are the same.
+    # Note also that it has to be base64 encoded so we can pass it through the API.
+    encryption_key = base64.b64encode(b'\xc5\x13\x12\xd7\x0e\x14\xd1;{pf\xae\xe3\xfc\xe7Z+\xc2\x8b\x05\xdd4=\x8a\xfeB\x91\xa8JQ\xfa+').decode('utf-8')
+    decryption_key = base64.b64encode(b'\xc5\x13\x12\xd7\x0e\x14\xd1;{pf\xae\xe3\xfc\xe7Z+\xc2\x8b\x05\xdd4=\x8a\xfeB\x91\xa8JQ\xfa+').decode('utf-8')
+    
     # Connect to the Reality2 node
     r2_node = R2(host, 4001)
     
@@ -36,7 +44,11 @@ def main(host):
 
     # Read the file
     with open('backup_test.yaml', 'r') as file:
-        definition = file.read()  
+        definition = file.read()
+        
+    definition = definition.replace("__encryption_key__", encryption_key)
+    definition = definition.replace("__decryption_key__", decryption_key)
+
         
     # Load the Sentant
     result = r2_node.sentantLoad(definition)

@@ -6,9 +6,6 @@ defmodule AiReality2Backup.Main do
     In this instance, the main supervisor is a DynamicSupervisor, which is used to manage the database storage for Sentants.
     Presently, we are using mnesia as the database due to its general availability.
 
-    In order to minimise side effects of a database operation crashing and causing problems for the rest of the system, we use a
-    process for each Sentant.  This way, if one Sentant crashes, it does not affect the others.
-
     **Author**
     - Dr. Roy C. Davies
     - [roycdavies.github.io](https://roycdavies.github.io/)
@@ -28,11 +25,8 @@ defmodule AiReality2Backup.Main do
 
     @doc false
     def init(state) do
-      IO.puts("Creating the database")
       Mnesia.stop()
-      IO.puts("Creating the schema")
       Mnesia.create_schema([node()])
-      IO.puts("Starting the database")
       Mnesia.start()
       Mnesia.create_table(:backup, [attributes: [:name, :data], disc_only_copies: [node()]])
       Mnesia.add_table_index(:backup, :name)
@@ -114,10 +108,8 @@ defmodule AiReality2Backup.Main do
       - `{:error, :unknown_command}` - If the command was not recognised.
     """
     def sendto(_sentant_id, command_and_parameters) do
-      IO.puts("Received command: #{inspect(command_and_parameters)}")
       parameters = R2Map.get(command_and_parameters, :parameters, %{})
       data = parameters |> R2Map.delete(:name) |> R2Map.delete(:encryption_key) |> R2Map.delete(:result) |> R2Map.delete(:decryption_key)
-      IO.puts("Data: #{inspect(data)}")
       case R2Map.get(command_and_parameters, :command) do
         "store" ->
           # Encrypt and store data in the database
@@ -150,8 +142,6 @@ defmodule AiReality2Backup.Main do
         {:ok, data_string} ->
           encrypted_data = encrypt(data_string, encryption_key)
           result = Mnesia.transaction(do_write, [name, encrypted_data])
-          IO.puts("Encrypted and stored data in the database: #{name} - #{inspect(encrypted_data)}")
-          IO.puts(inspect(result))
           :ok
         _ -> {:error, :data}
       end
@@ -165,14 +155,12 @@ defmodule AiReality2Backup.Main do
         Mnesia.read({:backup, name})
       end
       result = Mnesia.transaction(do_read, [name])
-      IO.puts("Retrieved data from the database for decryption: #{name} - #{inspect(result)}")
       case result do
         {:atomic, [{:backup, name, encrypted_data}]} ->
           try do
             data_string = decrypt(encrypted_data, decryption_key)
             case Jason.decode(data_string) do
               {:ok, decrypted_data} ->
-                IO.puts("Decrypted data from the database: #{name} - #{inspect(decrypted_data)}")
                 {:ok, decrypted_data}
               _ -> {:error, :decryption}
             end
@@ -194,19 +182,24 @@ defmodule AiReality2Backup.Main do
       case retrieve_and_decrypt(name, decryption_key) do
         {:ok, _} ->
           result = Mnesia.transaction(do_delete, [name])
-          IO.puts("Deleted data from the database")
-          IO.puts(inspect(result))
           :ok
         _ -> {:error, :decryption}
       end
     end
 
-    defp encrypt(data, _key) do
-      data
+    defp encrypt(data, encoded_encryption_key) do
+      key = Base.decode64!(encoded_encryption_key)
+      iv = Crypto.strong_rand_bytes(12)
+      {ciphertext, tag} = Crypto.crypto_one_time_aead(:aes_gcm, key, iv, data, "", true)
+
+      # Combine IV, tag, and ciphertext into a blob
+      iv <> tag <> ciphertext
     end
 
-    defp decrypt(data, _key) do
-      data
+    defp decrypt(data, encoded_decryption_key) do
+      key = Base.decode64!(encoded_decryption_key)
+      <<iv::binary-size(12), tag::binary-size(16), ciphertext::binary>> = data
+      Crypto.crypto_one_time_aead(:aes_gcm, key, iv, ciphertext, "", tag, false)
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
   end
