@@ -33,7 +33,7 @@ Ideally, you would want to create this externally to your python code and store 
 
 #### retrieve
 
-Retrieves and decrypts the data.
+Retrieves and decrypts the data and inserts it into the data stream, overwriting any existing data with same keys.
 
 ```yaml
 - command: retrieve

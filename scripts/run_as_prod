@@ -1,4 +1,7 @@
 #!/bin/bash
+export NODENAME="reality2@server"
+export MIX_ENV=prod
+
 if ! [ -d "scripts" ]; then
   cd ..
 fi
@@ -8,7 +11,20 @@ fi
 export SECRET_KEY_BASE=$(openssl rand -hex 32)
 export PORT=4001
 export POOLSIZE=10
-export MIX_ENV=prod
+
+# Create the mnesia directory structure if it doesn't exist
+if ! [ -d ".mnesia" ]; then
+  mkdir .mnesia
+fi
+cd .mnesia
+if ! [ -d $MIX_ENV ]; then
+  mkdir $MIX_ENV
+fi
+cd $MIX_ENV
+if ! [ -d $NODENAME ]; then
+  mkdir $NODENAME
+fi
+cd ../..
 
 # Start the Elixir application
-iex --name localhost@reality2.ai -S mix phx.server
+iex --name $NODENAME -S mix phx.server
