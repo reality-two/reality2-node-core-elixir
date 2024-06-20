@@ -149,6 +149,14 @@ defmodule AiReality2Backup.Main do
             _ -> {:error, :data}
           end
           :ok
+        {:error, :name} ->
+          case Jason.encode(data) do
+            {:ok, data_string} ->
+              encrypted_data = encrypt(data_string, encryption_key)
+              Mnesia.transaction(do_write, [name, encrypted_data])
+              :ok
+            _ -> {:error, :data}
+          end
         _ -> {:error, :decryption}
       end
     end

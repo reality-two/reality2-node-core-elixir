@@ -18,6 +18,7 @@ sentant:
               parameters:
                 name: "Test Backup"
                 encryption_key: __encryption_key__
+                decryption_key: __decryption_key__
             - command: debug
         - public: true
           event: "Retrieve from Database"
