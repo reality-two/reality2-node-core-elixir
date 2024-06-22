@@ -60,6 +60,9 @@ def main(host):
         # Start the subscription to the Sentant
         # r2_node.awaitSignal(id, "Zenquote Response", printout)
         r2_node.awaitSignal(id, "debug", printout)
+        r2_node.awaitSignal(id, "stored", printout)
+        r2_node.awaitSignal(id, "retrieved", printout)
+        r2_node.awaitSignal(id, "deleted", printout)
 
         print("+---- Test Backup ----------------------------------------+")
         print("| Press the enter key to backup the current data.         |")

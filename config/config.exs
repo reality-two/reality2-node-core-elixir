@@ -28,7 +28,8 @@ config :reality2_web, Reality2Web.Endpoint,
     layout: false
   ],
   pubsub_server: Reality2Web.PubSub,
-  live_view: [signing_salt: "/es9VuWV"]
+  live_view: [signing_salt: "/es9VuWV"],
+  server: true
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -40,7 +41,7 @@ config :phoenix, :json_library, Jason
 
 # config/config.exs
 config :mnesia,
-  dir: '.mnesia/#{Mix.env}/#{node()}' |> to_charlist,
+  dir: '.mnesia/#{config_env()}/#{node()}' |> to_charlist,
   storage: [disc_only_copies: [node()]]
 
 # Import environment specific config. This must remain at the bottom

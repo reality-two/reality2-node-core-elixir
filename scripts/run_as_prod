@@ -1,5 +1,4 @@
 #!/bin/bash
-export NODENAME="reality2@server"
 export MIX_ENV=prod
 
 if ! [ -d "scripts" ]; then
@@ -20,11 +19,7 @@ cd .mnesia
 if ! [ -d $MIX_ENV ]; then
   mkdir $MIX_ENV
 fi
-cd $MIX_ENV
-if ! [ -d $NODENAME ]; then
-  mkdir $NODENAME
-fi
-cd ../..
+cd ..
 
 # Start the Elixir application
-iex --name $NODENAME -S mix phx.server
+iex -S mix phx.server
