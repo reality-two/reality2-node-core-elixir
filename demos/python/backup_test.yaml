@@ -19,21 +19,22 @@ sentant:
                 name: "Test Backup"
                 encryption_key: __encryption_key__
                 decryption_key: __decryption_key__
-            - command: debug
+            - command: signal
+              parameters:
+                event: "stored"
+                public: true
         - public: true
           event: "Retrieve from Database"
           actions:
-            - command: set
-              parameters:
-                key: "test"
-                value: 0
-            - command: debug
             - plugin: ai.reality2.backup
               command: retrieve
               parameters:
                 name: "Test Backup"
                 decryption_key: __decryption_key__
-            - command: debug
+            - command: signal
+              parameters:
+                event: "retrieved"
+                public: true
         - public: true
           event: "Delete from Database"
           actions:
@@ -42,5 +43,8 @@ sentant:
               parameters:
                 name: "Test Backup"
                 decryption_key: __decryption_key__
-            - command: debug
+            - command: signal
+              parameters:
+                event: "deleted"
+                public: true
  

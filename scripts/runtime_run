@@ -2,7 +2,6 @@
 
 # Set the environment variables
 # export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
-export NODENAME="reality2@server"
 export SECRET_KEY_BASE=$(openssl rand -hex 32)
 export PORT=4001
 export POOLSIZE=10
@@ -17,15 +16,11 @@ cd .mnesia
 if ! [ -d $MIX_ENV ]; then
   mkdir $MIX_ENV
 fi
-cd $MIX_ENV
-if ! [ -d $NODENAME ]; then
-  mkdir $NODENAME
-fi
-cd ../..
+cd ..
 
 # Run the Reality2 Node
 echo "**************************************"
 echo "Running: ${VERSION}"
 echo "**************************************"
 
-bin/reality2 start --name $NODENAME
+bin/reality2 start

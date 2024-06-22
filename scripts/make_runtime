@@ -7,16 +7,20 @@ ARCH=$(uname -m)
 OS=$(uname -o | sed 's/\//_/g')
 BUILD_FOLDER=${ARCH}_${OS}
 
+echo "********************************************************************"
+echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
+echo "********************************************************************"
+
+echo "***** Cleaning up the previous build..."
+rm -rf "_build/prod"
+rm -rf "builds"
+
 if [ ! -d "builds" ]; then
     mkdir "builds"
 fi
 if [ ! -d "builds/${BUILD_FOLDER}" ]; then
     mkdir "builds/${BUILD_FOLDER}"
 fi
-
-echo "********************************************************************"
-echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
-echo "********************************************************************"
 
 echo "***** Generating new Certificates..."
 # cd apps/reality2_web/priv/cert
@@ -26,9 +30,6 @@ echo "***** Generating new Certificates..."
 cd apps/reality2_web
 mix phx.gen.cert
 cd ../..
-
-echo "***** Cleaning up the previous build..."
-rm -rf "_build/prod"
 
 # Set the environment variables
 # export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
@@ -58,6 +59,9 @@ mv "_build/prod/rel/reality2_${RELEASE}.tar.gz" "builds/${BUILD_FOLDER}"
 echo "***** Making a zip file for loading to GitHub..."
 cd "builds"
 zip -r "${BUILD_FOLDER}.zip" "${BUILD_FOLDER}"
+
+echo "***** Cleaning up..."
+rm -rf "${BUILD_FOLDER}"
 
 echo "********************************************************************"
 echo "Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} has been built."

@@ -45,7 +45,8 @@ if config_env() == :prod do
       keyfile: "priv/cert/selfsigned_key.pem"
     ],
     check_origin: false,
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    server: true
 
   # ## Using releases
   #
