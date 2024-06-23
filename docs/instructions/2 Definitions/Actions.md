@@ -242,6 +242,16 @@ Binary operaors
 
 `geohash`
 
+##### data
+
+Data that is part of the Sentant definition (using the data JSON object) can be retrieved using `data`.  For example:
+
+```json
+        {"command": "set",    "parameters": {"key": "c", "value": {"data": "var1"}}},
+```
+
+This will set the variable `c` in the data stream to the value of the definition data `var1`.  `var1`, since it is defined in the sentant definition, is immutable.
+
 #### debug
 
 Used primarily for debugging - sends the current set of variables to a signal called 'debug'.

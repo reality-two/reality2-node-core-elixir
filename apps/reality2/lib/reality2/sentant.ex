@@ -17,6 +17,7 @@ defmodule Reality2.Sentant do
   @doc false
   def start_link({name, id, sentant_map}) do
     new_sentant_map = Map.merge(sentant_map, %{"id" => id, "name" => name})
+    IO.puts("Sentant: #{name} (#{id}) starting with map: #{inspect(new_sentant_map)}")
     Supervisor.start_link(__MODULE__, {name, id, new_sentant_map})
     |> R2Process.register(id)
   end
