@@ -1,5 +1,5 @@
 fc8a56933c4b1c8d796fdb8f7a9f9475
-::res://::1716573502
+::res://::1718877821
 export_presets.cfg::TextFile::-1::1716400581::0::1::::<><>::
 icon.svg::CompressedTexture2D::4022827676899316677::1716144782::1716144782::1::::<><>::
 openxr_action_map.tres::OpenXRActionMap::5899296402895893795::1716144782::0::1::::<><>::
@@ -79,10 +79,11 @@ spin.gd::GDScript::-1::1716144782::0::1::::<>MeshInstance3D<>::
 face_noise_direction (copy).png::CompressedTexture2D::6563744187952328522::1716144782::1716144782::1::::<><>::
 face_noise_direction.png::CompressedTexture2D::7758778390978322132::1716144782::1716144782::1::::<><>::
 star_shader.gdshader::Shader::-1::1716144782::0::1::::<><>::
-::res://scenes/::1716488007
+::res://scenes/::1716574144
 GraphQL.tscn::PackedScene::7291989673282067040::1716144782::0::1::::<><>::res://scripts/GraphQL.gd
 Main2.tscn::PackedScene::839909272108228358::1716144782::0::1::::<><>::res://scripts/GraphQL.gd
-Main.tscn::PackedScene::4980873033376340965::1716488007::0::1::::<><>::res://scripts/Selector.gd<>res://addons/orbit-controls/orbit-controls.gd<>uid://m3vri17l8600::::res://scenes/R2Center.tscn<>res://materials/iridescent/source/star_shader.gdshader<>uid://disn7gglbscci::::res://materials/iridescent/source/face_noise_direction.png<>uid://b2bw3n4qi7omp::::res://scenes/UX.tscn
+Main.tscn::PackedScene::4980873033376340965::1716574028::0::1::::<><>::res://scripts/Selector.gd<>res://addons/orbit-controls/orbit-controls.gd<>uid://m3vri17l8600::::res://scenes/R2Center.tscn<>res://materials/iridescent/source/star_shader.gdshader<>uid://disn7gglbscci::::res://materials/iridescent/source/face_noise_direction.png<>uid://b2bw3n4qi7omp::::res://scenes/UX.tscn
+MainXR.tscn::PackedScene::3722908920592218583::1716574144::0::1::::<><>::res://scripts/Selector.gd<>res://materials/iridescent/source/star_shader.gdshader<>uid://disn7gglbscci::::res://materials/iridescent/source/face_noise_direction.png<>uid://m3vri17l8600::::res://scenes/R2Center.tscn<>uid://b2bw3n4qi7omp::::res://scenes/UX.tscn
 R2Center.tscn::PackedScene::901374577936224287::1716144782::0::1::::<><>::res://scripts/R2Center.gd<>uid://d1s4ngjeei5qx::::res://icons/reality2_bee.png<>res://materials/iridescent/source/star_shader.gdshader<>res://materials/iridescent/preview/spin.gd
 R2Node.tscn::PackedScene::3943621963415491572::1716144782::0::1::::<><>::res://scripts/R2Node.gd<>res://materials/iridescent/source/star_shader.gdshader<>uid://disn7gglbscci::::res://materials/iridescent/source/face_noise_direction.png<>res://materials/iridescent/preview/spin.gd
 R2Sentant.tscn::PackedScene::8872988804667806610::1716144782::0::1::::<><>::res://scripts/R2Sentant.gd<>res://materials/iridescent/source/star_shader.gdshader<>uid://disn7gglbscci::::res://materials/iridescent/source/face_noise_direction.png<>res://materials/iridescent/preview/spin.gd
@@ -105,7 +106,7 @@ UX.gd::GDScript::-1::1716144782::0::1::::<>Node<>::
 ::res://shaders/::1716144782
 glow.gdshader::Shader::-1::1716144782::0::1::::<><>::
 test.gdshader::Shader::-1::1716144782::0::1::::<><>::
-::res://themes/::1716488007
+::res://themes/::1716573773
 Arial.ttf::FontFile::1358647836501786622::1716144782::1716144782::1::::<><>::
 UX theme.tres::Theme::3989333560074849922::1716144782::0::1::::<><>::uid://tmey4pvbyxdm::::res://themes/Arial.ttf
-UX.tres::Theme::4095136394637915343::1716488007::0::1::::<><>::uid://tmey4pvbyxdm::::res://themes/Arial.ttf
+UX.tres::Theme::4095136394637915343::1716573773::0::1::::<><>::uid://tmey4pvbyxdm::::res://themes/Arial.ttf

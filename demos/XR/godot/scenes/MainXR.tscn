@@ -39,10 +39,9 @@ volumetric_fog_density = 0.5
 
 [sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_xwnjh"]
 
-[node name="Reality2 Main" type="Node3D" node_paths=PackedStringArray("orbitControls", "UX", "reality2_object")]
+[node name="Reality2 Main" type="Node3D" node_paths=PackedStringArray("UX", "reality2_object")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 2.08165e-12, 2.08165e-12)
 script = ExtResource("1_hokrn")
-orbitControls = NodePath("")
 UX = NodePath("User Experience/Interface")
 reality2_object = NodePath("Center/R2Center")
 
