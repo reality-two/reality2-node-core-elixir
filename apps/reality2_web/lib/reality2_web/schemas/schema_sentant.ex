@@ -72,6 +72,7 @@ defmodule Reality2Web.Schema.Sentant do
     type Sentant {
         id: UUID!                                   # The UUID of the sentant
         name: String!                               # The name of the sentant
+        description: String                         # The description of the sentant
         owner: User!                                # The owner of the sentant
         data: JSON!                                 # The data on the sentant
         automations: [Automation]!                  # The automations on the sentant
@@ -87,8 +88,8 @@ defmodule Reality2Web.Schema.Sentant do
     field :id, non_null(:uuid4),                description: "Sentant ID"
     field :name, non_null(:string),             description: "Sentant name"
     field :description, :string,                description: "Sentant description"
-    field :events, list_of(:sentant_event),     description: "Public events"
-    field :signals, list_of(:string),           description: "Public signals"
+    # field :data, :json,                         description: "Json formatted data"
+    # field :binary, :json,                       description: "Key/value pairs of data that is 64bit encoded binary (eg files)"
   end
   # ------------------------------------------------------------------------------------------------------
 
