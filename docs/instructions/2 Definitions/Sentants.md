@@ -16,6 +16,8 @@ sentant:
     # plugin details
   automations:
     # automations details
+  data:
+    # JSON data object.
 ```
 
 ```TOML
@@ -28,6 +30,9 @@ description = "The Sentant description"
 
     # Automation details
     [[sentant.automations]]
+
+    # Data
+    [[sentant.data]]
 ```
 
 ```JSON
@@ -36,7 +41,8 @@ description = "The Sentant description"
     "name": "The unique Sentant name",
     "description": "The Sentant description",
     "plugins": [ ],
-    "automations": [ ]
+    "automations": [ ],
+    "data": { }
   }
 }
 ```
