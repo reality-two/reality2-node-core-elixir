@@ -1,2 +1,3 @@
 *.tar.gz
-*.pem
+selfsigned.pem
+selfsigned_key.pem
