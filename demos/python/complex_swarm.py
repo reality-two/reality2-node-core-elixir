@@ -16,12 +16,12 @@ import sys
 # ----------------------------------------------------------------------------------------------------
 def printout(data):
     if ("awaitSignal" in data):
-        if (data["awaitSignal"]["parameters"]["event"] == "turn_on"):
+        if (data["awaitSignal"]["event"] == "turn_on"):
             print("The light is on.")
-        elif (data["awaitSignal"]["parameters"]["event"] == "turn_off"):
+        elif (data["awaitSignal"]["event"] == "turn_off"):
             print("The light is off.")
         else:
-            print(data["awaitSignal"]["parameters"]["event"])
+            print(data["awaitSignal"]["event"])
     else:
         print(data)
 # ----------------------------------------------------------------------------------------------------
