@@ -6,6 +6,9 @@ sentant:
   # Plugins (A list, so begin with a dash)
   # ----------------------------------------------------------------------------------------------------
   plugins:
+    # --------------------------------------------------------------------------------------------------
+    # Plugin: com.openai.api
+    # --------------------------------------------------------------------------------------------------
     - name: com.openai.api # This is the name of the plugin, used in the Automation below
       url: https://api.openai.com/v1/chat/completions # This is the URL to the API endpoint
       method: POST # This is the HTTP method to use
@@ -30,7 +33,12 @@ sentant:
         key: answer
         value: "choices.0.message.content"
         event: chatgpt_response
+    # --------------------------------------------------------------------------------------------------
 
+
+    # --------------------------------------------------------------------------------------------------
+    # Plugin: io.zenquotes.api
+    # --------------------------------------------------------------------------------------------------
     - name: io.zenquotes.api
       url: https://zenquotes.io/api/random
       method: GET
@@ -40,6 +48,7 @@ sentant:
         key: zenquote
         value: "0.q"
         event: chatgpt
+    # --------------------------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
 
@@ -48,17 +57,25 @@ sentant:
   # Automations (A list, so begin with a dash)
   # ----------------------------------------------------------------------------------------------------
   automations:
+    # --------------------------------------------------------------------------------------------------
+    # Automation: Zen Quote
+    # --------------------------------------------------------------------------------------------------
     - name: Zen Quote
-      description: Get quote
+      description: Get quote from zenquote, then pass it to chatgpt for explanation.
       transitions:
+        # ----------------------------------------------------------------------------------------------
         # Get a zenquote
+        # ----------------------------------------------------------------------------------------------
         - event: "Get Zenquote"
           public: true
           actions:
             - plugin: io.zenquotes.api
               command: send
+        # ----------------------------------------------------------------------------------------------
 
+        # ----------------------------------------------------------------------------------------------
         # Take the output from the zenquote plugin and send it to chatgpt
+        # ----------------------------------------------------------------------------------------------
         - event: chatgpt
           actions:
             - command: set
@@ -66,26 +83,25 @@ sentant:
                 key: question
                 value: "what is the meaning of: __zenquote__?"
 
-            - command: debug
-
             - plugin: com.openai.api
               command: send
 
-            - command: debug
-
             - command: signal
+              public: true
               parameters:
-                public: true
                 event: "Zenquote"
+        # ----------------------------------------------------------------------------------------------
 
-        # Deals with the answer from chatgpt and illustrates how to use the output.
+        # ----------------------------------------------------------------------------------------------
+        # Deal with the answer from chatgpt and illustrate how to use the output.
+        # ----------------------------------------------------------------------------------------------
         - event: chatgpt_response
-          actions:
-            - command: debug
-            
+          actions:            
             - command: signal
+              public: true
               parameters:
-                public: true
                 event: "Explanation"
+        # ----------------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
  
