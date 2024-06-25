@@ -23,10 +23,6 @@ if [ ! -d "builds/${BUILD_FOLDER}" ]; then
 fi
 
 echo "***** Generating new Certificates..."
-# cd apps/reality2_web/priv/cert
-# ./generate_certificates
-# cd ../../../..
-
 cd apps/reality2_web
 mix phx.gen.cert
 cd ../..
