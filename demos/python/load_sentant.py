@@ -3,21 +3,9 @@
 # ----------------------------------------------------------------------------------------------------
 from reality2 import Reality2 as R2
 import sys
-import base64
 import time
 import json
 from os.path import exists
-# ----------------------------------------------------------------------------------------------------
-
-
-
-# ----------------------------------------------------------------------------------------------------
-# You can create an encryption key with os.urandom(32)
-# This is required for storing and retrieving to and from the database
-# At the moment, we use symmetric encryption, so the encryption and decryption keys are the same.
-# Note also that it has to be base64 encoded so we can pass it through the API.
-encryption_key = base64.b64encode(b'\xc5\x13\x12\xd7\x0e\x14\xd1;{pf\xae\xe3\xfc\xe7Z+\xc2\x8b\x05\xdd4=\x8a\xfeB\x91\xa8JQ\xfa+').decode('utf-8')
-decryption_key = base64.b64encode(b'\xc5\x13\x12\xd7\x0e\x14\xd1;{pf\xae\xe3\xfc\xe7Z+\xc2\x8b\x05\xdd4=\x8a\xfeB\x91\xa8JQ\xfa+').decode('utf-8')
 # ----------------------------------------------------------------------------------------------------
 
 
@@ -29,7 +17,7 @@ def printhelp(events):
     print("---------- Send Events ----------")
     counter = 0
     for event in events:
-        print(" Press", counter, "followed by the enter key for [", event["event"], "]")
+        print(" Press", counter, "followed by the enter key for [", event["event"], event["parameters"], "]")
         counter = counter + 1
 
     print(" Press h, followed by the enter key for this help.")
@@ -118,6 +106,14 @@ def main(filename, host):
                 index = int(input_str)
                 if (index >= 0 and index < len(events)):
                     event = events[int(input_str)]
+                    parameters = event["parameters"]
+
+                    parameter_index = 0
+                    for parameter in parameters:
+                        print("Type in a", parameters[parameter], "for", parameter, end=" :")
+                        parameter_str = input()
+                        parameters[parameter] = parameter_str
+    
                     print("Sending event [", event["event"], "]")
                     r2_node.sentantSend(id, event["event"], event["parameters"])
                 else:
