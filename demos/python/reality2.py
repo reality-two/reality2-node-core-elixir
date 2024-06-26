@@ -128,13 +128,25 @@ class Reality2:
         self.__events.append(newEvent)
         newThread = threading.Thread(target=self.__subscribe, args=(self.__graphql_webs_url, id, signal, callback, details, newEvent, ))
         newThread.start()
+    # --------------------------------------------------------------------------------------------------------------------------------------------------
+
+
         
+    # --------------------------------------------------------------------------------------------------------------------------------------------------
+    # Static methods
+    # --------------------------------------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def JSONPath(data, path):
         paths = path.split(".")
         currentData = data
-        for subpath in paths:
-            if isinstance(currentData, list):
+        for index, subpath in enumerate(paths):
+            if subpath == "[]" and isinstance(currentData, list):
+                newCurrentData = []
+                remaining_path = "" if index == len(paths)-1 else ".".join(paths[index+1:])
+                for item in currentData:
+                    newCurrentData.append(Reality2.JSONPath(item, remaining_path))
+                return newCurrentData
+            elif isinstance(currentData, list) and subpath.isdigit():
                 currentData = currentData[int(subpath)]
             elif isinstance(currentData, dict):
                 if subpath in currentData:
