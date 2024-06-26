@@ -8,6 +8,19 @@
             "var4": {
                 "key1": "value1",
                 "key2": "value2"
+            },
+            "var5": {
+                "key1": [
+                    {
+                        "a": "value1",
+                        "b": "value2"
+                    },
+                    {
+                        "a": "value3",
+                        "b": "value4"
+                    }
+                ],
+                "key2": "value2"
             }
         },
         "automations": [
@@ -77,9 +90,21 @@
                             {
                                 "command": "set",
                                 "parameters": {
+                                    "key": "var5",
+                                    "value": {
+                                        "data": "var5"
+                                    }
+                                }
+                            },
+                            {
+                                "command": "debug"
+                            },
+                            {
+                                "command": "set",
+                                "parameters": {
                                     "key": "param2",
                                     "value": {
-                                        "jsonpath": "param6.key1.[].a"
+                                        "jsonpath": "var5.key1.[].a"
                                     }
                                 }
                             },

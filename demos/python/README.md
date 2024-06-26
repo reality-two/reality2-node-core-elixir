@@ -13,6 +13,8 @@ pip3 install gql
 pip3 install requests
 pip3 install requests_toolbelt
 pip3 install websockets
+pip3 install getkey
+pip3 install ruamel.yaml
 ```
 
 ## Encryption keys and other private data
@@ -66,5 +68,3 @@ Type in a string for question :What is the meaning of pi
 Sending event [ Ask ChatGPT ]
 ChatGPT Answer  :  {'answer': "Pi (π) is a mathematical constant representing the ratio of a circle's circumference to its diameter. It is approximately equal to 3.14159 and is an irrational number, meaning it cannot be expressed as a simple fraction and its decimal representation goes on infinitely without repeating. It is a fundamental and important constant in mathematics and is used in various calculations and formulas in geometry, trigonometry, and other branches of mathematics and science.", 'question': 'What is the meaning of pi'}  ::  {}
 ```
-
-## load_sentant.py
