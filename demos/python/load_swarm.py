@@ -1,13 +1,6 @@
 # ----------------------------------------------------------------------------------------------------
-# A Python script for loading and interacting with a single Sentant.
-# Usage:
-#
-# python3 load_sentant.py <filename> <host>
-#
-# The filename is the name of the file containing the Sentant definition (JSON, TOML, or YAML format).
-# The host is the IP address or domain name of the Reality2 node (default is localhost).
+# Import the Reality2 module
 # ----------------------------------------------------------------------------------------------------
-
 from reality2 import Reality2 as R2
 import sys
 import time
@@ -19,6 +12,7 @@ import copy
 import ruamel.yaml
 
 yaml = ruamel.yaml.YAML(typ='safe')
+
 # ----------------------------------------------------------------------------------------------------
 
 
@@ -27,9 +21,15 @@ yaml = ruamel.yaml.YAML(typ='safe')
 # Print out the help
 # ----------------------------------------------------------------------------------------------------
 def printhelp(events):
+    print (events)
     print("---------- Send Events ----------")
-    for counter, event in enumerate(events):
-        print(" Press [", counter, "] for {", event["event"], event["parameters"], "}")
+    
+    counter = 0
+    for event_tuple in events:
+        id, events = event_tuple
+        for event in events:
+            print(" Press [", counter, "] for {", event["event"], event["parameters"], "}")
+            counter += 1
 
     print(" Press [ h ] for help.")
     print(" Press [ q ] to quit.")
@@ -87,7 +87,7 @@ def main(filename, host):
             definition = definition.replace(key, variables[key])
 
     # ------------------------------------------------------------------------------------------------
-    # Unload the existing Sentant named in the file if it exists
+    # Unload the existing Sentants named in the file if it exists
     # ------------------------------------------------------------------------------------------------
     if filename.endswith('.yaml'):
         definition_json = yaml.load(definition)
@@ -98,33 +98,44 @@ def main(filename, host):
     else:
         print("The file", filename, "is not a valid format.")
         return
-        
-    sentant_name = R2.JSONPath(definition_json, "sentant.name")
-    print("Unloading existing Sentant named \"", sentant_name, "\"")
-    r2_node.sentantUnloadByName(sentant_name)
+            
+    sentant_names = R2.JSONPath(definition_json, "swarm.sentants.[].name")
+    print("Unloading existing Sentants named \"", sentant_names, "\"")
+    for sentant_name in sentant_names:
+        r2_node.sentantUnloadByName(sentant_name)
 
     # ------------------------------------------------------------------------------------------------
-    # Load the Sentant
+    # Load the Swarm
     # ------------------------------------------------------------------------------------------------
-    result = r2_node.sentantLoad(definition, {}, "id name signals events { event parameters }")
-
+    result = r2_node.swarmLoad(definition, {}, "id name signals events { event parameters }")
+    
     # ------------------------------------------------------------------------------------------------
-    # Get the ID of the loaded Sentant
+    # Get the IDs of the loaded Sentants
     # ------------------------------------------------------------------------------------------------
-    id = R2.JSONPath(result, "sentantLoad.id")
+    ids = R2.JSONPath(result, "swarmLoad.sentants.[].id")
+    
+    print ("Loaded Sentants with IDs: ", ids)
 
     # ------------------------------------------------------------------------------------------------
     # Get the signals and events
     # ------------------------------------------------------------------------------------------------
-    signals = R2.JSONPath(result, "sentantLoad.signals")
-    events = R2.JSONPath(result, "sentantLoad.events")
+    
+    signals = list(zip(ids, R2.JSONPath(result, "swarmLoad.sentants.[].signals")))
+    events = list(zip(ids, R2.JSONPath(result, "swarmLoad.sentants.[].events")))
+    
+    print("Signals: ", signals)
+    print("Events: ", events)
 
     # ------------------------------------------------------------------------------------------------
-    # Start the subscriptions to the Sentant
+    # Start the subscriptions to the Sentants
     # ------------------------------------------------------------------------------------------------
-    r2_node.awaitSignal(id, "debug", printout)
-    for signal in signals:
-        r2_node.awaitSignal(id, signal, printout)
+    for id in ids:
+        r2_node.awaitSignal(id, "debug", printout)
+        
+    for signal_tuple in signals:
+        id, signals = signal_tuple
+        for signal in signals:
+            r2_node.awaitSignal(id, signal, printout)
 
     # ------------------------------------------------------------------------------------------------
     # Wait a second to allow the subscriptions to catch up
