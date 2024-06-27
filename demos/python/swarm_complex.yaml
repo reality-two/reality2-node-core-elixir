@@ -74,13 +74,6 @@ swarm:
                 parameters:
                   to: Light Bulb
                   event: turn_off
-                passthrough:
-                  answer: 42
-                  more:
-                  - 1
-                  - 2
-                  - 3
-                  - 4
 
               # Send turn_off to self after 5 seconds
               - command: send
@@ -122,6 +115,4 @@ swarm:
                 parameters:
                   event: turn_off
                   public: true
-                passthrough:
-                  another: 100
     # --------------------------------------------------------------------------------------------------
