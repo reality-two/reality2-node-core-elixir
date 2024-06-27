@@ -49,7 +49,6 @@ def main(host):
     
     for position in positions:
         definition_json["sentant"]["name"] = position["name"]
-        definition_json["input"] = 42
         definition_string = json.dumps(definition_json)
         result = r2_node.sentantLoad(definition_string)
         id = R2.JSONPath(result, "sentantLoad.id")
