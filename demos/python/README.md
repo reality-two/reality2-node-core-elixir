@@ -82,5 +82,26 @@ Where `swarm_definition.yaml` is the name of the file to load that contains the 
 
 So, for example:
 ```bash
-python3 load_swarm.py swarm_light_and_switch.yaml localhost
+python3 load_swarm.py swarm_light_and_switch.json localhost
+```
+
+```text
+Unloading existing Sentants named " ['Light Switch', 'Light Bulb'] "
+Joined: wss://localhost:4001/reality2/websocket
+Subscribed to afc0fae0-342a-11ef-ad8b-de59b61f7ba3|debug
+Joined: wss://localhost:4001/reality2/websocket
+Joined: wss://localhost:4001/reality2/websocket
+Joined: wss://localhost:4001/reality2/websocket
+Subscribed to afc121f0-342a-11ef-a798-de59b61f7ba3|debug
+Subscribed to afc121f0-342a-11ef-a798-de59b61f7ba3|Light off
+Subscribed to afc121f0-342a-11ef-a798-de59b61f7ba3|Light on
+[{'event': 'Toggle Switch', 'parameters': {}, 'id': 'afc0fae0-342a-11ef-ad8b-de59b61f7ba3'}]
+---------- Send Events ----------
+ Press [ 0 ] for { Toggle Switch {} }
+ Press [ h ] for help.
+ Press [ q ] to quit.
+---------------------------------
+Sending event [ Toggle Switch ]
+Light on  :  {'result': 'ok'}  ::  {}
+Light off  :  {'result': 'ok'}  ::  {}
 ```
