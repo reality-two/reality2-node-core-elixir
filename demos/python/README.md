@@ -54,20 +54,21 @@ So, for example:
 ```bash
 python3 load_sentant.py sentant_chatgpt.yaml localhost
 ```
+
 ```text
+Unloading existing Sentant named " Ask Question "
 Joined: wss://localhost:4001/reality2/websocket
-Subscribed to 8c2fc93c-3298-11ef-9799-de59b61f7ba3|debug
+Subscribed to a0aad5dc-3437-11ef-9405-de59b61f7ba3|debug
 Joined: wss://localhost:4001/reality2/websocket
-Subscribed to 8c2fc93c-3298-11ef-9799-de59b61f7ba3|ChatGPT Answer
+Subscribed to a0aad5dc-3437-11ef-9405-de59b61f7ba3|ChatGPT Answer
 ---------- Send Events ----------
- Press 0 followed by the enter key for [ Ask ChatGPT {'question': 'string'} ]
- Press h, followed by the enter key for this help.
- Press q, followed by the enter key to quit.
+ Press [ 0 ] for { Ask ChatGPT {'question': 'string'} }
+ Press [ h ] for help.
+ Press [ q ] to quit.
 ---------------------------------
-0
-Type in a string for question :What is the meaning of pi 
+Type in a string for question : What is the meaning of life?
 Sending event [ Ask ChatGPT ]
-ChatGPT Answer  :  {'answer': "Pi (π) is a mathematical constant representing the ratio of a circle's circumference to its diameter. It is approximately equal to 3.14159 and is an irrational number, meaning it cannot be expressed as a simple fraction and its decimal representation goes on infinitely without repeating. It is a fundamental and important constant in mathematics and is used in various calculations and formulas in geometry, trigonometry, and other branches of mathematics and science.", 'question': 'What is the meaning of pi'}  ::  {}
+ChatGPT Answer  :  {'answer': "The meaning of life is a deeply philosophical question that has been debated throughout human history. Different people and cultures have different perspectives on the meaning of life. Some find meaning in religion, others in relationships and connections, and some in personal fulfillment or contribution to society. It's ultimately a subjective and personal question, and the answer can vary for each individual.", 'question': 'What is the meaning of life?'}  ::  {}
 ```
 
 ## Loading a Swarm
