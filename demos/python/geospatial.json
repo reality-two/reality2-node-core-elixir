@@ -7,7 +7,6 @@
                     "public": true, 
                     "actions":
                     [
-                        {"command": "get",      "plugin": "ai.reality2.vars", "parameters": {"key": "answer"}},          
                         {"command": "get",      "plugin": "ai.reality2.geospatial"},
                         {"command": "signal",   "parameters": {"event": "get", "public": true}}
                     ]
@@ -15,10 +14,9 @@
                 {
                     "event": "set_position", 
                     "public": true, 
-                    "parameters": {"latitude": "number", "longitude": "number", "altitude": "number", "radius": "number", "input": "number"}, 
+                    "parameters": {"latitude": "number", "longitude": "number", "altitude": "number", "radius": "number"}, 
                     "actions": 
                     [
-                        {"command": "set",      "plugin": "ai.reality2.vars", "parameters": {"key": "answer", "value": "__input__"}},
                         {"command": "set",      "plugin": "ai.reality2.geospatial"}, 
                         {"command": "signal",   "parameters": {"event": "set", "public": true}}
                     ]

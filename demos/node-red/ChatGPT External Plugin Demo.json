@@ -110,12 +110,12 @@
             {
                 "name": "replace",
                 "type": "str",
-                "value": "openai_api_key"
+                "value": "__openai_api_key__"
             },
             {
-                "name": "key_file",
+                "name": "vars_file",
                 "type": "str",
-                "value": "/OPENAI_API_KEY.txt"
+                "value": "/variables.json"
             }
         ],
         "meta": {
@@ -543,7 +543,7 @@
         "sendError": false,
         "encoding": "none",
         "allProps": false,
-        "x": 1000,
+        "x": 1220,
         "y": 60,
         "wires": [
             [
@@ -556,7 +556,7 @@
         "type": "function",
         "z": "0642542a5da9d32f",
         "name": "Insert key into file",
-        "func": "// Get the openai API key\nlet apiKey = flow.get(\"key\");\nlet replace = \"__\" + env.get(\"replace\") + \"__\";\n\n// Replace the key in the file with the actual API key\nlet updatedContent = msg.payload.replace(replace, apiKey);\n\n// Set this in the variables\nmsg.payload = {\n    \"query\": `\n        mutation SentantLoad ($definition: String!) {\n            sentantLoad(definition: $definition) {\n                name id\n            }\n        }\n    `,\n    \"variables\": {\"definition\": updatedContent}\n};\n\nreturn msg;",
+        "func": "// Get the openai API key\nlet apiKey = flow.get(\"key\");\nlet replace = env.get(\"replace\");\n\n// Replace the key in the file with the actual API key\nlet updatedContent = msg.payload.replace(replace, apiKey);\n\n// Set this in the variables\nmsg.payload = {\n    \"query\": `\n        mutation SentantLoad ($definition: String!) {\n            sentantLoad(definition: $definition) {\n                name id\n            }\n        }\n    `,\n    \"variables\": {\"definition\": updatedContent}\n};\n\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
@@ -576,8 +576,8 @@
         "id": "1c5c3310ccedbafc",
         "type": "file in",
         "z": "0642542a5da9d32f",
-        "name": "Read key from file",
-        "filename": "variables.key_filename",
+        "name": "Read variables file",
+        "filename": "variables.vars_filename",
         "filenameType": "msg",
         "format": "utf8",
         "chunk": false,
@@ -588,7 +588,7 @@
         "y": 60,
         "wires": [
             [
-                "cb310f24b4c2aba2"
+                "03443348f44f24c8"
             ]
         ]
     },
@@ -602,7 +602,7 @@
                 "t": "set",
                 "p": "key",
                 "pt": "flow",
-                "to": "payload",
+                "to": "payload[env.get(\"replace\")]",
                 "tot": "msg"
             }
         ],
@@ -611,7 +611,7 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 780,
+        "x": 1000,
         "y": 60,
         "wires": [
             [
@@ -624,7 +624,7 @@
         "type": "function",
         "z": "0642542a5da9d32f",
         "name": "Set up filenames",
-        "func": "msg.variables = {\n    key_filename: env.get(\"home_dir\") + env.get(\"key_file\"),\n    yaml_filename: env.get(\"home_dir\") + env.get(\"yaml_file\")\n}\nreturn msg;",
+        "func": "msg.variables = {\n    vars_filename: env.get(\"home_dir\") + env.get(\"vars_file\"),\n    yaml_filename: env.get(\"home_dir\") + env.get(\"yaml_file\")\n}\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
@@ -758,6 +758,22 @@
         "x": 480,
         "y": 260,
         "wires": []
+    },
+    {
+        "id": "03443348f44f24c8",
+        "type": "json",
+        "z": "0642542a5da9d32f",
+        "name": "Convert to JSON",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 810,
+        "y": 60,
+        "wires": [
+            [
+                "cb310f24b4c2aba2"
+            ]
+        ]
     },
     {
         "id": "8237109d521cf0e8",
@@ -1171,6 +1187,11 @@
             {
                 "name": "home_dir",
                 "value": "/Users/rdav031/Development/Reality2",
+                "type": "str"
+            },
+            {
+                "name": "yaml_file",
+                "value": "/reality2-node-core-elixir/demos/python/sentant_chatgpt.yaml",
                 "type": "str"
             }
         ],
