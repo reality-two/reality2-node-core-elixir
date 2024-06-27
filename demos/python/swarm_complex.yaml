@@ -23,6 +23,28 @@ swarm:
             event: init
             to: off
 
+          - from: on
+            event: stop
+            to: off
+            public: true
+            actions:
+              - command: send
+                parameters:
+                  to: Light Bulb
+                  event: turn_off
+                  delay: 0
+
+          - from: off
+            event: stop
+            to: on
+            public: true
+            actions:
+              - command: send
+                parameters:
+                  to: Light Bulb
+                  event: turn_on
+                  delay: 0
+
           # turn_on event
           - from: off
             event: turn_on

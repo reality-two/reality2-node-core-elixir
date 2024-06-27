@@ -15,6 +15,7 @@ pip3 install requests_toolbelt
 pip3 install websockets
 pip3 install getkey
 pip3 install ruamel.yaml
+pip3 install toml
 ```
 
 ## Encryption keys and other private data
@@ -67,4 +68,19 @@ Subscribed to 8c2fc93c-3298-11ef-9799-de59b61f7ba3|ChatGPT Answer
 Type in a string for question :What is the meaning of pi 
 Sending event [ Ask ChatGPT ]
 ChatGPT Answer  :  {'answer': "Pi (π) is a mathematical constant representing the ratio of a circle's circumference to its diameter. It is approximately equal to 3.14159 and is an irrational number, meaning it cannot be expressed as a simple fraction and its decimal representation goes on infinitely without repeating. It is a fundamental and important constant in mathematics and is used in various calculations and formulas in geometry, trigonometry, and other branches of mathematics and science.", 'question': 'What is the meaning of pi'}  ::  {}
+```
+
+## Loading a Swarm
+
+Similarly, to load a Swarm of Sentants, the following may be used:
+
+```bash
+python3 load_swarm.py swarm_definition.yaml node
+```
+
+Where `swarm_definition.yaml` is the name of the file to load that contains the swarm of sentants - this may be yaml, json or toml formatted, and node is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.
+
+So, for example:
+```bash
+python3 load_swarm.py swarm_light_and_switch.yaml localhost
 ```

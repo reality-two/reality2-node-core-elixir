@@ -24,12 +24,8 @@ def printhelp(events):
     print (events)
     print("---------- Send Events ----------")
     
-    counter = 0
-    for event_tuple in events:
-        id, events = event_tuple
-        for event in events:
-            print(" Press [", counter, "] for {", event["event"], event["parameters"], "}")
-            counter += 1
+    for counter, event in enumerate(events):
+        print(" Press [", counter, "] for {", event["event"], event["parameters"], "}")
 
     print(" Press [ h ] for help.")
     print(" Press [ q ] to quit.")
@@ -114,17 +110,15 @@ def main(filename, host):
     # ------------------------------------------------------------------------------------------------
     ids = R2.JSONPath(result, "swarmLoad.sentants.[].id")
     
-    print ("Loaded Sentants with IDs: ", ids)
-
     # ------------------------------------------------------------------------------------------------
     # Get the signals and events
     # ------------------------------------------------------------------------------------------------
-    
-    signals = list(zip(ids, R2.JSONPath(result, "swarmLoad.sentants.[].signals")))
-    events = list(zip(ids, R2.JSONPath(result, "swarmLoad.sentants.[].events")))
-    
-    print("Signals: ", signals)
-    print("Events: ", events)
+    signals = list(zip(ids, R2.JSONPath(result, "swarmLoad.sentants.[].signals")))            
+    events = [
+        {**dict_element, 'id': id}
+        for id, inner_array in zip(ids, R2.JSONPath(result, "swarmLoad.sentants.[].events"))
+        for dict_element in inner_array
+    ]
 
     # ------------------------------------------------------------------------------------------------
     # Start the subscriptions to the Sentants
@@ -167,7 +161,7 @@ def main(filename, host):
                         parameters[parameter] = input()
 
                     print("Sending event [", events[index]["event"], "]")
-                    r2_node.sentantSend(id, events[index]["event"], parameters)
+                    r2_node.sentantSend(events[index]["id"], events[index]["event"], parameters)
                 else:
                     print("Please enter a number between 0 and", len(events) - 1, "inclusive.")
             else:
@@ -187,7 +181,7 @@ def main(filename, host):
 # ----------------------------------------------------------------------------------------------------
 if (__name__ == '__main__'):
     if (len(sys.argv) < 2):
-        print("Usage: python3 load_sentant.py <filename> <host>")
+        print("Usage: python3 load_swarm.py <filename> <host>")
         sys.exit(1)
 
     main(sys.argv[1], sys.argv[2] if (len(sys.argv) > 2) else "localhost")
