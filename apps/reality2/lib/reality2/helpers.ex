@@ -231,4 +231,25 @@ defmodule Reality2.Helpers do
       defp get_values(data, _), do: data
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
+
+
+    # -----------------------------------------------------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------------------------------------
+    defmodule Crypto do
+      def encrypt(data, encoded_encryption_key) do
+        key = Base.decode64!(encoded_encryption_key)
+        iv = :crypto.strong_rand_bytes(12)
+        {ciphertext, tag} = :crypto.crypto_one_time_aead(:aes_gcm, key, iv, data, "", true)
+
+        # Combine IV, tag, and ciphertext into a blob
+        iv <> tag <> ciphertext
+      end
+
+      def decrypt(data, encoded_decryption_key) do
+        key = Base.decode64!(encoded_decryption_key)
+        <<iv::binary-size(12), tag::binary-size(16), ciphertext::binary>> = data
+        :crypto.crypto_one_time_aead(:aes_gcm, key, iv, ciphertext, "", tag, false)
+      end
+    end
+    # -----------------------------------------------------------------------------------------------------------------------------------------
   end

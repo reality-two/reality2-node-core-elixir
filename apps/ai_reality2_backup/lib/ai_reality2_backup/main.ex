@@ -14,8 +14,8 @@ defmodule AiReality2Backup.Main do
     @doc false
     use GenServer, restart: :transient
     alias Reality2.Helpers.R2Map, as: R2Map
+    alias Reality2.Helpers.Crypto, as: Crypto
     alias :mnesia, as: Mnesia
-    alias :crypto, as: Crypto
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
     # Supervisor Callbacks
@@ -152,7 +152,7 @@ defmodule AiReality2Backup.Main do
         {:ok, _} ->
           case Jason.encode(data) do
             {:ok, data_string} ->
-              encrypted_data = encrypt(data_string, encryption_key)
+              encrypted_data = Crypto.encrypt(data_string, encryption_key)
               Mnesia.transaction(do_write, [name, Base.encode64(encrypted_data)])
               :ok
             _ -> {:error, :data}
@@ -161,7 +161,7 @@ defmodule AiReality2Backup.Main do
         {:error, :name} ->
           case Jason.encode(data) do
             {:ok, data_string} ->
-              encrypted_data = encrypt(data_string, encryption_key)
+              encrypted_data = Crypto.encrypt(data_string, encryption_key)
               Mnesia.transaction(do_write, [name, Base.encode64(encrypted_data)])
               :ok
             _ -> {:error, :data}
@@ -181,7 +181,7 @@ defmodule AiReality2Backup.Main do
       case Mnesia.transaction(do_read, [name]) do
         {:atomic, [{:backup, ^name, encrypted_data}]} ->
           try do
-            data_string = decrypt(Base.decode64!(encrypted_data), decryption_key)
+            data_string = Crypto.decrypt(Base.decode64!(encrypted_data), decryption_key)
             case Jason.decode(data_string) do
               {:ok, decrypted_data} ->
                 {:ok, decrypted_data}
@@ -208,21 +208,6 @@ defmodule AiReality2Backup.Main do
           :ok
         _ -> {:error, :decryption}
       end
-    end
-
-    defp encrypt(data, encoded_encryption_key) do
-      key = Base.decode64!(encoded_encryption_key)
-      iv = Crypto.strong_rand_bytes(12)
-      {ciphertext, tag} = Crypto.crypto_one_time_aead(:aes_gcm, key, iv, data, "", true)
-
-      # Combine IV, tag, and ciphertext into a blob
-      iv <> tag <> ciphertext
-    end
-
-    defp decrypt(data, encoded_decryption_key) do
-      key = Base.decode64!(encoded_decryption_key)
-      <<iv::binary-size(12), tag::binary-size(16), ciphertext::binary>> = data
-      Crypto.crypto_one_time_aead(:aes_gcm, key, iv, ciphertext, "", tag, false)
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
   end
