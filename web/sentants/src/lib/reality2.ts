@@ -39,7 +39,7 @@ export default class R2 {
     // ----------------------------------------------------------------------------------------------------
     // Public API
     // ----------------------------------------------------------------------------------------------------
-    sentantAll(passthrough = {}, details: string = "id name") {
+    sentantAll(passthrough = {}, details: string = "id name") : Promise<object> {
         return new Promise((resolve, reject) => {
             this._graphql_post ( this._sentantAll(details), {} ).then((data: any) => {
                 resolve({...passthrough, ...data});
@@ -48,7 +48,7 @@ export default class R2 {
             });
         });
     }
-    sentantGet(id: string, passthrough = {}, details: string = "id name") {
+    sentantGet(id: string, passthrough = {}, details: string = "id name") : Promise<object> {
         return new Promise((resolve, reject) => {
             this._graphql_post ( this._sentantGet(details), {id: id} ).then((data: any) => {
                 resolve({...passthrough, ...data});
@@ -57,7 +57,7 @@ export default class R2 {
             });
         });
     }
-    sentantGetByName(name: string, passthrough = {}, details: string = "id name") {
+    sentantGetByName(name: string, passthrough = {}, details: string = "id name") : Promise<object> {
         return new Promise((resolve, reject) => {
             this._graphql_post ( this._sentantGetByName(details), {name: name} ).then((data: any) => {
                 resolve({...passthrough, ...data});
@@ -66,7 +66,7 @@ export default class R2 {
             });
         });
     }
-    sentantLoad(definition: string, passthrough = {}, details: string = "id name") {
+    sentantLoad(definition: string, passthrough = {}, details: string = "id name") : Promise<object> {
         return new Promise((resolve, reject) => {
             this._graphql_post ( this._sentantLoad(details), {definition: definition} ).then((data: any) => {
                 resolve({...passthrough, ...data});
@@ -75,7 +75,7 @@ export default class R2 {
             });
         });
     }
-    sentantUnload(id: string, passthrough = {}, details: string = "id name") {
+    sentantUnload(id: string, passthrough = {}, details: string = "id name") : Promise<object> {
         return new Promise((resolve, reject) => {
             this._graphql_post ( this._sentantUnload(details), {id: id} ).then((data: any) => {
                 resolve({...passthrough, ...data});
@@ -84,7 +84,7 @@ export default class R2 {
             });
         });
     }
-    swarmLoad(definition: string, passthrough = {}, details: string = "id name") {
+    swarmLoad(definition: string, passthrough = {}, details: string = "id name") : Promise<object> {
         return new Promise((resolve, reject) => {
             this._graphql_post ( this._swarmLoad(details), {definition: definition} ).then((data: any) => {
                 resolve({...passthrough, ...data});
@@ -93,13 +93,13 @@ export default class R2 {
             });
         });
     }
-    sentantSend(id: string, event: string, params: object, passthrough: object = {}, details: string = "id name") {
+    sentantSend(id: string, event: string, params: object, passthrough: object = {}, details: string = "id name") : Promise<object> {
         return this._graphql_post ( this._sentandSend(details), {id: id, event: event, parameters: JSON.stringify(params), passthrough: JSON.stringify(passthrough)} );
     }
-    awaitSignal(id: string, signal: string, callback: Function = () => {}) {
+    awaitSignal(id: string, signal: string, callback: Function = () => {}) : void {
         this._subscribe(id, signal, callback)
     }
-    monitor(callback: Function = () => {}) {
+    monitor(callback: Function = () => {}) : void {
         this._set_up_node_monitoring(callback);
     }
 
@@ -131,7 +131,7 @@ export default class R2 {
     // ----------------------------------------------------------------------------------------------------
     // Monitoring Sentant
     // ----------------------------------------------------------------------------------------------------
-    _set_up_node_monitoring (callback: Function = () => {}) {
+    _set_up_node_monitoring (callback: Function = () => {}) : void {
         let details = {
             "sentant": { "name": "monitor", "automations": [ { "name": "Monitor", "transitions": [ { "event": "__internal", "actions": [ { "command": "signal", "parameters": { "public": true, "event": "internal" } } ] } ] } ] }
         }
@@ -158,7 +158,7 @@ export default class R2 {
     // ----------------------------------------------------------------------------------------------------
     // GraphQL POST
     // ----------------------------------------------------------------------------------------------------
-    _graphql_post(query: string, variables: object) {
+    _graphql_post(query: string, variables: object) : Promise<object> {
         let body = {
             "query": query,
             "variables": JSON.stringify(variables)
@@ -186,7 +186,7 @@ export default class R2 {
     // ----------------------------------------------------------------------------------------------------
     // Websocket Subscription
     // ----------------------------------------------------------------------------------------------------
-    _subscribe(id: string, signal: string, callback: Function ) {
+    _subscribe(id: string, signal: string, callback: Function ) : void {
         let join_message = {
             "topic": "__absinthe__:control",
             "event": "phx_join",
@@ -253,7 +253,7 @@ export default class R2 {
     // ----------------------------------------------------------------------------------------------------
     // GraphQL Queries and Mutations
     // ----------------------------------------------------------------------------------------------------
-    _sentantAll(details: string) {
+    _sentantAll(details: string) : string {
         return `{
             sentantAll {
                 ${details}
@@ -261,7 +261,7 @@ export default class R2 {
         }`;
     }
 
-    _sentantGet(details: string) {
+    _sentantGet(details: string) : string {
         return `query SentantGet($id: UUID4!) {
             sentantGet(id: $id) {
                 ${details}
@@ -269,7 +269,7 @@ export default class R2 {
         }`;
     }
 
-    _sentantGetByName(details: string) {
+    _sentantGetByName(details: string) : string {
         return `query SentantGet($name: String!) {
             sentantGet(name: $name) {
                 ${details}
@@ -277,7 +277,7 @@ export default class R2 {
         }`;
     }
 
-    _sentantLoad(details: string) {
+    _sentantLoad(details: string) : string {
         return `mutation SentantLoad($definition: String!) {
             sentantLoad(definition: $definition) {
                 ${details}
@@ -285,7 +285,7 @@ export default class R2 {
         }`;
     }
 
-    _sentantUnload(details: string) {
+    _sentantUnload(details: string) : string {
         return `mutation SentantUnload($id: UUID4!) {
             sentantUnload(id: $id) {
                 ${details}
@@ -293,7 +293,7 @@ export default class R2 {
         }`;
     }
 
-    _swarmLoad(details: string) {
+    _swarmLoad(details: string) : string {
         return `mutation SwarmLoad($definition: String!) {
             swarmLoad(definition: $definition) {
                 ${details}
@@ -301,7 +301,7 @@ export default class R2 {
         }`;
     }
 
-    _sentandSend(details: string) {
+    _sentandSend(details: string) : string {
         return `mutation SentantSend($id: UUID4!, $event: String!, $parameters: Json, $passthrough: Json) {
             sentantSend(id: $id, event: $event, parameters: $parameters, passthrough: $passthrough) {
                 ${details}
@@ -309,7 +309,7 @@ export default class R2 {
         }`;
     }
 
-    _awaitSignal(details: string = "id name") {
+    _awaitSignal(details: string = "id name") : string {
         return `subscription AwaitSignal($id: UUID4!, $signal: String!) {
             awaitSignal(id: $id, signal: $signal) {
                 ${details}

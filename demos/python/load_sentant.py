@@ -41,15 +41,28 @@ def printhelp(events):
 
 
 # ----------------------------------------------------------------------------------------------------
+# Create a prompt for the user to enter a number between 0 and the number of events, or h or q
+# ----------------------------------------------------------------------------------------------------
+def prompt(events):
+    prompt = ""
+    for counter, event in enumerate(events):
+        prompt += str(counter) + " "
+    prompt += "h q >"
+    return prompt
+# ----------------------------------------------------------------------------------------------------
+
+
+
+# ----------------------------------------------------------------------------------------------------
 # Print out the result from an awaitSignal
 # ----------------------------------------------------------------------------------------------------
 def printout(data):
     event = R2.JSONPath(data, "awaitSignal.event")
     
     if (event == "debug"):
-        print("DEBUG\n", R2.JSONPath(data, "awaitSignal.parameters")) 
+        print("DEBUG  :", R2.JSONPath(data, "awaitSignal.parameters")) 
     else: 
-        print(R2.JSONPath(data, "awaitSignal.event"), " : ", R2.JSONPath(data, "awaitSignal.parameters"), " :: ", R2.JSONPath(data, "awaitSignal.passthrough"))
+        print("SIGNAL : [", R2.JSONPath(data, "awaitSignal.event"), "] :", R2.JSONPath(data, "awaitSignal.parameters"), "::", R2.JSONPath(data, "awaitSignal.passthrough"))
 # ----------------------------------------------------------------------------------------------------
 
 
@@ -103,12 +116,12 @@ def replace_file_references(definition):
 # ----------------------------------------------------------------------------------------------------
 # Main function
 # ----------------------------------------------------------------------------------------------------
-def main(filename, host):
+def main(filename, host, port):
 
     # ------------------------------------------------------------------------------------------------
     # Connect to the Reality2 node
     # ------------------------------------------------------------------------------------------------
-    r2_node = R2(host, 4001)
+    r2_node = R2(host, port)
 
     # ------------------------------------------------------------------------------------------------
     # Read the definition file
@@ -187,7 +200,10 @@ def main(filename, host):
     # Wait for user input and send the events
     # ------------------------------------------------------------------------------------------------
     while (True):
+        print (prompt(events), end=" ", flush=True)
         key = getkey()
+        print("\n")
+        
         if (key =="q"):
             break
         elif (key == "h"):
@@ -202,12 +218,14 @@ def main(filename, host):
                         print("Type in a", parameters[parameter], "for", parameter, end=" : ")
                         parameters[parameter] = input()
 
-                    print("Sending event [", events[index]["event"], "]")
+                    print("SEND   : [", events[index]["event"], "]")
                     r2_node.sentantSend(id, events[index]["event"], parameters)
                 else:
-                    print("Please enter a number between 0 and", len(events) - 1, "inclusive.")
+                    print("Please enter a number from 0 to", len(events) - 1)
             else:
                 print("Please enter a number, h for help, or q to quit.")
+                
+        time.sleep(1)
 
     # ------------------------------------------------------------------------------------------------
     # Close the subscriptions
@@ -223,8 +241,8 @@ def main(filename, host):
 # ----------------------------------------------------------------------------------------------------
 if (__name__ == '__main__'):
     if (len(sys.argv) < 2):
-        print("Usage: python3 load_sentant.py <filename> <host>")
+        print("Usage: python3 load_sentant.py <filename> <host> <port>")
         sys.exit(1)
 
-    main(sys.argv[1], sys.argv[2] if (len(sys.argv) > 2) else "localhost")
+    main(sys.argv[1], sys.argv[2] if (len(sys.argv) > 2) else "localhost", sys.argv[3] if (len(sys.argv) > 3) else 4001)
 # ----------------------------------------------------------------------------------------------------

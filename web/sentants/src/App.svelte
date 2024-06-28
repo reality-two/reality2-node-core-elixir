@@ -62,7 +62,7 @@
     // Get all the sentants, or a single Sentant if there is a name or id in the query string
     $: sentantData = loadSentants();
 
-    function loadSentants() {
+    function loadSentants() : Promise<object> {
         if (id_query != null) {
             return r2_node.sentantGet(id_query, {}, "name id description events { event parameters } signals")
         }
@@ -88,7 +88,7 @@
     function awaitSignal(e: CustomEvent) { r2_node.awaitSignal(e.detail.id, e.detail.signal, e.detail.callback); }
 
     // return true if there are no Sentants, or only the one called "monitor"
-    function none_or_monitor_only(data: {}) {
+    function none_or_monitor_only(data: {}) : boolean {
         let response = true;
         let sentants: Sentant[] = R2.JSONPath(data, "sentantAll");
         if (sentants == null) {
@@ -103,7 +103,7 @@
                 }
             }
         }
-        return response;
+        return false; //response;
     }
 
     // Reload the page
