@@ -40,15 +40,46 @@ decryption_key = base64.b64encode(key).decode('utf-8')
 
 At present, the algorithm uses symmetric encryption so both the keys are the same.  These should be stored safely somewhere.
 
+### Sentant-wide encryption keys
+
+The encryption keys are placed at the top level of the Sentant, for example:
+
+```yaml
+sentant:
+  name: Test Backup
+  description: Test data storage and retrieval from the database
+  keys:
+    encryption_key: __encryption_key__
+    decryption_key: __decryption_key__
+
+  automations:
+    ...
+```
+
+or
+
+```json
+{
+    "sentant": {
+        "name": "Test Parameters",
+        "keys": {
+            "encryption_key": "__encryption_key__",
+            "decryption_key": "__decryption_key__"
+        },
+        "automations": [ ... ]
+    }
+}
+```
+
 ## Loading a Sentant
 
 To load a sentant, the following may be used:
 
 ```bash
-python3 load_sentant.py sentant_definition.yaml node
+python3 load_sentant.py sentant_definition node
 ```
 
-Where `sentant_definition.yaml` is the name of the file to load that contains the sentant - this may be yaml, json or toml formatted, and node is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.
+Where `sentant_definition` is the name of the file to load that contains the sentant - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.
 
 So, for example:
 ```bash
@@ -76,10 +107,10 @@ ChatGPT Answer  :  {'answer': "The meaning of life is a deeply philosophical que
 Similarly, to load a Swarm of Sentants, the following may be used:
 
 ```bash
-python3 load_swarm.py swarm_definition.yaml node
+python3 load_swarm.py swarm_definition node
 ```
 
-Where `swarm_definition.yaml` is the name of the file to load that contains the swarm of sentants - this may be yaml, json or toml formatted, and node is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.
+Where `swarm_definition` is the name of the file to load that contains the swarm of sentants - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.
 
 So, for example:
 ```bash
