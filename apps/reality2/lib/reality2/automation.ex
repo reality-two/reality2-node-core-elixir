@@ -13,8 +13,8 @@ defmodule Reality2.Automation do
   alias Reality2.Helpers.R2Map, as: R2Map
   alias Reality2.Helpers.JsonPath, as: JsonPath
   alias Reality2.Helpers.R2Process, as: R2Process
+  alias Reality2.Helpers.Crypto, as: Crypto
   alias :mnesia, as: Mnesia
-  alias :crypto, as: Crypto
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks
@@ -128,7 +128,7 @@ defmodule Reality2.Automation do
         try do
           data_string = case decryption_key do
             nil -> stored_data
-            _ -> decrypt(Base.decode64!(stored_data), decryption_key)
+            _ -> Crypto.decrypt(Base.decode64!(stored_data), decryption_key)
           end
           case Jason.decode(data_string) do
             {:ok, data} -> data
@@ -140,12 +140,6 @@ defmodule Reality2.Automation do
       _ ->
         %{}
     end
-  end
-
-  defp decrypt(data, encoded_decryption_key) do
-    key = Base.decode64!(encoded_decryption_key)
-    <<iv::binary-size(12), tag::binary-size(16), ciphertext::binary>> = data
-    Crypto.crypto_one_time_aead(:aes_gcm, key, iv, ciphertext, "", tag, false)
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 

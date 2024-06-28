@@ -8,6 +8,15 @@ Sentants have some basic features to define them.  At the moment, these are quit
 
 Note that the name of a Sentant has to be unique on the node.
 
+The encryption and decryption keys are base64 encoded 32 byte binary sequences - these are used when storing data to disk.  These may be created in python like this:
+
+```python
+binary_key = os.urandom(32)
+encryption_key = base64.b64encode(binary_key).decode('utf-8')
+```
+
+Ideally, you would want to create this externally to your python code and store it somewherre safe if you intend being able to read and decrypt the data later.  The `backup_test.py` demo is a good example.
+
 ```JSON
 {
     "sentant": {
