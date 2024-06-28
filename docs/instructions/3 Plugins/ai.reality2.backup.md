@@ -16,10 +16,6 @@ Stores the current data stream (ie any values read from other sources, calculate
 ```yaml
 - command: store
   plugin: ai.reality2.backup
-  parameters: 
-    name: "Test Backup"
-    encryption_key: __encryption_key__
-    decryption_key: __decryption_key__
 ```
 
 The encryption and decryption keys are base64 encoded 32 byte binary sequence.  This may be created in python like this:
@@ -38,9 +34,6 @@ Retrieves and decrypts the data and inserts it into the data stream, overwriting
 ```yaml
 - command: retrieve
   plugin: ai.reality2.backup
-  parameters: 
-    name: "Test Backup"
-    decryption_key: __decryption_key__
 ```
 
 The decryption key in this case has to be the same as the encryption key as it usses a symmetric encryption algorithm.  This may change later.  Both the name and encryption/decryption key have to match or the data will not be retreived.
@@ -52,7 +45,4 @@ Deletes the data, if and only if the name and decryption key match.
 ```yaml
 - command: delete
   plugin: ai.reality2.backup
-  parameters: 
-    name: "Test Backup"
-    decryption_key: __decryption_key__
 ```

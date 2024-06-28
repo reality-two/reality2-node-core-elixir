@@ -54,7 +54,6 @@ defmodule Reality2.Plugin do
     end
 
     def handle_call(command, _from, {name, id, plugin_map, state}) do
-
       case R2Map.get(plugin_map, "type") do
         "internal" ->
           # Internal Plugin

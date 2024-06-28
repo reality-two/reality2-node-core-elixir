@@ -8,7 +8,7 @@ fi
 
 # Create the mnesia directory structure if it doesn't exist
 if ! [ -d ".mnesia" ]; then
-  mkdir .mnesia
+  mkdir ".mnesia"
 fi
 cd .mnesia
 if ! [ -d $MIX_ENV ]; then

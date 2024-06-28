@@ -10,7 +10,6 @@
     import {Card, Content, Header, Image, Button, Text, Input, Link} from "svelte-fomantic-ui";
 
     import type { Sentant, Event } from './reality2.js';
-    import { compressNormals } from 'three/examples/jsm/utils/GeometryCompressionUtils.js';
 
     export let sentant: Sentant = {name: "", id: "", description: "", events: [], signals: []};
 
