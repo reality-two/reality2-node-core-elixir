@@ -13,25 +13,27 @@ defmodule Reality2.Automation do
   alias Reality2.Helpers.R2Map, as: R2Map
   alias Reality2.Helpers.JsonPath, as: JsonPath
   alias Reality2.Helpers.R2Process, as: R2Process
+  alias :mnesia, as: Mnesia
+  alias :crypto, as: Crypto
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc false
-  def start_link({_sentant_name, id, sentant_map}, automation_map) do
+  def start_link({sentant_name, id, sentant_map}, automation_map) do
     case R2Map.get(automation_map, :name) do
       nil ->
         {:error, :definition}
       automation_name ->
-        data = R2Map.get(sentant_map, :data, %{})
-        GenServer.start_link(__MODULE__, {automation_name, id, automation_map, data})
+        keys = R2Map.get(sentant_map, "keys", %{})
+        GenServer.start_link(__MODULE__, {automation_name, id, sentant_name, automation_map, keys})
         |> R2Process.register(id <> "|automation|" <> automation_name)
     end
   end
 
   @impl true
-  def init({name, id, automation_map, data}) do
-    {:ok, {name, id, automation_map, data, "start"}}
+  def init({name, id, sentant_name, automation_map, keys}) do
+    {:ok, {name, id, sentant_name, automation_map, keys, "start"}}
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -45,12 +47,12 @@ defmodule Reality2.Automation do
   # Synchronous Calls
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @impl true
-  def handle_call(:state, _from, {name, id, automation_map, data, state}) do
-    {:reply, {name, state}, {name, id, automation_map, data, state}}
+  def handle_call(:state, _from, {name, id, sentant_name, automation_map, keys, state}) do
+    {:reply, {name, state}, {name, id, sentant_name, automation_map, keys, state}}
   end
 
-  def handle_call(_, _, {name, id, automation_map, data, state}) do
-    {:reply, {:error, :unknown_command}, {name, id, automation_map, data, state}}
+  def handle_call(_, _, {name, id, sentant_name, automation_map, keys, state}) do
+    {:reply, {:error, :unknown_command}, {name, id, sentant_name, automation_map, keys, state}}
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -60,43 +62,50 @@ defmodule Reality2.Automation do
   # Asynchronous Casts
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @impl true
-  def handle_cast(args, {name, id, automation_map, data, state}) do
+  def handle_cast(args, {name, id, sentant_name, automation_map, keys, state}) do
 
     parameters = R2Map.get(args, :parameters, %{})
     passthrough = R2Map.get(args, :passthrough, %{})
 
-    case R2Map.get(args, :event) do
-      nil -> {:noreply, {name, id, automation_map, data, state}}
-      event ->
-        case R2Map.get(automation_map, "transitions") do
-          nil ->
-            {:noreply, {name, id, automation_map, data, state}}
-          transitions ->
-            new_state =
-              Enum.reduce_while(transitions, state,
-                fn transition_map, acc_state ->
-                  case check_transition(id, transition_map, event, parameters, passthrough, data, acc_state) do
-                    {:no_match, the_state} ->
-                      {:cont, the_state}
-                    {:ok, the_state} ->
-                      {:halt, the_state}
-                  end
-                end
-              )
-            {:noreply, {name, id, automation_map, data, new_state}}
+    # Get the data from the Sentant Database (if there is any)
+    case R2Map.get(keys, "decryption_key") do
+      nil -> {:noreply, {name, id, sentant_name, automation_map, keys, state}}
+      decryption_key ->
+        data = get_data(id, decryption_key)
+
+        case R2Map.get(args, :event) do
+          nil -> {:noreply, {name, id, sentant_name, automation_map, keys, state}}
+          event ->
+            case R2Map.get(automation_map, "transitions") do
+              nil ->
+                {:noreply, {name, id, sentant_name, automation_map, keys, state}}
+              transitions ->
+                new_state =
+                  Enum.reduce_while(transitions, state,
+                    fn transition_map, acc_state ->
+                      case check_transition(id, sentant_name, transition_map, event, parameters, passthrough, data, keys, acc_state) do
+                        {:no_match, the_state} ->
+                          {:cont, the_state}
+                        {:ok, the_state} ->
+                          {:halt, the_state}
+                      end
+                    end
+                  )
+                {:noreply, {name, id, sentant_name, automation_map, keys, new_state}}
+            end
         end
     end
   end
 
   # Used for sending events in the future using Process.send_after
   @impl true
-  def handle_info({:send, name_or_id, %{event: event} = details}, {name, id, automation_map, data, state}) do
+  def handle_info({:send, name_or_id, %{event: event} = details}, {name, id, sentant_name, automation_map, keys, state}) do
     Reality2.Sentants.sendto(name_or_id, details)
     R2Process.deregister(id <> "|timers|" <> event)
-    {:noreply, {name, id, automation_map, data, state}}
+    {:noreply, {name, id, sentant_name, automation_map, keys, state}}
   end
-  def handle_info(_, {name, id, automation_map, data, state}) do
-    {:noreply, {name, id, automation_map, data, state}}
+  def handle_info(_, {name, id, sentant_name, automation_map, keys, state}) do
+    {:noreply, {name, id, sentant_name, automation_map, keys, state}}
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -106,12 +115,48 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Get the data from the Data Table in Mnesia
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  defp get_data(id, decryption_key) do
+    do_read = fn id ->
+      Mnesia.read({:data, id})
+    end
+
+    # Get the data from the Sentant Database (if there is any) and add to the sentant_map
+    case Mnesia.transaction(do_read, [id]) do
+      {:atomic, [{:data, ^id, stored_data}]} ->
+        try do
+          data_string = case decryption_key do
+            nil -> stored_data
+            _ -> decrypt(Base.decode64!(stored_data), decryption_key)
+          end
+          case Jason.decode(data_string) do
+            {:ok, data} -> data
+            _ -> %{}
+          end
+        rescue
+          _ -> %{}
+        end
+      _ ->
+        %{}
+    end
+  end
+
+  defp decrypt(data, encoded_decryption_key) do
+    key = Base.decode64!(encoded_decryption_key)
+    <<iv::binary-size(12), tag::binary-size(16), ciphertext::binary>> = data
+    Crypto.crypto_one_time_aead(:aes_gcm, key, iv, ciphertext, "", tag, false)
+  end
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   # Check the Transition Map to see if it matches the current state and event
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp check_transition(id, transition_map, event, parameters, passthrough, data, state) do
+  defp check_transition(id, sentant_name, transition_map, event, parameters, passthrough, data, keys, state) do
     case R2Map.get(transition_map, :from, "*") do
-      "*" -> check_event(id, transition_map, event, parameters, passthrough, data, state)
-      ^state -> check_event(id, transition_map, event, parameters, passthrough, data, state)
+      "*" -> check_event(id, sentant_name, transition_map, event, parameters, passthrough, data, keys, state)
+      ^state -> check_event(id, sentant_name, transition_map, event, parameters, passthrough, data, keys, state)
       _ -> {:no_match, state}
     end
   end
@@ -122,17 +167,17 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Check the Event Map to see if it matches the current event, and do appropiate actions and state change if it does
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp check_event(id, transition_map, event, parameters, passthrough, data, state) do
+  defp check_event(id, sentant_name, transition_map, event, parameters, passthrough, data, keys, state) do
     case R2Map.get(transition_map, :event) do
       nil ->
         {:no_match, state}
       ^event ->
         case R2Map.get(transition_map, :to, "*") do
           "*" ->
-            do_actions(id, transition_map, parameters, passthrough, data)
+            do_actions(id, sentant_name, transition_map, parameters, passthrough, keys, data)
             {:ok, state}
           to ->
-            do_actions(id, transition_map, parameters, passthrough, data)
+            do_actions(id, sentant_name, transition_map, parameters, passthrough, keys, data)
             {:ok, to}
         end
       _ ->
@@ -146,7 +191,7 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Do the Actions in the Transition Map when the Transition triggers
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp do_actions(id, transition_map, parameters, passthrough, data) do
+  defp do_actions(id, sentant_name, transition_map, parameters, passthrough, keys, data) do
     case R2Map.get(transition_map, :actions) do
       nil ->
         parameters # No actions, so result is just the parameters
@@ -155,7 +200,7 @@ defmodule Reality2.Automation do
         # Parameters comes in from 'outside' and then accumulates through each action that is done
         # So, the result of do_action becomes the accumulated_parameters to the next action
         Enum.reduce(actions, parameters, fn action_map, accumulated_parameters ->
-          do_action(id, action_map, accumulated_parameters, passthrough, data)
+          do_action(id, sentant_name, action_map, accumulated_parameters, passthrough, keys, data)
         end)
     end
   end
@@ -174,17 +219,17 @@ defmodule Reality2.Automation do
   #         }
   # }
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp do_action(id, action_map, accumulated_parameters, passthrough, data) do
+  defp do_action(id, sentant_name, action_map, accumulated_parameters, passthrough, keys, data) do
     action_parameters = R2Map.get(action_map, :parameters, %{})
 
     # Both the functions below return a map that becomes the accumulater parameters of the next action
     case R2Map.get(action_map, :plugin) do
       nil ->
         R2Map.get(action_map, :command)
-        |> do_inbuilt_action(id, action_parameters, accumulated_parameters, passthrough, data)
+        |> do_inbuilt_action(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
       plugin ->
         R2Map.get(action_map, :command)
-        |> do_plugin_action(plugin, id, action_parameters, accumulated_parameters, passthrough, data)
+        |> do_plugin_action(plugin, id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
     end
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -194,7 +239,7 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Do a Plugin Action
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp do_plugin_action(action, plugin, id, action_parameters, accumulated_parameters, passthrough, data) do
+  defp do_plugin_action(action, plugin, id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data) do
     override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
       Map.merge(accumulated_parameters, action_parameters)
@@ -206,13 +251,11 @@ defmodule Reality2.Automation do
     # When the sentant begins, there is a small possibiity that the plugin has not yet started.
     case test_and_wait(id <> "|plugin|" <> plugin, 5) do
       nil ->
-        IO.puts("Plugin not yet started: #{plugin}")
         accumulated_parameters
         |> Map.merge(%{result: %{error: :plugin_error}})
       pid ->
-        IO.puts("Calling Plugin: #{plugin}")
         # Call the plugin on the Sentant, which in turn will call the appropriate internal App or external plugin
-        case GenServer.call(pid, %{command: action, parameters: combined_parameters, passthrough: passthrough, data: data}) do
+        case GenServer.call(pid, %{command: action, parameters: combined_parameters, passthrough: passthrough, data: data, keys: keys, name: sentant_name}) do
           {:ok, result} ->
             accumulated_parameters
             |> Map.merge(result)
@@ -240,12 +283,12 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Do an Inbuilt Action
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp do_inbuilt_action(action, id, action_parameters, accumulated_parameters, passthrough, data) do
+  defp do_inbuilt_action(action, id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data) do
     case action do
-      "send" -> send(id, action_parameters, accumulated_parameters, passthrough, data)
-      "debug" -> debug(id, action_parameters, accumulated_parameters, passthrough, data)
-      "set" -> set(id, action_parameters, accumulated_parameters, passthrough, data)
-      "signal" -> signal(id, action_parameters, accumulated_parameters, passthrough, data)
+      "send" -> send(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
+      "debug" -> debug(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
+      "set" -> set(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
+      "signal" -> signal(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
       _ -> accumulated_parameters |> Map.merge(%{result: :invalid_command})
     end
   end
@@ -260,7 +303,7 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Send
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp send(id, action_parameters, accumulated_parameters, passthrough, _data) do
+  defp send(id, _sentant_name, action_parameters, accumulated_parameters, passthrough, _decryption_key, _data) do
 
     override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
@@ -323,7 +366,7 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Send a signal on the Sentant's subscription channel
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp signal(id, action_parameters, accumulated_parameters, passthrough, _data) do
+  defp signal(id, _sentant_name, action_parameters, accumulated_parameters, passthrough, _decryption_key, _data) do
     override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
       Map.merge(accumulated_parameters, action_parameters)
@@ -356,7 +399,7 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Send debug info to the debug channel
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp debug(id, _action_parameters, accumulated_parameters, passthrough, _data) do
+  defp debug(id, _sentant_name, _action_parameters, accumulated_parameters, passthrough, _decryption_key, _data) do
     apply(Reality2Web.SentantResolver, :send_signal, [id, "debug", accumulated_parameters, passthrough])
     # Reality2Web.SentantResolver.send_signal(id, "debug", accumulated_parameters, passthrough)
 
@@ -370,7 +413,7 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Set a key / value in the accumulated parameters
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp set(_id, action_parameters, accumulated_parameters, _passthrough, data) do
+  defp set(_id, _sentant_name, action_parameters, accumulated_parameters, _passthrough, _decryption_key, data) do
     override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
       Map.merge(accumulated_parameters, action_parameters)

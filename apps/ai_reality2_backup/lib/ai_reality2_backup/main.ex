@@ -28,8 +28,12 @@ defmodule AiReality2Backup.Main do
       Mnesia.stop()
       Mnesia.create_schema([node()])
       Mnesia.start()
+      # Table for storing encrypted backup data
       Mnesia.create_table(:backup, [attributes: [:name, :data], disc_only_copies: [node()]])
       Mnesia.add_table_index(:backup, :name)
+      # Table for storing sentant data
+      Mnesia.create_table(:data, [attributes: [:id, :data], disc_only_copies: [node()]])
+      Mnesia.add_table_index(:data, :id)
       {:ok, state}
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -108,18 +112,23 @@ defmodule AiReality2Backup.Main do
       - `{:error, :unknown_command}` - If the command was not recognised.
     """
     def sendto(_sentant_id, command_and_parameters) do
+      sentant_name = R2Map.get(command_and_parameters, :name, "")
+      keys = R2Map.get(command_and_parameters, :keys, %{})
+      decryption_key = R2Map.get(keys, :decryption_key, "")
+      encryption_key = R2Map.get(keys, :encryption_key, "")
+
       parameters = R2Map.get(command_and_parameters, :parameters, %{})
-      data = parameters |> R2Map.delete(:name) |> R2Map.delete(:encryption_key) |> R2Map.delete(:result) |> R2Map.delete(:decryption_key)
+      data = parameters |> R2Map.delete(:result)
       case R2Map.get(command_and_parameters, :command) do
         "store" ->
           # Encrypt and store data in the database
-          encrypt_and_store(R2Map.get(parameters, :name, ""), data, R2Map.get(parameters, :encryption_key, ""), R2Map.get(parameters, :decryption_key, ""))
+          encrypt_and_store(sentant_name, data, encryption_key, decryption_key)
         "retrieve" ->
           # Retrieve and decrypt data from the database
-          retrieve_and_decrypt(R2Map.get(parameters, :name, ""), R2Map.get(parameters, :decryption_key, ""))
+          retrieve_and_decrypt(sentant_name, decryption_key)
         "delete" ->
             # Delete an entry from the database
-            delete(R2Map.get(parameters, :name, ""), R2Map.get(parameters, :decryption_key, ""))
+            delete(sentant_name, decryption_key)
         _ ->
           {:error, :command}
       end
@@ -144,7 +153,7 @@ defmodule AiReality2Backup.Main do
           case Jason.encode(data) do
             {:ok, data_string} ->
               encrypted_data = encrypt(data_string, encryption_key)
-              Mnesia.transaction(do_write, [name, encrypted_data])
+              Mnesia.transaction(do_write, [name, Base.encode64(encrypted_data)])
               :ok
             _ -> {:error, :data}
           end
@@ -153,7 +162,7 @@ defmodule AiReality2Backup.Main do
           case Jason.encode(data) do
             {:ok, data_string} ->
               encrypted_data = encrypt(data_string, encryption_key)
-              Mnesia.transaction(do_write, [name, encrypted_data])
+              Mnesia.transaction(do_write, [name, Base.encode64(encrypted_data)])
               :ok
             _ -> {:error, :data}
           end
@@ -168,11 +177,11 @@ defmodule AiReality2Backup.Main do
       do_read = fn name ->
         Mnesia.read({:backup, name})
       end
-      result = Mnesia.transaction(do_read, [name])
-      case result do
+
+      case Mnesia.transaction(do_read, [name]) do
         {:atomic, [{:backup, ^name, encrypted_data}]} ->
           try do
-            data_string = decrypt(encrypted_data, decryption_key)
+            data_string = decrypt(Base.decode64!(encrypted_data), decryption_key)
             case Jason.decode(data_string) do
               {:ok, decrypted_data} ->
                 {:ok, decrypted_data}
