@@ -40,30 +40,6 @@ defmodule Reality2.Sentant.Comms do
   # Return the current definition of the Sentant
   @impl true
   def handle_call(:definition, _from, {id, sentant_map}) do
-
-    # do_read = fn id ->
-    #   Mnesia.read({:data, id})
-    # end
-
-    # # Get the data from the Sentant Database (if there is any) and add to the sentant_map
-    # sentant_map = case Mnesia.transaction(do_read, [id]) do
-    #   {:atomic, [{:data, ^id, encrypted_data}]} ->
-    #     try do
-    #       data_string = encrypted_data #decrypt(encrypted_data, decryption_key)
-    #       case Jason.decode(data_string) do
-    #         {:ok, decrypted_data} ->
-    #           Map.merge(sentant_map, %{"data" => decrypted_data})
-    #         _ -> Map.merge(sentant_map, %{"data" => %{}})
-    #       end
-    #     rescue
-    #       _ -> Map.merge(sentant_map, %{"data" => %{}})
-    #     end
-    #   _ ->
-    #     Map.merge(sentant_map, %{"data" => %{}})
-    # end
-
-    # IO.puts("SentantComms: Sentant Definition: " <> inspect(sentant_map, pretty: true))
-
     {:reply, sentant_map |> convert_map_keys |> convert_for_output, {id, sentant_map}}
   end
 
