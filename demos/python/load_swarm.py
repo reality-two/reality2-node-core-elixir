@@ -49,6 +49,52 @@ def printout(data):
 
 
 # ----------------------------------------------------------------------------------------------------
+# Replace the variables in the definition file
+# ----------------------------------------------------------------------------------------------------
+def replace_variables(definition, variables_filename):
+    with open(variables_filename, 'r') as file:
+        variables_txt = file.read()
+    
+    # Convert the variables to a dictionary
+    variables = json.loads(variables_txt)
+
+    # Replace the variables in the definition file
+    for key in variables:
+        definition = definition.replace(key, variables[key])
+        
+    return definition
+# ----------------------------------------------------------------------------------------------------
+
+
+
+# ----------------------------------------------------------------------------------------------------
+# Replace file(filename) references with base64 encoded file contents
+# ----------------------------------------------------------------------------------------------------
+def encode_file_to_base64(filename):
+    # Read a file and return its base64 encoded contents.
+    if (exists(filename)):
+        with open(filename, 'rb') as file:
+            file_contents = file.read()
+        return base64.b64encode(file_contents).decode('utf-8')
+    else:
+        print("The file", filename, "does not exist.")
+        return ""
+
+def replace_file_references(definition):
+    # Replace file(filename) references with base64 encoded file contents.
+    pattern = re.compile(r'file\((.*?)\)')
+    
+    def replace_match(match):
+        filename = match.group(1)
+        encoded_content = encode_file_to_base64(filename)
+        return encoded_content
+    
+    return pattern.sub(replace_match, definition)    
+# ----------------------------------------------------------------------------------------------------
+
+
+
+# ----------------------------------------------------------------------------------------------------
 # Main function
 # ----------------------------------------------------------------------------------------------------
 def main(filename, host):
@@ -69,18 +115,17 @@ def main(filename, host):
         return
     
     # ------------------------------------------------------------------------------------------------
-    # Read the variables file (if it exists)
+    # Read the variables files (if they exist)
     # ------------------------------------------------------------------------------------------------
     if exists('../../../variables.json'):
-        with open('../../../variables.json', 'r') as file:
-            variables_txt = file.read()
+        definition = replace_variables(definition, '../../../variables.json')
+    if exists('./variables.json'):
+        definition = replace_variables(definition, './variables.json')
         
-        # Convert the variables to a dictionary
-        variables = json.loads(variables_txt)
-
-        # Replace the variables in the definition file
-        for key in variables:
-            definition = definition.replace(key, variables[key])
+    # ------------------------------------------------------------------------------------------------
+    # Replace file(filename) references with base64 encoded file contents
+    # ------------------------------------------------------------------------------------------------
+    definition = replace_file_references(definition)
 
     # ------------------------------------------------------------------------------------------------
     # Unload the existing Sentants named in the file if it exists
