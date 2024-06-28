@@ -12,7 +12,7 @@ defmodule Reality2.Sentant do
   alias Reality2.Helpers.R2Process, as: R2Process
   alias Reality2.Helpers.R2Map, as: R2Map
   alias :mnesia, as: Mnesia
-  alias :crypto, as: Crypto
+  alias Reality2.Helpers.Crypto, as: Crypto
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks
@@ -32,9 +32,10 @@ defmodule Reality2.Sentant do
         end
     end
 
+    # Add the name and id to the Sentant Map
     new_sentant_map = Map.merge(sentant_map, %{"id" => id, "name" => name})
 
-    # Get the data from the Sentant Map
+    # Get the data from the Sentant Map and store in the Sentant Database
     new_sentant_map = case R2Map.get(new_sentant_map, "data") do
       nil -> new_sentant_map
       data ->
@@ -43,7 +44,7 @@ defmodule Reality2.Sentant do
             {:ok, data_string} ->
               data_to_store = case encryption_key do
                 nil -> data_string
-                key -> Base.encode64(encrypt(data_string, key))
+                key -> Base.encode64(Crypto.encrypt(data_string, key))
               end
               Mnesia.transaction(do_write, [id, data_to_store])
               new_sentant_map
@@ -86,15 +87,6 @@ defmodule Reality2.Sentant do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
-
-  defp encrypt(data, encoded_encryption_key) do
-    key = Base.decode64!(encoded_encryption_key)
-    iv = Crypto.strong_rand_bytes(12)
-    {ciphertext, tag} = Crypto.crypto_one_time_aead(:aes_gcm, key, iv, data, "", true)
-
-    # Combine IV, tag, and ciphertext into a blob
-    iv <> tag <> ciphertext
-  end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
 end
