@@ -29,6 +29,7 @@ defmodule AiReality2Vars.Main do
 
     @impl true
     def init(init_arg) do
+      IO.puts("[ai.reality2.data #{Mix.Project.config[:version]}] started successfully.")
       DynamicSupervisor.init( strategy: :one_for_one, extra_arguments: [init_arg] )
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------

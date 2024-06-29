@@ -20,6 +20,7 @@ defmodule Reality2Web.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Reality2Web.Supervisor]
+    IO.puts("[ai.reality2.web #{Mix.Project.config[:version]}] started successfully.")
     Supervisor.start_link(children, opts)
   end
 

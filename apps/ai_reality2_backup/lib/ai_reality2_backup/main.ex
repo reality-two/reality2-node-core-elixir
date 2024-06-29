@@ -25,16 +25,37 @@ defmodule AiReality2Backup.Main do
 
     @doc false
     def init(state) do
-      Mnesia.stop()
-      Mnesia.create_schema([node()])
-      Mnesia.start()
-      # Table for storing encrypted backup data
-      Mnesia.create_table(:backup, [attributes: [:name, :data], disc_only_copies: [node()]])
-      Mnesia.add_table_index(:backup, :name)
-      # Table for storing sentant data
-      Mnesia.create_table(:data, [attributes: [:id, :data], disc_only_copies: [node()]])
-      Mnesia.add_table_index(:data, :id)
-      {:ok, state}
+      with :stopped <- Mnesia.stop(),
+        :ok <- create_schema(),
+        :ok <- Mnesia.start(),
+        :ok <- create_table(:backup, [attributes: [:name, :data], disc_only_copies: [node()]]),
+        :ok <- create_table(:data, [attributes: [:id, :data], disc_only_copies: [node()]])
+      do
+        IO.puts("[ai.reality2.backup #{Mix.Project.config[:version]}] started successfully.")
+        {:ok, state}
+      else
+        _ -> {:error, :mnesia}
+      end
+    end
+
+    defp create_schema do
+      case Mnesia.create_schema([node()]) do
+        :ok ->
+          :ok
+        {:error, {_, {:already_exists, _}}} ->
+          :ok
+        error -> error
+      end
+    end
+
+    defp create_table(table_name, attributes) do
+      case Mnesia.create_table(table_name, attributes) do
+        {:atomic, :ok} ->
+          :ok
+        {:aborted, {:already_exists, _}} ->
+          :ok
+        error -> error
+      end
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
 

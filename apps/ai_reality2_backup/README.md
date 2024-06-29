@@ -10,7 +10,7 @@ by adding `ai_reality2_backup` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ai_reality2_backup, "~> 0.1.0"}
+    {:ai_reality2_backup, "~> 0.1.8"}
   ]
 end
 ```

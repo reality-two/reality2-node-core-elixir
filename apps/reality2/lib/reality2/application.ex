@@ -18,6 +18,7 @@ defmodule Reality2.Application do
       {Finch, name: Reality2.HTTPClient, start: {Finch, :start_link, []}}
     ]
 
+    IO.puts("[ai.reality2 #{Mix.Project.config[:version]}] started successfully.")
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
   end
 end
