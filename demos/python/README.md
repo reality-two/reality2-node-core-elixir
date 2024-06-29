@@ -71,19 +71,33 @@ or
 }
 ```
 
+## Load a Sentant or Swarm
+
+For convenience, you can use the bash script `load` to load either a Sentant or a Swarm, with the following set of parameters.
+
+```bash
+./load sentant_or_swarm_definition node port
+```
+
+This calls one of the below Python functions.  If no node is given, then `localhost` is assumed.  If no port is given, `4001` is assumed.  For example:
+
+```bash
+./load swarm_light_and_switch.json localhost 4001
+```
+
 ## Loading a Sentant
 
 To load a sentant, the following may be used:
 
 ```bash
-python3 load_sentant.py sentant_definition node
+python3 load_sentant.py sentant_definition node port
 ```
 
-Where `sentant_definition` is the name of the file to load that contains the sentant - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.
+Where `sentant_definition` is the name of the file to load that contains the sentant - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.  If no port is given, `4001` is assumed.
 
 So, for example:
 ```bash
-python3 load_sentant.py sentant_chatgpt.yaml localhost
+python3 load_sentant.py sentant_chatgpt.yaml localhost 4001
 ```
 
 ```text
@@ -110,7 +124,7 @@ Similarly, to load a Swarm of Sentants, the following may be used:
 python3 load_swarm.py swarm_definition node
 ```
 
-Where `swarm_definition` is the name of the file to load that contains the swarm of sentants - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.
+Where `swarm_definition` is the name of the file to load that contains the swarm of sentants - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.  If no port is given, `4001` is assumed.
 
 So, for example:
 ```bash
