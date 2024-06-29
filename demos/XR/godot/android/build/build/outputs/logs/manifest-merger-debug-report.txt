@@ -214,7 +214,7 @@ uses-permission#android.permission.INTERNET
 ADDED from /home/roycdavies/Development/Reality2/Reality2/XR/godot/android/build/src/debug/AndroidManifest.xml:11:5-67
 	android:name
 		ADDED from /home/roycdavies/Development/Reality2/Reality2/XR/godot/android/build/src/debug/AndroidManifest.xml:11:22-64
-intent-filter#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+category:name:android.intent.category.DEFAULT+data:host:reality.local:4001+data:pathPrefix:+data:scheme:https
+intent-filter#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+category:name:android.intent.category.DEFAULT+data:host:reality.local:4005+data:pathPrefix:+data:scheme:https
 ADDED from /home/roycdavies/Development/Reality2/Reality2/XR/godot/android/build/src/debug/AndroidManifest.xml:28:1-33:17
 	android:label
 		ADDED from /home/roycdavies/Development/Reality2/Reality2/XR/godot/android/build/src/debug/AndroidManifest.xml:28:16-32

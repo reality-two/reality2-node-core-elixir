@@ -8,7 +8,7 @@ fi
 # Set the environment variable
 # export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
 export SECRET_KEY_BASE=$(openssl rand -hex 32)
-export PORT=4001
+export PORT=4005
 export POOLSIZE=10
 
 # Create the mnesia directory structure if it doesn't exist

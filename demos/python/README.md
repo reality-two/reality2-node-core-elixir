@@ -79,10 +79,10 @@ For convenience, you can use the bash script `load` to load either a Sentant or 
 ./load sentant_or_swarm_definition node port
 ```
 
-This calls one of the below Python functions.  If no node is given, then `localhost` is assumed.  If no port is given, `4001` is assumed.  For example:
+This calls one of the below Python functions.  If no node is given, then `localhost` is assumed.  If no port is given, `4005` is assumed.  For example:
 
 ```bash
-./load swarm_light_and_switch.json localhost 4001
+./load swarm_light_and_switch.json localhost 4005
 ```
 
 ## Loading a Sentant
@@ -93,18 +93,18 @@ To load a sentant, the following may be used:
 python3 load_sentant.py sentant_definition node port
 ```
 
-Where `sentant_definition` is the name of the file to load that contains the sentant - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.  If no port is given, `4001` is assumed.
+Where `sentant_definition` is the name of the file to load that contains the sentant - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.  If no port is given, `4005` is assumed.
 
 So, for example:
 ```bash
-python3 load_sentant.py sentant_chatgpt.yaml localhost 4001
+python3 load_sentant.py sentant_chatgpt.yaml localhost 4005
 ```
 
 ```text
 Unloading existing Sentant named " Ask Question "
-Joined: wss://localhost:4001/reality2/websocket
+Joined: wss://localhost:4005/reality2/websocket
 Subscribed to a0aad5dc-3437-11ef-9405-de59b61f7ba3|debug
-Joined: wss://localhost:4001/reality2/websocket
+Joined: wss://localhost:4005/reality2/websocket
 Subscribed to a0aad5dc-3437-11ef-9405-de59b61f7ba3|ChatGPT Answer
 ---------- Send Events ----------
  Press [ 0 ] for { Ask ChatGPT {'question': 'string'} }
@@ -124,7 +124,7 @@ Similarly, to load a Swarm of Sentants, the following may be used:
 python3 load_swarm.py swarm_definition node
 ```
 
-Where `swarm_definition` is the name of the file to load that contains the swarm of sentants - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.  If no port is given, `4001` is assumed.
+Where `swarm_definition` is the name of the file to load that contains the swarm of sentants - this may be yaml, json or toml formatted, and `node` is either the IP address or domain name of the Reality2 node to load the sentant onto.  If no node is given, then `localhost` is assumed.  If no port is given, `4005` is assumed.
 
 So, for example:
 ```bash
@@ -133,11 +133,11 @@ python3 load_swarm.py swarm_light_and_switch.json localhost
 
 ```text
 Unloading existing Sentants named " ['Light Switch', 'Light Bulb'] "
-Joined: wss://localhost:4001/reality2/websocket
+Joined: wss://localhost:4005/reality2/websocket
 Subscribed to afc0fae0-342a-11ef-ad8b-de59b61f7ba3|debug
-Joined: wss://localhost:4001/reality2/websocket
-Joined: wss://localhost:4001/reality2/websocket
-Joined: wss://localhost:4001/reality2/websocket
+Joined: wss://localhost:4005/reality2/websocket
+Joined: wss://localhost:4005/reality2/websocket
+Joined: wss://localhost:4005/reality2/websocket
 Subscribed to afc121f0-342a-11ef-a798-de59b61f7ba3|debug
 Subscribed to afc121f0-342a-11ef-a798-de59b61f7ba3|Light off
 Subscribed to afc121f0-342a-11ef-a798-de59b61f7ba3|Light on

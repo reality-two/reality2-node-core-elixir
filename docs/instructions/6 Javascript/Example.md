@@ -5,7 +5,7 @@ This example uses [Svelte](https://svelte.dev/) and the [Svelte Fomantic UI.](ht
 You can get all the Sentants on a node in a browser with:
 
 ```http
-https://localhost:4001
+https://localhost:4005
 ```
 
 ![](.images/jT4DA1sv6PAeG.png)
@@ -13,8 +13,8 @@ https://localhost:4001
 or a specific Sentant with either its ID or Name in the query:
 
 ```http
-https://localhost:4001/?name=Light Switch
-https://localhost:4001/?id=ad7d5e5a-f87e-11ee-b612-18c04dee389e
+https://localhost:4005/?name=Light Switch
+https://localhost:4005/?id=ad7d5e5a-f87e-11ee-b612-18c04dee389e
 ```
 
 ![](.images/sXaiOf44iBjH5.png)
@@ -80,7 +80,7 @@ This is the main `App.svelte` for the Reality2 Node.  See the web/sentants folde
     // Main functionality
     // -------------------------------------------------------------------------------------------------
     // GraphQL client setup 
-    let r2_node = new R2(window.location.hostname, 4001, true);
+    let r2_node = new R2(window.location.hostname, 4005, true);
 
     // Set up the monitoring of the Reality2 Node
     setTimeout(() => { r2_node.monitor((_data: any) => { sentantData = loadSentants(); }); }, 1000);

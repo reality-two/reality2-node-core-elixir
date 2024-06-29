@@ -29,7 +29,7 @@
 	<action android:name="android.intent.action.VIEW" />
 	<category android:name="android.intent.category.DEFAULT" />
 	<category android:name="android.intent.category.BROWSABLE" />
-	<data android:scheme="https" android:host="reality.local:4001" android:pathPrefix="" />
+	<data android:scheme="https" android:host="reality.local:4005" android:pathPrefix="" />
 </intent-filter>
 
         </activity>

@@ -49,7 +49,7 @@ def main(host):
     current_max = 0
     
     # Connect to the Reality2 node
-    r2_node = R2(host, 4001)
+    r2_node = R2(host, 4005)
     
     print("+---- Create many Sentants -------------------------------+")
     print("| Type a number followed by the enter key to create that  |")

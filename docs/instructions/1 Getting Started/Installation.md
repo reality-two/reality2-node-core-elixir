@@ -111,9 +111,9 @@ cd scripts
 What you should see:
 
 ```bash
-[info] Running Reality2Web.Endpoint with cowboy 2.10.0 at 0.0.0.0:4002 (http)
-[info] Running Reality2Web.Endpoint with cowboy 2.10.0 at 0.0.0.0:4001 (https)
-[info] Access Reality2Web.Endpoint at https://localhost:4001
+[info] Running Reality2Web.Endpoint with cowboy 2.10.0 at 0.0.0.0:4006 (http)
+[info] Running Reality2Web.Endpoint with cowboy 2.10.0 at 0.0.0.0:4005 (https)
+[info] Access Reality2Web.Endpoint at https://localhost:4005
 Erlang/OTP 26 [erts-14.2.3] [source] [64-bit] [smp:10:10] [ds:10:10:10] [async-threads:1] [jit]
 
 Interactive Elixir (1.16.2) - press Ctrl+C to exit (type h() ENTER for help)
@@ -126,7 +126,7 @@ Congratulations, you now have a Reality2 node up and running.  Feels good doesn'
 
 #### Step 8
 
-- Have a look at it.  Open a browser and go to `https://lcoalhost:4001`.  Click past the info about this being a potentially dangerous site due to self-signed certificates.  You accept the risk, right? (if you want, you can make your own certificates - a good idea actually - that can be a bit of homework).
+- Have a look at it.  Open a browser and go to `https://lcoalhost:4005`.  Click past the info about this being a potentially dangerous site due to self-signed certificates.  You accept the risk, right? (if you want, you can make your own certificates - a good idea actually - that can be a bit of homework).
 
 ![](.images/sNoMR8fMaujOQ.png)
 

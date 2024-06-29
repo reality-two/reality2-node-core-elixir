@@ -30,7 +30,7 @@ def printout(data):
 # ----------------------------------------------------------------------------------------------------
 def main():
     # Connect to the Reality2 node
-    r2_node = R2("localhost", 4001)
+    r2_node = R2("localhost", 4005)
     
     # Delete the Sentant if it exists (only need this really if the yaml file has been changed, and we want to load the new version of the Sentant)
     r2_node.sentantUnloadByName("Zen Quote")
