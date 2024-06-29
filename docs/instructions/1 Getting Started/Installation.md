@@ -101,25 +101,32 @@ cd scripts
 
 #### Step 7
 
-- Run the Reality2 node.  Presently, this is only set up for developer mode.  So, back out again to the main level of the respository, and set it going.
+- Run the Reality2 node.  Back out again to the main level of the respository, and into the scripts directory, and set it going.
 
 ```bash
-# Still in the scripts folder.
+# In the scripts folder.
 ./run_as_dev
 ```
 
-What you should see:
+or, if you want to test production mode:
 
 ```bash
-[info] Running Reality2Web.Endpoint with cowboy 2.10.0 at 0.0.0.0:4006 (http)
-[info] Running Reality2Web.Endpoint with cowboy 2.10.0 at 0.0.0.0:4005 (https)
-[info] Access Reality2Web.Endpoint at https://localhost:4005
-Erlang/OTP 26 [erts-14.2.3] [source] [64-bit] [smp:10:10] [ds:10:10:10] [async-threads:1] [jit]
+# In the scripts folder.
+./run_as_prod
+```
 
-Interactive Elixir (1.16.2) - press Ctrl+C to exit (type h() ENTER for help)
-[debug] Tzdata polling for update.
-[debug] Tzdata polling shows the loaded tz database is up to date.
-iex(1)>
+You should see somehthing like this (may vary depending on the plugins installed, and the current verison of erlang and elixir):
+
+```bash
+[ai.reality2 0.1.8] started successfully.
+[ai.reality2.backup 0.1.8] started successfully.
+[ai.reality2.data 0.1.8] started successfully.
+[ai.reality2.web 0.1.8] started successfully.
+[ai.reality2.geospatial 0.1.8] started successfully.
+Erlang/OTP 26 [erts-14.1.1] [source] [64-bit] [smp:12:12] [ds:12:12:10] [async-threads:1] [jit:ns]
+
+Interactive Elixir (1.16.3) - press Ctrl+C to exit (type h() ENTER for help)
+iex(1)> 
 ```
 
 Congratulations, you now have a Reality2 node up and running.  Feels good doesn't it?  Your life is coming together.
