@@ -68,31 +68,27 @@ defmodule Reality2.Automation do
     passthrough = R2Map.get(args, :passthrough, %{})
 
     # Get the data from the Sentant Database (if there is any)
-    case R2Map.get(keys, "decryption_key") do
-      nil -> {:noreply, {name, id, sentant_name, automation_map, keys, state}}
-      decryption_key ->
-        data = get_data(id, decryption_key)
+    data = get_data(id, R2Map.get(keys, "decryption_key"))
 
-        case R2Map.get(args, :event) do
-          nil -> {:noreply, {name, id, sentant_name, automation_map, keys, state}}
-          event ->
-            case R2Map.get(automation_map, "transitions") do
-              nil ->
-                {:noreply, {name, id, sentant_name, automation_map, keys, state}}
-              transitions ->
-                new_state =
-                  Enum.reduce_while(transitions, state,
-                    fn transition_map, acc_state ->
-                      case check_transition(id, sentant_name, transition_map, event, parameters, passthrough, data, keys, acc_state) do
-                        {:no_match, the_state} ->
-                          {:cont, the_state}
-                        {:ok, the_state} ->
-                          {:halt, the_state}
-                      end
-                    end
-                  )
-                {:noreply, {name, id, sentant_name, automation_map, keys, new_state}}
-            end
+    case R2Map.get(args, :event) do
+      nil -> {:noreply, {name, id, sentant_name, automation_map, keys, state}}
+      event ->
+        case R2Map.get(automation_map, "transitions") do
+          nil ->
+            {:noreply, {name, id, sentant_name, automation_map, keys, state}}
+          transitions ->
+            new_state =
+              Enum.reduce_while(transitions, state,
+                fn transition_map, acc_state ->
+                  case check_transition(id, sentant_name, transition_map, event, parameters, passthrough, data, keys, acc_state) do
+                    {:no_match, the_state} ->
+                      {:cont, the_state}
+                    {:ok, the_state} ->
+                      {:halt, the_state}
+                  end
+                end
+              )
+            {:noreply, {name, id, sentant_name, automation_map, keys, new_state}}
         end
     end
   end

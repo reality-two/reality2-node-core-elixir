@@ -103,7 +103,7 @@
                 }
             }
         }
-        return false; //response;
+        return response;
     }
 
     // Reload the page
