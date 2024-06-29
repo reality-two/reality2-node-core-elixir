@@ -67,7 +67,7 @@ from reality2 import Reality2 as R2
 #### Step 2 - Create a connection
 
 ```python
-r2_node = R2("localhost", 4001)
+r2_node = R2("localhost", 4005)
 ```
 
 #### Step 3 - Load a Sentant (or a Swarm)

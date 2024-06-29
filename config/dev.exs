@@ -19,7 +19,7 @@ config :reality2, Reality2.Repo,
 config :reality2_web, Reality2Web.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {0, 0, 0, 0}, port: 4002],
+  http: [ip: {0, 0, 0, 0}, port: 4006],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
@@ -39,7 +39,7 @@ config :reality2_web, Reality2Web.Endpoint,
 # The `http:` config above can be replaced with:
   https: [
     ip: {0, 0, 0, 0},
-    port: 4001,
+    port: 4005,
     cipher_suite: :strong,
     certfile: "priv/cert/selfsigned.pem",
     keyfile: "priv/cert/selfsigned_key.pem"

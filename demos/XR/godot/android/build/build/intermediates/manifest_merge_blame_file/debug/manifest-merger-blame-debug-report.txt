@@ -103,7 +103,7 @@
 58
 59                <data
 59-->/home/roycdavies/Development/Reality2/Reality2/XR/godot/android/build/src/debug/AndroidManifest.xml:32:2-89
-60                    android:host="reality.local:4001"
+60                    android:host="reality.local:4005"
 60-->/home/roycdavies/Development/Reality2/Reality2/XR/godot/android/build/src/debug/AndroidManifest.xml:32:31-64
 61                    android:pathPrefix=""
 61-->/home/roycdavies/Development/Reality2/Reality2/XR/godot/android/build/src/debug/AndroidManifest.xml:32:65-86

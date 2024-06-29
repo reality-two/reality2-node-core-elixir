@@ -13,8 +13,8 @@ export type Sentant = {
 
 export default class R2 {
     _secure: boolean = false;
-    _graphql_http_url: string = "https://localhost:4001/reality2";
-    _graphql_webs_url: string = "wss://localhost:4001/reality2/websocket";
+    _graphql_http_url: string = "https://localhost:4005/reality2";
+    _graphql_webs_url: string = "wss://localhost:4005/reality2/websocket";
 
     _sockets: {[index:string]: {ws: WebSocket, connected: boolean, timer: any}} = {};
 

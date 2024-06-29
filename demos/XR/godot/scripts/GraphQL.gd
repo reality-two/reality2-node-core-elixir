@@ -18,8 +18,8 @@ class_name GraphQL
 # ------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Domain name of Node, without the https:// or http://
 @export var domain_name: String = "localhost"
-## Port of the Node.  Usually 4001 (https) or 4002 (http).
-@export var port: String = "4001"
+## Port of the Node.  Usually 4005 (https) or 4006 (http).
+@export var port: String = "4005"
 ## Whether to use secure connection or not.  Is is recommended to set this to true.
 @export var secure: bool = true
 ## Time to wait before concluding websocket connection is not working (seconds)

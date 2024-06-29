@@ -16,7 +16,7 @@ config :reality2, Reality2.Repo,
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :reality2_web, Reality2Web.Endpoint,
-  # http: [ip: {127, 0, 0, 1}, port: 4002],
+  # http: [ip: {127, 0, 0, 1}, port: 4006],
   # secret_key_base: "uDHCwdkWFOQffm6NJTBxtVeu159joiaJjTqnD6G45ODhwHdnlfdtTIb4juSFvZMk",
   # server: false
 
@@ -29,7 +29,7 @@ config :reality2_web, Reality2Web.Endpoint,
 
   https: [
     ip: {0, 0, 0, 0},
-    port: 4001,
+    port: 4005,
     cipher_suite: :strong,
     keyfile: "priv/cert/selfsigned_key.pem",
     certfile: "priv/cert/selfsigned.pem"

@@ -55,7 +55,7 @@ import R2 from "./lib/reality2";
 #### Step 2 - Create a connection
 
 ```javascript
-let r2_node = new R2(window.location.hostname, 4001);
+let r2_node = new R2(window.location.hostname, 4005);
 ```
 
 #### Step 3 - Load a Sentant (or a Swarm)

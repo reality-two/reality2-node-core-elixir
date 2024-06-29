@@ -2,7 +2,7 @@
 
 Elixir, or more specifically, the BEAM engine running the Phoenix Framework, has a nifty visualiser for understanding what is going on during the development phase.
 
-in your browser, go to `https://localhost:4001/dev/dashboard`
+in your browser, go to `https://localhost:4005/dev/dashboard`
 
 ![](.images/zS88shSgAkaxN.png)
 

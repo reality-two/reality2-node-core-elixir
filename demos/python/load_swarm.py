@@ -249,5 +249,5 @@ if (__name__ == '__main__'):
         print("Usage: python3 load_swarm.py <filename> <host> <port>")
         sys.exit(1)
 
-    main(sys.argv[1], sys.argv[2] if (len(sys.argv) > 2) else "localhost", sys.argv[3] if (len(sys.argv) > 3) else 4001)
+    main(sys.argv[1], sys.argv[2] if (len(sys.argv) > 2) else "localhost", sys.argv[3] if (len(sys.argv) > 3) else 4005)
 # ----------------------------------------------------------------------------------------------------

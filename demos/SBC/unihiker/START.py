@@ -182,7 +182,7 @@ def switch_qr():
         qrcode.config(text=generate_wifi_qr_code(wifi_ssid, wifi_password))
         qrcode_text.config(text="ssid: " + wifi_ssid + " pass: " + wifi_password)
     else:
-        qrcode.config(text="https://" + ipaddr + ":4001")
+        qrcode.config(text="https://" + ipaddr + ":4005")
         qrcode_text.config(text="reality2 web")
 # ----------------------------------------------------------------------------------------------------
 

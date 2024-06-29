@@ -29,8 +29,8 @@ After doing that, try running the code again, and you should see something like 
 | Press the enter key to toggle the light switch.         |
 | Press q, followed by the enter key to quit.             |
 +---------------------------------------------------------+
-Joined: wss://localhost:4001/reality2/websocket
-Joined: wss://localhost:4001/reality2/websocket
+Joined: wss://localhost:4005/reality2/websocket
+Joined: wss://localhost:4005/reality2/websocket
 Subscribed to 201a1b36-f7be-11ee-abc8-de59b61f7ba6|Light off
 Subscribed to 201a1b36-f7be-11ee-abc8-de59b61f7ba6|Light on
 ````

@@ -35,7 +35,7 @@ def printout(data):
 # ----------------------------------------------------------------------------------------------------
 def main(host):
     # Connect to the Reality2 node
-    r2_node = R2(host, 4001)
+    r2_node = R2(host, 4005)
 
     # Unload the Sentants
     for position in positions:

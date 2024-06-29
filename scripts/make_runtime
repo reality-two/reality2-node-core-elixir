@@ -30,7 +30,7 @@ cd ../..
 # Set the environment variables
 # export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
 export SECRET_KEY_BASE=$(openssl rand -hex 32)
-export PORT=4001
+export PORT=4005
 export POOLSIZE=10
 export MIX_ENV=prod
 

@@ -57,7 +57,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="reality.local:4001"
+                    android:host="reality.local:4005"
                     android:pathPrefix=""
                     android:scheme="https" />
             </intent-filter>

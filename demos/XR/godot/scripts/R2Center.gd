@@ -112,7 +112,7 @@ func _process(delta):
 func add_node(nodeName: String):
 	if not nodeName in NodeNames:
 		NodeNames.append(nodeName)
-		_reality2_nodes[nodeName] = {"r2gql": Reality2.GQL.new(true, nodeName, 4001), "node_visual": null}
+		_reality2_nodes[nodeName] = {"r2gql": Reality2.GQL.new(true, nodeName, 4005), "node_visual": null}
 		self.add_child(_reality2_nodes[nodeName].r2gql.GQL())	
 		_reality2_nodes[nodeName].r2gql.byName( "monitor", func (id):
 			if (id == null):
