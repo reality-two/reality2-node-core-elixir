@@ -21,6 +21,8 @@ import re
 import base64
 
 yaml = ruamel.yaml.YAML(typ='safe')
+print_cr = False
+
 # ----------------------------------------------------------------------------------------------------
 
 
@@ -29,7 +31,9 @@ yaml = ruamel.yaml.YAML(typ='safe')
 # Print out the help
 # ----------------------------------------------------------------------------------------------------
 def printhelp(events):
+    print (events)
     print("---------- Send Events ----------")
+    
     for counter, event in enumerate(events):
         print(" Press [", counter, "] for {", event["event"], event["parameters"], "}")
 
@@ -44,10 +48,13 @@ def printhelp(events):
 # Create a prompt for the user to enter a number between 0 and the number of events, or h or q
 # ----------------------------------------------------------------------------------------------------
 def prompt(events):
+    global print_cr
+    
     prompt = ""
     for counter, event in enumerate(events):
         prompt += str(counter) + " "
     prompt += "h q >"
+    print_cr = True
     return prompt
 # ----------------------------------------------------------------------------------------------------
 
@@ -57,7 +64,13 @@ def prompt(events):
 # Print out the result from an awaitSignal
 # ----------------------------------------------------------------------------------------------------
 def printout(data):
+    global print_cr
+    
     event = R2.JSONPath(data, "awaitSignal.event")
+    
+    if (print_cr):
+        print_cr = False
+        print()
     
     if (event == "debug"):
         print("DEBUG  :", R2.JSONPath(data, "awaitSignal.parameters")) 
