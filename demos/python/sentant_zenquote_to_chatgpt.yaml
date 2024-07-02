@@ -78,25 +78,33 @@ sentant:
         # ----------------------------------------------------------------------------------------------
         - event: chatgpt
           actions:
+            - command: signal
+              public: true
+              parameters:
+                event: "Zenquote"
+
             - command: set
               parameters:
                 key: question
                 value: "what is the meaning of: __zenquote__?"
 
+            - command: set
+              parameters:
+                key: zenquote
+
             - plugin: com.openai.api
               command: send
-
-            - command: signal
-              public: true
-              parameters:
-                event: "Zenquote"
         # ----------------------------------------------------------------------------------------------
 
         # ----------------------------------------------------------------------------------------------
         # Deal with the answer from chatgpt and illustrate how to use the output.
         # ----------------------------------------------------------------------------------------------
         - event: chatgpt_response
-          actions:            
+          actions:
+            - command: set
+              parameters:
+                key: question
+
             - command: signal
               public: true
               parameters:

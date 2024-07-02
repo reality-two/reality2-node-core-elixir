@@ -36,6 +36,8 @@
                 {
                     "event": "hello",
                     "actions": [
+                        {"command": "set", "parameters": {"key": "to"}},
+                        {"command": "set", "parameters": {"key": "radius"}},
                         {"command": "signal", "parameters": {"event": "hello", "public": true}}
                     ]
                 }
