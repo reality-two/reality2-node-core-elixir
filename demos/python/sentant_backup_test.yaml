@@ -11,14 +11,24 @@ sentant:
       transitions:
         - public: true
           event: "Store to Database"
+          parameters:
+            to_store: "string"
+            
           actions:
             - command: set
               parameters:
                 key: "test"
-                value: 42
+                value: "__to_store__"
+
+            - command: set
+              parameters:
+                key: "to_store"
+
             - plugin: ai.reality2.backup
               command: store
+
             - command: debug
+
             - command: signal
               parameters:
                 event: "stored"
@@ -28,6 +38,7 @@ sentant:
           actions:
             - plugin: ai.reality2.backup
               command: retrieve
+
             - command: signal
               parameters:
                 event: "retrieved"
@@ -37,6 +48,7 @@ sentant:
           actions:
             - plugin: ai.reality2.backup
               command: delete
+
             - command: signal
               parameters:
                 event: "deleted"
