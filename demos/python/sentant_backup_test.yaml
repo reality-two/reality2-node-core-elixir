@@ -10,7 +10,7 @@ sentant:
       description: Database Operations
       transitions:
         - public: true
-          event: "Store to Database"
+          event: "Back up Data"
           parameters:
             to_store: "string"
             
@@ -33,8 +33,9 @@ sentant:
               parameters:
                 event: "stored"
                 public: true
+
         - public: true
-          event: "Retrieve from Database"
+          event: "Retrieve Data"
           actions:
             - plugin: ai.reality2.backup
               command: retrieve
@@ -43,8 +44,9 @@ sentant:
               parameters:
                 event: "retrieved"
                 public: true
+
         - public: true
-          event: "Delete from Database"
+          event: "Delete Data"
           actions:
             - plugin: ai.reality2.backup
               command: delete

@@ -56,17 +56,18 @@ sentant:
           parameters: 
             question: string
           public: true
-          to: ready
           actions:
             - plugin: com.openai.api
               command: send
 
           # Get the answer from ChatGPT and send out as a signal.
         - event: chatgpt_response
-          to: ready
           actions:
-            - command: signal # sends a signal to subscribed clients
+            - command: set
               parameters:
-                public: true
+                key: question
+            - command: signal # sends a signal to subscribed clients
+              public: true
+              parameters:
                 event: "ChatGPT Answer"
   # ----------------------------------------------------------------------------------------------------
