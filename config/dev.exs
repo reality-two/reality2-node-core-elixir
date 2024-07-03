@@ -59,7 +59,7 @@ config :reality2_web, Reality2Web.Endpoint,
 config :reality2_web, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
-config :logger, :console, format: "[$level] $message\n", level: :error
+config :logger, :console, format: "[$level] $message\n" #, level: :error
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
