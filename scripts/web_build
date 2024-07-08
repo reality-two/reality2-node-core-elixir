@@ -5,5 +5,13 @@ cd ..
 cd ./web/sentants
 yarn build
 
+echo "***** Building IOT Demo WebApp"
+cd ..
+cd ./web/iotdemo
+yarn build
+
 echo "***** Moving Reality2 WebApp into place"
 cp -rv dist/* ../../apps/reality2_web/priv/static/sentants/
+
+echo "***** Moving IOTDemo WebApp into place"
+cp -rv dist/* ../../apps/reality2_web/priv/static/iotdemo/
