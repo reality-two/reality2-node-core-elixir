@@ -1,0 +1,19 @@
+#!/bin/bash
+
+echo "***** Building $1 WebApp"
+cd ..
+
+if [ ! -d "./web/$1" ]; then
+    echo "WebApp source code web/$1 does not exist"
+else
+    cd ./web/$1
+    yarn
+    yarn build
+
+    echo "***** Moving $1 WebApp into place"
+    if [ ! -d "../../apps/reality2_web/priv/static/sites/$1/" ]; then
+        mkdir "../../apps/reality2_web/priv/static/sites/$1/"
+    fi
+
+    cp -rv dist/* ../../apps/reality2_web/priv/static/sites/$1/
+fi
