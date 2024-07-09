@@ -31,7 +31,7 @@ defmodule AiReality2Backup.Main do
         :ok <- create_table(:backup, [attributes: [:name, :data], disc_only_copies: [node()]]),
         :ok <- create_table(:data, [attributes: [:id, :data], disc_only_copies: [node()]])
       do
-        IO.puts("[ai.reality2.backup #{Mix.Project.config[:version]}] started successfully.")
+        IO.puts("[ai.reality2.backup] started successfully.")
         {:ok, state}
       else
         _ -> {:error, :mnesia}

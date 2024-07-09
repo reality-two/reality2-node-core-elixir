@@ -34,7 +34,7 @@ defmodule AiReality2Geospatial.Main do
 
     @impl true
     def init(init_arg) do
-      IO.puts("[ai.reality2.geospatial #{Mix.Project.config[:version]}] started successfully.")
+      IO.puts("[ai.reality2.geospatial] started successfully.")
       DynamicSupervisor.init( strategy: :one_for_one, extra_arguments: [init_arg] )
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
