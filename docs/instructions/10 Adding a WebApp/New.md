@@ -24,7 +24,22 @@ cd iotdemo
 yarn
 ```
 
-## Step 2 - Compile the WebApp
+## Step 2 - Set the base directory
+
+Because the WebApp is not located at the base directory of the web server, you have to tweak a setting in the WebApp as well.  If you are using Svelte with Vite as mentioned above, then the file is `vite.config.ts`.  A parameters `base` needs to be set, such as this:
+
+```typescript
+import { defineConfig } from 'vite'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  base: "/sentants/",
+  plugins: [svelte()]
+})
+```
+
+## Step 3 - Compile the WebApp
 
 You can compile and move the resulting WebApp to the correct place with the `build_webapp` script in the `scripts` folder.  It takes one parameter - the name of the WebApp to build.
 
@@ -33,7 +48,7 @@ cd scripts
 ./build_webapp iotdemo
 ```
 
-## Step 3 - Test the WebApp
+## Step 4 - Test the WebApp
 
 All going well, when you go to a browser window and open up `https://localhost/iotdemo`, you should see the default vite WebApp.
 

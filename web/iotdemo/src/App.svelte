@@ -1,47 +1,204 @@
+<!------------------------------------------------------------------------------------------------------
+  Simple WebApp for a Reality Node
+
+  Author: Dr. Roy C. Davies
+  Created: April 2024
+  Contact: roy.c.davies@ieee.org
+------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from '/vite.svg'
-  import Counter from './lib/Counter.svelte'
+    import { behavior, Cards, Menu, Link, Icon, Segment, Button, Item, Message, Header, Text, Input } from "svelte-fomantic-ui";
+
+    import R2 from "./lib/reality2";
+    import type Sentant from './lib/reality2';
+    import SentantCard from './lib/SentantCard.svelte';
+    import SensorCard from './lib/SensorCard.svelte';
+   
+    import { getQueryStringVal } from './lib/Querystring.svelte';
+
+    import { onMount } from 'svelte';
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Window width
+    // -------------------------------------------------------------------------------------------------
+    let windowWidth: number = 0;
+
+    const setDimensions = () => { windowWidth = window.innerWidth; };
+
+    onMount(() => {
+        setDimensions();
+        window.addEventListener('resize', setDimensions);
+        return () => { window.removeEventListener('resize', setDimensions); }
+    });
+    // -------------------------------------------------------------------------------------------------
+
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Query Strings
+    // -------------------------------------------------------------------------------------------------
+    $: name_query = getQueryStringVal("name");
+    $: id_query = getQueryStringVal("id");
+    // -------------------------------------------------------------------------------------------------
+
+
+
+    // -------------------------------------------------------------------------------------------------
+    // The Path of this page
+    // -------------------------------------------------------------------------------------------------
+    $: path = window.location.hostname + (name_query ? "." + name_query : "") + (id_query ? "." + id_query : "");
+    // -------------------------------------------------------------------------------------------------
+
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Main functionality
+    // -------------------------------------------------------------------------------------------------
+    // GraphQL client setup 
+    let r2_node = new R2(window.location.hostname, Number(window.location.port));
+
+    // Set up the monitoring of the Reality2 Node only if we are in the main window
+    if (id_query == null && name_query == null) {
+        setTimeout(() => { 
+            r2_node.monitor((data: any) => { sentantData = updateSentants(data); });
+        }, 1000);
+    }
+
+    // Get all the sentants, or a single Sentant if there is a name or id in the query string
+    // $: sentantData = loadSentants();
+
+    function loadSentants() : Promise<object> {
+        console.log("Reloading")
+        if (id_query != null) {
+            return r2_node.sentantGet(id_query, {}, "name id description events { event parameters } signals")
+        }
+        else if (name_query != null) {
+            return r2_node.sentantGetByName(name_query, {}, "name id description events { event parameters } signals");
+        }
+        else {
+            return r2_node.sentantAll({}, "name id description events { event parameters } signals");
+        }
+    }
+
+    function updateSentants(updates: any) : Promise<object> {
+        console.log(updates);
+        switch (updates.parameters.activity) {
+            case "created":
+                console.log("Creating");
+                r2_node.sentantGet(updates.parameters.id, {}, "name id description events { event parameters } signals")
+                .then(result => {
+                    console.log(result);
+                    return new Promise((resolve, reject) => {
+
+                        resolve(result);
+                    });
+                })
+                break;
+            case "deleted":
+                console.log("Deleting");
+                break;
+            default:
+                break;
+        }
+        return sentantData;
+    }
+    // -------------------------------------------------------------------------------------------------
+
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Functions used in the Layout
+    // -------------------------------------------------------------------------------------------------
+
+    // Send an event to a Sentant
+    function sentantSend(e: CustomEvent) { r2_node.sentantSend(e.detail.id, e.detail.event, e.detail.params); }
+
+    // Await a signal from a Sentant
+    function awaitSignal(e: CustomEvent) { r2_node.awaitSignal(e.detail.id, e.detail.signal, e.detail.callback); }
+
+    // return true if there are no Sentants, or only the one called "monitor"
+    function none_or_monitor_only(data: {}) : boolean {
+        let response = true;
+        let sentants: Sentant[] = R2.JSONPath(data, "sentantAll");
+        if (sentants == null) {
+            let name = R2.JSONPath(data, "sentantGet.name");
+            if (name !== "monitor")
+                response = false;
+        } else {
+            for (let i = 0; i < sentants.length; i++) {
+                if (R2.JSONPath(sentants[i], "name") !== "monitor") {
+                    response = false;
+                    break;
+                }
+            }
+        }
+        return response;
+    }
+
+    // Reload the page
+    // function reload() { sentantData = loadSentants(); }
+    // -------------------------------------------------------------------------------------------------
 </script>
+<!----------------------------------------------------------------------------------------------------->
 
+
+
+<!------------------------------------------------------------------------------------------------------
+Layout
+------------------------------------------------------------------------------------------------------->
 <main>
-  <div>
-    <a href="https://vitejs.dev" target="_blank" rel="noreferrer">
-      <img src={viteLogo} class="logo" alt="Vite Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank" rel="noreferrer">
-      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-    </a>
-  </div>
-  <h1>Vite + Svelte</h1>
-
-  <div class="card">
-    <Counter />
-  </div>
-
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme" target="_blank" rel="noreferrer">SvelteKit</a>, the official Svelte app framework powered by Vite!
-  </p>
-
-  <p class="read-the-docs">
-    Click on the Vite and Svelte logos to learn more
-  </p>
+    {#await sentantData}
+        <p>Loading...</p>
+    {:then theData}
+        <Menu ui top attached grey inverted borderless>
+            <Item>
+                <Button ui icon grey on:click={reload}>
+                    <Icon redo/>
+                </Button>
+            </Item>
+            <Item style={"margin: auto; width:"+(windowWidth-220)+"px;"}>
+                <Input ui big disabled style={"width:100%;"}>
+                    <Input text placeholder="Enter Path..." bind:value={path}/>
+                </Input>
+            </Item>
+            <Menu right>
+                <Link item on:click={() => behavior('sidebar', 'toggle')}>
+                    <Icon sidebar/>
+                </Link>
+            </Menu>
+        </Menu>
+        <Segment ui bottom attached grey>
+            {#if theData.hasOwnProperty('errors')}
+                <Message ui negative large>
+                    <Header>
+                        <Icon warning/>
+                        Error
+                    </Header>
+                    <Text ui large>Incorrect {R2.JSONPath(theData, "errors.0.message")}</Text>
+                </Message>
+            {:else if none_or_monitor_only(R2.JSONPath(theData, "data"))}
+                <Message ui teal large>
+                    <Header>
+                        <Icon warning/>
+                        No Devices Connected
+                    </Header>
+                </Message>
+            {:else}
+                <Cards ui centered>
+                    {#if (id_query !== null)}
+                        <SensorCard sentant={R2.JSONPath(theData, "data.sentantGet")} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
+                    {:else if (name_query !== null)}
+                        <SensorCard sentant={R2.JSONPath(theData, "data.sentantGet")} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
+                    {:else}
+                        {#each R2.JSONPath(theData, "data.sentantAll") as sentant}
+                            <SentantCard {sentant} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
+                        {/each}
+                    {/if}
+                </Cards>
+            {/if}
+        </Segment>
+    {:catch error}
+        <p>Error: {error.message}</p>
+    {/await}
 </main>
-
-<style>
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
-  }
-  .read-the-docs {
-    color: #888;
-  }
-</style>
+<!----------------------------------------------------------------------------------------------------->

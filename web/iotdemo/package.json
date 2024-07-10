@@ -17,5 +17,9 @@
     "tslib": "^2.6.3",
     "typescript": "^5.2.2",
     "vite": "^5.3.1"
+  },
+  "dependencies": {
+    "@castlenine/svelte-qrcode": "^2.2.0",
+    "svelte-fomantic-ui": "^0.3.5"
   }
 }
