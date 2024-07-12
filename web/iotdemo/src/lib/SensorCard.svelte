@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { Card, Content, Header, Image, Button, Text, Input, Message, Icon } from "svelte-fomantic-ui";
+    import { Card, Content, Header, Image, Button, Text, Input, Message } from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
@@ -131,7 +131,6 @@
 {:else}
     <Message ui teal large>
         <Header>
-            <Icon warning/>
             Device connection invalid
         </Header>
     </Message>

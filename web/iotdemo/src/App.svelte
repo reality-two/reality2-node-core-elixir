@@ -6,7 +6,7 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { behavior, Cards, Menu, Link, Icon, Segment, Button, Text, Message, Header, Card } from "svelte-fomantic-ui";
+    import { Cards, Link, Segment, Button, Text, Message, Header, Card } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import SentantCard from './lib/SentantCard.svelte';
@@ -310,7 +310,6 @@ Layout
         {#if state == "start"}
             <Message ui blue large>
                 <Header>
-                    <Icon cog/>
                     Scan the QR code to connect your device.
                 </Header>
             </Message>
@@ -327,7 +326,6 @@ Layout
         {:else if state == "connect"}
             <Message ui blue large>
                 <Header>
-                    <Icon cog/>
                     Connect your device
                 </Header>
             </Message>
@@ -335,7 +333,6 @@ Layout
         {:else if state == "error"}
             <Message ui negative large>
                 <Header>
-                    <Icon warning/>
                     Something bad happened
                 </Header>
             </Message>
@@ -354,7 +351,6 @@ Layout
         {:else if none_or_monitor_only(sentantData)}
             <Message ui teal large>
                 <Header>
-                    <Icon warning/>
                     No Devices Connected
                 </Header>
             </Message>
