@@ -6,10 +6,10 @@
   Contact: roycdavies.github.io
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
-    import {Card, Content, Header, Image, Button, Text, Input, Message, Icon} from "svelte-fomantic-ui";
+    import { onMount } from 'svelte';
+    import { Card, Content, Header, Image, Button, Text, Input, Message, Icon } from "svelte-fomantic-ui";
 
-    import type { Sentant, Event } from './reality2.js';
+    import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
 
     export let sentant: Sentant = {name: "", id: "", description: "", events: [], signals: []};
@@ -27,6 +27,7 @@
     $: counter = set_counter;
     $: sensor = set_sensor;
 
+    // Set up the device sensor reading
     const handleOrientation = (event:any) => {
         const absolute = event.absolute;
         const alpha = event.alpha;
@@ -42,9 +43,9 @@
             lastExecutionTime = now;
         }
     };
-
     window.addEventListener("deviceorientation", handleOrientation, true);
 
+    // Convert a string safely into another format
     function try_convert(value: string): any {
         if ((value === "") || (value === null)) { return ""; }
 
@@ -52,19 +53,14 @@
         if (!isNaN(numberValue)) { return numberValue; }
 
         switch (value.toLowerCase()) {
-            case 'true':
-                return true;
-            case 'false':
-                return false;
+            case 'true': return true;
+            case 'false': return false;
         }
 
-        try {
-            return JSON.parse(value);
-        } catch (e) {
-            return value;
-        }
+        try { return JSON.parse(value); } catch (e) { return value; }
     }
 
+    // What to do when a button is pressed
     function event_button_pressed (id: string, event: string) {
         let params: params_type = {};
         for (let i = 0; i < sentant.events.length; i++)
@@ -81,6 +77,7 @@
         r2_node.sentantSend(id, "update", {});
     };
 
+    // When the page is loaded ...
     onMount(() => {
         if ((sentant.name == "monitor" || sentant.name == ".deleted")) return;
 
