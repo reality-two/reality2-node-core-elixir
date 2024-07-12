@@ -100,7 +100,7 @@
     <Card>
         <Content>
             {#if counter >= 20 && sensor == 90}
-                <Image ui large src="/images/smiley.png"/>
+                <Image ui src="/images/smiley.png"/>
             {:else}
                 <Text ui massive _='{counter >= 20?"green":"red"}'>{counter}<br/></Text>
                 <Text ui massive _='{sensor == 90?"green":"blue"}'>{sensor}</Text>
