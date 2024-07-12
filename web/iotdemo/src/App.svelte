@@ -149,7 +149,7 @@
                         resolve([result])
                     }
                 })
-                .catch((error) => {
+                .catch((_error) => {
                     set_state = "error";
                     resolve([])
                 })
@@ -169,7 +169,7 @@
                         resolve([result])
                     }
                 })
-                .catch((error) => {
+                .catch((_error) => {
                     set_state = "error"
                     resolve([])
                 })
@@ -189,7 +189,7 @@
                         resolve(result)
                     }
                 })
-                .catch((error) => {
+                .catch((_error) => {
                     set_state = "error";
                     resolve([])
                 })
@@ -306,23 +306,6 @@
 Layout
 ------------------------------------------------------------------------------------------------------->
 <main>
-    <!-- <Menu ui top attached grey inverted borderless>
-        <Item>
-            <Button ui icon grey on:click={reload}>
-                <Icon redo/>
-            </Button>
-        </Item>
-        <Item style={"margin: auto; width:"+(windowWidth-220)+"px;"}>
-            <Input ui big disabled style={"width:100%;"}>
-                <Input text placeholder="Enter Path..." bind:value={path}/>
-            </Input>
-        </Item>
-        <Menu right>
-            <Link item on:click={() => behavior('sidebar', 'toggle')}>
-                <Icon sidebar/>
-            </Link>
-        </Menu>
-    </Menu> -->
     <Segment ui bottom attached grey>
         {#if state == "start"}
             <Message ui blue large>
@@ -359,11 +342,15 @@ Layout
         {:else if state == "loading"}
             <Text ui large>Loading...</Text>
         {:else if state == "view"}
-            <Cards ui centered>
-                {#each sentantData as sentant}
-                    <SentantCard {sentant} {r2_node}/>
-                {/each}
-            </Cards>
+            {#if none_or_monitor_only(sentantData)}
+                <Text ui large>Loading...</Text>
+            {:else}
+                <Cards ui centered>
+                    {#each sentantData as sentant}
+                        <SentantCard {sentant} {r2_node}/>
+                    {/each}
+                </Cards>
+            {/if}
         {:else if none_or_monitor_only(sentantData)}
             <Message ui teal large>
                 <Header>
