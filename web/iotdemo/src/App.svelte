@@ -357,12 +357,7 @@ Layout
                 </Header>
             </Message>
         {:else if state == "loading"}
-            <!-- <Message ui teal large> -->
-                <!-- <Header>
-                    <Icon warning/> -->
-                    <Text ui large>Loading...
-                        <!-- </Header> --></Text>
-            <!-- </Message> -->
+            <Text ui large>Loading...</Text>
         {:else if state == "view"}
             <Cards ui centered>
                 {#each sentantData as sentant}
