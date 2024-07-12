@@ -76,11 +76,11 @@
 
     var set_state = "loading";
     $: state = set_state;
-   // -------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------
     
 
     // -------------------------------------------------------------------------------------------------
-    // Window width
+    // Window width, and set the state
     // -------------------------------------------------------------------------------------------------
     let windowWidth: number = 0;
 
@@ -103,16 +103,9 @@
 
 
     // -------------------------------------------------------------------------------------------------
-    // The Path of this page
-    // -------------------------------------------------------------------------------------------------
-    $: path = window.location.hostname + (name_query ? "." + name_query : "") + (id_query ? "." + id_query : "");
-    // -------------------------------------------------------------------------------------------------
-
-
-
-    // -------------------------------------------------------------------------------------------------
     // Main functionality
     // -------------------------------------------------------------------------------------------------
+
     // GraphQL client setup 
     let r2_node = new R2(window.location.hostname, Number(window.location.port));
 
@@ -129,8 +122,13 @@
             })
         }, 1000);
     }
+    // -------------------------------------------------------------------------------------------------
 
 
+
+    // -------------------------------------------------------------------------------------------------
+    // Load the Sentant(s) the first time.
+    // -------------------------------------------------------------------------------------------------
     function loadSentants() : Promise<[any]|[]> {
         console.log("Loading")
         return new Promise((resolve, reject) => {
@@ -196,7 +194,13 @@
             }
         })
     }
+    // -------------------------------------------------------------------------------------------------
 
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Update the list of sentants when something changes
+    // -------------------------------------------------------------------------------------------------
     function updateSentants(updates: any) {
         if ((name_query == null) && (id_query == null)){
             console.log(updates);
@@ -237,7 +241,9 @@
     // Functions used in the Layout
     // -------------------------------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------------------------------
     // return true if there are no Sentants, or only the one called "monitor"
+    // -------------------------------------------------------------------------------------------------
     function none_or_monitor_only(sentants: any[]) : boolean {
         let response = true;
         for (let i = 0; i < sentants.length; i++) {
@@ -248,13 +254,19 @@
         }
         return response;
     }
+    // -------------------------------------------------------------------------------------------------
 
+
+
+    // -------------------------------------------------------------------------------------------------
     // Connect a new device
+    // -------------------------------------------------------------------------------------------------
     function newDevice() {
         console.log("Adding New Device");
         // Load pattern
         r2_node.sentantAll()
         .then((data) => {
+            // Find out how many Sentants there are
             var counter = 0;
             var sentants: [] = R2.JSONPath(data, "data.sentantAll");
             sentants.forEach((sentant) => {
@@ -263,13 +275,20 @@
                     counter = counter + 1;
                 }
             });
+
+            // Set the new one to be one more in the sequence
             var newName = "device " + String(counter+1).padStart(4, '0');
+
+            // Set the new name
             var sentantDefinition = JSON.stringify(template).replace("__name__", newName);
 
-            // Load Sentant
+            // Load Sentant definition
             r2_node.sentantLoad(sentantDefinition)
             .then((data) => {
+                // Get the ID of the new Sentant
                 var sentantID = R2.JSONPath(data, "data.sentantLoad.id");
+
+                // Change the page to view that new Sentant
                 window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?id=" + sentantID;
             })
             .catch((error) => {
@@ -282,12 +301,22 @@
             loadedData = []
         })
     }
+    // -------------------------------------------------------------------------------------------------
 
+
+    // -------------------------------------------------------------------------------------------------
+    // Load the main view
+    // -------------------------------------------------------------------------------------------------
     function showView() {
         window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?view";
     }
+    // -------------------------------------------------------------------------------------------------
 
+
+
+    // -------------------------------------------------------------------------------------------------
     // Reload the page
+    // -------------------------------------------------------------------------------------------------
     function reload() {
         set_state = "loading";
         loadedData = [];
@@ -329,7 +358,9 @@ Layout
                     Connect your device
                 </Header>
             </Message>
-            <Button ui massive fluid green on:click={newDevice}>Connect</Button>
+            <Button ui massive fluid green on:click={newDevice}>
+                connect
+            </Button>
         {:else if state == "error"}
             <Message ui negative large>
                 <Header>
