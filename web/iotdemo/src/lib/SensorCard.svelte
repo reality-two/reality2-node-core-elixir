@@ -2,12 +2,12 @@
   A Sensor Card
 
   Author: Dr. Roy C. Davies
-  Created: Feb 2024
+  Created: July 2024
   Contact: roycdavies.github.io
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { Card, Content, Header, Image, Button, Text, Input, Message } from "svelte-fomantic-ui";
+    import { Card, Content, Header, Image, Button, Text, Input, Message, Label } from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
@@ -108,7 +108,7 @@
         </Content>
 
         <Content extra>
-            <p><Text ui big green>{sentant.name}</Text></p>
+            <p><Label ui huge grey fluid>{sentant.name}</Label></p>
             <p><Text ui small blue>{sentant.id}</Text></p>
         </Content>
         {#if sentant.events.length > 0}
@@ -120,7 +120,7 @@
                         </Input>
                         <br/>
                     {/each}
-                    <Button ui teal fluid on:click={(_e) => event_button_pressed(sentant.id, event.event)}>
+                    <Button ui teal huge fluid on:click={(_e) => event_button_pressed(sentant.id, event.event)}>
                         {event.event}
                     </Button>
                     <br/>

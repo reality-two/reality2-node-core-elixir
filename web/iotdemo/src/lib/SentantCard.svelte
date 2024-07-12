@@ -2,12 +2,12 @@
   A Sentant Card
 
   Author: Dr. Roy C. Davies
-  Created: Feb 2024
+  Created: July 2024
   Contact: roycdavies.github.io
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { Card, Content, Image, Text } from "svelte-fomantic-ui";
+    import { Card, Content, Image, Text, Label } from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
@@ -50,7 +50,7 @@
             {/if}
         </Content>
         <Content extra>
-            <p><Text ui big green>{sentant.name}</Text></p>
+            <p><Label ui huge grey fluid>{sentant.name}</Label></p>
             <p><Text ui small blue>{sentant.id}</Text></p>
         </Content>
     </Card>
