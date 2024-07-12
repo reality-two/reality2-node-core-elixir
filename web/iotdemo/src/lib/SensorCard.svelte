@@ -7,28 +7,25 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
     import { createEventDispatcher, onMount } from 'svelte';
-    import {Card, Content, Header, Image, Button, Text, Input, Link} from "svelte-fomantic-ui";
+    import {Card, Content, Header, Image, Button, Text, Input, Message, Icon} from "svelte-fomantic-ui";
 
     import type { Sentant, Event } from './reality2.js';
-    import { readable } from 'svelte/store';
-    import QRCode from '@castlenine/svelte-qrcode';
+    import R2 from "./reality2";
 
     export let sentant: Sentant = {name: "", id: "", description: "", events: [], signals: []};
-
-    const dispatch = createEventDispatcher();
+    export let r2_node: R2;
 
     type input_text_type = {[key:string]: any}
     type params_type = {[key:string]: string}
 
-    let messages = ["|", "|", "|", "|"];
-    let counter = 0;
-    let sensor_out = 0;
+    let set_counter = 0;
+    let set_sensor = 0;
     let sensor_in = 0;
     let input_text: input_text_type = {};
-    let max_messages = Object.keys(sentant.events).length > 0 ? 4 : 8;
     let lastExecutionTime = 0;
 
-    let height = 0;
+    $: counter = set_counter;
+    $: sensor = set_sensor;
 
     const handleOrientation = (event:any) => {
         const absolute = event.absolute;
@@ -37,26 +34,22 @@
         const gamma = event.gamma;
         let new_sensor_in = Math.floor(event.alpha);
         const now = Date.now();
-        if ((new_sensor_in !== sensor_in) && (now - lastExecutionTime >= 500))
+        if ((new_sensor_in !== sensor_in) && (now - lastExecutionTime >= 200))
         {
-            dispatch('sentantSend', {id: sentant.id, event: "setsensor", params: {sensor: sensor_in}});
             sensor_in = new_sensor_in;
+            r2_node.sentantSend(sentant.id, "setsensor", {sensor: sensor_in});
+            r2_node.sentantSend(sentant.id, "update", {});
             lastExecutionTime = now;
         }
-        //...
     };
 
     window.addEventListener("deviceorientation", handleOrientation, true);
 
     function try_convert(value: string): any {
-        if ((value === "") || (value === null)) {
-            return ""; // Return empty string as is
-        }
+        if ((value === "") || (value === null)) { return ""; }
 
         const numberValue = parseFloat(value);
-        if (!isNaN(numberValue)) {
-            return numberValue;
-        }
+        if (!isNaN(numberValue)) { return numberValue; }
 
         switch (value.toLowerCase()) {
             case 'true':
@@ -84,53 +77,41 @@
                 }
             }
         }
-        dispatch('sentantSend', {id: id, event: event, params: params});
+        r2_node.sentantSend(sentant.id, event, params);
+        r2_node.sentantSend(id, "update", {});
     };
 
     onMount(() => {
-        if (sentant.name == "monitor") return;
-        // for (let i = 0; i < sentant.signals.length; i++)
-        // {
-        //     dispatch('awaitSignal', {id: sentant.id, signal: sentant.signals[i], callback: (data: any) => {
-        //         let date = new Date();
-        //         messages = [...messages, date.toLocaleString('en-NZ') + " : " + data.event + "|" + JSON.stringify(data.parameters)];
-        //         if (messages.length > max_messages) {
-        //             messages.splice(0, messages.length - max_messages);
-        //         }
-        //     }});
-        // }
-        dispatch('awaitSignal', {id: sentant.id, signal: "update", callback: (data: any) => {
-            counter = Math.floor(data.parameters.counter);
-        }});
-        dispatch('awaitSignal', {id: sentant.id, signal: "count_update", callback: (data: any) => {
-            counter = Math.floor(data.parameters.counter);
-        }});
-        dispatch('awaitSignal', {id: sentant.id, signal: "sensor_update", callback: (data: any) => {
-            sensor_out = Math.floor(data.parameters.sensor);
-        }});
-        // setTimeout(function() {
-        //     dispatch('sentantSend', {id: sentant.id, event: "update", params: {}});
-        //     console.log('Waited for 1 second');
-        //     // Place code to execute after waiting here
-        // }, 1000);
+        if ((sentant.name == "monitor" || sentant.name == ".deleted")) return;
+
+        r2_node.awaitSignal(sentant.id, "update", (data: any) => {
+            if(R2.JSONPath(data, "status") == "connected")
+            {
+                r2_node.sentantSend(sentant.id, "update", {});
+            }
+            else
+            {
+                set_counter = Math.floor(data.parameters.counter);
+                set_sensor = Math.floor(data.parameters.sensor);
+            }
+        });
     });
 </script>
 <!----------------------------------------------------------------------------------------------------->
 
-{#if sentant.name != "monitor"}
+{#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted"))}
     <Card>
         <Content>
-            {#if counter >= 20 && sensor_out == 90}
+            {#if counter >= 20 && sensor == 90}
                 <Image ui large src="/images/smiley.png"/>
             {:else}
-                <Text ui massive _='{counter >= 20?"green":"red"}'>{counter}</Text><br/>
-                <Text ui massive _='{sensor_out == 90?"green":"blue"}'>{sensor_out}</Text>
+                <Text ui massive _='{counter >= 20?"green":"red"}'>{counter}<br/></Text>
+                <Text ui massive _='{sensor == 90?"green":"blue"}'>{sensor}</Text>
             {/if}
         </Content>
 
-        <!-- </Link> -->
         <Content extra>
-            <p>{sentant.name}</p>
+            <p><Text ui large green>{sentant.name}</Text></p>
             <p><Text ui small blue>{sentant.id}</Text></p>
         </Content>
         {#if sentant.events.length > 0}
@@ -150,4 +131,11 @@
             </Content>
         {/if}
     </Card>
+{:else}
+    <Message ui teal large>
+        <Header>
+            <Icon warning/>
+            Device connection invalid
+        </Header>
+    </Message>
 {/if}
