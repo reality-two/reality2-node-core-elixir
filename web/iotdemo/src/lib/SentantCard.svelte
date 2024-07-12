@@ -6,12 +6,11 @@
   Contact: roycdavies.github.io
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { onMount } from 'svelte';
     import { Card, Content, Image, Text } from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
-    import Accordion from 'svelte-fomantic-ui/src/lib/modules/Accordion.svelte';
 
     export let sentant: Sentant = {name: "", id: "", description: "", events: [], signals: []};
     export let r2_node: R2;
