@@ -50,7 +50,7 @@
             {/if}
         </Content>
         <Content extra>
-            <p><Text ui large green>{sentant.name}</Text></p>
+            <p><Text ui big green>{sentant.name}</Text></p>
             <p><Text ui small blue>{sentant.id}</Text></p>
         </Content>
     </Card>
