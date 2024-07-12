@@ -2,7 +2,7 @@
   Simple WebApp for a Reality Node
 
   Author: Dr. Roy C. Davies
-  Created: April 2024
+  Created: July 2024
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
