@@ -103,26 +103,31 @@ export default class R2 {
         this._set_up_node_monitoring(callback);
     }
 
-    public static JSONPath(data: object, path: string) : any {
-        let parts = path.split(".");
-        let result: any = data;
-        for (let i = 0; i < parts.length; i++) {
-            let index = parseInt(parts[i]);
-            if (isNaN(index)) {
-                if (result.hasOwnProperty(parts[i])) {
-                    result = result[parts[i]];
+    public static JSONPath(data: object, path: string, none:any = null) : any {
+        if (data == null || path == null) {
+            return none;
+        }
+        else {
+            let parts = path.split(".");
+            let result: any = data;
+            for (let i = 0; i < parts.length; i++) {
+                let index = parseInt(parts[i]);
+                if (isNaN(index)) {
+                    if (result.hasOwnProperty(parts[i])) {
+                        result = result[parts[i]];
+                    } else {
+                        return none;
+                    }
                 } else {
-                    return null;
-                }
-            } else {
-                if (Array.isArray(result)) {
-                    result = result[index];
-                } else {
-                    return null;
+                    if (Array.isArray(result)) {
+                        result = result[index];
+                    } else {
+                        return none;
+                    }
                 }
             }
+            return result;
         }
-        return result;
     }
     // ----------------------------------------------------------------------------------------------------
 
@@ -242,6 +247,8 @@ export default class R2 {
                         console.log("heartbeat");
                         this._sockets[id+"|"+signal].ws.send(JSON.stringify(heartbeat));
                     }, 30000);
+
+                    callback({"status":"connected"})
                 }
             }
         };

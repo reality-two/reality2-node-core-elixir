@@ -15,5 +15,6 @@ else
         mkdir "../../apps/reality2_web/priv/static/sites/$1/"
     fi
 
+    rm -rf ../../apps/reality2_web/prov/static/sites/$1/
     cp -rv dist/* ../../apps/reality2_web/priv/static/sites/$1/
 fi
