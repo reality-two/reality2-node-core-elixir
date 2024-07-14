@@ -19,7 +19,8 @@
     "vite": "^5.3.1"
   },
   "dependencies": {
-    "@castlenine/svelte-qrcode": "^2.2.0",
-    "svelte-fomantic-ui": "^0.3.5"
+    "fomantic-ui": "^2.9.3",
+    "svelte-fomantic-ui": "^0.3.5",
+    "svelte-qrcode": "^1.0.0"
   }
 }
