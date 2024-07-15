@@ -6,7 +6,7 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { Cards, Link, Segment, Button, Text, Message, Header, Card, Line, Input } from "svelte-fomantic-ui";
+    import { Cards, Link, Segment, Button, Text, Message, Header, Card, Content, Input } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import SentantCard from './lib/SentantCard.svelte';
@@ -77,9 +77,11 @@
     var set_state = "loading";
     $: state = set_state;
 
-    var set_ssid = "";
+    var set_ip_addr = window.location.hostname;
+    $: ip_addr = set_ip_addr;
+    var set_ssid = "SDLmetaverse";
     $: ssid = set_ssid;
-    var set_pass = "";
+    var set_pass = "6ddf9f9ce4";
     $: pass = set_pass;
     $: network_qr = "WIFI:T:WPA;S:"+ssid+";P:"+pass+";H:False;;";
     // -------------------------------------------------------------------------------------------------
@@ -331,31 +333,38 @@ Layout - how to draw stuff in the browser
         {#if state == "start"}
         <!--------------------------------------------------------------------------------------------->
             <Cards ui centered>
-                <Card ui>
+                <Card ui centered>
                     <Message ui blue large>
                         <Header>
                             Scan this QR code to join the IoT network.
                         </Header>
                     </Message>
-                    <Link ui href={"https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?connect"}>
+                    <Content>
+                        <Link ui href={"https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?connect"}>
                         <QrCode value={network_qr} size={250} fluid/>
                     </Link>
+                    </Content>
                     <Input ui labeled fluid massive>
                         <Input text massive placeholder={"SSID"} bind:value={set_ssid}/>
                     </Input>
                     <Input ui labeled fluid massive>
-                        <Input text massive placeholder={"PASS"} bind:value={set_pass}/>
+                        <Input text massive placeholder={"PASS"} bind:value={set_pass} centered/>
                     </Input>
                 </Card>
-                <Card ui>
+                <Card ui centered>
                     <Message ui blue large>
                         <Header>
                             Scan this QR code to connect your device.
                         </Header>
                     </Message>
-                    <Link ui href={"https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?connect"}>
-                        <QrCode size={250} value={"https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?connect"} isResponsive/>
-                    </Link>
+                    <Content>
+                        <Link ui href={"https://"+ ip_addr + ":" + window.location.port + "/iotdemo?connect"}>
+                            <QrCode size={250} value={"https://"+ ip_addr + ":" + window.location.port + "/iotdemo?connect"} isResponsive/>
+                        </Link>
+                    </Content>
+                    <Input ui labeled fluid massive>
+                        <Input text massive placeholder={"IP ADDR"} bind:value={set_ip_addr}/>
+                    </Input>
                     <Button ui massive fluid blue on:click={showView}>
                         Main View
                     </Button>
