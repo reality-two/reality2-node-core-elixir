@@ -1,8 +1,8 @@
 # Read this first
 
-### Current Status (April, 2024)
+### Current Status (July, 2024)
 
-Reality2 is still in early Alpha.  That means it is not complete, has bugs, and is likely to change.  You have been warned.
+Reality2 is still in early Beta.  That means it is not complete, has bugs, and is likely to change.  You have been warned.
 
 That said, we value people like yourself who are willing to give this new technology a go.  You are crucial to the ongoing progress of this project, and you have the opportunity to steer development in directions that you are interested in through your feedback.
 
