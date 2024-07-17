@@ -1,5 +1,5 @@
 <!------------------------------------------------------------------------------------------------------
-  Simple WebApp for a Reality Node
+  IoTDemo WebApp Demo for a Reality Node
 
   Author: Dr. Roy C. Davies
   Created: July 2024
