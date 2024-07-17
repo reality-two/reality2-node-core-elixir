@@ -17,10 +17,11 @@ import time
 ids = {}
 
 
+# ----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 def make_name(index):
     return "device " + str(index).zfill(4)
-
-
+# ----------------------------------------------------------------------------------------------------
 
 
 
@@ -97,33 +98,21 @@ def delete_all(r2_node, current_max):
 
 
 # ----------------------------------------------------------------------------------------------------
+# Do some semi-random interaction with the Sentant specified
 # ----------------------------------------------------------------------------------------------------
-def do_some_activities(r2_node, current_max):
-    for count in range (0, 20):
-        numbers = list(range(current_max))
-        random.shuffle(numbers)
-        for counter in numbers:
-            id = ids[make_name(counter)]        
-            r2_node.sentantSend(id, "setsensor", {"sensor": random.randint(0, 360)});
-            r2_node.sentantSend(id, "count", {});
-            r2_node.sentantSend(id, "update", {});  
-
-        # time.sleep(1)
-
-    return 0
-# ----------------------------------------------------------------------------------------------------
-
-
-
-def do_in_parallel(r2_node, ids, counter):
+def do_in_parallel(r2_node, ids, device_num):
+    speed = random.randint(1, 5)
     for count in range(0, 20):
-        id = ids[make_name(counter)]        
-        r2_node.sentantSend(id, "setsensor", {"sensor": random.randint(0, 360)});
-        time.sleep(random.uniform(0.05, 0.15))
+        id = ids[make_name(device_num)]
+        if count == 19:
+            r2_node.sentantSend(id, "setsensor", {"sensor": 90});
+        else:
+            r2_node.sentantSend(id, "setsensor", {"sensor": random.randint(0, 360)})
+
         r2_node.sentantSend(id, "count", {});
-        time.sleep(random.uniform(0.05, 0.15))
         r2_node.sentantSend(id, "update", {});  
-        time.sleep(random.uniform(0.05, 0.15))
+        time.sleep(random.uniform(0.3, 0.3*speed))
+# ----------------------------------------------------------------------------------------------------
 
     
 
@@ -155,11 +144,13 @@ def main(host):
             count = input()
             current_max = create(r2_node, int(count), current_max)
         elif (key == "t"):
-            # do_some_activities(r2_node, current_max)
+            print("Testing...")
             numbers = list(range(current_max))
             random.shuffle(numbers)
             for counter in numbers:
                 multiprocessing.Process(target=do_in_parallel, args=(r2_node, ids, counter,)).start()
+        else:
+            print("Please press c to create, d to delete, t to test, or q to quit.")
     # Close the subscriptions
     delete_all(r2_node, current_max)
     print("Quitting.")
