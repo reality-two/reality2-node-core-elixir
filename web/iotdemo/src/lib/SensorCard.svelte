@@ -102,7 +102,7 @@
             {#if counter >= 20 && sensor == 90}
                 <Image ui src="/images/smiley.png"/>
             {:else}
-                <Text ui massive _='{counter >= 20?"green":"red"}'>{counter}</Text>
+                <Text ui massive _='{counter >= 20?"green":"red"}'>{counter}</Text><br/>
                 <Text ui massive _='{sensor == 90?"green":"blue"}'>{sensor}</Text>
             {/if}
         </Content>
