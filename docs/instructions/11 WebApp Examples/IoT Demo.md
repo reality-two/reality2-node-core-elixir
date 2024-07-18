@@ -205,15 +205,36 @@ Key points to note are that the way the counter and sensor values are saved to d
 
 ```mermaid
 stateDiagram-v2
-state fork_state <<fork>>
-[*] --> fork_state
-fork_state --> join_state: count
-fork_state --> ready: setsensor
-fork_state --> ready: update
+    [*] --> ready: init
+    note left of [*]
+        store count = 0 in ai.reality2.vars
+        store sensor = 0 in ai.reality2.vars
+    end note
 
-state join_state <<join>>
-join_state --> fork_state: update
 
+    state ready {
+            . --> .: count
+            note left of .
+                retrieve count from ai.reality2.vars
+
+                set count = count + 1
+                
+                store count in ai.reality2.vars
+            end note
+        --
+            .. --> ..: setsensor
+            note left of ..
+                store sensor value in ai.reality2.vars
+            end note
+        --
+            ... --> ...: update
+            note left of ...
+              get sensor from ai.reality2.vars
+              get count from ai.reality2.vars
+
+              send update signal
+            end note
+    }
 ```
 
 ### Events and Signals
