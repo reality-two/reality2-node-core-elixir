@@ -13,9 +13,14 @@ defmodule Reality2Web.Router do
   end
 
   scope "/", Reality2Web do
+    web_routes = Path.wildcard("priv/static/sites/*")
+    |> Enum.map(fn(path) -> String.replace(path, "priv/static/sites/", "") end)
+
     pipe_through :browser
     get "/", Reality2Controller, :index
-    get "/sentants", Reality2Controller, :index
+    Enum.each(web_routes, fn(name) ->
+      get "/" <> name, Reality2Controller, :index
+    end)
   end
 
   pipeline :reality2 do
