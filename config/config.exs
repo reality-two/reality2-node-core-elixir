@@ -41,7 +41,7 @@ config :phoenix, :json_library, Jason
 
 # config/config.exs
 config :mnesia,
-  dir: '.mnesia/#{config_env()}/#{node()}' |> to_charlist,
+  dir: ~c'.mnesia/#{config_env()}/#{node()}',
   storage: [disc_only_copies: [node()]]
 
 # Import environment specific config. This must remain at the bottom

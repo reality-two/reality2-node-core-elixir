@@ -9,13 +9,12 @@ The library `reality2.py` manages the GraphQL API, and the python script `load_s
 To run these, use python3, and install the following libraries:
 
 ```bash
-pip3 install gql
-pip3 install requests
-pip3 install requests_toolbelt
-pip3 install websockets
-pip3 install getkey
-pip3 install ruamel.yaml
-pip3 install toml
+pip install gql
+pip install requests
+pip install websockets
+pip install getkey
+pip install ruamel.yaml
+pip install toml
 ```
 
 ## Encryption keys and other private data

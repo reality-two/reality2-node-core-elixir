@@ -54,7 +54,7 @@
     // Main functionality
     // -------------------------------------------------------------------------------------------------
     // GraphQL client setup 
-    let r2_node = new R2(window.location.hostname, 4005);
+    let r2_node = new R2(window.location.hostname, Number(window.location.port));
 
     // Set up the monitoring of the Reality2 Node
     setTimeout(() => { r2_node.monitor((_data: any) => { sentantData = loadSentants(); }); }, 1000);

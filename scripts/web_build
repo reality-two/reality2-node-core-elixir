@@ -1,9 +1,0 @@
-#!/bin/bash
-
-echo "***** Building Reality2 WebApp"
-cd ..
-cd ./web/sentants
-yarn build
-
-echo "***** Moving Reality2 WebApp into place"
-cp -rv dist/* ../../apps/reality2_web/priv/static/sentants/
