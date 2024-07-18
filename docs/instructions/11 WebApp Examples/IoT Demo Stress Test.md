@@ -18,7 +18,7 @@ pip install multiprocessing
 
 Note also the reference to the Reality2 graphql library at the top.  You can find that file also in your `demos/python` folder.
 
-On a moderate laptop with 16Gb of RAM, using a dedicated Wifi6 network, a couple of hundred test 'devices' could be connected and simulated without too much lag.  The main bottlenech is the javascript WebApp.
+On a moderate laptop with 16Gb of RAM, using a dedicated Wifi6 network, a couple of hundred test 'devices' could be connected and simulated without too much lag.  The main bottleneck is the javascript WebApp.
 
 ```python
 # ----------------------------------------------------------------------------------------------------
