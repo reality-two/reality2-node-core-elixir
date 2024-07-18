@@ -4,25 +4,26 @@
 
 We wanted to create an example at the University for students in a lecture theatre, to help them understand IoT devices and for each to be able to interact with a shared experience during lecture, all at once, that involved hardware and software.
 
+This WebApp is included in the main branch, and will become part of the next release.
+
 ## User story
 
 1. As each student enters the lecture hall, they scan a QR code with the mobile phone to link to a WebApp.
 2. Each device appears on the lecture room projector screen, attached to some part of a simulation or Digital Twin.
 3. The sensors on the phone are used to change parameters of the simulation, with the students having to interact in specific ways to achieve a result (for example, rotate the phone yaw until it reaches 90 degrees, and tap the 'count' button 20 times).
 
-   ```mermaid
-   flowchart TD
-       Device_0010 <---> Reality2_node
-       Device_0002 <---> Reality2_node
-       Device_0003 <---> Reality2_node
-       Device_0004 <---> Reality2_node
-       Device_0005 <---> Reality2_node
-   
-       Device_n <---> Reality2_node
-       Reality2_node <---> Lecture_Room_Computer
-       Reality2_node <---> IoT_Devices
-       Lecture_Room_Computer --> Projector
-   ```
+```mermaid
+flowchart TD
+    Device_0010 <---> Reality2_node
+    Device_0002 <---> Reality2_node
+    Device_0003 <---> Reality2_node
+    Device_0004 <---> Reality2_node
+    Device_0005 <---> Reality2_node
+    Device_n <---> Reality2_node
+    Reality2_node <---> Lecture_Room_Computer
+    Reality2_node <---> IoT_Devices
+    Lecture_Room_Computer --> Projector
+```
 
 
 ## WebApp pages
@@ -36,15 +37,15 @@ To achieve the desired result, there are several parts to the WebApp
 
 ### Setting up
 
-Follow the instructions for [adding a new WebApp](../10%20Adding%20a%20WebApp/New.md), and call this one 'iotdemo'.  Note that the full code for this is included in the GitHub repository.
+This is WebApp is included, but if you were wanting to set it up from scratch, you would first follow the instructions for [adding a new WebApp](../10%20Adding%20a%20WebApp/New.md), and call this one 'iotdemo', add the required code in the lib folder (mostly svelte pages) and modift the App.svelte, as well as perhaps some of the css files.
 
 ##### reality2.ts
 
-In the WebApp folder, inside the `lib` folder, make sure you have a copy of the `reality2.ts` file (grab this from the `web/iotdemo` or `web/sentants` folder).  This contains the SDK for the Reality2 GraphQL API.  You don't have to use this, or you can tweak it for your own requirements.
+If create a new WebApp, inside the `lib` folder, make sure you have a copy of the `reality2.ts` file (grab this from the `web/iotdemo` or `web/sentants` folder).  This contains the SDK for the Reality2 GraphQL API.  You don't have to use this as you can make your own, or you can tweak it for your own requirements.
 
 ### App.svelte
 
-The main page for any WebApp set up using Svellte and Vite, is a page called 'App.svelte' in the main directory.  Within that file, there is a section that defines the how the webpage is structured.  In this example, we have used a library called `svelte-fomantic-ui`.
+The main page for any WebApp set up using Svellte and Vite, is a page called 'App.svelte' in the main directory.  Within that file, there is a section that defines how the webpage is structured.  In this example, we have used a library called `svelte-fomantic-ui` which can be found [here](https://github.com/roycdaviesuoa/svelte-fomantic-ui), also created by the main developer of Reality2.
 
 Given that it is essentially impossible to connect IoT devices to the university WiFi, we opted to have our own router in the lecture theatre, but that necessitates that each student has to join that WiFi network first.  Luckily, this can be also be achieved using a QR code.
 
@@ -93,7 +94,7 @@ The part of App.svelte that achieves this is:
 </Cards>
 ```
 
-Once the QR Codes have been scanned, the student, on their phones will see this (left image), and when they click connect, the iamge on the right.
+Once the QR Codes have been scanned, the student, on their phones will see this (left image), and when they click connect, the image on the right.
 
 
 | connect | sensor |
@@ -201,6 +202,19 @@ The sentant definition is included in `App.svelte` and is as follows:
 ```
 
 Key points to note are that the way the counter and sensor values are saved to disk in between sentant events.  This is necessary as Sentants themselves are immutable, so each time a new set of actions is initiated through an event transition, there is no memory of previous events or values, aside from the current state.  Note however, that here we are using the abbreviated form of the finite state machine definition where we ignore the states, so the `in` and `out` states are not defined.
+
+```mermaid
+stateDiagram-v2
+state fork_state <<fork>>
+[*] --> fork_state
+fork_state --> join_state: count
+fork_state --> ready: setsensor
+fork_state --> ready: update
+
+state join_state <<join>>
+join_state --> fork_state: update
+
+```
 
 ### Events and Signals
 
