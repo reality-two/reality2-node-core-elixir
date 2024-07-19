@@ -10,6 +10,7 @@ defmodule AiReality2Rustdemo.Application do
     children = [
       # Starts a worker by calling: AiReality2Rustdemo.Worker.start_link(arg)
       # {AiReality2Rustdemo.Worker, arg}
+      %{id: AiReality2Rustdemo.Main, start: {AiReality2Rustdemo.Main, :start_link, [AiReality2Rustdemo.Main]}}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
