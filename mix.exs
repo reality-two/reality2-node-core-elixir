@@ -4,7 +4,7 @@ defmodule Reality2.Umbrella.MixProject do
   def project do
     [
       apps_path: "apps",
-      apps: [ :ai_reality2_vars, :reality2, :reality2_web, :ai_reality2_geospatial, :ai_reality2_pns, :ai_reality2_auth, :ai_reality2_backup],
+      apps: [ :ai_reality2_vars, :reality2, :reality2_web, :ai_reality2_geospatial, :ai_reality2_pns, :ai_reality2_auth, :ai_reality2_backup, :ai_reality2_rustdemo],
       version: "0.1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -67,7 +67,8 @@ defmodule Reality2.Umbrella.MixProject do
           ai_reality2_vars: :permanent,
           ai_reality2_pns: :permanent,
           ai_reality2_auth: :permanent,
-          ai_reality2_backup: :permanent
+          ai_reality2_backup: :permanent,
+          ai_reality2_rustdemo: :permanent
         ]
       ]
     ]
