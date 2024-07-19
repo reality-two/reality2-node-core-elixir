@@ -55,7 +55,7 @@ flowchart RL
 2. In another terminal window, start the Raspberry PI Controller Sentant
 
    ```bash
-   cd python/rasppi
+   cd demos/SBC/raspberry_pi/python
    python3 start.py
    ```
 
@@ -63,8 +63,8 @@ flowchart RL
 3. In a third terminal window, start the Light Switch and Bulb Sentants
 
    ```bash
-   cd python
-   python3 simple_light_and_switch.py
+   cd demos/python
+   ./load swarm_light_and_switch.json
    ```
 
    

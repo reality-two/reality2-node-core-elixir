@@ -15,7 +15,7 @@ To communicate with these devices, regardless of the device, the logic is the sa
        Raspberry_PI --> Actuator
        subgraph Reality2_Node
        Raspberry_PI -- sentantSend --> Sentant
-       Sentant -- awatSignal --> Raspberry_PI
+       Sentant -- awaitSignal --> Raspberry_PI
        end
    ```
 

@@ -17,6 +17,7 @@
 
     let set_counter = 0;
     let set_sensor = 0;
+    let connected = false;
 
     $: counter = set_counter;
     $: sensor = set_sensor;
@@ -28,6 +29,7 @@
             if(R2.JSONPath(data, "status") == "connected")
             {
                 r2_node.sentantSend(sentant.id, "update", {});
+                connected = true;
             }
             else
             {
@@ -50,7 +52,7 @@
             {/if}
         </Content>
         <Content extra>
-            <p><Label ui huge grey fluid>{sentant.name}</Label></p>
+            <p><Label ui huge _={connected ? "blue" : "grey"} fluid>{sentant.name}</Label></p>
             <p><Text ui small blue>{sentant.id}</Text></p>
         </Content>
     </Card>
