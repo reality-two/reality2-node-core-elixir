@@ -128,7 +128,7 @@ end
 
 ### Add the main App to the Plugin
 
-In a similar way, the Plugin needs to be aware of the main Reality2 app.  In the `mix.exs` file of the Plugin, make sure the `deps` section has at least the following:
+In a similar way, the Plugin needs to be aware of the main Reality2 app if you are wishing to use any of the useful functions such as those in the `Reality2.Helpers` module.  In the `mix.exs` file of the Plugin, make sure the `deps` section has at least the following:
 
 ```elixir
 defp deps do
