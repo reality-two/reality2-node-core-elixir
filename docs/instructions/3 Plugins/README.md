@@ -47,7 +47,7 @@ Let's look at some inbuilt definitions and plugin definitions that you might fin
 
 #### external
 
-1. [ai.openai.api](ai.openai.api.md)
+1. [com.openai.api](com.openai.api.md)
 
    - OpenAI ChatGPT plugin
 
