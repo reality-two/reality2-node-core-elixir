@@ -130,7 +130,14 @@ Generally, a Reality2 built-in Plugin creates a process for each Sentant that us
 
 An example of a Reality2 plugin that uses a process for each Sentant is the `ai_reality2_vars` plugin.  An example of a Reality2 plugin that has only one process for all Sentants is the `ai_reality2_backup` plugin.
 
-Regardless of the type of plugin, it has a consistant interface towards the rest of the Reality2 Node.  This interface is created through static functions in a file called `main.ex` located in the lib folder of the plugin.
+Regardless of the type of plugin, it has a consistant interface towards the rest of the Reality2 Node.  This interface is created through static functions in a file called `main.ex` located in the lib folder of the plugin.  The `main` file must be defined as a module with the name: `[your plugin name in camelcase].Main`, for example `AiReality2Backup.Main`.
+
+The module needs to be a `GenServer`, so this line is required near the top:
+
+```elixir
+    @doc false
+    use GenServer, restart: :transient
+```
 
 In addition to the functions normally required of a `GenServer` such as `init`, `start_link` `handle_cast` and `handle_call`, there are four functions that must be defined:
 
@@ -308,5 +315,64 @@ And the `create` function is similarly simpler (ie it doesn't have to do anythin
 ```elixir
 def create(_sentant_id) do
     {:ok}
+end
+```
+
+### A main.ex template
+
+The bare minimum `main.ex` file could be as follows:
+
+```elixir
+defmodule AiReality2Rustdemo.Main do
+    # *******************************************************************************************************************************************
+    @moduledoc """
+      Module for testing and experimenting with Rust NIFs in Elixir inside a Reality2 Node.
+
+      In this instance, the main supervisor is a DynamicSupervisor, but we don't need a new process for each Sentant.
+
+      **Author**
+      - Dr. Roy C. Davies
+      - [roycdavies.github.io](https://roycdavies.github.io/)
+    """
+    # *******************************************************************************************************************************************
+    
+    use GenServer, restart: :transient
+
+    def start_link(name), do: GenServer.start_link(__MODULE__, %{}, name: name)
+
+    def init(state) do 
+        IO.puts("[ai.reality2.rustdemo] started successfully.")
+        {:ok, state}
+    end
+
+    def create(_sentant_id), do: {:ok}
+
+    def delete(_sentant_id), do: {:ok}
+
+    def whereis(_sentant_id), do: self()
+    
+    def sendto(_sentant_id, command_and_parameters) do
+        IO.puts("Received command: #{inspect(command_and_parameters)}")
+        {:ok}
+    end
+
+  end
+  ```
+
+  The corresponding `application.ex` is:
+
+  ```elixir
+  defmodule AiReality2Rustdemo.Application do
+  use Application
+
+  @impl true
+  def start(_type, _args) do
+    children = [
+      %{id: AiReality2Rustdemo.Main, start: {AiReality2Rustdemo.Main, :start_link, [AiReality2Rustdemo.Main]}}
+    ]
+
+    opts = [strategy: :one_for_one, name: AiReality2Rustdemo.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
 end
 ```
