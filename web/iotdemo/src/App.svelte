@@ -397,7 +397,7 @@ Layout - how to draw stuff in the browser
         {:else if state == "view"}
         <!--------------------------------------------------------------------------------------------->
             {#if none_or_monitor_only(sentantData)}
-                <Text ui large>Loading...</Text>
+                <Text ui large>No Devices Connected</Text>
             {:else}
                 <Cards ui centered>
                     {#each sentantData as sentant}
