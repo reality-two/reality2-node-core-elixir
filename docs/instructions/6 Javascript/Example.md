@@ -1,10 +1,10 @@
 # Example
 
-This example uses [Svelte](https://svelte.dev/) and the [Svelte Fomantic UI.](https://github.com/roycdaviesuoa/svelte-fomantic-ui)
+This example uses [Svelte](https://svelte.dev/) and the [Svelte Fomantic UI.](https://github.com/roycdaviesuoa/svelte-fomantic-ui).  It was set up using vite.  See the section on 'Adding a WebApp' for more information.
 
 You can get all the Sentants on a node in a browser with:
 
-```http
+```text
 https://localhost:4005
 ```
 
@@ -12,7 +12,7 @@ https://localhost:4005
 
 or a specific Sentant with either its ID or Name in the query:
 
-```http
+```text
 https://localhost:4005/?name=Light Switch
 https://localhost:4005/?id=ad7d5e5a-f87e-11ee-b612-18c04dee389e
 ```
