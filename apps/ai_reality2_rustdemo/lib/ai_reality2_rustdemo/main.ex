@@ -17,7 +17,10 @@ defmodule AiReality2Rustdemo.Main do
     def start_link(name), do: GenServer.start_link(__MODULE__, %{}, name: name)
 
     @doc false
-    def init(state), do: {:ok, state}
+    def init(state) do
+      IO.puts("[ai.reality2.rustdemo] started successfully.")
+      {:ok, state}
+    end
 
     @doc false
     def create(_sentant_id), do: {:ok}
