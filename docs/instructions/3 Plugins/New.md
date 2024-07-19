@@ -1,5 +1,7 @@
 # Create a new Reality2 Builtin Plugin
 
+__This is an advanced topic for programmers, particularly if you are familiar (or are wanting to learn) the Elixir language.__
+
 A Reality2 built-in plugin is an umbrella App set up with a supervisor and implemented as a `GenServer`.  For example, below, we are setting up a new plugin called `ai_reality2_rustdemo`.
 
 ### Setup the Plugin
@@ -123,6 +125,20 @@ defmodule Reality2.Umbrella.MixProject do
   end
 end
 ```
+
+### Add the main App to the Plugin
+
+In a similar way, the Plugin needs to be aware of the main Reality2 app.  In the `mix.exs` file of the Plugin, make sure the `deps` section has at least the following:
+
+```elixir
+defp deps do
+  [
+    {:reality2, in_umbrella: true}
+  ]
+end
+```
+
+You may also have other dependencies, depending on what your plugin does.
 
 ### Internal API
 
