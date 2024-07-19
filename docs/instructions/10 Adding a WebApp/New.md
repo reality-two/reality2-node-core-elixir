@@ -6,7 +6,7 @@ In this example, we will use the same frameworks, however, you can use whatever 
 
 The goal is to create a new WebApp that is available through a browser with the url:
 
-```http
+```text
 https://your.reality2.node/your_new_webapp
 ```
 
