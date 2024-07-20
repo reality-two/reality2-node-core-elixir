@@ -13,6 +13,9 @@ defmodule AiReality2Rustdemo.Main do
     @doc false
     use GenServer, restart: :transient
 
+
+    # def add(_arg1, _arg2), do: :erlang.nif_error(:nif_not_loaded)
+
     @doc false
     def start_link(name), do: GenServer.start_link(__MODULE__, %{}, name: name)
 

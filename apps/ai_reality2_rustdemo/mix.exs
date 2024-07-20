@@ -35,7 +35,8 @@ defmodule AiReality2Rustdemo.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:reality2, in_umbrella: true}
+      {:reality2, in_umbrella: true},
+      {:rustler, "~> 0.34.0"}
     ]
   end
 end

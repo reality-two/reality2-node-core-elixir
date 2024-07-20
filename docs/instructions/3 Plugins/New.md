@@ -49,80 +49,80 @@ The main `mix.exs` file in the root directory needs to be tweaked as well so it 
 
 ```elixir
 defmodule Reality2.Umbrella.MixProject do
-  use Mix.Project
+    use Mix.Project
 
-  def project do
-    [
-      apps_path: "apps",
-      apps: [ :ai_reality2_vars, :reality2, :reality2_web, :ai_reality2_geospatial, :ai_reality2_pns, :ai_reality2_auth, :ai_reality2_backup, :ai_reality2_rustdemo], # <------------ HERE
-      version: "0.1.8",
-      start_permanent: Mix.env() == :prod,
-      deps: deps(),
-      aliases: aliases(),
-      releases: releases()
-    ]
-  end
-
-
-  def application do
-    [
-      extra_applications: [:logger, :runtime_tools, :os_mon, :mnesia]
-    ]
-  end
-
-  # Dependencies can be Hex packages:
-  #
-  #   {:mydep, "~> 0.3.0"}
-  #
-  # Or git/path repositories:
-  #
-  #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
-  #
-  # Type "mix help deps" for more examples and options.
-  #ssss
-  # Dependencies listed here are available only for this project
-  # and cannot be accessed from applications inside the apps/ folder.
-  defp deps do
-    [
-    ]
-  end
-
-  # Aliases are shortcuts or tasks specific to the current project.
-  # For example, to install project dependencies and perform other setup tasks, run:
-  #
-  #     $ mix setup
-  #
-  # See the documentation for `Mix` for more info on aliases.
-  #
-  # Aliases listed here are available only for this project
-  # and cannot be accessed from applications inside the apps/ folder.
-  defp aliases do
-    [
-      # run `mix setup` in all child apps
-      setup: ["cmd mix setup"],
-      # run `mix docs` in all child apps
-      docs: ["cmd mix docs"],
-      # run the tests in all child apps
-      test: ["cmd mix test"]
-    ]
-  end
-
-  defp releases do
-    [
-      reality2: [
-        applications: [
-          reality2: :permanent,
-          reality2_web: :permanent,
-          ai_reality2_geospatial: :permanent,
-          ai_reality2_vars: :permanent,
-          ai_reality2_pns: :permanent,
-          ai_reality2_auth: :permanent,
-          ai_reality2_backup: :permanent,
-          ai_reality2_rustdemo: :permanent # <------------ HERE
+    def project do
+        [
+            apps_path: "apps",
+            apps: [ :ai_reality2_vars, :reality2, :reality2_web, :ai_reality2_geospatial, :ai_reality2_pns, :ai_reality2_auth, :ai_reality2_backup, :ai_reality2_rustdemo], # <------------ HERE
+            version: "0.1.8",
+            start_permanent: Mix.env() == :prod,
+            deps: deps(),
+            aliases: aliases(),
+            releases: releases()
         ]
-      ]
-    ]
-  end
+    end
+
+
+    def application do
+        [
+            extra_applications: [:logger, :runtime_tools, :os_mon, :mnesia]
+        ]
+    end
+
+    # Dependencies can be Hex packages:
+    #
+    #   {:mydep, "~> 0.3.0"}
+    #
+    # Or git/path repositories:
+    #
+    #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
+    #
+    # Type "mix help deps" for more examples and options.
+    #ssss
+    # Dependencies listed here are available only for this project
+    # and cannot be accessed from applications inside the apps/ folder.
+    defp deps do
+        [
+        ]
+    end
+
+    # Aliases are shortcuts or tasks specific to the current project.
+    # For example, to install project dependencies and perform other setup tasks, run:
+    #
+    #     $ mix setup
+    #
+    # See the documentation for `Mix` for more info on aliases.
+    #
+    # Aliases listed here are available only for this project
+    # and cannot be accessed from applications inside the apps/ folder.
+    defp aliases do
+        [
+            # run `mix setup` in all child apps
+            setup: ["cmd mix setup"],
+            # run `mix docs` in all child apps
+            docs: ["cmd mix docs"],
+            # run the tests in all child apps
+            test: ["cmd mix test"]
+        ]
+    end
+
+    defp releases do
+        [
+            reality2: [
+                applications: [
+                reality2: :permanent,
+                reality2_web: :permanent,
+                ai_reality2_geospatial: :permanent,
+                ai_reality2_vars: :permanent,
+                ai_reality2_pns: :permanent,
+                ai_reality2_auth: :permanent,
+                ai_reality2_backup: :permanent,
+                ai_reality2_rustdemo: :permanent # <------------ HERE
+                ]
+            ]
+        ]
+    end
 end
 ```
 
@@ -132,9 +132,9 @@ In a similar way, the Plugin needs to be aware of the main Reality2 app if you a
 
 ```elixir
 defp deps do
-  [
-    {:reality2, in_umbrella: true}
-  ]
+    [
+        {:reality2, in_umbrella: true}
+    ]
 end
 ```
 
@@ -151,8 +151,8 @@ Regardless of the type of plugin, it has a consistant interface towards the rest
 The module needs to be a `GenServer`, so this line is required near the top:
 
 ```elixir
-    @doc false
-    use GenServer, restart: :transient
+@doc false
+use GenServer, restart: :transient
 ```
 
 In addition to the functions normally required of a `GenServer` such as `init`, `start_link` `handle_cast` and `handle_call`, there are four functions that must be defined:
@@ -239,7 +239,7 @@ Note that the map has been pre-processed before being sent so that, for example 
 Similarly, an action such as:
 
 ```json
-    { "command": "set", "parameters": { "key": "param2", "value": { "jsonpath": "var5.key1.[].a" } } },
+{ "command": "set", "parameters": { "key": "param2", "value": { "jsonpath": "var5.key1.[].a" } } },
 ```
 
 Would have had the `jsonpath` value replaced by the actual data to be stored by the time it reaches the plugin.
@@ -250,19 +250,19 @@ The `application.ex` file must start any processes required, particularly at lea
 
 ```elixir
 defmodule AiReality2Backup.Application do
-  @moduledoc false
+    @moduledoc false
 
-  use Application
+    use Application
 
-  @impl true
-  def start(_type, _args) do
-    children = [
-      %{id: AiReality2Backup.Main, start: {AiReality2Backup.Main, :start_link, [AiReality2Backup.Main]}}
-    ]
+    @impl true
+    def start(_type, _args) do
+        children = [
+            %{id: AiReality2Backup.Main, start: {AiReality2Backup.Main, :start_link, [AiReality2Backup.Main]}}
+        ]
 
-    opts = [strategy: :one_for_one, name: AiReality2Backup.Supervisor]
-    Supervisor.start_link(children, opts)
-  end
+        opts = [strategy: :one_for_one, name: AiReality2Backup.Supervisor]
+        Supervisor.start_link(children, opts)
+    end
 end
 ```
 
@@ -270,20 +270,20 @@ The one for `ai_reality2_vars` is a little more complicated:
 
 ```elixir
 defmodule AiReality2Vars.Application do
-  @moduledoc false
+    @moduledoc false
 
-  use Application
+    use Application
 
-  @impl true
-  def start(_type, _args) do
-    children = [
-      %{id: AiReality2Vars.Processes, start: {Reality2.Helpers.R2Process, :start_link, [AiReality2Vars.Processes]}},
-      %{id: AiReality2Vars.Main, start: {AiReality2Vars.Main, :start_link, [AiReality2Vars.Main]}}
-    ]
+    @impl true
+    def start(_type, _args) do
+        children = [
+            %{id: AiReality2Vars.Processes, start: {Reality2.Helpers.R2Process, :start_link, [AiReality2Vars.Processes]}},
+            %{id: AiReality2Vars.Main, start: {AiReality2Vars.Main, :start_link, [AiReality2Vars.Main]}}
+        ]
 
-    opts = [strategy: :one_for_one, name: AiReality2Vars.Supervisor]
-    Supervisor.start_link(children, opts)
-  end
+        opts = [strategy: :one_for_one, name: AiReality2Vars.Supervisor]
+        Supervisor.start_link(children, opts)
+    end
 end
 ```
 
@@ -294,18 +294,18 @@ The `main.ex` code in turn creates a new process whenever the `create` static fu
 ```elixir
 def create(sentant_id) do
     case whereis(sentant_id) do
-    nil->
-        case DynamicSupervisor.start_child(__MODULE__, AiReality2Vars.Data.child_spec({})) do
-        {:ok, pid} ->
+        nil->
+            case DynamicSupervisor.start_child(__MODULE__, AiReality2Vars.Data.child_spec({})) do
+            {:ok, pid} ->
+                R2Process.register(sentant_id, pid, AiReality2Vars.Processes)
+                {:ok}
+            error -> error
+            end
+        pid ->
+            # Clear the data store so there is no old data that hackers might be able to access in the case this was a reused ID
             R2Process.register(sentant_id, pid, AiReality2Vars.Processes)
+            GenServer.call(pid, %{command: "clear"})
             {:ok}
-        error -> error
-        end
-    pid ->
-        # Clear the data store so there is no old data that hackers might be able to access in the case this was a reused ID
-        R2Process.register(sentant_id, pid, AiReality2Vars.Processes)
-        GenServer.call(pid, %{command: "clear"})
-        {:ok}
     end
 end
 ```
@@ -371,24 +371,23 @@ defmodule AiReality2Rustdemo.Main do
         IO.puts("Received command: #{inspect(command_and_parameters)}")
         {:ok}
     end
-
-  end
-  ```
+end
+```
 
   The corresponding `application.ex` is:
 
-  ```elixir
-  defmodule AiReality2Rustdemo.Application do
-  use Application
+```elixir
+defmodule AiReality2Rustdemo.Application do
+    use Application
 
-  @impl true
-  def start(_type, _args) do
-    children = [
-      %{id: AiReality2Rustdemo.Main, start: {AiReality2Rustdemo.Main, :start_link, [AiReality2Rustdemo.Main]}}
-    ]
+    @impl true
+    def start(_type, _args) do
+        children = [
+            %{id: AiReality2Rustdemo.Main, start: {AiReality2Rustdemo.Main, :start_link, [AiReality2Rustdemo.Main]}}
+        ]
 
-    opts = [strategy: :one_for_one, name: AiReality2Rustdemo.Supervisor]
-    Supervisor.start_link(children, opts)
-  end
+        opts = [strategy: :one_for_one, name: AiReality2Rustdemo.Supervisor]
+        Supervisor.start_link(children, opts)
+    end
 end
 ```
