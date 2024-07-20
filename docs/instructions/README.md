@@ -14,5 +14,6 @@ Welcome.  You are about to become the proud owner of a shiny new Reality2 node. 
 8. [Godot - a 3D Visualiser of a Reality2 Node](8%20Godot/README.md)
 9. [Single Board Computers - code examples](9%20Single%20Board%20Computers/README.md)
 10. [Creating a WebApp - step-by-step instructions](10%20Adding%20a%20WebApp/README.md)
-11. [WebApp Examples - live sensors driving a WebApp](11%20WebApp%20Examples/README.md)
+11. [WebApp Examples - some example WebApps](11%20WebApp%20Examples/README.md)
+12. [Rust Plugins - Using Rust in a Reality2 Plugin](12%20Rust%20Plugins/README.md)
 
