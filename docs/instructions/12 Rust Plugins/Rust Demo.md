@@ -35,7 +35,7 @@ Inside `apps/ai.reality2.rustdemo` (or whatever your plugin is called), do:
 mix rustler.new
 ```
 
-You will be asked for the Module Name `AiReality2Rustdemo` and the NIF name `aireality2rustdemo` (or whatever is appropraite for your plugin).
+You will be asked for the Module Name `AiReality2Rustdemo` and the NIF name `aireality2rustdemo` (or whatever is appropriate for your plugin).
 
 #### Write the Rust program
 
