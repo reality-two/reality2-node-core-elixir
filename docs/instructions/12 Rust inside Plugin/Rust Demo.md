@@ -138,7 +138,6 @@ Joined: wss://localhost:4005/reality2/websocket
 Joined: wss://localhost:4005/reality2/websocket
 Subscribed to b376b78c-46e1-11ef-aaee-8ce9ee90fd85|debug
 Subscribed to b376b78c-46e1-11ef-aaee-8ce9ee90fd85|result
-[{'event': 'add', 'parameters': {'value2': 'number', 'value1': 'number'}}, {'event': 'subtract', 'parameters': {'value2': 'number', 'value1': 'number'}}]
 ---------- Send Events ----------
  Press [ 0 ] for { add {'value2': 'number', 'value1': 'number'} }
  Press [ 1 ] for { subtract {'value2': 'number', 'value1': 'number'} }
