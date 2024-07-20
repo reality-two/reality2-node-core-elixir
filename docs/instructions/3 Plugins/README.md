@@ -4,7 +4,10 @@ Let's look at some inbuilt definitions and plugin definitions that you might fin
 
 ### Table of Contents
 
-  * [Main Menu](ai.reality2.geospatial.md)
+[Main Menu](ai.reality2.geospatial.md)
+
+#### new
+
   * [Creating a new Plugin](New.md)
 
 #### inbuilt

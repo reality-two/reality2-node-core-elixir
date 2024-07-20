@@ -1,5 +1,7 @@
 #!/bin/bash
 export MIX_ENV=test
+export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo"
+
 
 # If in the Scripts directory, move up one level
 if ! [ -d "scripts" ]; then

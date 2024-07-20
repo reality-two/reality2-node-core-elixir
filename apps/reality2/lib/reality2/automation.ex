@@ -261,6 +261,7 @@ defmodule Reality2.Automation do
   defp test_and_wait(name, count) do
     case R2Process.whereis(name) do
       nil ->
+        IO.puts("Waiting for Plugin: " <> name <> " to start, count is: " <> Integer.to_string(count))
         Process.sleep(100)
         test_and_wait(name, count - 1)
       pid -> pid

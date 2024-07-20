@@ -1,6 +1,11 @@
 #[rustler::nif]
-fn add(a: i64, b: i64) -> i64 {
+fn add(a: f64, b: f64) -> f64 {
     a + b
+}
+
+#[rustler::nif]
+fn subtract(a: f64, b: f64) -> f64 {
+    a - b
 }
 
 rustler::init!("Elixir.AiReality2Rustdemo.Action");

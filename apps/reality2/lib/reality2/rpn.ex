@@ -3,7 +3,7 @@ defmodule RPN do
   alias Reality2.Helpers.R2Map, as: R2Map
 
   @binary_ops ~w(+ - / * ^ atan2 fmod pow geohash)
-  @unary_ops ~w(+ - acos acosh asin asinh atan atanh ceil cos cosh exp floor log log10 log2 sin sinh sqrt tan tanh, latlong)
+  @unary_ops ~w(+ - acos acosh asin asinh atan atanh ceil cos cosh exp floor log log10 log2 sin sinh sqrt tan tanh latlong)
   @ops @binary_ops ++ @unary_ops
 
   def convert(input, context) when is_binary(input) do
