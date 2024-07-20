@@ -268,14 +268,13 @@ defmodule Reality2.Helpers do
             try do
               String.to_float(value)
             rescue
-              _ ->
-                0.0
+              _ -> 0.0
             end
         end + 0.0 # Convert to float
       end
 
       def to_integer(nil), do: 0
-      def to_integer(value) when is_float(value), do: Math.round(value)
+      def to_integer(value) when is_float(value), do: round(value)
       def to_integer(value) when is_integer(value), do: value
       def to_integer(value) do
         try do
@@ -283,10 +282,9 @@ defmodule Reality2.Helpers do
         rescue
           _ ->
             try do
-              String.to_float(value) |> Math.round()
+              String.to_float(value) |> round()
             rescue
-              _ ->
-                0
+              _ -> 0
             end
         end
       end
