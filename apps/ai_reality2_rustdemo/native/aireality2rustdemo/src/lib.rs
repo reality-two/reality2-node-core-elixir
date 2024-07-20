@@ -3,4 +3,4 @@ fn add(a: i64, b: i64) -> i64 {
     a + b
 }
 
-rustler::init!("AiReality2Rustdemo.Action");
+rustler::init!("Elixir.AiReality2Rustdemo.Action");
