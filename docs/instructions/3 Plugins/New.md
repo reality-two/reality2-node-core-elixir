@@ -43,92 +43,40 @@ You can use "mix" to compile it, test it, and more:
 Run "mix help" for more commands.
 ```
 
-### Add the Plugin into the main App
+### Add the Reality2 plugin to the PLUGINS environment variable
 
-The main `mix.exs` file in the root directory needs to be tweaked as well so it knows about the new plugin; in the `project` and `releases` sections, as below.
+The main `mix.exs` file in the root directory needs to be tweaked so it knows about the new plugin; in the `project` section, as below.
 
-```elixir
-defmodule Reality2.Umbrella.MixProject do
-    use Mix.Project
+```bash
+#!/bin/bash
+export MIX_ENV=dev
+export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo" # <------------ HERE
 
-    def project do
-        [
-            apps_path: "apps",
-            apps: [ :ai_reality2_vars, :reality2, :reality2_web, :ai_reality2_geospatial, :ai_reality2_pns, :ai_reality2_auth, :ai_reality2_backup, :ai_reality2_rustdemo], # <------------ HERE
-            version: "0.1.8",
-            start_permanent: Mix.env() == :prod,
-            deps: deps(),
-            aliases: aliases(),
-            releases: releases()
-        ]
-    end
+# If in the Scripts directory, move up one level
+if ! [ -d "scripts" ]; then
+  cd ..
+fi
 
+# Create the mnesia directory structure if it doesn't exist
+if ! [ -d ".mnesia" ]; then
+  mkdir ".mnesia"
+fi
+cd .mnesia
+if ! [ -d $MIX_ENV ]; then
+  mkdir $MIX_ENV
+fi
+cd ..
 
-    def application do
-        [
-            extra_applications: [:logger, :runtime_tools, :os_mon, :mnesia]
-        ]
-    end
+# Force reality2_web to be recompiled in case there have been some new WebApps added
+rm -rf _build/dev/lib/reality2_web
 
-    # Dependencies can be Hex packages:
-    #
-    #   {:mydep, "~> 0.3.0"}
-    #
-    # Or git/path repositories:
-    #
-    #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
-    #
-    # Type "mix help deps" for more examples and options.
-    #ssss
-    # Dependencies listed here are available only for this project
-    # and cannot be accessed from applications inside the apps/ folder.
-    defp deps do
-        [
-        ]
-    end
-
-    # Aliases are shortcuts or tasks specific to the current project.
-    # For example, to install project dependencies and perform other setup tasks, run:
-    #
-    #     $ mix setup
-    #
-    # See the documentation for `Mix` for more info on aliases.
-    #
-    # Aliases listed here are available only for this project
-    # and cannot be accessed from applications inside the apps/ folder.
-    defp aliases do
-        [
-            # run `mix setup` in all child apps
-            setup: ["cmd mix setup"],
-            # run `mix docs` in all child apps
-            docs: ["cmd mix docs"],
-            # run the tests in all child apps
-            test: ["cmd mix test"]
-        ]
-    end
-
-    defp releases do
-        [
-            reality2: [
-                applications: [
-                reality2: :permanent,
-                reality2_web: :permanent,
-                ai_reality2_geospatial: :permanent,
-                ai_reality2_vars: :permanent,
-                ai_reality2_pns: :permanent,
-                ai_reality2_auth: :permanent,
-                ai_reality2_backup: :permanent,
-                ai_reality2_rustdemo: :permanent # <------------ HERE
-                ]
-            ]
-        ]
-    end
-end
+# Start the Elixir application
+iex -S mix phx.server
 ```
 
 ### Add the main App to the Plugin
 
-In a similar way, the Plugin needs to be aware of the main Reality2 app if you are wishing to use any of the useful functions such as those in the `Reality2.Helpers` module.  In the `mix.exs` file of the Plugin, make sure the `deps` section has at least the following:
+If you are wishing to use any of the useful Reality2 functions such as those in the `Reality2.Helpers` module; in the `mix.exs` file of the Plugin, make sure the `deps` section has at least the following:
 
 ```elixir
 defp deps do
@@ -137,8 +85,6 @@ defp deps do
     ]
 end
 ```
-
-You may also have other dependencies, depending on what your plugin does.
 
 ### Internal API
 

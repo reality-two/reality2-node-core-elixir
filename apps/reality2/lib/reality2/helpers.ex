@@ -252,4 +252,44 @@ defmodule Reality2.Helpers do
       end
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+    # -----------------------------------------------------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------------------------------------
+    defmodule Convert do
+      def to_float(nil), do: 0.0
+      def to_float(value) when is_number(value), do: value + 0.0 # Convert to float
+      def to_float(value) do
+        try do
+          String.to_integer(value)
+        rescue
+          _ ->
+            try do
+              String.to_float(value)
+            rescue
+              _ ->
+                0.0
+            end
+        end + 0.0 # Convert to float
+      end
+
+      def to_integer(nil), do: 0
+      def to_integer(value) when is_float(value), do: Math.round(value)
+      def to_integer(value) when is_integer(value), do: value
+      def to_integer(value) do
+        try do
+          String.to_integer(value)
+        rescue
+          _ ->
+            try do
+              String.to_float(value) |> Math.round()
+            rescue
+              _ ->
+                0
+            end
+        end
+      end
+    end
+    # -----------------------------------------------------------------------------------------------------------------------------------------
   end

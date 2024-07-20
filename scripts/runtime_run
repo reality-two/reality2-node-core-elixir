@@ -7,6 +7,8 @@ export PORT=4005
 export POOLSIZE=10
 export MIX_ENV=prod
 export VERSION=$(bin/reality2 version)
+export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo"
+
 
 # Create the mnesia directory structure if it doesn't exist
 if ! [ -d ".mnesia" ]; then

@@ -10,7 +10,15 @@
                         "parameters": { "value1": "number", "value2": "number" },
                         "actions": [
                             { "plugin": "ai.reality2.rustdemo", "command": "add" },
-                            { "command": "signal", "parameters": { "event": "add", "public": true } }
+                            { "command": "signal", "parameters": { "event": "result", "public": true } }
+                        ]
+                    },
+                    {
+                        "public": true, "event": "subtract",
+                        "parameters": { "value1": "number", "value2": "number" },
+                        "actions": [
+                            { "plugin": "ai.reality2.rustdemo", "command": "subtract" },
+                            { "command": "signal", "parameters": { "event": "result", "public": true } }
                         ]
                     }
                 ]

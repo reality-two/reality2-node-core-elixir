@@ -2,14 +2,25 @@ defmodule Reality2.Umbrella.MixProject do
   use Mix.Project
 
   def project do
+
+    env_plugins = case System.get_env("PLUGINS") do
+      nil -> []
+      value -> String.split(value, ",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.map(&String.replace(&1, ".", "_"))
+      |> Enum.map(&String.to_atom/1)
+    end
+
+    plugins = [:reality2, :reality2_web] ++ env_plugins
+
     [
       apps_path: "apps",
-      apps: [ :ai_reality2_vars, :reality2, :reality2_web, :ai_reality2_geospatial, :ai_reality2_pns, :ai_reality2_auth, :ai_reality2_backup, :ai_reality2_rustdemo],
+      apps: plugins,
       version: "0.1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      releases: releases()
+      releases: releases(plugins)
     ]
   end
 
@@ -57,19 +68,10 @@ defmodule Reality2.Umbrella.MixProject do
     ]
   end
 
-  defp releases do
+  defp releases(plugins) do
     [
       reality2: [
-        applications: [
-          reality2: :permanent,
-          reality2_web: :permanent,
-          ai_reality2_geospatial: :permanent,
-          ai_reality2_vars: :permanent,
-          ai_reality2_pns: :permanent,
-          ai_reality2_auth: :permanent,
-          ai_reality2_backup: :permanent,
-          ai_reality2_rustdemo: :permanent
-        ]
+        applications: Enum.map(plugins, fn app -> {app, :permanent} end)
       ]
     ]
   end

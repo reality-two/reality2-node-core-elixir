@@ -153,9 +153,12 @@ defmodule Reality2.Sentants do
 
   defp add_plugins_to_sentant(id, sentant_map) do
     # Add the default plugins
-    Reality2.Plugins.create(id, %{"name" => "ai.reality2.vars", "type" => "internal"})
-    Reality2.Plugins.create(id, %{"name" => "ai.reality2.geospatial", "type" => "internal"})
-    Reality2.Plugins.create(id, %{"name" => "ai.reality2.backup", "type" => "internal"})
+    case System.get_env("PLUGINS") do
+      nil -> []
+      value -> String.split(value, ",")
+      |> Enum.map(&String.trim/1)
+    end
+    |> Enum.each(fn plugin -> Reality2.Plugins.create(id, %{"name" => plugin, "type" => "internal"}) end)
 
     case R2Map.get(sentant_map, "plugins") do
       nil ->

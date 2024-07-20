@@ -58,8 +58,6 @@ defmodule Reality2.MixProject do
       {:finch, "~> 0.16"},
       {:validate, "~> 1.3"},
       {:geohash, "~> 1.0"}
-      # {:ai_reality2_vars, in_umbrella: true},
-      # {:ai_reality2_geospatial, in_umbrella: true}
     ]
   end
 
