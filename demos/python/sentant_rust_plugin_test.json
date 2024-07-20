@@ -1,0 +1,20 @@
+{
+    "sentant": {
+        "name": "Test Rust Plugin",
+        "automations": [
+            {
+                "name": "Automation1",
+                "transitions": [
+                    {
+                        "public": true, "event": "add",
+                        "parameters": { "value1": "number", "value2": "number" },
+                        "actions": [
+                            { "plugin": "ai.reality2.rustdemo", "command": "add" },
+                            { "command": "signal", "parameters": { "event": "add", "public": true } }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
