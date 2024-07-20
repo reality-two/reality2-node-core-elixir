@@ -31,7 +31,6 @@ print_cr = False
 # Print out the help
 # ----------------------------------------------------------------------------------------------------
 def printhelp(events):
-    print (events)
     print("---------- Send Events ----------")
     
     for counter, event in enumerate(events):
