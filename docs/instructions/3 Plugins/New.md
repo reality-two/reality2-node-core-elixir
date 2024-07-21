@@ -45,7 +45,7 @@ Run "mix help" for more commands.
 
 ### Add the Reality2 plugin to the PLUGINS environment variable
 
-The main `mix.exs` file in the root directory needs to be tweaked so it knows about the new plugin; in the `project` section, as below.
+To ensure the plugin is included, you need to add it to the `PLUGINS` environment variable, as below in the `run` script:
 
 ```bash
 #!/bin/bash
