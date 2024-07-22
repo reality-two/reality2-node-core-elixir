@@ -64,7 +64,7 @@
             "name": "view",
             "automations": [
                 {
-                    "name": "monitor",
+                    "name": "view",
                     "transitions": [
                         {
                             "event": "update", "public": true,
@@ -121,6 +121,11 @@
         else if (id_query != null) set_state == "id"
         else if (name_query != null) set_state == "name"
         else if (view_query != null) set_state = "view";
+
+        r2_node.sentantLoad(JSON.stringify(view_sentant))
+        .then((data) => {
+            console.log(data)
+        })
 
         // Adjust the dimensions of the window automatically
         setDimensions();
