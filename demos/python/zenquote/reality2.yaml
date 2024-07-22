@@ -1,0 +1,10 @@
+swarm:
+  name: Zen Quote
+  description: Get a quote for the day
+  sentants:
+    - name: Zen Quote
+      description: Get a quote for the day
+      plugins:
+        - io.zenquotes.api.yaml
+      automations:
+        - io.zenquotes.api.yaml

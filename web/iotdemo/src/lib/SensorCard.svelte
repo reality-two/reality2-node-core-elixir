@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { Card, Content, Header, Image, Button, Text, Input, Message, Label } from "svelte-fomantic-ui";
+    import { Card, Content, Header, Button, Text, Icon, Message, Label, Buttons } from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
@@ -18,14 +18,15 @@
     type input_text_type = {[key:string]: any}
     type params_type = {[key:string]: string}
 
-    let set_counter = 0;
+    let set_colour = 0;
     let set_sensor = 0;
     let sensor_in = 0;
     let input_text: input_text_type = {};
     let lastExecutionTime = 0;
     let connected = false;
+    let colour_chosen = false;
 
-    $: counter = set_counter;
+    $: colour = set_colour;
     $: sensor = set_sensor;
 
     // Set up the device sensor reading
@@ -39,7 +40,7 @@
         if ((new_sensor_in !== sensor_in) && (now - lastExecutionTime >= 200))
         {
             sensor_in = new_sensor_in;
-            r2_node.sentantSend(sentant.id, "setsensor", {sensor: sensor_in});
+            r2_node.sentantSend(sentant.id, "set_sensor", {sensor: sensor_in});
             r2_node.sentantSend(sentant.id, "update", {});
             lastExecutionTime = now;
         }
@@ -78,6 +79,21 @@
         r2_node.sentantSend(id, "update", {});
     };
 
+    function colour_button_pressed (id: string, colour: number) {
+        set_colour = colour;
+        r2_node.sentantSend(id, "set_colour", {colour: colour});
+        r2_node.sentantSend(id, "update", {});
+        colour_chosen = true;
+    };
+
+    function convert_colour(colour: number): string {
+        if (colour < 60) { return "red"; }
+        if (colour < 130) { return "yellow"; }
+        if (colour < 230) { return "green"; }
+        if (colour < 280) { return "blue"; }
+        return "purple";
+    }
+
     // When the page is loaded ...
     onMount(() => {
         if ((sentant.name == "monitor" || sentant.name == ".deleted")) return;
@@ -90,7 +106,7 @@
             }
             else
             {
-                set_counter = Math.floor(data.parameters.counter);
+                set_colour = Math.floor(data.parameters.colour);
                 set_sensor = Math.floor(data.parameters.sensor);
             }
         });
@@ -100,35 +116,52 @@
 
 {#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted"))}
     <Card>
-        <Content>
-            {#if counter >= 20 && sensor == 90}
-                <Image ui src="/images/smiley.png"/>
-            {:else}
-                <Text ui massive _='{counter >= 20?"green":"red"}'>{counter}</Text><br/>
-                <Text ui massive _='{sensor == 90?"green":"blue"}'>{sensor}</Text>
-            {/if}
-        </Content>
-
-        <Content extra>
-            <p><Label ui huge _={connected ? "blue" : "grey"} fluid>{sentant.name}</Label></p>
-            <p><Text ui small blue>{sentant.id}</Text></p>
-        </Content>
-        {#if sentant.events.length > 0}
-            <Content extra>
-                {#each [{event: "count", parameters: {}}] as event}
-                    {#each Object.keys(event.parameters) as key}
-                        <Input ui labeled fluid>
-                            <Input text large placeholder={key} bind:value={input_text[event.event+key]}/>
-                        </Input>
-                        <br/>
-                    {/each}
-                    <Button ui teal huge fluid on:click={(_e) => event_button_pressed(sentant.id, event.event)}>
-                        {event.event}
+        {#if colour_chosen}
+            <Content>
+                <Text ui large  grey>
+                    Rotate to match
+                </Text>
+                <Buttons ui vertical fluid>
+                    <Button ui _={convert_colour(colour)} massive>
+                        {#if convert_colour(colour) == convert_colour(sensor)}
+                            <Icon ui thumbs up></Icon>
+                        {:else}
+                            &nbsp;
+                        {/if}
                     </Button>
-                    <br/>
-                {/each}
+                    <Button ui _={convert_colour(sensor)} massive>
+                        {sensor}
+                    </Button>              
+                </Buttons>
+            </Content>
+        {:else}
+            <Content>
+                <Text ui large  grey>
+                    Choose a colour
+                </Text>
+                <Buttons ui>
+                    <Button ui red on:click={(_e) => colour_button_pressed(sentant.id, 0)}>
+                        &nbsp;
+                    </Button>
+                    <Button ui yellow on:click={(_e) => colour_button_pressed(sentant.id, 60)}>
+                        &nbsp;
+                    </Button>
+                    <Button ui green on:click={(_e) => colour_button_pressed(sentant.id, 130)}>
+                        &nbsp;
+                    </Button>
+                    <Button ui blue on:click={(_e) => colour_button_pressed(sentant.id, 230)}>
+                        &nbsp;
+                    </Button>
+                    <Button ui purple on:click={(_e) => colour_button_pressed(sentant.id, 280)}>
+                        &nbsp;
+                    </Button>
+                </Buttons>
             </Content>
         {/if}
+        <Content extra>
+            <p><Label ui huge basic _={connected ? "blue" : "grey"} fluid>{sentant.name}</Label></p>
+            <p><Text ui small blue>{sentant.id}</Text></p>
+        </Content>
     </Card>
 {:else}
     <Message ui teal large>

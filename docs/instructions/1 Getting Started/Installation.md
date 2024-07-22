@@ -118,11 +118,11 @@ or, if you want to test production mode:
 You should see somehthing like this (may vary depending on the plugins installed, and the current verison of erlang and elixir):
 
 ```bash
-[ai.reality2 0.1.8] started successfully.
-[ai.reality2.backup 0.1.8] started successfully.
-[ai.reality2.data 0.1.8] started successfully.
-[ai.reality2.web 0.1.8] started successfully.
-[ai.reality2.geospatial 0.1.8] started successfully.
+[ai.reality2 0.1.9] started successfully.
+[ai.reality2.backup 0.1.9] started successfully.
+[ai.reality2.data 0.1.9] started successfully.
+[ai.reality2.web 0.1.9] started successfully.
+[ai.reality2.geospatial 0.1.9] started successfully.
 Erlang/OTP 26 [erts-14.1.1] [source] [64-bit] [smp:12:12] [ds:12:12:10] [async-threads:1] [jit:ns]
 
 Interactive Elixir (1.16.3) - press Ctrl+C to exit (type h() ENTER for help)

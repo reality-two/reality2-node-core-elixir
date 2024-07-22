@@ -1,0 +1,10 @@
+plugins:
+  - name: io.zenquotes.api
+    url: https://zenquotes.io/api/random
+    method: GET
+    headers:
+      "Content-Type": "application/json"        
+    output:
+      key: answer
+      value: "0"
+      event: zenquote_response
