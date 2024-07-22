@@ -155,8 +155,9 @@ defmodule Reality2.Sentants do
     # Add the default plugins
     case System.get_env("PLUGINS") do
       nil -> []
-      value -> String.split(value, ",")
-      |> Enum.map(&String.trim/1)
+      value ->
+        String.split(value, ",")
+        |> Enum.map(&String.trim/1)
     end
     |> Enum.each(fn plugin -> Reality2.Plugins.create(id, %{"name" => plugin, "type" => "internal"}) end)
 

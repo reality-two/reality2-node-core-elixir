@@ -27,29 +27,48 @@
                         {
                             "event": "init",
                             "actions": [
-                                { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "counter", "value": 0 } },
+                                { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "colour", "value": 0 } },
                                 { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor", "value": 0 } }
                             ]
                         },
                         {
-                            "event": "setsensor", "public": true, "parameters": { "sensor": "integer" },
+                            "event": "set_sensor", "public": true, "parameters": { "sensor": "integer" },
                             "actions": [
                                 { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor", "value": "__sensor__" } }
                             ]
                         },
                         {
-                            "event": "count", "public": true,
+                            "event": "set_colour", "public": true, "parameters": { "colour": "integer" },
                             "actions": [
-                                { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "counter" } },
-                                { "command": "set", "parameters": { "key": "counter", "value": { "expr": "counter 1 +"  } } },
-                                { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "counter", "value": "__counter__"  } }
+                                { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "colour", "value": "__colour__" } }
                             ]
                         },
                         {
                             "event": "update", "public": true,
                             "actions": [
-                                { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "counter" } },
+                                { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "colour" } },
                                 { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor" } },
+                                { "command": "set", "device": "__name__" },
+                                { "command": "send", "parameters": { "event": "update", "to": "view" } },
+                                { "command": "signal", "public": true, "parameters": { "event": "update" } }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+
+    var view_sentant = {
+        "sentant": {
+            "name": "view",
+            "automations": [
+                {
+                    "name": "monitor",
+                    "transitions": [
+                        {
+                            "event": "update", "public": true,
+                            "actions": [
                                 { "command": "signal", "public": true, "parameters": { "event": "update" } }
                             ]
                         }

@@ -42,28 +42,26 @@ def create(r2_node, number_of_sentants, current_max):
                             {
                                 "event": "init",
                                 "actions": [
-                                    { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "counter", "value": 0 } },
+                                    { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "colour", "value": 0 } },
                                     { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor", "value": 0 } }
                                 ]
                             },
                             {
-                                "event": "setsensor", "public": true, "parameters": { "sensor": "integer" },
+                                "event": "set_sensor", "public": true, "parameters": { "sensor": "integer" },
                                 "actions": [
                                     { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor", "value": "__sensor__" } }
                                 ]
                             },
                             {
-                                "event": "count", "public": true,
+                                "event": "set_colour", "public": true, "parameters": { "colour": "integer" },
                                 "actions": [
-                                    { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "counter" } },
-                                    { "command": "set", "parameters": { "key": "counter", "value": { "expr": "counter 1 +"  } } },
-                                    { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "counter", "value": "__counter__"  } }
+                                    { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "colour", "value": "__colour__" } }
                                 ]
                             },
                             {
                                 "event": "update", "public": true,
                                 "actions": [
-                                    { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "counter" } },
+                                    { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "colour" } },
                                     { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor" } },
                                     { "command": "signal", "public": true, "parameters": { "event": "update" } }
                                 ]
@@ -105,11 +103,11 @@ def do_in_parallel(r2_node, ids, device_num):
     for count in range(0, 20):
         id = ids[make_name(device_num)]
         if count == 19:
-            r2_node.sentantSend(id, "setsensor", {"sensor": 90});
+            r2_node.sentantSend(id, "set_sensor", {"sensor": 90});
         else:
-            r2_node.sentantSend(id, "setsensor", {"sensor": random.randint(0, 360)})
+            r2_node.sentantSend(id, "set_sensor", {"sensor": random.randint(0, 360)})
 
-        r2_node.sentantSend(id, "count", {});
+        r2_node.sentantSend(id, "set_colour", {"colour": random.randint(0, 255)});
         r2_node.sentantSend(id, "update", {});  
         time.sleep(random.uniform(0.3, 0.3*speed))
 # ----------------------------------------------------------------------------------------------------

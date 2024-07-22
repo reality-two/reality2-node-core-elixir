@@ -5,10 +5,11 @@ defmodule Reality2.Umbrella.MixProject do
 
     env_plugins = case System.get_env("PLUGINS") do
       nil -> []
-      value -> String.split(value, ",")
-      |> Enum.map(&String.trim/1)
-      |> Enum.map(&String.replace(&1, ".", "_"))
-      |> Enum.map(&String.to_atom/1)
+      value ->
+        String.split(value, ",")
+        |> Enum.map(&String.trim/1)
+        |> Enum.map(&String.replace(&1, ".", "_"))
+        |> Enum.map(&String.to_atom/1)
     end
 
     plugins = [:reality2, :reality2_web] ++ env_plugins
@@ -16,7 +17,7 @@ defmodule Reality2.Umbrella.MixProject do
     [
       apps_path: "apps",
       apps: plugins,
-      version: "0.1.8",
+      version: "0.1.9",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),

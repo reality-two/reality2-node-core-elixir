@@ -1,18 +1,26 @@
-defmodule AiReality2Pns.MixProject do
+defmodule ComRaspberrypiApi.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ai_reality2_pns,
+      app: :com_raspberrypi_api,
       version: "0.1.9",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
-      elixir: "~> 1.16",
+      elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "Reality2 Path Name System Plugin"
+
+      name: "Plugin: com.raspberrypi.api",
+      source_url: "https://github.com/roycdavies/reality2",
+      homepage_url: "https://reality2.ai",
+      docs: [
+        main: "ComRaspberrypiApi",
+        output: "../../docs/com_raspberrypi_api",
+        format: :html,
+      ]
     ]
   end
 
@@ -20,7 +28,7 @@ defmodule AiReality2Pns.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {AiReality2Pns.Application, []}
+      mod: {ComRaspberrypiApi.Application, []}
     ]
   end
 
@@ -30,6 +38,8 @@ defmodule AiReality2Pns.MixProject do
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
       # {:sibling_app_in_umbrella, in_umbrella: true}
+
+
     ]
   end
 end
