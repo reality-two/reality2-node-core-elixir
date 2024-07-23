@@ -238,7 +238,8 @@
         if ((name_query == null) && (id_query == null)){
             console.log(updates);
             var sentant_id = R2.JSONPath(updates, "parameters.id");
-            if (sentant_id !== null)
+            var sentant_name = R2.JSONPath(updates, "parameters.name");
+            if ((sentant_id !== null) && (sentant_name !== "view"))
             {
                 switch (R2.JSONPath(updates, "parameters.activity")) {
                     case "created":
@@ -278,7 +279,8 @@
     function none_or_monitor_only(sentants: any[]) : boolean {
         let response = true;
         for (let i = 0; i < sentants.length; i++) {
-            if ((R2.JSONPath(sentants[i], "name") !== "monitor") && (R2.JSONPath(sentants[i], "name") !== ".deleted")) {
+            let name = R2.JSONPath(sentants[i], "name")
+            if ((name !== "monitor") && (name !== ".deleted") && (name !== "view")) {
                 response = false;
                 break;
             }
@@ -301,7 +303,8 @@
             var counter = 0;
             var sentants: [] = R2.JSONPath(data, "data.sentantAll");
             sentants.forEach((sentant) => {
-                if ((R2.JSONPath(sentant, "name") !== ".deleted") && (R2.JSONPath(sentant, "name") != "monitor"))
+                let name = R2.JSONPath(sentant, "name");
+                if ((name !== ".deleted") && (name != "monitor") && (name != "view"))
                 {
                     counter = counter + 1;
                 }
@@ -425,7 +428,9 @@ Layout - how to draw stuff in the browser
             {:else}
                 <Cards ui centered>
                     {#each sentantData as sentant}
-                        <SentantCard {sentant} {r2_node}/>
+                        {#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted") && (sentant.name !== "view"))}
+                            <SentantCard {sentant} {r2_node}/>
+                        {/if}
                     {/each}
                 </Cards>
             {/if}

@@ -96,7 +96,7 @@
 
     // When the page is loaded ...
     onMount(() => {
-        if ((sentant.name == "monitor" || sentant.name == ".deleted")) return;
+        if (sentant.name == "monitor" || sentant.name == ".deleted" || sentant.name == "view") return;
 
         r2_node.awaitSignal(sentant.id, "update", (data: any) => {
             if(R2.JSONPath(data, "status") == "connected")
@@ -114,7 +114,7 @@
 </script>
 <!----------------------------------------------------------------------------------------------------->
 
-{#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted"))}
+{#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted") && (sentant.name !== "view"))}
     <Card>
         {#if colour_chosen}
             <Content>
