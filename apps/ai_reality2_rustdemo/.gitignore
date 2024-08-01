@@ -24,3 +24,6 @@ ai_reality2_rustdemo-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Native code compiled files
+*.so
