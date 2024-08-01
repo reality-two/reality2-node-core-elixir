@@ -63,6 +63,8 @@ def create(r2_node, number_of_sentants, current_max):
                                 "actions": [
                                     { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "colour" } },
                                     { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor" } },
+                                    { "command": "set", "device": "__name__" },
+                                    { "command": "send", "parameters": { "event": "update", "to": "view" } },
                                     { "command": "signal", "public": true, "parameters": { "event": "update" } }
                                 ]
                             }
@@ -76,6 +78,12 @@ def create(r2_node, number_of_sentants, current_max):
         id = R2.JSONPath(result, "sentantLoad.id")
         name = R2.JSONPath(result, "sentantLoad.name")
         ids[name] = id
+
+        colour = random.randint(0, 360)
+        r2_node.sentantSend(id, "set_colour", {"colour": colour})
+        sensor = random.randint(0, 360)
+        r2_node.sentantSend(id, "set_sensor", {"sensor": sensor})
+
         
     print("There are now {} Sentants.".format(current_max + number_of_sentants))
     return current_max + number_of_sentants
@@ -100,14 +108,18 @@ def delete_all(r2_node, current_max):
 # ----------------------------------------------------------------------------------------------------
 def do_in_parallel(r2_node, ids, device_num):
     speed = random.randint(1, 5)
-    for count in range(0, 20):
-        id = ids[make_name(device_num)]
-        if count == 19:
-            r2_node.sentantSend(id, "set_sensor", {"sensor": 90});
-        else:
-            r2_node.sentantSend(id, "set_sensor", {"sensor": random.randint(0, 360)})
+    
+    id = ids[make_name(device_num)]
+    start_colour = random.randint(0, 360)
+    colour = random.randint(0, 360)
 
-        r2_node.sentantSend(id, "set_colour", {"colour": random.randint(0, 255)});
+    r2_node.sentantSend(id, "set_colour", {"colour": colour})
+    for count in range(0, 20):
+        if (count == 19):
+            r2_node.sentantSend(id, "set_sensor", {"sensor": colour})
+        else:
+            r2_node.sentantSend(id, "set_sensor", {"sensor": start_colour + (count * (colour - start_colour) / 20)})
+
         r2_node.sentantSend(id, "update", {});  
         time.sleep(random.uniform(0.3, 0.3*speed))
 # ----------------------------------------------------------------------------------------------------
