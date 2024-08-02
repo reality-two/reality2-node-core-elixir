@@ -23,5 +23,11 @@ if ! [ -d $MIX_ENV ]; then
 fi
 cd ..
 
+# Get any new deps
+mix deps.get
+
+# Force reality2_web to be recompiled in case there have been some new WebApps added
+rm -rf _build/prod/lib/reality2_web
+
 # Start the Elixir application
 iex -S mix phx.server

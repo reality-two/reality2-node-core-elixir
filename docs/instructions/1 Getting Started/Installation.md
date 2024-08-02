@@ -74,7 +74,8 @@ asdf local elixir latest
 - Install the Elixir plugins.  The framework we are using is the [Pheonix Framework](https://www.phoenixframework.org/), with [Absinthe](https://absinthe-graphql.org/) for the GraphQL.
 
 ```bash
-mix deps.get
+cd scripts
+./deps.get
 ```
 
 #### Step 6
