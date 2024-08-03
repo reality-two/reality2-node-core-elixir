@@ -19,7 +19,9 @@
     "vite": "^5.3.1"
   },
   "dependencies": {
+    "chart.js": "^4.4.3",
     "fomantic-ui": "^2.9.3",
+    "svelte-chartjs": "^3.1.5",
     "svelte-fomantic-ui": "^0.3.5",
     "svelte-qrcode": "^1.0.0"
   }

@@ -15,18 +15,16 @@
     export let sentant: Sentant = {name: "", id: "", description: "", events: [], signals: []};
     export let r2_node: R2;
 
-    let set_colour = 0;
     let set_sensor = 0;
     let connected = false;
 
-    $: colour = set_colour;
     $: sensor = set_sensor;
 
     function convert_colour(colour: number): string {
-        if (colour < 60) { return "red"; }
-        if (colour < 130) { return "yellow"; }
-        if (colour < 230) { return "green"; }
-        if (colour < 280) { return "blue"; }
+        if (colour < 72) { return "red"; }
+        if (colour < 144) { return "yellow"; }
+        if (colour < 216) { return "green"; }
+        if (colour < 288) { return "blue"; }
         return "purple";
     }
 
@@ -41,7 +39,6 @@
             }
             else
             {
-                set_colour = Math.floor(data.parameters.colour);
                 set_sensor = Math.floor(data.parameters.sensor);
             }
         });
@@ -53,13 +50,6 @@
     <Card>
         <Content>
             <Buttons ui vertical fluid>
-                <Button ui _={convert_colour(colour)} massive>
-                    {#if convert_colour(colour) == convert_colour(sensor)}
-                        <Icon ui thumbs up></Icon>
-                    {:else}
-                        &nbsp;
-                    {/if}
-                </Button>
                 <Button ui _={convert_colour(sensor)} massive>
                     {sensor}
                 </Button>              

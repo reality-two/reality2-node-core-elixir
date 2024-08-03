@@ -6,11 +6,12 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { Cards, Link, Segment, Button, Text, Message, Header, Card, Content, Input } from "svelte-fomantic-ui";
+    import { Cards, Link, Segment, Button, Buttons, Text, Message, Header, Card, Content, Input } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import SentantCard from './lib/SentantCard.svelte';
     import SensorCard from './lib/SensorCard.svelte';
+    import Graph from './lib/Graph.svelte';
    
     import { getQueryStringVal } from './lib/Querystring.svelte';
 
@@ -27,7 +28,7 @@
                         {
                             "event": "init",
                             "actions": [
-                                { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "colour", "value": 0 } },
+                                { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "name", "value": "__name__" } },
                                 { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor", "value": 0 } }
                             ]
                         },
@@ -38,17 +39,10 @@
                             ]
                         },
                         {
-                            "event": "set_colour", "public": true, "parameters": { "colour": "integer" },
-                            "actions": [
-                                { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "colour", "value": "__colour__" } }
-                            ]
-                        },
-                        {
                             "event": "update", "public": true,
                             "actions": [
-                                { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "colour" } },
                                 { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor" } },
-                                { "command": "set", "device": "__name__" },
+                                { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "name" } },
                                 { "command": "send", "parameters": { "event": "update", "to": "view" } },
                                 { "command": "signal", "public": true, "parameters": { "event": "update" } }
                             ]
@@ -83,6 +77,9 @@
     var loadedData: any[] = [];
     $: sentantData = loadedData;
 
+    var graphData: any[] = [];
+    var liveData: any[] = [];
+
 
     // -------------------------------------------------------------------------------------------------
     // Query Strings
@@ -91,6 +88,7 @@
     $: id_query = getQueryStringVal("id");
     $: view_query = getQueryStringVal("view")
     $: connect_query = getQueryStringVal("connect")
+    $: graph_query = getQueryStringVal("graph")
 
     // Set up the state
     var set_state = "loading";
@@ -116,16 +114,12 @@
     onMount(() => {
 
         // Set the state depending on the query string
-        if (name_query == null && id_query == null && view_query == null && connect_query == null) set_state = "start"
+        if (name_query == null && id_query == null && view_query == null && graph_query == null && connect_query == null) set_state = "start"
         else if (connect_query != null) set_state = "connect"
         else if (id_query != null) set_state == "id"
         else if (name_query != null) set_state == "name"
         else if (view_query != null) set_state = "view";
-
-        r2_node.sentantLoad(JSON.stringify(view_sentant))
-        .then((data) => {
-            console.log(data)
-        })
+        else if (graph_query != null) set_state = "graph";
 
         // Adjust the dimensions of the window automatically
         setDimensions();
@@ -140,6 +134,28 @@
     // Main functionality
     // -------------------------------------------------------------------------------------------------
 
+    function convert_colour(colour: number): string {
+        if (colour < 72) { return "red"; }
+        if (colour < 144) { return "yellow"; }
+        if (colour < 216) { return "green"; }
+        if (colour < 288) { return "blue"; }
+        return "purple";
+    }
+
+    function count_colours(graphData: any[]): any {
+        let result = [0, 0, 0, 0, 0];
+        Object.keys(graphData).forEach((name: string) => {
+            let colour = R2.JSONPath(graphData, name);
+            if (colour == "red") result[0] = result[0] + 1;
+            else if (colour == "yellow") result[1] = result[1] + 1;
+            else if (colour == "green") result[2] = result[2] + 1;
+            else if (colour == "blue") result[3] = result[3] + 1;
+            else if (colour == "purple") result[4] = result[4] + 1;
+        });
+        return result;
+    }
+
+
     // GraphQL client setup 
     let r2_node = new R2(window.location.hostname, Number(window.location.port));
 
@@ -148,6 +164,28 @@
         setTimeout(() => {
             // Set up monitoring callback
             r2_node.monitor((data: any) => { updateSentants(data); });
+
+            r2_node.sentantLoad(JSON.stringify(view_sentant))
+            .then((data) => {
+                let id = R2.JSONPath(data, "data.sentantLoad.id");
+                r2_node.awaitSignal(id, "update", (signal_data: any) => {
+                    if(R2.JSONPath(signal_data, "status") == "connected")
+                    {
+                        console.log("Connected to the view Sentant");
+                    }
+                    else
+                    {
+                        let name = R2.JSONPath(signal_data, "parameters.name");
+                        let sensor = R2.JSONPath(signal_data, "parameters.sensor");
+                        graphData[name] = convert_colour(sensor);
+                        liveData = count_colours(graphData);
+                        console.log(liveData);
+                    }
+                });
+            })
+            .catch((error) => {
+                console.error(error);
+            })
 
             // Load the Sentants
             loadSentants()
@@ -241,6 +279,7 @@
             var sentant_name = R2.JSONPath(updates, "parameters.name");
             if ((sentant_id !== null) && (sentant_name !== "view"))
             {
+                liveData = count_colours(graphData);
                 switch (R2.JSONPath(updates, "parameters.activity")) {
                     case "created":
                         r2_node.sentantGet(sentant_id, {}, "name id description events { event parameters } signals")
@@ -346,6 +385,15 @@
     }
     // -------------------------------------------------------------------------------------------------
 
+
+    // -------------------------------------------------------------------------------------------------
+    // Load the main view showing all the devices
+    // -------------------------------------------------------------------------------------------------
+    function showGraph() {
+        window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?graph";
+    }
+    // -------------------------------------------------------------------------------------------------
+
 </script>
 <!----------------------------------------------------------------------------------------------------->
 
@@ -392,9 +440,14 @@ Layout - how to draw stuff in the browser
                     <Input ui labeled fluid massive>
                         <Input text massive placeholder={"IP ADDR"} bind:value={set_ip_addr}/>
                     </Input>
-                    <Button ui massive fluid blue on:click={showView}>
-                        Main View
-                    </Button>
+                    <Buttons ui fluid>
+                        <Button ui massive blue on:click={showView}>
+                            Devices
+                        </Button>
+                        <Button ui massive green on:click={showGraph}>
+                            Graph
+                        </Button>
+                    </Buttons>
                 </Card>
             </Cards>
         <!--------------------------------------------------------------------------------------------->
@@ -434,6 +487,10 @@ Layout - how to draw stuff in the browser
                     {/each}
                 </Cards>
             {/if}
+        <!--------------------------------------------------------------------------------------------->
+        {:else if state == "graph"}
+        <!--------------------------------------------------------------------------------------------->
+            <Graph {liveData}/>
         <!--------------------------------------------------------------------------------------------->
         {:else if none_or_monitor_only(sentantData)}
         <!--------------------------------------------------------------------------------------------->

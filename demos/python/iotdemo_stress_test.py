@@ -42,7 +42,7 @@ def create(r2_node, number_of_sentants, current_max):
                             {
                                 "event": "init",
                                 "actions": [
-                                    { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "colour", "value": 0 } },
+                                    { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "name", "value": \"""" + make_name(current_max + counter) + """\" } },
                                     { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor", "value": 0 } }
                                 ]
                             },
@@ -53,17 +53,10 @@ def create(r2_node, number_of_sentants, current_max):
                                 ]
                             },
                             {
-                                "event": "set_colour", "public": true, "parameters": { "colour": "integer" },
-                                "actions": [
-                                    { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "colour", "value": "__colour__" } }
-                                ]
-                            },
-                            {
                                 "event": "update", "public": true,
                                 "actions": [
-                                    { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "colour" } },
                                     { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor" } },
-                                    { "command": "set", "device": "__name__" },
+                                    { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "name" } },
                                     { "command": "send", "parameters": { "event": "update", "to": "view" } },
                                     { "command": "signal", "public": true, "parameters": { "event": "update" } }
                                 ]
@@ -80,7 +73,6 @@ def create(r2_node, number_of_sentants, current_max):
         ids[name] = id
 
         colour = random.randint(0, 360)
-        r2_node.sentantSend(id, "set_colour", {"colour": colour})
         sensor = random.randint(0, 360)
         r2_node.sentantSend(id, "set_sensor", {"sensor": sensor})
 
@@ -113,7 +105,6 @@ def do_in_parallel(r2_node, ids, device_num):
     start_colour = random.randint(0, 360)
     colour = random.randint(0, 360)
 
-    r2_node.sentantSend(id, "set_colour", {"colour": colour})
     for count in range(0, 20):
         if (count == 19):
             r2_node.sentantSend(id, "set_sensor", {"sensor": colour})
