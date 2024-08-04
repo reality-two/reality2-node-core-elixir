@@ -49,49 +49,123 @@ The main page for any WebApp set up using Svellte and Vite, is a page called 'Ap
 
 Given that it is essentially impossible to connect IoT devices to the university WiFi, we opted to have our own router in the lecture theatre, but that necessitates that each student has to join that WiFi network first.  Luckily, this can be also be achieved using a QR code.
 
-![alt text](.images/image.png)
+![alt text](.images/image-1.png)
 
 The part of App.svelte that achieves this is:
 
 ```svelte
-<Cards ui centered>
-    <Card ui centered>
-        <Message ui blue large>
-            <Header>
-                Scan this QR code to join the IoT network.
-            </Header>
-        </Message>
-        <Content>
-            <Link ui href={"https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?connect"}>
-                <QrCode value={network_qr} size={250} fluid/>
-            </Link>
-        </Content>
-        <Input ui labeled fluid massive>
-            <Input text massive placeholder={"SSID"} bind:value={set_ssid}/>
-        </Input>
-        <Input ui labeled fluid massive>
-            <Input text massive placeholder={"PASS"} bind:value={set_pass} centered/>
-        </Input>
-    </Card>
-    <Card ui centered>
-        <Message ui blue large>
-            <Header>
-                Scan this QR code to connect your device.
-            </Header>
-        </Message>
-        <Content>
-            <Link ui href={"https://"+ ip_addr + ":" + window.location.port + "/iotdemo?connect"}>
-                <QrCode size={250} value={"https://"+ ip_addr + ":" + window.location.port + "/iotdemo?connect"} isResponsive/>
-            </Link>
-        </Content>
-        <Input ui labeled fluid massive>
-            <Input text massive placeholder={"IP ADDR"} bind:value={set_ip_addr}/>
-        </Input>
-        <Button ui massive fluid blue on:click={showView}>
-            Main View
-        </Button>
-    </Card>
-</Cards>
+<main>
+    <Segment ui bottom attached grey>
+        <!--------------------------------------------------------------------------------------------->
+        {#if state == "start"}
+        <!--------------------------------------------------------------------------------------------->
+            <Cards ui centered>
+                <Card ui centered>
+                    <Message ui blue large>
+                        <Header>
+                            Scan this QR code to join the IoT network.
+                        </Header>
+                    </Message>
+                    <Content>
+                        <Link ui href={"https://"+ window.location.hostname + ":" + window.location.port + "/iotdemo?connect"}>
+                        <QrCode value={network_qr} size={250} fluid/>
+                    </Link>
+                    </Content>
+                    <Input ui labeled fluid massive>
+                        <Input text massive placeholder={"SSID"} bind:value={set_ssid}/>
+                    </Input>
+                    <Input ui labeled fluid massive>
+                        <Input text massive placeholder={"PASS"} bind:value={set_pass} centered/>
+                    </Input>
+                </Card>
+                <Card ui centered>
+                    <Message ui blue large>
+                        <Header>
+                            Scan this QR code to connect your device.
+                        </Header>
+                    </Message>
+                    <Content>
+                        <Link ui href={"https://"+ ip_addr + ":" + window.location.port + "/iotdemo?connect"}>
+                            <QrCode size={250} value={"https://"+ ip_addr + ":" + window.location.port + "/iotdemo?connect"} isResponsive/>
+                        </Link>
+                    </Content>
+                    <Input ui labeled fluid massive>
+                        <Input text massive placeholder={"IP ADDR"} bind:value={set_ip_addr}/>
+                    </Input>
+                    <Buttons ui fluid>
+                        <Button ui massive blue on:click={showView}>
+                            Devices
+                        </Button>
+                        <Button ui massive green on:click={showGraph}>
+                            Graph
+                        </Button>
+                    </Buttons>
+                </Card>
+            </Cards>
+        <!--------------------------------------------------------------------------------------------->
+        {:else if state == "connect"}
+        <!--------------------------------------------------------------------------------------------->
+            <Message ui blue large>
+                <Header>
+                    Connect your device
+                </Header>
+            </Message>
+            <Button ui massive fluid green on:click={newDevice}>
+                connect
+            </Button>
+        <!--------------------------------------------------------------------------------------------->
+        {:else if state == "error"}
+        <!--------------------------------------------------------------------------------------------->
+            <Message ui negative large>
+                <Header>
+                    Something bad happened
+                </Header>
+            </Message>
+        <!--------------------------------------------------------------------------------------------->
+        {:else if state == "loading"}
+        <!--------------------------------------------------------------------------------------------->
+            <Text ui large>Loading...</Text>
+        <!--------------------------------------------------------------------------------------------->
+        {:else if state == "view"}
+        <!--------------------------------------------------------------------------------------------->
+            {#if none_or_monitor_only(sentantData)}
+                <Text ui large>No Devices Connected</Text>
+            {:else}
+                <Cards ui centered>
+                    {#each sentantData as sentant}
+                        {#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted") && (sentant.name !== "view"))}
+                            <SentantCard {sentant} {r2_node}/>
+                        {/if}
+                    {/each}
+                </Cards>
+            {/if}
+        <!--------------------------------------------------------------------------------------------->
+        {:else if state == "graph"}
+        <!--------------------------------------------------------------------------------------------->
+            <Graph {liveData}/>
+        <!--------------------------------------------------------------------------------------------->
+        {:else if none_or_monitor_only(sentantData)}
+        <!--------------------------------------------------------------------------------------------->
+            <Message ui teal large>
+                <Header>
+                    No Devices Connected
+                </Header>
+            </Message>
+        <!--------------------------------------------------------------------------------------------->
+        {:else if state == "id"}
+        <!--------------------------------------------------------------------------------------------->
+            <Cards ui centered>
+                <SensorCard sentant={sentantData[0]} {r2_node}/>
+            </Cards>
+        <!--------------------------------------------------------------------------------------------->
+        {:else if state == "name"}
+        <!--------------------------------------------------------------------------------------------->
+            <Cards ui centered>
+                <SensorCard sentant={sentantData[0]} {r2_node}/>
+            </Cards>
+        {/if}
+    </Segment>
+</main>
 ```
 
 Once the QR Codes have been scanned, the student, on their phones will see this (left image), and when they click connect, the image on the right.
@@ -168,29 +242,22 @@ The sentant definition is included in `App.svelte` and is as follows:
                     {
                         "event": "init",
                         "actions": [
-                            { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "counter", "value": 0 } },
+                            { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "name", "value": "__name__" } },
                             { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor", "value": 0 } }
                         ]
                     },
                     {
-                        "event": "setsensor", "public": true, "parameters": { "sensor": "integer" },
+                        "event": "set_sensor", "public": true, "parameters": { "sensor": "integer" },
                         "actions": [
                             { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor", "value": "__sensor__" } }
                         ]
                     },
                     {
-                        "event": "count", "public": true,
-                        "actions": [
-                            { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "counter" } },
-                            { "command": "set", "parameters": { "key": "counter", "value": { "expr": "counter 1 +"  } } },
-                            { "command": "set", "plugin": "ai.reality2.vars", "parameters": { "key": "counter", "value": "__counter__"  } }
-                        ]
-                    },
-                    {
                         "event": "update", "public": true,
                         "actions": [
-                            { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "counter" } },
                             { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "sensor" } },
+                            { "command": "get", "plugin": "ai.reality2.vars", "parameters": { "key": "name" } },
+                            { "command": "send", "parameters": { "event": "update", "to": "view" } },
                             { "command": "signal", "public": true, "parameters": { "event": "update" } }
                         ]
                     }
@@ -201,7 +268,32 @@ The sentant definition is included in `App.svelte` and is as follows:
 }
 ```
 
-Key points to note are that the way the counter and sensor values are saved to disk in between sentant events.  This is necessary as Sentants themselves are immutable, so each time a new set of actions is initiated through an event transition, there is no memory of previous events or values, aside from the current state.  Note however, that here we are using the abbreviated form of the finite state machine definition where we ignore the states, so the `in` and `out` states are not defined.
+And the 'view' Sentant that is used to collate events for the graph view is:
+
+```json
+{
+    "sentant": {
+        "name": "view",
+        "automations": [
+            {
+                "name": "view",
+                "transitions": [
+                    {
+                        "event": "update", "public": true,
+                        "actions": [
+                            { "command": "signal", "public": true, "parameters": { "event": "update" } }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
+```
+
+This essentially just exposes the internal event from each Sentant that is being updated as a signal.
+
+For the Device Sentants, key points to note are that the way the sensor value is saved to disk in between sentant events.  This is necessary as Sentants themselves are immutable, so each time a new set of actions is initiated through an event transition, there is no memory of previous events or values, aside from the current state.  Note however, that here we are using the abbreviated form of the finite state machine definition where we ignore the states, so the `in` and `out` states are not defined.
 
 ```mermaid
 stateDiagram-v2

@@ -14,10 +14,17 @@ import time
 # ----------------------------------------------------------------------------------------------------
 
 
-ids = {}
+
+# ----------------------------------------------------------------------------------------------------
+# Local Variables
+# ----------------------------------------------------------------------------------------------------
+ids = {}    # The Sentant IDS stored by Sentant Name
+# ----------------------------------------------------------------------------------------------------
+
 
 
 # ----------------------------------------------------------------------------------------------------
+# Create a name from a number for the Sentant
 # ----------------------------------------------------------------------------------------------------
 def make_name(index):
     return "device " + str(index).zfill(4)
@@ -67,13 +74,21 @@ def create(r2_node, number_of_sentants, current_max):
             }
         }
         """
+
+        # Create the new Sentant
         result = r2_node.sentantLoad(definition)
+
+        # Get the ID and Name
         id = R2.JSONPath(result, "sentantLoad.id")
         name = R2.JSONPath(result, "sentantLoad.name")
+
+        # Store these for later use
         ids[name] = id
 
-        colour = random.randint(0, 360)
+        # A random sensor position to start from
         sensor = random.randint(0, 360)
+
+        # Set the initial sensor value
         r2_node.sentantSend(id, "set_sensor", {"sensor": sensor})
 
         
@@ -99,19 +114,30 @@ def delete_all(r2_node, current_max):
 # Do some semi-random interaction with the Sentant specified
 # ----------------------------------------------------------------------------------------------------
 def do_in_parallel(r2_node, ids, device_num):
+    # Choose a 'speed', so that all Sentants don't finish at the same time
     speed = random.randint(1, 5)
     
+    # Get the Sentant ID for this device number
     id = ids[make_name(device_num)]
+
+    # Choose a colour to move towards
     start_colour = random.randint(0, 360)
+
+    # Choose a start colour
     colour = random.randint(0, 360)
 
+    # Move towards that colour, from the start colour, in a number of steps, as if someone is turning their device.
     for count in range(0, 20):
+        # Set the sensor colour on the Sentant
         if (count == 19):
             r2_node.sentantSend(id, "set_sensor", {"sensor": colour})
         else:
             r2_node.sentantSend(id, "set_sensor", {"sensor": start_colour + (count * (colour - start_colour) / 20)})
 
-        r2_node.sentantSend(id, "update", {});  
+        # Send an update command to ensure all viewers are updated
+        r2_node.sentantSend(id, "update", {});
+
+        # Sleep a somewhat variable amount of time, to give some randomness
         time.sleep(random.uniform(0.3, 0.3*speed))
 # ----------------------------------------------------------------------------------------------------
 
@@ -146,13 +172,18 @@ def main(host):
             current_max = create(r2_node, int(count), current_max)
         elif (key == "t"):
             print("Testing...")
+
+            # Randomise the order that the processes are started in
             numbers = list(range(current_max))
             random.shuffle(numbers)
+
+            # Start a parallel process for each Sentant
             for counter in numbers:
                 multiprocessing.Process(target=do_in_parallel, args=(r2_node, ids, counter,)).start()
         else:
             print("Please press c to create, d to delete, t to test, or q to quit.")
-    # Close the subscriptions
+
+    # Close the subscriptions and delete all the Sentants
     delete_all(r2_node, current_max)
     print("Quitting.")
     r2_node.close()
@@ -160,6 +191,8 @@ def main(host):
 
 
 
+# ----------------------------------------------------------------------------------------------------
+# Main function.  Note the single parameter to speciy a different Reality2 Node.
 # ----------------------------------------------------------------------------------------------------
 if (__name__ == '__main__'):
     main(sys.argv[1] if (len(sys.argv) > 1) else "localhost")
