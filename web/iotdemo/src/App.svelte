@@ -144,7 +144,6 @@
 
     function count_colours(graphData: any[]): any {
         let result = [0, 0, 0, 0, 0];
-        console.log(graphData);
         Object.keys(graphData).forEach((name: string) => {
             let colour = R2.JSONPath(graphData, name);
             if (colour == "red") result[0] = result[0] + 1;
@@ -153,7 +152,6 @@
             else if (colour == "blue") result[3] = result[3] + 1;
             else if (colour == "purple") result[4] = result[4] + 1;
         });
-        console.log(result);
         return result;
     }
 
@@ -181,7 +179,6 @@
                         let sensor = R2.JSONPath(signal_data, "parameters.sensor");
                         graphData[name] = convert_colour(sensor);
                         liveData = count_colours(graphData);
-                        console.log(liveData);
                     }
                 });
             })
@@ -210,7 +207,6 @@
                 r2_node.sentantGet(id_query, {}, "name id description events { event parameters } signals")
                 .then((data) => {
                     let result = R2.JSONPath(data, "data.sentantGet")
-                    console.log (result)
                     if (result == null) {
                         set_state = "id"
                         resolve([])
@@ -230,7 +226,6 @@
                 r2_node.sentantGetByName(name_query, {}, "name id description events { event parameters } signals")
                 .then((data) => {
                     let result = R2.JSONPath(data, "data.sentantGet")
-                    console.log (result)
                     if (result == null) {
                         set_state = "name"
                         resolve([])
@@ -250,7 +245,6 @@
                 r2_node.sentantAll({}, "name id description events { event parameters } signals")
                 .then((data) => {
                     let result = R2.JSONPath(data, "data.sentantAll")
-                    console.log (data)
                     if (result == null) {
                         set_state = "view"
                         resolve([])
@@ -276,7 +270,6 @@
     // -------------------------------------------------------------------------------------------------
     function updateSentants(updates: any) {
         if ((name_query == null) && (id_query == null)){
-            console.log(updates);
             var sentant_id = R2.JSONPath(updates, "parameters.id");
             var sentant_name = R2.JSONPath(updates, "parameters.name");
             if ((sentant_id !== null) && (sentant_name !== "view"))
