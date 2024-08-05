@@ -144,6 +144,7 @@
 
     function count_colours(graphData: any[]): any {
         let result = [0, 0, 0, 0, 0];
+        console.log(graphData);
         Object.keys(graphData).forEach((name: string) => {
             let colour = R2.JSONPath(graphData, name);
             if (colour == "red") result[0] = result[0] + 1;
@@ -152,6 +153,7 @@
             else if (colour == "blue") result[3] = result[3] + 1;
             else if (colour == "purple") result[4] = result[4] + 1;
         });
+        console.log(result);
         return result;
     }
 
@@ -353,7 +355,7 @@
             var newName = "device " + String(counter+1).padStart(4, '0');
 
             // Set the new name by replacing the '__name__' in the text version of the json definition
-            var sentantDefinition = JSON.stringify(template).replace("__name__", newName);
+            var sentantDefinition = JSON.stringify(template).replace(/__name__/gi, newName);
 
             // Load Sentant definition to the Reality2 node
             r2_node.sentantLoad(sentantDefinition)
