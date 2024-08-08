@@ -82,7 +82,7 @@
 {#if sentant.name != "monitor"}
     <Card>
         <Link ui image href={"/?name=" + sentant.name}>
-            <Image ui large src="/images/sentant.png"/>
+            <Image ui large src="/images/bee_blue.png"/>
         </Link>
         <Content>
             <Header>{sentant.name}</Header>
