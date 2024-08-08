@@ -6,7 +6,7 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { behavior, Cards, Menu, Link, Icon, Segment, Button, Item, Message, Header, Text, Input } from "svelte-fomantic-ui";
+    import { behavior, Cards, Menu, Link, Icon, Segment, Button, Item, Message, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import type Sentant from './lib/reality2';
@@ -15,6 +15,9 @@
     import { getQueryStringVal } from './lib/Querystring.svelte';
 
     import { onMount } from 'svelte';
+
+
+    let mode = "cards"; // login, cards, map
 
 
     // -------------------------------------------------------------------------------------------------
@@ -133,9 +136,18 @@ Layout
                 </Input>
             </Item>
             <Menu right>
-                <Link item on:click={() => behavior('sidebar', 'toggle')}>
+                <Item>
+                    <Dropdown ui>
+                        <Icon sidebar/>
+                        <Menu relaxed>
+                            <Item value="cards">Grid</Item>
+                            <Item value="map">Map</Item>
+                        </Menu>
+                    </Dropdown>
+                </Item>
+                <!-- <Link item on:click={() => behavior('sidebar', 'toggle')}>
                     <Icon sidebar/>
-                </Link>
+                </Link> -->
             </Menu>
         </Menu>
         <Segment ui bottom attached grey>
@@ -155,17 +167,23 @@ Layout
                     </Header>
                 </Message>
             {:else}
-                <Cards ui centered>
-                    {#if (id_query !== null)}
-                        <SentantCard sentant={R2.JSONPath(response, "data.sentantGet")} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
-                    {:else if (name_query !== null)}
-                        <SentantCard sentant={R2.JSONPath(response, "data.sentantGet")} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
-                    {:else}
-                        {#each R2.JSONPath(response, "data.sentantAll") as sentant}
-                            <SentantCard {sentant} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
-                        {/each}
-                    {/if}
-                </Cards>
+                {#if mode == "login"}
+                    LOGIN
+                {:else if mode == "map"}
+                    MAP
+                {:else}
+                    <Cards ui centered>
+                        {#if (id_query !== null)}
+                            <SentantCard sentant={R2.JSONPath(response, "data.sentantGet")} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
+                        {:else if (name_query !== null)}
+                            <SentantCard sentant={R2.JSONPath(response, "data.sentantGet")} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
+                        {:else}
+                            {#each R2.JSONPath(response, "data.sentantAll") as sentant}
+                                <SentantCard {sentant} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
+                            {/each}
+                        {/if}
+                    </Cards>
+                {/if}
             {/if}
         </Segment>
     {:catch error}
