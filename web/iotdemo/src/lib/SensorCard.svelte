@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { Card, Content, Header, Button, Text, Icon, Message, Label, Buttons } from "svelte-fomantic-ui";
+    import { Card, Content, Header, Button, Text, Message, Label, Buttons } from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
@@ -15,12 +15,8 @@
     export let sentant: Sentant = {name: "", id: "", description: "", events: [], signals: []};
     export let r2_node: R2;
 
-    type input_text_type = {[key:string]: any}
-    type params_type = {[key:string]: string}
-
     let set_sensor = 0;
     let sensor_in = 0;
-    let input_text: input_text_type = {};
     let lastExecutionTime = 0;
     let connected = false;
     let sensor_active = true;
@@ -43,44 +39,35 @@
     };
     window.addEventListener("deviceorientation", handleOrientation, true);
 
-    // Convert a string safely into another format
-    function try_convert(value: string): any {
-        if ((value === "") || (value === null)) { return ""; }
+    // When the page is loaded ...
+    onMount(() => {
+        // Ignore deleted Sentants, the view Sentant and the monitor Sentant
+        if (sentant.name == "monitor" || sentant.name == ".deleted" || sentant.name == "view") return;
 
-        const numberValue = parseFloat(value);
-        if (!isNaN(numberValue)) { return numberValue; }
-
-        switch (value.toLowerCase()) {
-            case 'true': return true;
-            case 'false': return false;
-        }
-
-        try { return JSON.parse(value); } catch (e) { return value; }
-    }
-
-    // What to do when a button is pressed
-    function event_button_pressed (id: string, event: string) {
-        let params: params_type = {};
-        for (let i = 0; i < sentant.events.length; i++)
-        {
-            if (sentant.events[i].event == event)
+        // Await the update signal
+        r2_node.awaitSignal(sentant.id, "update", (data: any) => {
+            if(R2.JSONPath(data, "status") == "connected")
             {
-                for (let key in sentant.events[i].parameters)
-                {
-                    params[key] = try_convert(input_text[event+key]);
-                }
+                // When first connected, send an update event to get the current values   
+                r2_node.sentantSend(sentant.id, "update", {});
+                connected = true;
             }
-        }
-        r2_node.sentantSend(sentant.id, event, params);
-        r2_node.sentantSend(id, "update", {});
-    };
+            else
+            {
+                // Update the value and initiate a redraw   
+                set_sensor = Math.floor(data.parameters.sensor);
+            }
+        });
+    });
 
+    // Set a colour if a button is pressed
     function colour_button_pressed (id: string, colour: number) {
         set_sensor = colour;
         r2_node.sentantSend(id, "set_sensor", {sensor: colour});
         r2_node.sentantSend(id, "update", {});
     };
 
+    // Convert rotation to a colour
     function convert_colour(colour: number): string {
         if (colour < 72) { return "red"; }
         if (colour < 144) { return "yellow"; }
@@ -88,23 +75,6 @@
         if (colour < 288) { return "blue"; }
         return "purple";
     }
-
-    // When the page is loaded ...
-    onMount(() => {
-        if (sentant.name == "monitor" || sentant.name == ".deleted" || sentant.name == "view") return;
-
-        r2_node.awaitSignal(sentant.id, "update", (data: any) => {
-            if(R2.JSONPath(data, "status") == "connected")
-            {
-                r2_node.sentantSend(sentant.id, "update", {});
-                connected = true;
-            }
-            else
-            {
-                set_sensor = Math.floor(data.parameters.sensor);
-            }
-        });
-    });
 </script>
 <!----------------------------------------------------------------------------------------------------->
 

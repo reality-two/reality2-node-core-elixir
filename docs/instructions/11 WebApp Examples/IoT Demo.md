@@ -171,9 +171,9 @@ The part of App.svelte that achieves this is:
 Once the QR Codes have been scanned, the student, on their phones will see this (left image), and when they click connect, the image on the right.
 
 
-| connect | sensor |
-| :-----: | ------ |
-| ![alt text](.images/Screenshot_20240719_062349_Chrome.jpg) | ![alt text](.images/Screenshot_20240719_062312_Chrome.jpg) |
+| connect | sensor | button |
+| :-----: | :----: | :----: |
+| ![alt text](.images/Screenshot_20240808_162316_Chrome.jpg) | ![alt text](.images/Screenshot_20240808_162331_Chrome.jpg) | ![alt text](.images/Screenshot_20240808_162342_Chrome.jpg) |
 
 The code for the phones that reads the sensors and sends this to the Reality2 node is in the file `SensorCard.svelte` whilst the code for viewing all the devices (phones) on the projector is in `SentantCard.svelte`.
 
@@ -299,21 +299,12 @@ For the Device Sentants, key points to note are that the way the sensor value is
 stateDiagram-v2
     [*] --> ready: init
     note left of [*]
-        store count = 0 in ai.reality2.vars
         store sensor = 0 in ai.reality2.vars
     end note
 
 
     state ready {
-            . --> .: count
-            note left of .
-                retrieve count from ai.reality2.vars
 
-                set count = count + 1
-                
-                store count in ai.reality2.vars
-            end note
-        --
             .. --> ..: setsensor
             note left of ..
                 store sensor value in ai.reality2.vars
@@ -322,7 +313,8 @@ stateDiagram-v2
             ... --> ...: update
             note left of ...
               get sensor from ai.reality2.vars
-              get count from ai.reality2.vars
+
+              send update to view Sentant
 
               send update signal
             end note
@@ -333,43 +325,44 @@ stateDiagram-v2
 
 Once the student's devices have connected, the data flow is as follows.
 
-1. Each device reads the movement sensors, and has a button `count` on the screen for interaction.
-2. When the device is moved, or when the `count` button is pressed, an event is sent to the Sentant, either `count` or `setsensor`.
-3. To tell the devices connected (the student's phone and the main viewing app on the projector) to update the view, an `update` event is also sent after each `count` or `setsensor` event which sends the current stored values as the `update` signal.
+1. Each device reads the movement sensors, and has a button `no sensor` on the screen for in case their phones don't have gyroscopes - in which case, they can just choose a colour.
+2. When the device is moved, or when the a colour button is pressed, an event is sent to the Sentant with `setsensor`.
+3. To tell the devices connected (the student's phone and the main viewing app on the projector) to update the view, an `update` event is also sent after each `setsensor` event which sends the current stored value as the `update` signal.
+4. The `view` Sentant is sent an event with the data as well, which sends the collated events from all the devices as an `update` signal as well.  This is used by the `graph` view.
 
 The `update` signal has been set up when the page loads:
 
 ```javascript
-    let set_counter = 0;
     let set_sensor = 0;
+    let connected = false;
 
-    // Dynamic values
-    $: counter = set_counter;
     $: sensor = set_sensor;
 
+    // When the page is loaded ...
     onMount(() => {
-        // Ignore deleted Sentants, and the monitor Sentant
-        if ((sentant.name == "monitor" || sentant.name == ".deleted")) return;
+        // Ignore deleted Sentants, the view Sentant and the monitor Sentant
+        if (sentant.name == "monitor" || sentant.name == ".deleted" || sentant.name == "view") return;
 
         // Await the update signal
         r2_node.awaitSignal(sentant.id, "update", (data: any) => {
             if(R2.JSONPath(data, "status") == "connected")
             {
-                // When first connected, send an update event to get the current values
+                // When first connected, send an update event to get the current values   
                 r2_node.sentantSend(sentant.id, "update", {});
+                connected = true;
             }
             else
             {
-                // Update the values and initiate a redraw
-                set_counter = Math.floor(data.parameters.counter);
+                // Update the value and initiate a redraw   
                 set_sensor = Math.floor(data.parameters.sensor);
             }
         });
     });
 ```
 
-### View
+### Graph and Device Views
 
-The projector view, showing 10 devices, might look as follows.  Each view of each device is being udpated by its Sentant, which is receiving data from a student's phone.  Here, we are just showing a simple view - however, this can be as complicated and intricate as you desire, for example, it might show a 3D view of a digital twin representing some physical object (eg a factory), or an interesting artistic graphic.
+The projector view, showing 20 devices, might look as follows.  Each view of each device is being udpated by its Sentant, which is receiving data from a student's phone.  As each updates, the Sentant controlling the graph also gets a message, and the graph updates.  Here, we are just showing a simple view - however, this can be as complicated and intricate as you desire, for example, it might show a 3D view of a digital twin representing some physical object (eg a factory), or an interesting artistic graphic.
 
-![alt text](.images/image2.png)
+![alt text](.images/image-3.png)
+

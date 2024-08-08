@@ -20,14 +20,6 @@
 
     $: sensor = set_sensor;
 
-    function convert_colour(colour: number): string {
-        if (colour < 72) { return "red"; }
-        if (colour < 144) { return "yellow"; }
-        if (colour < 216) { return "green"; }
-        if (colour < 288) { return "blue"; }
-        return "purple";
-    }
-
     onMount(() => {
         if (sentant.name == "monitor" || sentant.name == ".deleted" || sentant.name == "view") return;
 
@@ -43,6 +35,15 @@
             }
         });
     });
+
+    // Convert rotation number to a colour
+    function convert_colour(colour: number): string {
+        if (colour < 72) { return "red"; }
+        if (colour < 144) { return "yellow"; }
+        if (colour < 216) { return "green"; }
+        if (colour < 288) { return "blue"; }
+        return "purple";
+    }
 </script>
 <!----------------------------------------------------------------------------------------------------->
 

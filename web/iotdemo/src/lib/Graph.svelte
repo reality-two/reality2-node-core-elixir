@@ -1,56 +1,25 @@
 <script lang="ts">
     import { Bar } from 'svelte-chartjs';
-    import { onMount } from 'svelte';
+    import { Chart, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
 
     export let liveData: any[] = [];
 
-    import {
-      Chart,
-      Title,
-      Tooltip,
-      Legend,
-      BarElement,
-      CategoryScale,
-      LinearScale,
-    } from 'chart.js';
-
     let options = {
-
         responsive: true,
         animation: false,
         scales: {
-            y: {
-                ticks: {
-                    font: {
-                        size: 40
-                    }
-                }
-            },
-            x: {
-                ticks: {
-                    font: {
-                        size: 40
-                    }
-                }
-            }
+            y: { ticks: { font: { size: 40 } } },
+            x: { ticks: { font: { size: 40 } } }
         },
         plugins: {
-            legend: {
-                display: false
-            },
+            legend: { display: false },
             title: {
                 display: true,
                 text: 'Live Data',
-                font: {
-                    size: 40
-                }
+                font: { size: 40 }
             }
         }
     }
-
-    onMount(() => {
-
-    });
 
     $: data = {
             labels: ['red', 'yellow', 'green', 'blue', 'purple'],
@@ -76,15 +45,8 @@
         ]
     }
 
-    Chart.register(
-            Title,
-            Tooltip,
-            Legend,
-            BarElement,
-            CategoryScale,
-            LinearScale
-        );
+    Chart.register( Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale );
   
-  </script>
-  
-  <Bar {data} {options} />
+</script>
+
+<Bar {data} {options} />
