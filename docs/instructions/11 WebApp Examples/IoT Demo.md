@@ -326,8 +326,8 @@ stateDiagram-v2
 
 Once the student's devices have connected, the data flow is as follows.
 
-1. Each device reads the movement sensors, and has a button `no sensor` on the screen for in case their phones don't have gyroscopes - in which case, they can just choose a colour.
-2. When the device is moved, or when the a colour button is pressed, an event is sent to the Sentant with `setsensor`.
+1. Each device reads the movement sensors, and has a button `Press if no sensor` on the screen for in case the phones don't have gyroscopes - in which case, they can just choose a colour.
+2. When the device is moved, or when a colour button is pressed, an event is sent to the Sentant with `setsensor`.
 3. To tell the devices connected (the student's phone and the main viewing app on the projector) to update the view, an `update` event is also sent after each `setsensor` event which sends the current stored value as the `update` signal.
 4. The `view` Sentant is sent an event with the data as well, which sends the collated events from all the devices as an `update` signal as well.  This is used by the `graph` view.
 
