@@ -175,7 +175,7 @@ Once the QR Codes have been scanned, the student, on their phones will see this 
 | :-----: | :----: | :----: |
 | ![alt text](.images/Screenshot_20240808_162316_Chrome.jpg) | ![alt text](.images/Screenshot_20240808_162331_Chrome.jpg) | ![alt text](.images/Screenshot_20240808_162342_Chrome.jpg) |
 
-The code for the phones that reads the sensors and sends this to the Reality2 node is in the file `SensorCard.svelte` whilst the code for viewing all the devices (phones) on the projector is in `SentantCard.svelte`.
+The code for the phones that reads the sensors and sends this to the Reality2 node is in the file `SensorCard.svelte` whilst the code for viewing all the devices (phones) on the projector is in `SentantCard.svelte` (for all the devices listed), or `Graph.svelte` for the Bar Graph.
 
 When the student presses the `connect` button, a new Sentant is created from a pattern (see below), and the page on their device is changed to show that Sentant.
 
@@ -192,7 +192,8 @@ When the student presses the `connect` button, a new Sentant is created from a p
             var counter = 0;
             var sentants: [] = R2.JSONPath(data, "data.sentantAll");
             sentants.forEach((sentant) => {
-                if ((R2.JSONPath(sentant, "name") !== ".deleted") && (R2.JSONPath(sentant, "name") != "monitor"))
+                let name = R2.JSONPath(sentant, "name");
+                if ((name !== ".deleted") && (name != "monitor") && (name != "view"))
                 {
                     counter = counter + 1;
                 }
@@ -202,7 +203,7 @@ When the student presses the `connect` button, a new Sentant is created from a p
             var newName = "device " + String(counter+1).padStart(4, '0');
 
             // Set the new name by replacing the '__name__' in the text version of the json definition
-            var sentantDefinition = JSON.stringify(template).replace("__name__", newName);
+            var sentantDefinition = JSON.stringify(template).replace(/__name__/gi, newName);
 
             // Load Sentant definition to the Reality2 node
             r2_node.sentantLoad(sentantDefinition)
