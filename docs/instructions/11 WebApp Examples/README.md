@@ -6,4 +6,5 @@ This section will collate a few WebApp examples as learning tools.  As described
 
 [Main Menu](../README.md)
 
+1. [Default WebApp](Default%20WebApp.md)
 1. [Iot Demo](IoT%20Demo.md) | [IoT Demo Stress Test](IoT%20Demo%20Stress%20Test.md)
