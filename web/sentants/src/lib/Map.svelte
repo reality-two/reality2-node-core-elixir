@@ -22,8 +22,10 @@
     let map: any;
     let mapHeight = "400px";
 
+    let markers: {}|any = {};
+
     onMount(() => {
-        map = L.map('map').setView([51.505, -0.09], 13);
+        map = L.map('map').setView([-36.86365, 174.76023], 13);
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
             {
@@ -44,12 +46,73 @@
         window.addEventListener('resize', updateMapHeight);
 
         // Go through each Sentant and send an AwaitSignal (even if invalid)
-        sentants.foreach((sentant) => {
-            r2node
+        sentants.forEach((sentant:Sentant) => {
+            if (markers.hasOwnProperty(sentant.name)) {
+                if (map.hasLayer(markers[sentant.name])) {
+                    map.removeLayer(markers[sentant.name]);
+                }
+            }
+
+            r2_node.awaitSignal(sentant.id, "get", (data: any) => {
+                console.log(data);
+                if (R2.JSONPath(data, "status") == "connected") {
+                    r2_node.sentantSend(sentant.id, "get_position", {});
+                }
+                else
+                {
+                    if (! (sentant.name in markers)) {
+                        let location = R2.JSONPath(data, "parameters");
+                        let icon = markerIcon();
+                        let marker = L.marker([location.latitude, location.longitude], {icon, draggable: true});
+
+                        markers[sentant.name] = marker;
+                        markers[sentant.name].addTo(map);
+                    }
+
+                    markers[sentant.name].bindPopup(sentant.name);
+
+                    markers[sentant.name].on('dragend', function(event:any) {
+                        var marker = event.target;
+                        var position = marker.getLatLng();
+                        console.log(position);
+                        marker.setLatLng(new L.LatLng(position.lat, position.lng), {draggable:'true'});
+
+                        r2_node.sentantSend(sentant.id, "set_position", {"latitude": position.lat, "longitude": position.lng});
+                    });
+                }
+            });
         })
+
+        // setTimeout(() => {
+        //     sentants.forEach((sentant:Sentant) => {
+        //         r2_node.sentantSend(sentant.id, "get_position", {});
+        //     });
+        // }, 1000);
     });
 
-    onDestroy(() => { window.removeEventListener('resize', updateMapHeight); });
+    onDestroy(() => { 
+        window.removeEventListener('resize', updateMapHeight); 
+        map.remove();
+    });
+
+    function markerIcon() {
+        // let html = `<div class="map-marker"><div><img style="width:60px;height:60px" src="/images/marker-icon.svg"/></div></div>`;
+        // return L.divIcon({
+        //     html,
+        //     className: 'map-marker',
+        // });
+
+        var myIcon = L.icon({
+            iconUrl: '/images/marker-icon.svg',
+            iconSize: [40, 40],
+            iconAnchor: [0, 0],
+            popupAnchor: [20, 10],
+            // shadowUrl: 'my-icon-shadow.png',
+            // shadowSize: [68, 95],
+            // shadowAnchor: [22, 94]
+        });
+        return myIcon;
+    }
 
     function updateMapHeight() {
         mapHeight = `${window.innerHeight - 100}px`;

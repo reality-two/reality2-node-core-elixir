@@ -14,7 +14,7 @@ positions = [
     {"name": "Auckland Museum", "latitude": -36.860426874915866, "longitude": 174.77767677926224}, 
     {"name": "Domain",          "latitude": -36.859847723179335, "longitude": 174.77773825999947},
     {"name": "Wintergarden",    "latitude": -36.860134176770515, "longitude": 174.77414433783238},
-    {"name": "Britomart Train Station", "latitude": -36.84369733415424, "longitude":174.76721252147433},
+    {"name": "Britomart Train Station", "latitude": -36.84420, "longitude":174.76779},
     {"name": "Lynn mall",       "latitude": -36.906973021967296, "longitude": 174.68603476913333}
 ]
 
