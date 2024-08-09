@@ -11,17 +11,16 @@
     import { onDestroy } from 'svelte';
 
     import * as L from 'leaflet';
-    // If you're playing with this in the Svelte REPL, import the CSS using the
-    // syntax in svelte:head instead. For normal development, this is better.
     import 'leaflet/dist/leaflet.css';
 
-    let map;
-    let mapHeight = "400px";
+    import type { Sentant } from './reality2.js';
+    import R2 from "./reality2";
 
-
+    export let r2_node: R2;
     export let sentants: any[]|any = [];
-    export let windowHeight: number = 800;
-    export let windowWidth: number = 1024;
+
+    let map: any;
+    let mapHeight = "400px";
 
     onMount(() => {
         map = L.map('map').setView([51.505, -0.09], 13);
@@ -43,17 +42,17 @@
 
         // Add resize event listener
         window.addEventListener('resize', updateMapHeight);
+
+        // Go through each Sentant and send an AwaitSignal (even if invalid)
+        sentants.foreach((sentant) => {
+            r2node
+        })
     });
 
-    onDestroy(() => {
-        // Clean up the event listener
-        window.removeEventListener('resize', updateMapHeight);
-    });
+    onDestroy(() => { window.removeEventListener('resize', updateMapHeight); });
 
     function updateMapHeight() {
-        const windowHeight = window.innerHeight;
-        mapHeight = `${windowHeight - 100}px`;
-
+        mapHeight = `${window.innerHeight - 100}px`;
         if(map) { map.invalidateSize() }
     }
 </script>
