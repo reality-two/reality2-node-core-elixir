@@ -217,7 +217,9 @@ export default class R2 {
         this._sockets[id+"|"+signal] = {ws: new WebSocket(this._graphql_webs_url), connected: false, timer: null};
 
         this._sockets[id+"|"+signal].ws.onopen = () => {
-            this._sockets[id+"|"+signal].ws.send(JSON.stringify(join_message));
+            setTimeout(() => {
+                this._sockets[id+"|"+signal].ws.send(JSON.stringify(join_message));
+            }, 100);
         };
 
         this._sockets[id+"|"+signal].ws.onmessage = (event: any) => {
@@ -242,6 +244,8 @@ export default class R2 {
                         console.log("heartbeat");
                         this._sockets[id+"|"+signal].ws.send(JSON.stringify(heartbeat));
                     }, 30000);
+
+                    callback({"status":"connected"})
                 }
             }
         };

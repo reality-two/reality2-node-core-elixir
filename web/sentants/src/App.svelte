@@ -185,7 +185,7 @@ Layout
                     </Message>
                 {:else}
                     {#if mode == "map"}
-                        <Map sentants={R2.JSONPath(response, "data.sentantAll")} {windowHeight} {windowWidth}></Map>
+                        <Map {r2_node} sentants={R2.JSONPath(response, "data.sentantAll")}></Map>
                     {:else}
                         <Cards ui centered>
                             {#if (id_query !== null)}
