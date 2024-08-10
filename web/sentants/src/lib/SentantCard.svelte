@@ -90,16 +90,16 @@
             <p><Text ui small blue>{sentant.id}</Text></p>
             <p>{sentant.description}</p>
         </Content>
-        <Content extra style="height:100px; overflow-y:scroll; text-align: center;">
+        <Content extra style="height:150px; overflow-y:scroll; text-align: center;">
             {#each messages as message, i}
-                <Text tooltip ui small _={(i == messages.length-1 ? "teal" : "grey")} popup data-tooltip={message.split('|')[1]}>{message.split('|')[0]}</Text><br/>
+                <Text ui small _={(i == messages.length-1 ? "teal" : "grey")} popup data-tooltip={message.split('|')[1]}>{message.split('|')[0]}</Text><br/>
             {/each}
         </Content>
         {#if sentant.events.length > 0}
             <Content extra style="height:300px; overflow-y:scroll; text-align: center;">
                 {#each sentant.events as event}
                     {#each Object.keys(event.parameters) as key}
-                        <Input ui labeled fluid>
+                        <Input ui labeled fluid>    
                             <Input text large placeholder={key} bind:value={input_text[event.event+key]}/>
                         </Input>
                         <br/>
