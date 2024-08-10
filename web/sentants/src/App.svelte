@@ -6,11 +6,12 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { reload, Cards, Menu, Link, Icon, Segment, Button, Item, Message, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
+    import { Cards, Menu, Icon, Segment, Button, Item, Message, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import type Sentant from './lib/reality2';
     import SentantCard from './lib/SentantCard.svelte';
+    import SentantCards from './lib/SentantCards.svelte';
     import Login from './lib/Login.svelte';
     import Map from './lib/Map.svelte';
    
@@ -18,25 +19,14 @@
 
     import { onMount } from 'svelte';
 
+    // Set up the sentant loading
+    var loadedData: any[] = [];
+    $: sentantData = loadedData;
 
-    let mode = "cards"; // login, cards, map
 
-
-    // -------------------------------------------------------------------------------------------------
-    // Window width
-    // -------------------------------------------------------------------------------------------------
-    let windowWidth: number = 0;
-    let windowHeight: number = 0;
-
-    const setDimensions = () => { windowWidth = window.innerWidth; windowHeight = window.innerHeight;};
-
-    onMount(() => {
-        setDimensions();
-        window.addEventListener('resize', setDimensions);
-        return () => { window.removeEventListener('resize', setDimensions); }
-    });
-    // -------------------------------------------------------------------------------------------------
-
+    // Set up the state
+    var set_state = "loading";
+    $: state = set_state;
 
 
     // -------------------------------------------------------------------------------------------------
@@ -44,6 +34,35 @@
     // -------------------------------------------------------------------------------------------------
     $: name_query = getQueryStringVal("name");
     $: id_query = getQueryStringVal("id");
+    $: map_query = getQueryStringVal("map");
+    $: view_query = getQueryStringVal("view");
+    // -------------------------------------------------------------------------------------------------
+
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Window width
+    // -------------------------------------------------------------------------------------------------
+    let windowWidth: number = 0;
+
+    const setDimensions = () => { 
+        windowWidth = window.innerWidth;
+    };
+
+    onMount(() => {
+
+        // Set the state depending on the query string
+        if (id_query != null) set_state == "id"
+        else if (name_query != null) set_state == "name"
+        else {
+            set_state = "start";
+            view_query = "";
+        }
+
+        setDimensions();
+        window.addEventListener('resize', setDimensions);
+        return () => { window.removeEventListener('resize', setDimensions); }
+    });
     // -------------------------------------------------------------------------------------------------
 
 
@@ -63,26 +82,117 @@
     let r2_node = new R2(window.location.hostname, Number(window.location.port));
 
     // Set up the monitoring of the Reality2 Node
-    setTimeout(() => { r2_node.monitor((_data: any) => { sentantData = loadSentants(); }); }, 1000);
+    if (id_query == null && name_query == null) {
+        setTimeout(() => {
+            // Set up monitoring callback
+            r2_node.monitor((data: any) => { updateSentants(data); });
 
-    // Get all the sentants, or a single Sentant if there is a name or id in the query string
-    $: sentantData = loadSentants();
+            // Load the Sentants
+            loadSentants()
+            .then((result) => {
+                set_state = result.state;
+                loadedData = result.data;
+            })
+        }, 100);
+    }
+    // -------------------------------------------------------------------------------------------------
 
-    function loadSentants() : Promise<object> {
-        if (id_query != null) {
-            reload();
-            return r2_node.sentantGet(id_query, {}, "name id description events { event parameters } signals")
-        }
-        else if (name_query != null) {
-            reload();
-            return r2_node.sentantGetByName(name_query, {}, "name id description events { event parameters } signals");
-        }
-        else {
-            reload();
-            return r2_node.sentantAll({}, "name id description events { event parameters } signals");
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Load the Sentant(s) the first time.
+    // -------------------------------------------------------------------------------------------------
+    function loadSentants() : Promise<{"state": string, "data": [any]|any|[]}> {
+        return new Promise((resolve, reject) => {
+            if (id_query != null) {
+                set_state = "loading";
+                r2_node.sentantGet(id_query, {}, "name id description events { event parameters } signals")
+                .then((data) => {
+                    let result = R2.JSONPath(data, "data.sentantGet")
+                    if (result == null) {
+                        resolve({"state": "id", "data": []})
+                    }
+                    else {
+                        resolve({"state": "id", "data": [result]})
+                    }
+                })
+                .catch((_error) => {
+                    resolve({"state": "error", "data": []})
+                })
+            }
+            else if (name_query != null) {
+                set_state = "loading";
+                r2_node.sentantGetByName(name_query, {}, "name id description events { event parameters } signals")
+                .then((data) => {
+                    let result = R2.JSONPath(data, "data.sentantGet")
+                    if (result == null) {
+                        resolve({"state": "name", "data": []})
+                    }
+                    else {
+                        resolve({"state": "name", "data": [result]})
+                    }
+                })
+                .catch((_error) => {
+                    resolve({"state": "error", "data": []})
+                })
+            }
+            else if ((map_query != null) || (view_query != null)){
+                set_state = "loading";
+                r2_node.sentantAll({}, "name id description events { event parameters } signals")
+                .then((data) => {
+                    let result = R2.JSONPath(data, "data.sentantAll")
+                    if (result == null) {
+                        resolve({"state": ((map_query != null)?"map":"view"), "data": []})
+                    }
+                    else {
+                        resolve({"state": ((map_query != null)?"map":"view"), "data": result})
+                    }
+                })
+                .catch((_error) => {
+                    resolve({"state": "error", "data": []})
+                })
+            }
+        })
+    }
+    // -------------------------------------------------------------------------------------------------
+
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Update the list of sentants when something changes (can either be create or delete)
+    // -------------------------------------------------------------------------------------------------
+    function updateSentants(updates: any) {
+        if ((name_query == null) && (id_query == null)){
+            var sentant_id = R2.JSONPath(updates, "parameters.id");
+            var sentant_name = R2.JSONPath(updates, "parameters.name");
+            if ((sentant_id !== null) && (sentant_name !== "view"))
+            {
+                switch (R2.JSONPath(updates, "parameters.activity")) {
+                    case "created":
+                        r2_node.sentantGet(sentant_id, {}, "name id description events { event parameters } signals")
+                        .then((data) => {
+                            // Go through the loaded data and add the new Sentant.
+                            loadedData = sentantData.concat(R2.JSONPath(data, "data.sentantGet"));
+                        })
+                        break;
+                    case "deleted":
+                        // Go through the loaded data, find the deleted sentant and remove it.
+                        loadedData = sentantData.map((data) => {
+                            if (sentant_id == R2.JSONPath(data, "id"))
+                            {
+                                data.name = ".deleted"
+                            }
+                            return(data);
+                        })
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
     }
     // -------------------------------------------------------------------------------------------------
+
 
 
 
@@ -90,17 +200,10 @@
     // Functions used in the Layout
     // -------------------------------------------------------------------------------------------------
 
-    function change_mode(e: any) {
-        mode = e.detail.value;
-        console.log(mode);
+    function change_state(e: any) {
+        window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value;
+        console.log(state);
     }
-
-    // Send an event to a Sentant
-    function sentantSend(e: CustomEvent) { r2_node.sentantSend(e.detail.id, e.detail.event, e.detail.params); }
-
-    // Await a signal from a Sentant
-    function awaitSignal(e: CustomEvent) { r2_node.awaitSignal(e.detail.id, e.detail.signal, e.detail.callback); }
-
     // return true if there are no Sentants, or only the one called "monitor"
     function none_or_monitor_only(data: {}) : boolean {
         let response = true;
@@ -121,7 +224,13 @@
     }
 
     // Reload the page
-    function reload_page() { sentantData = loadSentants(); }
+    function reload_page() { 
+        loadSentants()
+        .then((result) => {
+            set_state = result.state;
+            loadedData = result.data;
+        })
+    }
     // -------------------------------------------------------------------------------------------------
 </script>
 <!----------------------------------------------------------------------------------------------------->
@@ -132,7 +241,7 @@
 Layout
 ------------------------------------------------------------------------------------------------------->
 <main>
-    {#if mode == "login"}
+    {#if state == "login"}
         <Login></Login>
     {:else}
         <Menu ui top attached grey inverted borderless>
@@ -151,11 +260,11 @@ Layout
                     <Dropdown ui style="position: relative; z-index:1000">
                         <Icon sidebar/>
                         <Menu ui vertical>
-                            <Item value="cards" on:click={change_mode}>
+                            <Item value="view" on:click={change_state}>
                                 <Icon ui th/>
                                 Grid
                             </Item>
-                            <Item value="map" on:click={change_mode}>
+                            <Item value="map" on:click={change_state}>
                                 <Icon ui map outline/>
                                 Map
                             </Item>
@@ -164,46 +273,60 @@ Layout
                 </Item>
             </Menu>
         </Menu>
-        {#await sentantData}
-            <p>Loading...</p>
-        {:then response}
-            <Segment ui bottom attached grey>
-                {#if response.hasOwnProperty('errors')}
-                    <Message ui negative large>
-                        <Header>
-                            <Icon warning/>
-                            Error
-                        </Header>
-                        <Text ui large>Incorrect {R2.JSONPath(response, "errors.0.message")}</Text>
-                    </Message>
-                {:else if none_or_monitor_only(R2.JSONPath(response, "data"))}
-                    <Message ui teal large>
-                        <Header>
-                            <Icon warning/>
-                            No Sentants Found
-                        </Header>
-                    </Message>
-                {:else}
-                    {#if mode == "map"}
-                        <Map {r2_node} sentants={R2.JSONPath(response, "data.sentantAll")}></Map>
-                    {:else}
-                        <Cards ui centered>
-                            {#if (id_query !== null)}
-                                <SentantCard sentant={R2.JSONPath(response, "data.sentantGet")} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
-                            {:else if (name_query !== null)}
-                                <SentantCard sentant={R2.JSONPath(response, "data.sentantGet")} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
-                            {:else}
-                                {#each R2.JSONPath(response, "data.sentantAll") as sentant}
-                                    <SentantCard {sentant} on:sentantSend={sentantSend} on:awaitSignal={awaitSignal}/>
-                                {/each}
-                            {/if}
-                        </Cards>
-                    {/if}
-                {/if}
-            </Segment>
-        {:catch error}
-            <p>Error: {error.message}</p>
-        {/await}
+        <Segment ui bottom attached grey>
+            <!--------------------------------------------------------------------------------------------->
+            {#if state == "start"}
+            <!--------------------------------------------------------------------------------------------->
+                <Text ui large>Loading...</Text>
+            <!--------------------------------------------------------------------------------------------->
+            {:else if state == "error"}
+            <!--------------------------------------------------------------------------------------------->
+                <Message ui negative large>
+                    <Header>
+                        Something bad happened
+                    </Header>
+                </Message>
+            <!--------------------------------------------------------------------------------------------->
+            {:else if state == "loading"}
+            <!--------------------------------------------------------------------------------------------->
+                <Text ui large>Loading...</Text>
+            <!--------------------------------------------------------------------------------------------->
+            {:else if state == "view"}
+            <!--------------------------------------------------------------------------------------------->
+                <!-- <Cards ui centered style="width: 100%; height: {height}; overflow-y:scroll;">
+                    {#each sentantData as sentant}
+                        {#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted") && (sentant.name !== "view"))}
+                            <SentantCard {sentant} {r2_node}/>
+                        {/if}
+                    {/each}
+                </Cards> -->
+                <SentantCards {r2_node} {sentantData} />
+            <!--------------------------------------------------------------------------------------------->
+            {:else if state == "map"}
+            <!--------------------------------------------------------------------------------------------->
+                <Map {r2_node} {sentantData} />
+            <!--------------------------------------------------------------------------------------------->
+            {:else if none_or_monitor_only(sentantData)}
+            <!--------------------------------------------------------------------------------------------->
+                <Message ui teal large>
+                    <Header>
+                        No Devices Connected
+                    </Header>
+                </Message>
+            <!--------------------------------------------------------------------------------------------->
+            {:else if state == "id"}
+            <!--------------------------------------------------------------------------------------------->
+                <Cards ui centered>
+                    <SentantCard sentant={sentantData[0]} {r2_node}/>
+                </Cards>
+            <!--------------------------------------------------------------------------------------------->
+            {:else if state == "name"}
+            <!--------------------------------------------------------------------------------------------->
+                <Cards ui centered>
+                    <SentantCard sentant={sentantData[0]} {r2_node}/>
+                </Cards>
+            {/if}
+        </Segment>
     {/if}
 </main>
 <!----------------------------------------------------------------------------------------------------->
