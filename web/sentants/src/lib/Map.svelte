@@ -74,13 +74,16 @@
                     }
 
                     const sentantCard = document.createElement('div');
-                    sentantCard.className = "cards ui centered";
+                    // sentantCard.style.height = "350px";
+                    // sentantCard.classList.add ("card", "ui", "centered");
 
                     const _card = new SentantCard({
                         target: sentantCard,
                         props: {
                             sentant: sentant,
-                            r2_node: r2_node                            
+                            r2_node: r2_node,
+                            mini: true,
+                            height: "300px"            
                         }
                     });
 
