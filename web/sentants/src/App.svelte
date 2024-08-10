@@ -256,21 +256,39 @@ Layout
                 </Input>
             </Item>
             <Menu right>
-                <Item>
-                    <Dropdown ui style="position: relative; z-index:1000">
-                        <Icon sidebar/>
-                        <Menu ui vertical>
-                            <Item value="view" on:click={change_state}>
-                                <Icon ui th/>
-                                Grid
-                            </Item>
-                            <Item value="map" on:click={change_state}>
-                                <Icon ui map outline/>
-                                Map
-                            </Item>
-                        </Menu>
-                    </Dropdown>
-                </Item>
+                <Dropdown ui item style="position: relative; z-index:1000">
+                    <Icon sidebar/>
+                    <Menu ui vertical>
+                        <Item>
+                            <Icon ui eye/>
+                            View
+                            <Menu>
+                                <Item value="view" on:click={change_state}>
+                                    <Icon ui th/>
+                                    Grid
+                                </Item>
+                                <Item value="map" on:click={change_state}>
+                                    <Icon ui map outline/>
+                                    Map
+                                </Item>
+                            </Menu>
+                        </Item>
+                        <Item>
+                            <Icon ui arrow up/>
+                            Load
+                            <Menu>
+                                <Item value="view" on:click={change_state}>
+                                    <Icon user/>
+                                    Sentant
+                                </Item>
+                                <Item value="map" on:click={change_state}>
+                                    <Icon users/>
+                                    Swarm
+                                </Item>
+                            </Menu>
+                        </Item>
+                    </Menu>
+                </Dropdown>
             </Menu>
         </Menu>
         <Segment ui bottom attached grey>

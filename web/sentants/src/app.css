@@ -44,6 +44,11 @@ body {
     text-align: center;
   }
 
+  #tooltip {
+    white-space: pre-line; /* Preserve whitespace and line breaks */
+    word-wrap: break-word; /* Ensure long words wrap properly */
+  }
+  
 /* h1 {
   font-size: 3.2em;
   line-height: 1.1;
@@ -88,14 +93,14 @@ button:focus-visible {
 }
 
   /* Style for the tooltip */
-  .tooltip {
+  /* .tooltip {
       position: relative;
       display: inline-block;
       cursor: pointer;
-  }
+  } */
 
   /* Tooltip text */
-  .tooltip::after {
+  /* .tooltip::after {
       content: attr(data-tooltip);
       visibility: hidden;
       white-space: normal;
@@ -107,9 +112,9 @@ button:focus-visible {
       bottom: 125%;
       left: 50%;
       margin-left: -60px;
-  }
+  } */
 
   /* Show the tooltip text when hovering */
-  .tooltip:hover::after {
+  /* .tooltip:hover::after {
       visibility: visible;
-  }
+  } */
