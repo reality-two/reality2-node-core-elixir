@@ -17,6 +17,7 @@
     export let r2_node: R2;
     export let mini:boolean = false;
     export let height: string = "800px";
+    export let variables = {};
 
     type input_text_type = {[key:string]: any}
     type params_type = {[key:string]: string}
@@ -64,6 +65,10 @@
         r2_node.sentantSend(id, event, params);
     };
 
+    function unload_sentant() {
+        r2_node.sentantUnload(sentant.id)
+    }
+
     onMount(() => {
         if (sentant.name == "monitor") return;
         for (let i = 0; i < sentant.signals.length; i++)
@@ -86,7 +91,7 @@
 
 {#if sentant.name != "monitor"}
     <Card style="height: {height};">
-        <Link ui image href={"/?name=" + sentant.name}>
+        <Link ui image href={"/?name=" + sentant.name + "&variables=" + encodeURIComponent(JSON.stringify(variables))}>
             <Image ui large src="/images/bee_blue.png" />
         </Link>
         <Content style={mini?"text-align: center;":"height:150px; text-align: center;"}>
@@ -94,28 +99,31 @@
             <p><Text ui small blue>{sentant.id}</Text></p>
             <p>{sentant.description}</p>
         </Content>
-        <Content extra style={mini?"text-align: center;":"height:150px; text-align: center;"}>
+        <Content extra style={mini?"text-align: center;":"height:100px; text-align: center;"}>
             {#each messages as message, i}
-                <Text ui popup small data-variation="multiline" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text><br/>
+                <Text ui popup small data-variation="multiline wide" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text><br/>
             {/each}
         </Content>
         {#if !mini}
             {#if sentant.events.length > 0}
-                <Content extra style="overflow-y:scroll; overflow-x: hidden; text-align: center;">
+                <Content extra style="overflow-y:scroll; overflow-x: hidden; height:250px; text-align: center;">
                     {#each sentant.events as event}
                         {#each Object.keys(event.parameters) as key}
-                            <Input ui labeled fluid>    
+                            <Input ui labeled fluid style={"margin-bottom:5px;"}>    
                                 <Input text large placeholder={key} bind:value={input_text[event.event+key]}/>
                             </Input>
-                            <br/>
                         {/each}
-                        <Button ui teal fluid on:click={(_e) => event_button_pressed(sentant.id, event.event)}>
+                        <Button ui teal fluid on:click={(_e) => event_button_pressed(sentant.id, event.event)} style={"margin-bottom:20px;"}>
                             {event.event}
                         </Button>
-                        <br/>
                     {/each}
                 </Content>
             {/if}
+            <Content extra>
+                <Button ui red fluid on:click={unload_sentant}>
+                    Unload
+                </Button>
+            </Content>
         {/if}
     </Card>
 {/if}

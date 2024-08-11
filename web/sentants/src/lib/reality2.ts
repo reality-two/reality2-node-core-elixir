@@ -300,7 +300,11 @@ export default class R2 {
     _swarmLoad(details: string) : string {
         return `mutation SwarmLoad($definition: String!) {
             swarmLoad(definition: $definition) {
-                ${details}
+                description
+                name
+                sentants {
+                    ${details}
+                }
             }
         }`;
     }

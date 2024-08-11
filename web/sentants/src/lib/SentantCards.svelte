@@ -17,6 +17,7 @@
 
     export let r2_node: R2;
     export let sentantData: any[]|any = [];
+    export let variables = {};
 
     let height = "400px";
 
@@ -39,7 +40,7 @@
 <Cards ui centered style="width: 100%; height: {height}; overflow-y:scroll;">
     {#each sentantData as sentant}
         {#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted") && (sentant.name !== "view"))}
-            <SentantCard {sentant} {r2_node}/>
+            <SentantCard {sentant} {r2_node} {variables}/>
         {/if}
     {/each}
 </Cards>
