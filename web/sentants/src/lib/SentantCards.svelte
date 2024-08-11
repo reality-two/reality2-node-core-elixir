@@ -32,7 +32,7 @@
     });
 
     function updateHeight() {
-        height = `${window.innerHeight - 75}px`;
+        height = `${window.innerHeight - 80}px`;
     }
 </script>
 

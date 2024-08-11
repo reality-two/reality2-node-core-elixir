@@ -74,8 +74,6 @@
                     }
 
                     const sentantCard = document.createElement('div');
-                    // sentantCard.style.height = "350px";
-                    // sentantCard.classList.add ("card", "ui", "centered");
 
                     const _card = new SentantCard({
                         target: sentantCard,
@@ -126,7 +124,7 @@
     }
 
     function updateMapHeight() {
-        mapHeight = `${window.innerHeight - 100}px`;
+        mapHeight = `${window.innerHeight - 105}px`;
         if(map) { map.invalidateSize() }
     }
 </script>
