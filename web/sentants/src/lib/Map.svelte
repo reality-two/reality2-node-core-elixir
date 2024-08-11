@@ -20,6 +20,7 @@
 
     export let r2_node: R2;
     export let sentantData: any[]|any = [];
+    export let variables = {};
 
     let map: any;
     let mapHeight = "400px";
@@ -81,7 +82,8 @@
                             sentant: sentant,
                             r2_node: r2_node,
                             mini: true,
-                            height: "300px"            
+                            height: "300px",
+                            variables: encodeURI(JSON.stringify(variables))   
                         }
                     });
 

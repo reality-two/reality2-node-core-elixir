@@ -6,7 +6,7 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { behavior, Cards, Menu, Icon, Segment, Button, Buttons, Item, Message, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
+    import { Divider, Table, Table_Head, Table_Row, Table_Col, Table_Body, Cards, Menu, Label, Icon, Segment, Button, Buttons, Item, Message, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import type Sentant from './lib/reality2';
@@ -59,6 +59,8 @@
     $: id_query = getQueryStringVal("id");
     $: map_query = getQueryStringVal("map");
     $: view_query = getQueryStringVal("view");
+    $: mr_query = getQueryStringVal("mr");
+    $: variables_query = getQueryStringVal("variables");
     // -------------------------------------------------------------------------------------------------
 
 
@@ -67,10 +69,17 @@
     // Window width
     // -------------------------------------------------------------------------------------------------
     let windowWidth: number = 0;
+    let sentant_loader: any;
+    let swarm_loader: any;
+    let variables_loader: any;
+    $: variables = variables_query ? JSON.parse(decodeURIComponent(variables_query)) : {};
 
     const setDimensions = () => { 
         windowWidth = window.innerWidth;
     };
+
+    // GraphQL client setup 
+    let r2_node = new R2(window.location.hostname, Number(window.location.port));
 
     onMount(() => {
 
@@ -80,6 +89,92 @@
         else {
             set_state = "start";
             view_query = "";
+        }
+
+        console.log(variables_query);
+        console.log(JSON.parse(variables_query));
+
+        // Set up the sentant loader
+        sentant_loader = document.createElement('input');
+        sentant_loader.type = 'file';
+
+        sentant_loader.onchange = (e:any) => { 
+            // getting a hold of the file reference
+            var file = e.target.files[0]; 
+
+            // setting up the reader
+            var reader = new FileReader();
+            reader.readAsText(file,'UTF-8');
+
+            // here we tell the reader what to do when it's done reading...
+            reader.onload = (readerEvent) => {
+                if (readerEvent !== null) {
+                    var definition: any = readerEvent["target"]["result"];
+
+                    definition = replaceVariables(definition, variables);
+                    console.log(definition);
+
+                    r2_node.sentantLoad(definition)
+                    .then((result) =>{
+                        console.log("LOADED", result)
+                    })
+                    .catch(() => {
+                        console.log("ERROR LOADING")
+                    });
+                }
+            }
+        }
+
+        // Set up the swarm loader
+        swarm_loader = document.createElement('input');
+        swarm_loader.type = 'file';
+
+        swarm_loader.onchange = (e:any) => { 
+            // getting a hold of the file reference
+            var file = e.target.files[0]; 
+
+            // setting up the reader
+            var reader = new FileReader();
+            reader.readAsText(file,'UTF-8');
+
+            // here we tell the reader what to do when it's done reading...
+            reader.onload = (readerEvent) => {
+                if (readerEvent !== null) {
+                    var definition: any = readerEvent["target"]["result"];
+
+                    definition = replaceVariables(definition, variables);
+                    console.log(definition);
+
+                    r2_node.swarmLoad(definition)
+                    .then((result) =>{
+                        console.log("LOADED", result)
+                    })
+                    .catch(() => {
+                        console.log("ERROR LOADING")
+                    });
+                }
+            }
+        }
+
+        // Set up the variables loader
+        variables_loader = document.createElement('input');
+        variables_loader.type = 'file';
+
+        variables_loader.onchange = (e:any) => { 
+            // getting a hold of the file reference
+            var file = e.target.files[0]; 
+
+            // setting up the reader
+            var reader = new FileReader();
+            reader.readAsText(file,'UTF-8');
+
+            // here we tell the reader what to do when it's done reading...
+            reader.onload = (readerEvent) => {
+                if (readerEvent !== null) {
+                    variables = JSON.parse(readerEvent["target"]["result"]);  
+                    console.log(variables);                
+                }
+            }
         }
 
         setDimensions();
@@ -101,8 +196,18 @@
     // -------------------------------------------------------------------------------------------------
     // Main functionality
     // -------------------------------------------------------------------------------------------------
-    // GraphQL client setup 
-    let r2_node = new R2(window.location.hostname, Number(window.location.port));
+
+    function replaceVariables(str: string, variables: {}) {
+        // Iterate over each key in the variables object
+        for (const [key, value] of Object.entries(variables)) {
+            // Create a regular expression to match the key in the string
+            // The 'g' flag ensures that all occurrences are replaced
+            const regex = new RegExp(key, 'g');
+            // Replace all occurrences of the key with its corresponding value
+            str = str.replace(regex, value);
+        }
+        return str;
+    }
 
     // Set up the monitoring of the Reality2 Node
     if (id_query == null && name_query == null) {
@@ -159,16 +264,16 @@
                     resolve({"state": "error", "data": []})
                 })
             }
-            else if ((map_query != null) || (view_query != null)){
+            else if ((map_query != null) || (view_query != null) || (mr_query != null)){
                 set_state = "loading";
                 r2_node.sentantAll({}, "name id description events { event parameters } signals")
                 .then((data) => {
                     let result = R2.JSONPath(data, "data.sentantAll")
                     if (result == null) {
-                        resolve({"state": ((map_query != null)?"map":"view"), "data": []})
+                        resolve({"state": ((map_query != null)?"map":(mr_query != null)?"mr":"view"), "data": []})
                     }
                     else {
-                        resolve({"state": ((map_query != null)?"map":"view"), "data": result})
+                        resolve({"state": ((map_query != null)?"map":(mr_query != null)?"mr":"view"), "data": result})
                     }
                 })
                 .catch((_error) => {
@@ -224,7 +329,7 @@
     // -------------------------------------------------------------------------------------------------
 
     function change_state(e: any) {
-        window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value;
+        window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value + "&variables=" + encodeURIComponent(JSON.stringify(variables))
     }
 
     // return true if there are no Sentants, or only the one called "monitor"
@@ -266,10 +371,10 @@
         {
             let elements = path.split("|");
             if (elements.length > 1) {
-                window.location.href = "https://"+ elements[0] + ":" + window.location.port + "/?name=" + elements[1];
+                window.location.href = "https://"+ elements[0] + ":" + window.location.port + "/?name=" + elements[1]  + "&variables=" + encodeURIComponent(JSON.stringify(variables));
             }
             else {
-                window.location.href = "https://"+ elements[0] + ":" + window.location.port;
+                window.location.href = "https://"+ elements[0] + ":" + window.location.port + "/?variables=" + encodeURIComponent(JSON.stringify(variables));
             }
         }
     }
@@ -337,18 +442,89 @@ Layout
                             Mixed Reality
                         </Item>
 
+                        <Divider ui fitted/><Divider ui fitted/>
                         <Header ui>
                         Load
                         </Header>
-                        <Item value="load_sentant" on:click={()=>{behavior({type: 'modal', commands: ['show'], settings: load_sentant})}}>
+                        <Item value="load_variables" on:click={()=>{ variables_loader.click(); }}>
                             &nbsp;&nbsp;
+                            <Label ui>1</Label>
+                            <Icon database/>
+                            Variables
+                            <Menu ui>
+                                <Table ui>
+                                    <Table_Head>
+                                        <Table_Row>
+                                            <Table_Col head>key</Table_Col>
+                                            <Table_Col head>value</Table_Col>
+                                        </Table_Row>
+                                    </Table_Head>
+                                    <Table_Body>
+                                        {#each Object.keys(variables) as key}
+                                            <Table_Row>
+                                                <Table_Col>{key}</Table_Col>
+                                                <Table_Col>{variables[key]}</Table_Col>
+                                            </Table_Row>
+                                        {/each}
+                                    </Table_Body>
+                                </Table>
+                            </Menu>
+                        </Item>
+                        <Divider ui horizontal tiny>
+                            then
+                        </Divider>
+                        <Item value="load_sentant" on:click={()=>{ sentant_loader.click(); }}>
+                            &nbsp;&nbsp;
+                            <Label ui>2</Label>
                             <Icon user/>
                             Sentant
                         </Item>
-                        <Item value="load_swarn" on:click={()=>{behavior({type: 'modal', commands: ['show'], settings: load_swarm})}}>
+                        <Divider ui horizontal tiny>
+                            or
+                        </Divider>
+                        <Item value="load_swarm" on:click={()=>{ swarm_loader.click(); }}>
                             &nbsp;&nbsp;
+                            <Label ui>2</Label>
                             <Icon users/>
                             Swarm
+                        </Item>
+
+                        <Divider ui fitted/><Divider ui fitted/>
+                        <Header ui>
+                            Multi
+                        </Header>
+                        <Item value="load_variables" on:click={()=>{ variables_loader.click(); }}>
+                            &nbsp;&nbsp;
+                            <Label ui>1</Label>
+                            <Icon database/>
+                            Data
+                            <!-- <Menu ui>
+                                <Table ui>
+                                    <Table_Head>
+                                        <Table_Row>
+                                            <Table_Col head>key</Table_Col>
+                                            <Table_Col head>value</Table_Col>
+                                        </Table_Row>
+                                    </Table_Head>
+                                    <Table_Body>
+                                        {#each Object.keys(variables) as key}
+                                            <Table_Row>
+                                                <Table_Col>{key}</Table_Col>
+                                                <Table_Col>{variables[key]}</Table_Col>
+                                            </Table_Row>
+                                        {/each}
+                                    </Table_Body>
+                                </Table>
+                            </Menu> -->
+                        </Item>
+                        <Divider ui horizontal tiny>
+                            then
+                        </Divider>
+                        <Item value="load_pattern" on:click={()=>{ sentant_loader.click(); }}>
+                            &nbsp;&nbsp;
+                            <Label ui>2</Label>
+                            <Icon puzzle piece/>
+                            Pattern
                         </Item>
                     </Menu>
                 </Dropdown>
@@ -374,7 +550,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "view"}
             <!--------------------------------------------------------------------------------------------->
-                <SentantCards {r2_node} {sentantData} />
+                <SentantCards {r2_node} {sentantData} {variables}/>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "map"}
             <!--------------------------------------------------------------------------------------------->
@@ -387,13 +563,13 @@ Layout
             {:else if state == "id"}
             <!--------------------------------------------------------------------------------------------->
                 <Cards ui centered>
-                    <SentantCard sentant={sentantData[0]} {r2_node}/>
+                    <SentantCard sentant={sentantData[0]} {r2_node} {variables}/>
                 </Cards>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "name"}
             <!--------------------------------------------------------------------------------------------->
                 <Cards ui centered>
-                    <SentantCard sentant={sentantData[0]} {r2_node}/>
+                    <SentantCard sentant={sentantData[0]} {r2_node} {variables}/>
                 </Cards>
             {/if}
         </Segment>
