@@ -69,11 +69,15 @@
         for (let i = 0; i < sentant.signals.length; i++)
         {
             r2_node.awaitSignal(sentant.id, sentant.signals[i], (data: any) => {
-                let date = new Date();
-                messages = [...messages, date.toLocaleString('en-NZ') + " : " + data.event + "|" + JSON.stringify(data.parameters)];
-                if (messages.length > max_messages) {
-                    messages.splice(0, messages.length - max_messages);
+                if (data.hasOwnProperty("event"))
+                {
+                    let date = new Date();
+                    messages = [...messages, date.toLocaleString('en-NZ') + " : " + data.event + "|" + JSON.stringify(data.parameters)];
+                    if (messages.length > max_messages) {
+                        messages.splice(0, messages.length - max_messages);
+                    }
                 }
+
             });
         }
     });
@@ -92,9 +96,6 @@
         </Content>
         <Content extra style={mini?"text-align: center;":"height:150px; text-align: center;"}>
             {#each messages as message, i}
-                <!-- <div class={"ui text small " + (i == messages.length-1 ? "teal" : "grey")} style="text-align: center;" >
-                    {message.split('|')[0]}
-                </div> -->
                 <Text ui popup small data-variation="multiline" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text><br/>
             {/each}
         </Content>
@@ -118,10 +119,3 @@
         {/if}
     </Card>
 {/if}
-
-
-<style>
-    /* .ui.text.small {
-        font-size: 0.8em;
-    } */
-</style>

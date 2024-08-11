@@ -6,7 +6,7 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { Cards, Menu, Icon, Segment, Button, Item, Message, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
+    import { behavior, Cards, Menu, Icon, Segment, Button, Buttons, Item, Message, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import type Sentant from './lib/reality2';
@@ -27,6 +27,29 @@
     // Set up the state
     var set_state = "loading";
     $: state = set_state;
+
+
+    let load_sentant = {
+        title: 'Load a Sentant',
+        class: 'mini',
+        closeIcon: true,
+        content: 'Choose a Sentant to load...',
+        actions: [{
+            text: 'OK',
+            class: 'green'
+        }]
+    }
+
+    let load_swarm = {
+        title: 'Load a Swarm',
+        class: 'mini',
+        closeIcon: true,
+        content: 'Choose a Swarm to load...',
+        actions: [{
+            text: 'OK',
+            class: 'green'
+        }]
+    }
 
 
     // -------------------------------------------------------------------------------------------------
@@ -70,7 +93,7 @@
     // -------------------------------------------------------------------------------------------------
     // The Path of this page
     // -------------------------------------------------------------------------------------------------
-    $: path = window.location.hostname + (name_query ? "." + name_query : "") + (id_query ? "." + id_query : "");
+    $: path = window.location.hostname + (name_query ? "|" + name_query : "") + (id_query ? "|" + id_query : "");
     // -------------------------------------------------------------------------------------------------
 
 
@@ -202,22 +225,28 @@
 
     function change_state(e: any) {
         window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value;
-        console.log(state);
     }
+
     // return true if there are no Sentants, or only the one called "monitor"
-    function none_or_monitor_only(data: {}) : boolean {
+    function none_or_monitor_only(sentants: any[]|[]) : boolean {
         let response = true;
-        let sentants: Sentant[] = R2.JSONPath(data, "sentantAll");
-        if (sentants == null) {
-            let name = R2.JSONPath(data, "sentantGet.name");
-            if (name !== "monitor")
+        // let sentants: Sentant[] = R2.JSONPath(data, "sentantAll");
+        // if (sentants == null) {
+        //     let name = R2.JSONPath(data, "sentantGet.name");
+        //     if (name !== "monitor")
+        //         response = false;
+        // } else {
+        //     for (let i = 0; i < sentants.length; i++) {
+        //         if (R2.JSONPath(sentants[i], "name") !== "monitor") {
+        //             response = false;
+        //             break;
+        //         }
+        //     }
+        // }
+        for (let i = 0; i < sentants.length; i++) {
+            if (R2.JSONPath(sentants[i], "name") !== "monitor") {
                 response = false;
-        } else {
-            for (let i = 0; i < sentants.length; i++) {
-                if (R2.JSONPath(sentants[i], "name") !== "monitor") {
-                    response = false;
-                    break;
-                }
+                break;
             }
         }
         return response;
@@ -231,8 +260,30 @@
             loadedData = result.data;
         })
     }
+
+    function on_key_down(event:any) {
+        if (event.key === "Enter" && event.target.id === "path")
+        {
+            let elements = path.split("|");
+            if (elements.length > 1) {
+                window.location.href = "https://"+ elements[0] + ":" + window.location.port + "/?name=" + elements[1];
+            }
+            else {
+                window.location.href = "https://"+ elements[0] + ":" + window.location.port;
+            }
+        }
+    }
     // -------------------------------------------------------------------------------------------------
 </script>
+<!----------------------------------------------------------------------------------------------------->
+
+
+
+<!----------------------------------------------------------------------------------------------------->
+<!----------------------------------------------------------------------------------------------------->
+<svelte:window
+    on:keydown={on_key_down}
+/>
 <!----------------------------------------------------------------------------------------------------->
 
 
@@ -246,46 +297,58 @@ Layout
     {:else}
         <Menu ui top attached grey inverted borderless>
             <Item>
-                <Button ui icon grey on:click={reload_page}>
-                    <Icon redo/>
-                </Button>
+                <Buttons ui icon>
+                    <Button ui grey on:click={() => history.back()}>
+                        <Icon arrow left/>
+                    </Button>
+                    <Button ui grey on:click={() => history.forward()}>
+                        <Icon arrow right/>
+                    </Button>
+                    <Button ui grey on:click={reload_page}>
+                        <Icon redo/>
+                    </Button>
+                </Buttons>
             </Item>
-            <Item style={"margin: auto; width:"+(windowWidth-220)+"px;"}>
-                <Input ui big disabled style={"width:100%;"}>
-                    <Input text placeholder="Enter Path..." bind:value={path}/>
+            <Item style={"margin: auto; width:"+(windowWidth-260)+"px;"}>
+                <Input ui big style={"width:100%;"}>
+                    <Input id="path" text placeholder="Enter Path..." bind:value={path}/>
                 </Input>
             </Item>
             <Menu right>
                 <Dropdown ui item style="position: relative; z-index:1000">
                     <Icon sidebar/>
-                    <Menu ui vertical>
-                        <Item>
-                            <Icon ui eye/>
+                    <Menu vertical ui>
+                        <Header ui>
                             View
-                            <Menu>
-                                <Item value="view" on:click={change_state}>
-                                    <Icon ui th/>
-                                    Grid
-                                </Item>
-                                <Item value="map" on:click={change_state}>
-                                    <Icon ui map outline/>
-                                    Map
-                                </Item>
-                            </Menu>
+                        </Header>
+                        <Item value="view" on:click={change_state}>
+                            &nbsp;&nbsp;
+                            <Icon ui th/>
+                            Grid
                         </Item>
-                        <Item>
-                            <Icon ui arrow up/>
-                            Load
-                            <Menu>
-                                <Item value="view" on:click={change_state}>
-                                    <Icon user/>
-                                    Sentant
-                                </Item>
-                                <Item value="map" on:click={change_state}>
-                                    <Icon users/>
-                                    Swarm
-                                </Item>
-                            </Menu>
+                        <Item value="map" on:click={change_state}>
+                            &nbsp;&nbsp;
+                            <Icon ui map outline/>
+                            Map
+                        </Item>
+                        <Item value="mr" on:click={change_state}>
+                            &nbsp;&nbsp;
+                            <Icon ui box/>
+                            Mixed Reality
+                        </Item>
+
+                        <Header ui>
+                        Load
+                        </Header>
+                        <Item value="load_sentant" on:click={()=>{behavior({type: 'modal', commands: ['show'], settings: load_sentant})}}>
+                            &nbsp;&nbsp;
+                            <Icon user/>
+                            Sentant
+                        </Item>
+                        <Item value="load_swarn" on:click={()=>{behavior({type: 'modal', commands: ['show'], settings: load_swarm})}}>
+                            &nbsp;&nbsp;
+                            <Icon users/>
+                            Swarm
                         </Item>
                     </Menu>
                 </Dropdown>
@@ -299,38 +362,27 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "error"}
             <!--------------------------------------------------------------------------------------------->
-                <Message ui negative large>
-                    <Header>
-                        Something bad happened
-                    </Header>
-                </Message>
+                <Text ui large>Something bad happened</Text>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "loading"}
             <!--------------------------------------------------------------------------------------------->
                 <Text ui large>Loading...</Text>
             <!--------------------------------------------------------------------------------------------->
+            {:else if none_or_monitor_only(sentantData)}
+            <!--------------------------------------------------------------------------------------------->
+                <Text ui large>No Sentants</Text>
+            <!--------------------------------------------------------------------------------------------->
             {:else if state == "view"}
             <!--------------------------------------------------------------------------------------------->
-                <!-- <Cards ui centered style="width: 100%; height: {height}; overflow-y:scroll;">
-                    {#each sentantData as sentant}
-                        {#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted") && (sentant.name !== "view"))}
-                            <SentantCard {sentant} {r2_node}/>
-                        {/if}
-                    {/each}
-                </Cards> -->
                 <SentantCards {r2_node} {sentantData} />
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "map"}
             <!--------------------------------------------------------------------------------------------->
                 <Map {r2_node} {sentantData} />
             <!--------------------------------------------------------------------------------------------->
-            {:else if none_or_monitor_only(sentantData)}
+            {:else if state == "mr"}
             <!--------------------------------------------------------------------------------------------->
-                <Message ui teal large>
-                    <Header>
-                        No Devices Connected
-                    </Header>
-                </Message>
+                <Text ui large>Coming Soon...</Text>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "id"}
             <!--------------------------------------------------------------------------------------------->
