@@ -23,6 +23,7 @@
     "@threlte/core": "^7.1.0",
     "@threlte/xr": "^0.1.2",
     "@types/three": "^0.161.2",
+    "blockly": "^11.1.1",
     "graphql": "^16.6.0",
     "leaflet": "^1.9.4",
     "prettyjson": "^1.2.5",

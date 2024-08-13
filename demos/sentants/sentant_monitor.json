@@ -1,0 +1,26 @@
+{
+    "sentant": 
+    { 
+        "name": "monitor", 
+        "automations": [
+            { 
+                "name": "Monitor", 
+                "transitions": [ 
+                    { 
+                        "event": "__internal", 
+                        "actions": [ 
+                            { 
+                                "command": "signal", 
+                                "parameters": 
+                                { 
+                                    "public": true, 
+                                    "event": "internal" 
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

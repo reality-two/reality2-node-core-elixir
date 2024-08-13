@@ -13,6 +13,7 @@
     import SentantCard from './lib/SentantCard.svelte';
     import SentantCards from './lib/SentantCards.svelte';
     import Login from './lib/Login.svelte';
+    import Construct from './lib/Construct.svelte';
     import Map from './lib/Map.svelte';
    
     import { getQueryStringVal } from './lib/Querystring.svelte';
@@ -61,6 +62,7 @@
     $: view_query = getQueryStringVal("view");
     $: mr_query = getQueryStringVal("mr");
     $: variables_query = getQueryStringVal("variables");
+    $: construct_query = getQueryStringVal("construct");
     // -------------------------------------------------------------------------------------------------
 
 
@@ -264,16 +266,16 @@
                     resolve({"state": "error", "data": []})
                 })
             }
-            else if ((map_query != null) || (view_query != null) || (mr_query != null)){
+            else if ((map_query != null) || (view_query != null) || (mr_query != null) || (construct_query != null)) {
                 set_state = "loading";
                 r2_node.sentantAll({}, "name id description events { event parameters } signals")
                 .then((data) => {
                     let result = R2.JSONPath(data, "data.sentantAll")
                     if (result == null) {
-                        resolve({"state": ((map_query != null)?"map":(mr_query != null)?"mr":"view"), "data": []})
+                        resolve({"state": ((construct_query != null)?"construct":(map_query != null)?"map":(mr_query != null)?"mr":"view"), "data": []})
                     }
                     else {
-                        resolve({"state": ((map_query != null)?"map":(mr_query != null)?"mr":"view"), "data": result})
+                        resolve({"state": ((construct_query != null)?"construct":(map_query != null)?"map":(mr_query != null)?"mr":"view"), "data": result})
                     }
                 })
                 .catch((_error) => {
@@ -436,11 +438,16 @@ Layout
                             <Icon ui map outline/>
                             Map
                         </Item>
-                        <Item value="mr" on:click={change_state}>
+                        <Item value="construct" on:click={change_state}>
+                            &nbsp;&nbsp;
+                            <Icon ui hammer/>
+                            Constructor 
+                        </Item>
+                        <!-- <Item value="mr" on:click={change_state}>
                             &nbsp;&nbsp;
                             <Icon ui box/>
                             Mixed Reality
-                        </Item>
+                        </Item> -->
 
                         <Divider ui fitted/><Divider ui fitted/>
                         <Header ui>
@@ -489,7 +496,7 @@ Layout
                             Swarm
                         </Item>
 
-                        <Divider ui fitted/><Divider ui fitted/>
+                        <!-- <Divider ui fitted/><Divider ui fitted/>
                         <Header ui>
                             Multi
                         </Header>
@@ -498,7 +505,7 @@ Layout
                             <Label ui>1</Label>
                             <Icon database/>
                             Data
-                            <!-- <Menu ui>
+                            <Menu ui>
                                 <Table ui>
                                     <Table_Head>
                                         <Table_Row>
@@ -515,7 +522,7 @@ Layout
                                         {/each}
                                     </Table_Body>
                                 </Table>
-                            </Menu> -->
+                            </Menu>
                         </Item>
                         <Divider ui horizontal tiny>
                             then
@@ -525,7 +532,7 @@ Layout
                             <Label ui>2</Label>
                             <Icon puzzle piece/>
                             Pattern
-                        </Item>
+                        </Item> -->
                     </Menu>
                 </Dropdown>
             </Menu>
@@ -559,6 +566,10 @@ Layout
             {:else if state == "mr"}
             <!--------------------------------------------------------------------------------------------->
                 <Text ui large>Coming Soon...</Text>
+            <!--------------------------------------------------------------------------------------------->
+            {:else if state == "construct"}
+            <!--------------------------------------------------------------------------------------------->
+                <Construct {r2_node} {sentantData} />
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "id"}
             <!--------------------------------------------------------------------------------------------->

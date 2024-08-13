@@ -1,0 +1,58 @@
+sentant:
+  name: Test Backup
+  description: Test data storage and retrieval from the database
+  keys:
+    encryption_key: __encryption_key__
+    decryption_key: __decryption_key__
+
+  automations:
+    - name: Database Storage
+      description: Database Operations
+      transitions:
+        - public: true
+          event: "Back up Data"
+          parameters:
+            to_store: "string"
+            
+          actions:
+            - command: set
+              parameters:
+                key: "test"
+                value: "__to_store__"
+
+            - command: set
+              parameters:
+                key: "to_store"
+
+            - plugin: ai.reality2.backup
+              command: store
+
+            - command: debug
+
+            - command: signal
+              parameters:
+                event: "stored"
+                public: true
+
+        - public: true
+          event: "Retrieve Data"
+          actions:
+            - plugin: ai.reality2.backup
+              command: retrieve
+
+            - command: signal
+              parameters:
+                event: "retrieved"
+                public: true
+
+        - public: true
+          event: "Delete Data"
+          actions:
+            - plugin: ai.reality2.backup
+              command: delete
+
+            - command: signal
+              parameters:
+                event: "deleted"
+                public: true
+ 

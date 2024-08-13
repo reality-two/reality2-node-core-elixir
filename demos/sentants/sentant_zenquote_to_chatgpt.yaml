@@ -1,0 +1,115 @@
+sentant:
+  name: Zen ChatGPT
+  description: Get a quote for the day explained by ChatGPT.
+
+  # ----------------------------------------------------------------------------------------------------
+  # Plugins (A list, so begin with a dash)
+  # ----------------------------------------------------------------------------------------------------
+  plugins:
+    # --------------------------------------------------------------------------------------------------
+    # Plugin: com.openai.api
+    # --------------------------------------------------------------------------------------------------
+    - name: com.openai.api # This is the name of the plugin, used in the Automation below
+      url: https://api.openai.com/v1/chat/completions # This is the URL to the API endpoint
+      method: POST # This is the HTTP method to use
+
+      # These are the headers to send (see ChatGPT API documentation)
+      headers:
+        "Content-Type": "application/json"
+        # This is a secret, so it is not shown here (replace before passing to Reality2)
+        "Authorization": "Bearer __openai_api_key__"
+
+      # This is the body to send (see ChatGPT API documentation).  Note the __message__ placeholder.
+      body:
+        model: "gpt-3.5-turbo-1106"
+        messages:
+          - role: "system"
+            content: "You are a helpful assistant."
+          - role: "user"
+            content: __question__
+
+      # How to process the output from the API.  The value is a simplified JSON path expression.
+      output:
+        key: answer
+        value: "choices.0.message.content"
+        event: chatgpt_response
+    # --------------------------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------------------------
+    # Plugin: io.zenquotes.api
+    # --------------------------------------------------------------------------------------------------
+    - name: io.zenquotes.api
+      url: https://zenquotes.io/api/random
+      method: GET
+      headers:
+        "Content-Type": "application/json"
+      output:
+        key: zenquote
+        value: "0.q"
+        event: chatgpt
+    # --------------------------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+
+
+
+  # ----------------------------------------------------------------------------------------------------
+  # Automations (A list, so begin with a dash)
+  # ----------------------------------------------------------------------------------------------------
+  automations:
+    # --------------------------------------------------------------------------------------------------
+    # Automation: Zen Quote
+    # --------------------------------------------------------------------------------------------------
+    - name: Zen Quote
+      description: Get quote from zenquote, then pass it to chatgpt for explanation.
+      transitions:
+        # ----------------------------------------------------------------------------------------------
+        # Get a zenquote
+        # ----------------------------------------------------------------------------------------------
+        - event: "Get Zenquote"
+          public: true
+          actions:
+            - plugin: io.zenquotes.api
+              command: send
+        # ----------------------------------------------------------------------------------------------
+
+        # ----------------------------------------------------------------------------------------------
+        # Take the output from the zenquote plugin and send it to chatgpt
+        # ----------------------------------------------------------------------------------------------
+        - event: chatgpt
+          actions:
+            - command: signal
+              public: true
+              parameters:
+                event: "Zenquote"
+
+            - command: set
+              parameters:
+                key: question
+                value: "what is the meaning of: __zenquote__?"
+
+            - command: set
+              parameters:
+                key: zenquote
+
+            - plugin: com.openai.api
+              command: send
+        # ----------------------------------------------------------------------------------------------
+
+        # ----------------------------------------------------------------------------------------------
+        # Deal with the answer from chatgpt and illustrate how to use the output.
+        # ----------------------------------------------------------------------------------------------
+        - event: chatgpt_response
+          actions:
+            - command: set
+              parameters:
+                key: question
+
+            - command: signal
+              public: true
+              parameters:
+                event: "Explanation"
+        # ----------------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------------------------------
+ 
