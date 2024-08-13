@@ -43,6 +43,23 @@
         "helpUrl": "http://www.w3schools.com/jsref/jsref_length_string.asp"
     }]);
 
+    Blockly.defineBlocksWithJsonArray([{
+        "type": "string_length",
+        "message0": 'length of %1',
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "VALUE",
+                "check": "String"
+            }
+        ],
+        "output": "Number",
+        "colour": 160,
+        "tooltip": "Returns number of letters in the provided text.",
+        "helpUrl": "http://www.w3schools.com/jsref/jsref_length_string.asp"
+    }]);
+
+
 
     const toolbox = {
         // There are two kinds of toolboxes. The simpler one is a flyout toolbox.
@@ -56,6 +73,10 @@
             {
                 kind: 'block',
                 type: 'controls_whileUntil'
+            },
+            {
+                kind: 'block',
+                type: 'string_length'
             }
             // You can add more blocks to this array.
         ]
