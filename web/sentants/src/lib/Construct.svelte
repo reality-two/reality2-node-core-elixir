@@ -44,8 +44,8 @@
     }]);
 
     Blockly.defineBlocksWithJsonArray([{
-        "type": "string_length",
-        "message0": 'length of %1',
+        "type": "reality2_sentant",
+        "message0": 'Reality2 Sentant %1',
         "args0": [
             {
                 "type": "input_value",
@@ -53,9 +53,9 @@
                 "check": "String"
             }
         ],
-        "output": "Number",
+        "output": "String",
         "colour": 160,
-        "tooltip": "Returns number of letters in the provided text.",
+        "tooltip": "A Sentant container for you to fill in.",
         "helpUrl": "http://www.w3schools.com/jsref/jsref_length_string.asp"
     }]);
 
@@ -76,7 +76,7 @@
             },
             {
                 kind: 'block',
-                type: 'string_length'
+                type: 'reality2_sentant'
             }
             // You can add more blocks to this array.
         ]
