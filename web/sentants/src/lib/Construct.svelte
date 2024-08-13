@@ -28,35 +28,32 @@
     let height = "800px";
 
     Blockly.defineBlocksWithJsonArray([{
-        "type": "string_length",
-        "message0": 'length of %1',
-        "args0": [
-            {
-                "type": "input_value",
-                "name": "VALUE",
-                "check": "String"
-            }
-        ],
-        "output": "Number",
-        "colour": 160,
-        "tooltip": "Returns number of letters in the provided text.",
-        "helpUrl": "http://www.w3schools.com/jsref/jsref_length_string.asp"
-    }]);
-
-    Blockly.defineBlocksWithJsonArray([{
         "type": "reality2_sentant",
-        "message0": 'Reality2 Sentant %1',
+        "message0": 'Name %1',
         "args0": [
-            {
-                "type": "input_value",
-                "name": "VALUE",
-                "check": "String"
-            }
+            {"type": "input_statement", "name": "name"}
         ],
-        "output": "String",
-        "colour": 160,
-        "tooltip": "A Sentant container for you to fill in.",
-        "helpUrl": "http://www.w3schools.com/jsref/jsref_length_string.asp"
+        "message1": 'Description %1',
+        "args1": [
+            {"type": "input_statement", "name": "description"}
+        ],
+        "message2": 'Keys %1',
+        "args2": [
+            {"type": "input_statement", "name": "keys"}
+        ],
+        "message3": 'Plugins %1',
+        "args3": [
+            {"type": "input_statement", "name": "plugins"}
+        ],
+        "message4": 'Automations %1',
+        "args4": [
+            {"type": "input_statement", "name": "automations"}
+        ],
+
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 120
+
     }]);
 
 
@@ -66,14 +63,6 @@
         kind: 'flyoutToolbox',
         // The contents is the blocks and other items that exist in your toolbox.
         contents: [
-            {
-                kind: 'block',
-                type: 'controls_if'
-            },
-            {
-                kind: 'block',
-                type: 'controls_whileUntil'
-            },
             {
                 kind: 'block',
                 type: 'reality2_sentant'
