@@ -29,29 +29,30 @@
 
     Blockly.defineBlocksWithJsonArray([{
         "type": "reality2_sentant",
-        "message0": 'Name %1',
+        "message0": 'name %1',
         "args0": [
-            {"type": "input_statement", "name": "name"}
+            {"type": "field_input", "name": "name", "check": "String"}
         ],
-        "message1": 'Description %1',
+        "message1": 'description %1',
         "args1": [
-            {"type": "input_statement", "name": "description"}
+            {"type": "field_input", "name": "description", "check": "String"}            
         ],
-        "message2": 'Keys %1',
+        "message2": 'keys %1',
         "args2": [
             {"type": "input_statement", "name": "keys"}
         ],
-        "message3": 'Plugins %1',
+        "message3": 'plugins %1',
         "args3": [
             {"type": "input_statement", "name": "plugins"}
         ],
-        "message4": 'Automations %1',
+        "message4": 'automations %1',
         "args4": [
             {"type": "input_statement", "name": "automations"}
         ],
 
-        "previousStatement": null,
-        "nextStatement": null,
+
+        // "previousStatement": null,
+        // "nextStatement": null,
         "colour": 120
 
     }]);
