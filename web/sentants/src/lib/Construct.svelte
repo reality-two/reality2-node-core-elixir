@@ -31,11 +31,11 @@
         "type": "reality2_sentant",
         "message0": 'name %1',
         "args0": [
-            {"type": "field_input", "name": "name", "check": "String"}
+            {"type": "field_input", "name": "name", "check": "String", "text": "Sentant Name"}
         ],
         "message1": 'description %1',
         "args1": [
-            {"type": "field_input", "name": "description", "check": "String"}            
+            {"type": "field_input", "name": "description", "check": "String", "text": "A brief description"}            
         ],
         "message2": 'keys %1',
         "args2": [
