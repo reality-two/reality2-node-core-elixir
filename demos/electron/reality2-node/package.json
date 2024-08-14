@@ -1,0 +1,13 @@
+{
+  "name": "reality2-node",
+  "version": "0.1.0",
+  "description": "Reality2 Crossplatform Node Client",
+  "main": "index.js",
+  "repository": "https://reality2.ai",
+  "author": "Dr Roy C. Davies",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron ."
+  }
+}
+

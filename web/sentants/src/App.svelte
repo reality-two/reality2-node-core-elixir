@@ -2,7 +2,7 @@
   Simple WebApp for a Reality Node
 
   Author: Dr. Roy C. Davies
-  Created: April 2024
+  Created: August 2024
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
@@ -19,6 +19,9 @@
     import { getQueryStringVal } from './lib/Querystring.svelte';
 
     import { onMount } from 'svelte';
+
+    let default_port = 4005;
+    let use_default_url = false;
 
     // Set up the sentant loading
     var loadedData: any[] = [];
@@ -81,7 +84,7 @@
     };
 
     // GraphQL client setup 
-    let r2_node = new R2(window.location.hostname, Number(window.location.port));
+    let r2_node = new R2(use_default_url ? "localhost" : window.location.hostname, Number(use_default_url ? "4005" : window.location.port));
 
     onMount(() => {
 
@@ -109,7 +112,7 @@
             reader.readAsText(file,'UTF-8');
 
             // here we tell the reader what to do when it's done reading...
-            reader.onload = (readerEvent) => {
+            reader.onload = (readerEvent: any) => {
                 if (readerEvent !== null) {
                     var definition: any = readerEvent["target"]["result"];
 
@@ -140,7 +143,7 @@
             reader.readAsText(file,'UTF-8');
 
             // here we tell the reader what to do when it's done reading...
-            reader.onload = (readerEvent) => {
+            reader.onload = (readerEvent: any) => {
                 if (readerEvent !== null) {
                     var definition: any = readerEvent["target"]["result"];
 
@@ -171,7 +174,7 @@
             reader.readAsText(file,'UTF-8');
 
             // here we tell the reader what to do when it's done reading...
-            reader.onload = (readerEvent) => {
+            reader.onload = (readerEvent: any) => {
                 if (readerEvent !== null) {
                     variables = JSON.parse(readerEvent["target"]["result"]);  
                     console.log(variables);                
@@ -207,7 +210,7 @@
             const regex = new RegExp(key, 'g');
             // Replace all occurrences of the key with its corresponding value
             str = str.replace(regex, value);
-        }
+                }
         return str;
     }
 
@@ -331,7 +334,7 @@
     // -------------------------------------------------------------------------------------------------
 
     function change_state(e: any) {
-        window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value + "&variables=" + encodeURIComponent(JSON.stringify(variables))
+        window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?" + e.detail.value + "&variables=" + encodeURIComponent(JSON.stringify(variables))
     }
 
     // return true if there are no Sentants, or only the one called "monitor"
@@ -373,10 +376,10 @@
         {
             let elements = path.split("|");
             if (elements.length > 1) {
-                window.location.href = "https://"+ elements[0] + ":" + window.location.port + "/?name=" + elements[1]  + "&variables=" + encodeURIComponent(JSON.stringify(variables));
+                window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?name=" + elements[1]  + "&variables=" + encodeURIComponent(JSON.stringify(variables));
             }
             else {
-                window.location.href = "https://"+ elements[0] + ":" + window.location.port + "/?variables=" + encodeURIComponent(JSON.stringify(variables));
+                window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?variables=" + encodeURIComponent(JSON.stringify(variables));
             }
         }
     }
