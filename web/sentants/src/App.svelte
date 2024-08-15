@@ -334,7 +334,10 @@
     // -------------------------------------------------------------------------------------------------
 
     function change_state(e: any) {
-        window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?" + e.detail.value + "&variables=" + encodeURIComponent(JSON.stringify(variables))
+        let hostname = use_default_url ? "localhost" : window.location.hostname;
+        
+        window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value;
+        // window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?" + e.detail.value + "&variables=" + encodeURIComponent(JSON.stringify(variables))
     }
 
     // return true if there are no Sentants, or only the one called "monitor"

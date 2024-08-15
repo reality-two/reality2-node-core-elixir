@@ -120,7 +120,7 @@
                 </Content>
             {/if}
             <Content extra>
-                <Button ui red fluid on:click={unload_sentant}>
+                <Button ui orange fluid basic on:click={unload_sentant}>
                     Unload
                 </Button>
             </Content>
