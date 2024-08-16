@@ -31,6 +31,7 @@
     "svelte": "^4.2.18",
     "svelte-apollo": "^0.5.0",
     "svelte-fomantic-ui": "^0.3.5",
+    "svelte-json-tree": "^2.2.0",
     "svelte-qrcode": "^1.0.0",
     "three": "^0.161.0"
   }

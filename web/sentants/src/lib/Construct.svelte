@@ -15,21 +15,23 @@
     // Import the default blocks.
     import * as libraryBlocks from "blockly/blocks";
     // Import a generator.
-    import {javascriptGenerator} from "blockly/javascript";
+    import {javascriptGenerator, Order} from "blockly/javascript";
     // Import a message file.
     import * as En from "blockly/msg/en";
 
     import { onMount } from "svelte";
     import { onDestroy } from "svelte";
 
+    import JSONTree from 'svelte-json-tree';
+
     import R2 from "./reality2";
 
-    import reality2_sentant from "./reality2_sentant.json";
+    import reality2_sentant from "./reality2_sentant";
     import reality2_key_value from "./reality2_key_value.json";
-    import reality2_encrypt_decrypt_keys from "./reality2_encrypt_decrypt_keys.json";
-    import reality2_get_plugin from "./reality2_get_plugin.json";
+    import reality2_encrypt_decrypt_keys from "./reality2_encrypt_decrypt_keys";
+    import reality2_get_plugin from "./reality2_get_plugin";
     import reality2_post_plugin from "./reality2_post_plugin.json";
-    import reality2_plugin_header from "./reality2_plugin_header.json";
+    import reality2_plugin_header from "./reality2_plugin_header";
     import toolbox from "./reality2_blockly_toolbox.json";
 
 
@@ -37,23 +39,23 @@
     export let sentantData: any[]|any = [];
     export let variables = {};
 
-    $: height = "800px";
+    $: height = "400px";
     let workspace: any;
     $: code = "";
 
     let blockly_definition = [
-        reality2_sentant,
+        reality2_sentant.shape,
         reality2_key_value,
-        reality2_encrypt_decrypt_keys,
-        reality2_get_plugin,
+        reality2_encrypt_decrypt_keys.shape,
+        reality2_get_plugin.shape,
         reality2_post_plugin,
-        reality2_plugin_header
+        reality2_plugin_header.shape
     ];
 
 
 
     function updateHeight() {
-        height = `${window.innerHeight - 120}px`;
+        height = `${(window.innerHeight - 120)/2}px`;
     }
 
 
@@ -67,38 +69,19 @@
             toolbox: toolbox
         });
 
-        javascriptGenerator.forBlock['reality2_sentant'] = (block, generator) =>
-        {
-            const name = block.getFieldValue('name');
-            const description = block.getFieldValue('description');
-            const keys = block.getFieldValue('keys');
-
-            const keys_json = JSON.parse(keys);
-            console.log(keys, keys_json);
-
-            return JSON.stringify({"sentant":{"name":name, "description": description, "keys": keys_json}}, null, "\t")
-        }
-
-        javascriptGenerator.forBlock['reality2_encrypt_decrypt_keys'] = (block, generator) =>
-        {
-            const encryption_key = block.getFieldValue('encryption_key');
-            const decryption_key = block.getFieldValue('decryption_key');
-
-            console.log("HERE",encryption_key);
-
-            return JSON.stringify({"keys":{"__encryption_key__": encryption_key, "__decryption_key__": decryption_key}})
-        }
-
-
         // Add resize event listener
         window.addEventListener("resize", updateHeight);
 
+        // Update the height for the first time
         updateHeight();
 
-        setTimeout(() => {
-            Blockly.svgResize(workspace);
-        }, 0);
-        
+        // Update the Blockly workspace
+        setTimeout(() => { Blockly.svgResize(workspace); }, 0);
+
+        javascriptGenerator.forBlock['reality2_sentant'] = reality2_sentant.process;
+        javascriptGenerator.forBlock['reality2_encrypt_decrypt_keys'] = reality2_encrypt_decrypt_keys.process;
+        javascriptGenerator.forBlock['reality2_get_plugin'] = reality2_get_plugin.process;
+        javascriptGenerator.forBlock['reality2_plugin_header'] = reality2_plugin_header.process;        
     });
 
     onDestroy(() => { 
@@ -107,7 +90,9 @@
 
 
 </script>
-<Button ui on:click={()=>{code = javascriptGenerator.workspaceToCode(workspace)}}>Generate</Button>
-<Text ui>{code}</Text>
-<div id="blocklyDiv" style="height: {height}; width: 100%;"></div>
+<Button ui on:click={()=>{code = JSON.parse(javascriptGenerator.workspaceToCode(workspace))}}>Generate</Button>
+<div id="blocklyDiv" style="height: {height}; width: 100%; --json-tree-font-size: 16px;"></div>
+<div style="height: {height}; width: 100%; text-align: left">
+    <JSONTree value={code} />
+</div>
 
