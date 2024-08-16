@@ -7,6 +7,9 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
 
+    import {Card, Content, Header, Image, Button, Text, Input, Link, Popup} from "svelte-fomantic-ui";
+
+
     // Import Blockly core.
     import * as Blockly from "blockly/core";
     // Import the default blocks.
@@ -36,6 +39,7 @@
 
     $: height = "800px";
     let workspace: any;
+    $: code = "";
 
     let blockly_definition = [
         reality2_sentant,
@@ -46,7 +50,6 @@
         reality2_plugin_header
     ];
 
-    Blockly.defineBlocksWithJsonArray(blockly_definition);
 
 
     function updateHeight() {
@@ -56,12 +59,36 @@
 
     onMount(() => {
         Blockly.setLocale(En);
+        Blockly.defineBlocksWithJsonArray(blockly_definition);
 
         // Passes the injection div.
         workspace = Blockly.inject( "blocklyDiv", 
         {
             toolbox: toolbox
         });
+
+        javascriptGenerator.forBlock['reality2_sentant'] = (block, generator) =>
+        {
+            const name = block.getFieldValue('name');
+            const description = block.getFieldValue('description');
+            const keys = block.getFieldValue('keys');
+
+            const keys_json = JSON.parse(keys);
+            console.log(keys, keys_json);
+
+            return JSON.stringify({"sentant":{"name":name, "description": description, "keys": keys_json}}, null, "\t")
+        }
+
+        javascriptGenerator.forBlock['reality2_encrypt_decrypt_keys'] = (block, generator) =>
+        {
+            const encryption_key = block.getFieldValue('encryption_key');
+            const decryption_key = block.getFieldValue('decryption_key');
+
+            console.log("HERE",encryption_key);
+
+            return JSON.stringify({"keys":{"__encryption_key__": encryption_key, "__decryption_key__": decryption_key}})
+        }
+
 
         // Add resize event listener
         window.addEventListener("resize", updateHeight);
@@ -80,4 +107,7 @@
 
 
 </script>
+<Button ui on:click={()=>{code = javascriptGenerator.workspaceToCode(workspace)}}>Generate</Button>
+<Text ui>{code}</Text>
 <div id="blocklyDiv" style="height: {height}; width: 100%;"></div>
+
