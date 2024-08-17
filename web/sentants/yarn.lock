@@ -28,6 +28,16 @@
     tslib "^2.3.0"
     zen-observable-ts "^1.2.5"
 
+"@blockly/theme-dark@^7.0.5":
+  version "7.0.5"
+  resolved "https://registry.yarnpkg.com/@blockly/theme-dark/-/theme-dark-7.0.5.tgz#93fcfd159ae869b6b534669f565af611fc4b2b9b"
+  integrity sha512-TUS7X+UM5AvTe4Z1mtb371psViAeZSSmTzWuFrdNolX2i9P6XbNA9iKFDF0MObO307pOrtXodmsXpvbtgLeCUw==
+
+"@blockly/theme-modern@^6.0.5":
+  version "6.0.5"
+  resolved "https://registry.yarnpkg.com/@blockly/theme-modern/-/theme-modern-6.0.5.tgz#4ab15d22baf2c4a307ec655e0711321582fa2b87"
+  integrity sha512-IoibTj/ZkraZ4RbEb+9AQOEZv1a0pR/W6KptSgADR7ZpvYfhEGv7Ce7snXSP7aQpwCcu/T3IRxfi8wBmWgQ+jQ==
+
 "@esbuild/android-arm64@0.19.8":
   version "0.19.8"
   resolved "https://registry.yarnpkg.com/@esbuild/android-arm64/-/android-arm64-0.19.8.tgz#fb7130103835b6d43ea499c3f30cfb2b2ed58456"

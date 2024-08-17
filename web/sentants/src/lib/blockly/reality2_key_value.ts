@@ -11,19 +11,19 @@ import { splitConcatenatedJSON } from "./blockly_common";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_key_value",
-	"message0":"%1 = %2",
+	"message0":"key %1 = value %2",
 	"args0":[
 		{
 			"type":"field_input",
-			"name":"name",
+			"name":"key",
 			"check":"String",
-			"text":"name"
+			"text":""
 		},
 		{
 			"type":"field_input",
-			"name":"data",
+			"name":"value",
 			"check":"String",
-			"text":"data"
+			"text":""
 		}
 	],
 	"previousStatement":null,
@@ -39,8 +39,8 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const key = block.getFieldValue('name');
-    const value = block.getFieldValue('data');
+    const key = block.getFieldValue('key');
+    const value = block.getFieldValue('value');
 
     return JSON.stringify({"key": key, "value": value})
 }

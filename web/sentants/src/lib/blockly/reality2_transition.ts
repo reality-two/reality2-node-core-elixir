@@ -8,50 +8,45 @@ import { splitConcatenatedJSON } from "./blockly_common";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-    "type":"reality2_sentant",
-    "message0":"name %1",
+    "type":"reality2_transition",
+    "message0":"from %1",
     "args0":[
         {
             "type":"field_input",
-            "name":"name",
+            "name":"from",
             "check":"String",
             "text":""
         }
     ],
-    "message1":"description %1",
+    "message1":"event %1",
     "args1":[
         {
             "type":"field_input",
-            "name":"description",
+            "name":"event",
             "check":"String",
             "text":""
         }
     ],
-    "message2":"keys %1",
+    "message2":"transitions %1",
     "args2":[
         {
-            "type":"input_statement",
-            "name":"keys",
-            "check": "reality2_encrypt_decrypt_keys"
+            "type":"field_input",
+            "name":"to",
+            "check": "String",
+            "text": ""
         }
     ],
-    "message3":"plugins %1",
+    "message3":"actions %1",
     "args3":[
         {
             "type":"input_statement",
-            "name":"plugins",
-            "check": ["reality2_get_plugin", "reality2_post_plugin"]
+            "name":"actions",
+            "check": "reality2_action"
         }
     ],
-    "message4":"automations %1",
-    "args4":[
-        {
-            "type":"input_statement",
-            "name":"automations",
-            "check": "reality2_automation"
-        }
-    ],
-    "colour": 50
+    "previousStatement":null,
+	"nextStatement":null,
+    "colour": 200
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -62,28 +57,18 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    var sentant: any = {};
+    var transition: any = {};
 
-    sentant["name"] = block.getFieldValue('name');
-    sentant["description"] = block.getFieldValue('description');
+    transition["from"] = block.getFieldValue('from');
+    transition["event"] = block.getFieldValue('event');
+    transition["to"] = block.getFieldValue('to');
 
-    const keys = generator.statementToCode(block, "keys");
-    if (keys != "") {
-        var multiple_keys: any = splitConcatenatedJSON(keys);
-        sentant["keys"] = multiple_keys[0];
-    }
+    // const transitions = generator.statementToCode(block, "transitions");
+    // if (transitions != "") {
+    //     transition["transitions"] = splitConcatenatedJSON(transitions);
+    // }
 
-    const plugins = generator.statementToCode(block, "plugins");
-    if (plugins != "") {
-        sentant["plugins"] = splitConcatenatedJSON(plugins);
-    }
-
-    const automations = generator.statementToCode(block, "automations");
-    if (automations != "") {
-        sentant["automations"] = splitConcatenatedJSON(automations);
-    }
-
-    return JSON.stringify(sentant);
+    return JSON.stringify(transition);
 }
 // ----------------------------------------------------------------------------------------------------
 

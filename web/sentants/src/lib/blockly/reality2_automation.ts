@@ -8,7 +8,7 @@ import { splitConcatenatedJSON } from "./blockly_common";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-    "type":"reality2_sentant",
+    "type":"reality2_automation",
     "message0":"name %1",
     "args0":[
         {
@@ -27,31 +27,17 @@ const shape = {
             "text":""
         }
     ],
-    "message2":"keys %1",
+    "message2":"transitions %1",
     "args2":[
         {
             "type":"input_statement",
-            "name":"keys",
-            "check": "reality2_encrypt_decrypt_keys"
+            "name":"transitions",
+            "check": "reality2_transition"
         }
     ],
-    "message3":"plugins %1",
-    "args3":[
-        {
-            "type":"input_statement",
-            "name":"plugins",
-            "check": ["reality2_get_plugin", "reality2_post_plugin"]
-        }
-    ],
-    "message4":"automations %1",
-    "args4":[
-        {
-            "type":"input_statement",
-            "name":"automations",
-            "check": "reality2_automation"
-        }
-    ],
-    "colour": 50
+    "previousStatement":null,
+	"nextStatement":null,
+    "colour": 200
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -62,28 +48,17 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    var sentant: any = {};
+    var automation: any = {};
 
-    sentant["name"] = block.getFieldValue('name');
-    sentant["description"] = block.getFieldValue('description');
+    automation["name"] = block.getFieldValue('name');
+    automation["description"] = block.getFieldValue('description');
 
-    const keys = generator.statementToCode(block, "keys");
-    if (keys != "") {
-        var multiple_keys: any = splitConcatenatedJSON(keys);
-        sentant["keys"] = multiple_keys[0];
+    const transitions = generator.statementToCode(block, "transitions");
+    if (transitions != "") {
+        automation["transitions"] = splitConcatenatedJSON(transitions);
     }
 
-    const plugins = generator.statementToCode(block, "plugins");
-    if (plugins != "") {
-        sentant["plugins"] = splitConcatenatedJSON(plugins);
-    }
-
-    const automations = generator.statementToCode(block, "automations");
-    if (automations != "") {
-        sentant["automations"] = splitConcatenatedJSON(automations);
-    }
-
-    return JSON.stringify(sentant);
+    return JSON.stringify(automation);
 }
 // ----------------------------------------------------------------------------------------------------
 
