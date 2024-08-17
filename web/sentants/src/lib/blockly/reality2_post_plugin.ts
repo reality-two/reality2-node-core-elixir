@@ -9,60 +9,60 @@ import { splitConcatenatedJSON } from "./blockly_common";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_post_plugin",
-	"message0":"name: %1",
+	"message0":"name %1",
 	"args0":[
 		{
 			"type":"field_input",
 			"name":"name",
 			"check":"String",
-			"text":"name",
+			"text":"",
 			"tooltip":"Plugin name in reverse DNS format eg: com.openai.api"
 		}
 	],
-	"message1":"description: %1",
+	"message1":"description %1",
 	"args1":[
 		{
 			"type":"field_input",
-			"name":"url",
+			"name":"description",
 			"check":"String",
-			"text":"url",
-			"tooltip":"Full URL including http:// or https://"
+			"text":"",
+			"tooltip":"A short decription of the plugin"
 		}
 	],
-	"message2":"headers: %1",
+	"message2":"headers %1",
 	"args2":[
 		{
 			"type":"input_statement",
 			"name":"headers"
 		}
 	],
-	"message3":"body: %1",
+	"message3":"body %1",
 	"args3":[
 		{
 			"type":"input_statement",
 			"name":"body"
 		}
 	],
-	"message4":"output: send %1 = %2 with event %3",
+	"message4":"output send %1 = %2 with event %3",
 	"args4":[
 		{
 			"type":"field_input",
 			"name":"output_key",
 			"check":"String",
-			"text":"key"
+			"text":""
 		},
 		{
 			"type":"field_input",
 			"name":"output_value",
 			"check":"String",
-			"text":"value",
+			"text":"",
 			"tooltip":"A JSONPath, for example choices.0.message.content"
 		},
 		{
 			"type":"field_input",
 			"name":"output_event",
 			"check":"String",
-			"text":"event"
+			"text":""
 		}
 	],
 	"previousStatement":null,

@@ -5,7 +5,7 @@
 			"kind":"category",
             "colour": 50,
 			"name":"Sentant",
-            "expanded": "true",
+            "expanded":true,
 			"contents":[
 				{
 					"kind":"block",
@@ -17,7 +17,7 @@
 			"kind":"category",
             "colour": 100,
 			"name":"Keys",
-            "expanded": "true",
+            "expanded":true,
 			"contents":[
 				{
 					"kind":"block",
@@ -33,7 +33,7 @@
 			"kind":"category",
             "colour": 150,
 			"name":"Plugins",
-            "expanded": "true",
+            "expanded":true,
 			"contents":[
 				{
 					"kind":"block",
@@ -43,19 +43,34 @@
 					"kind":"block",
 					"type":"reality2_post_plugin"
 				},
-				{
-					"kind":"block",
-					"type":"reality2_plugin_header"
-				}
+                {
+                    "kind":"category",
+                    "colour": 150,
+                    "name":"...",
+                    "expanded":true,
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_plugin_header"
+                        }
+                    ]
+                }
 			]
 		},
         {
 			"kind":"category",
             "colour": 200,
 			"name":"Automations",
-            "expanded": "true",
+            "expanded":true,
 			"contents":[
-
+				{
+					"kind":"block",
+					"type":"reality2_automation"
+				},
+                {
+					"kind":"block",
+					"type":"reality2_transition"
+				}
 			]            
         }
 	]

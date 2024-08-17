@@ -11,13 +11,15 @@
 
 
     // Import Blockly core.
-    import * as Blockly from "blockly/core";
+    import * as Blockly from "blockly";
     // Import the default blocks.
     import * as libraryBlocks from "blockly/blocks";
     // Import a generator.
     import {javascriptGenerator, Order} from "blockly/javascript";
     // Import a message file.
     import * as En from "blockly/msg/en";
+
+    import DarkTheme from '@blockly/theme-dark/package.json';
 
     import { onMount } from "svelte";
     import { onDestroy } from "svelte";
@@ -32,6 +34,8 @@
     import reality2_get_plugin from "./blockly/reality2_get_plugin";
     import reality2_post_plugin from "./blockly/reality2_post_plugin";
     import reality2_plugin_header from "./blockly/reality2_plugin_header";
+    import reality2_automation from "./blockly/reality2_automation";
+    import reality2_transition from "./blockly/reality2_transition";
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
 
     export let r2_node: R2;
@@ -48,7 +52,9 @@
         reality2_encrypt_decrypt_keys.shape,
         reality2_get_plugin.shape,
         reality2_post_plugin.shape,
-        reality2_plugin_header.shape
+        reality2_plugin_header.shape,
+        reality2_automation.shape,
+        reality2_transition.shape
     ];
 
 
@@ -65,7 +71,8 @@
         // Passes the injection div.
         workspace = Blockly.inject( "blocklyDiv", 
         {
-            toolbox: toolbox
+            toolbox: toolbox,
+            theme: DarkTheme
         });
 
         // Add resize event listener
@@ -84,6 +91,8 @@
         javascriptGenerator.forBlock['reality2_post_plugin'] = reality2_post_plugin.process;
         javascriptGenerator.forBlock['reality2_plugin_header'] = reality2_plugin_header.process;   
         javascriptGenerator.forBlock['reality2_key_value'] = reality2_key_value.process;   
+        javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;   
+        javascriptGenerator.forBlock['reality2_transition'] = reality2_transition.process;   
         
     });
 

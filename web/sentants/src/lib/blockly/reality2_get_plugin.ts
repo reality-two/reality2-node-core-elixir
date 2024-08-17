@@ -15,7 +15,7 @@ const shape = {
 			"type":"field_input",
 			"name":"name",
 			"check":"String",
-			"text":"name",
+			"text":"",
 			"tooltip":"Plugin name in reverse DNS format eg: com.openai.api"
 		}
 	],
@@ -25,7 +25,7 @@ const shape = {
 			"type":"field_input",
 			"name":"description",
 			"check":"String",
-			"text":"description",
+			"text":"",
 			"tooltip":"A short decription of the plugin"
 		}
 	],
@@ -42,20 +42,20 @@ const shape = {
 			"type":"field_input",
 			"name":"output_key",
 			"check":"String",
-			"text":"key"
+			"text":""
 		},
 		{
 			"type":"field_input",
 			"name":"output_value",
 			"check":"String",
-			"text":"value",
+			"text":"",
 			"tooltip":"A JSONPath, for example choices.0.message.content"
 		},
 		{
 			"type":"field_input",
 			"name":"output_event",
 			"check":"String",
-			"text":"event"
+			"text":""
 		}
 	],
 	"previousStatement":null,

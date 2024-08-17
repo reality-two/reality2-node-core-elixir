@@ -9,19 +9,19 @@
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_plugin_header",
-	"message0":"%1 = %2",
+	"message0":"header %1 = %2",
 	"args0":[
 		{
 			"type":"field_input",
 			"name":"header",
 			"check":"String",
-			"text":"header"
+			"text":""
 		},
 		{
 			"type":"field_input",
 			"name":"data",
 			"check":"String",
-			"text":"data"
+			"text":""
 		}
 	],
 	"previousStatement":null,
