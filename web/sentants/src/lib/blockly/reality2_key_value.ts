@@ -1,32 +1,34 @@
+
+
 // ----------------------------------------------------------------------------------------------------
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-
+import { splitConcatenatedJSON } from "./blockly_common";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_plugin_header",
+	"type":"reality2_key_value",
 	"message0":"%1 = %2",
 	"args0":[
 		{
 			"type":"field_input",
-			"name":"key",
+			"name":"name",
 			"check":"String",
-			"text":"key"
+			"text":"name"
 		},
 		{
 			"type":"field_input",
-			"name":"value",
+			"name":"data",
 			"check":"String",
-			"text":"value"
+			"text":"data"
 		}
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-	"colour":100
+    "colour": 100
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -37,10 +39,10 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const key = block.getFieldValue('key');
-    const value = block.getFieldValue('value');
+    const key = block.getFieldValue('name');
+    const value = block.getFieldValue('data');
 
-    return ("{\"" + key + "\":\"" + value + "\"}")
+    return JSON.stringify({"key": key, "value": value})
 }
 // ----------------------------------------------------------------------------------------------------
 

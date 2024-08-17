@@ -3,7 +3,9 @@
 	"contents":[
 		{
 			"kind":"category",
+            "colour": 50,
 			"name":"Sentant",
+            "expanded": "true",
 			"contents":[
 				{
 					"kind":"block",
@@ -13,21 +15,25 @@
 		},
 		{
 			"kind":"category",
+            "colour": 100,
 			"name":"Keys",
+            "expanded": "true",
 			"contents":[
 				{
 					"kind":"block",
-					"type":"reality2_key_value"
-				},
-				{
-					"kind":"block",
 					"type":"reality2_encrypt_decrypt_keys"
+				},
+                {
+					"kind":"block",
+					"type":"reality2_key_value"
 				}
 			]
 		},
 		{
 			"kind":"category",
+            "colour": 150,
 			"name":"Plugins",
+            "expanded": "true",
 			"contents":[
 				{
 					"kind":"block",
@@ -42,6 +48,15 @@
 					"type":"reality2_plugin_header"
 				}
 			]
-		}
+		},
+        {
+			"kind":"category",
+            "colour": 200,
+			"name":"Automations",
+            "expanded": "true",
+			"contents":[
+
+			]            
+        }
 	]
 }
