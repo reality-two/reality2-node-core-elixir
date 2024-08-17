@@ -2,7 +2,7 @@
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-
+import { splitConcatenatedJSON } from "./blockly_common";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -31,24 +31,27 @@ const shape = {
     "args2":[
         {
             "type":"input_statement",
-            "name":"keys"
+            "name":"keys",
+            "check": "reality2_encrypt_decrypt_keys"
         }
     ],
     "message3":"plugins %1",
     "args3":[
         {
             "type":"input_statement",
-            "name":"plugins"
+            "name":"plugins",
+            "check": ["reality2_get_plugin", "reality2_post_plugin"]
         }
     ],
     "message4":"automations %1",
     "args4":[
         {
             "type":"input_statement",
-            "name":"automations"
+            "name":"automations",
+            "check": "reality2_automation"
         }
     ],
-    "colour":120
+    "colour": 50
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -66,23 +69,21 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const keys = generator.statementToCode(block, "keys");
     if (keys != "") {
-        var multiple_keys: any = splitConcatenatedJsonObjects(keys);
-        sentant["keys"] = JSON.parse(multiple_keys[0]);
+        var multiple_keys: any = splitConcatenatedJSON(keys);
+        sentant["keys"] = multiple_keys[0];
     }
 
     const plugins = generator.statementToCode(block, "plugins");
     if (plugins != "") {
-        var multiple_plugins: any = splitConcatenatedJsonObjects(plugins);
-        sentant["plugins"] = multiple_plugins.map((plugin: any) => JSON.parse(plugin))
+        sentant["plugins"] = splitConcatenatedJSON(plugins);
+    }
+
+    const automations = generator.statementToCode(block, "automations");
+    if (automations != "") {
+        sentant["automations"] = splitConcatenatedJSON(automations);
     }
 
     return JSON.stringify(sentant);
-}
-// ----------------------------------------------------------------------------------------------------
-function splitConcatenatedJsonObjects(concatenatedString: String): RegExpMatchArray|[]|[String]
-{
-    const matches = concatenatedString.match(/\{[^{}]*\}/g);
-    return (!matches ? [concatenatedString] : matches);
 }
 // ----------------------------------------------------------------------------------------------------
 

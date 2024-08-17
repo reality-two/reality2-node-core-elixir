@@ -8,21 +8,18 @@
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_encrypt_decrypt_keys",
-	"message0":"encryption key = %1",
+	"type":"reality2_plugin_header",
+	"message0":"%1 = %2",
 	"args0":[
 		{
 			"type":"field_input",
-			"name":"encryption_key",
+			"name":"header",
 			"check":"String",
-			"text":"data"
-		}
-	],
-	"message1":"decryption key = %1",
-	"args1":[
+			"text":"header"
+		},
 		{
 			"type":"field_input",
-			"name":"decryption_key",
+			"name":"data",
 			"check":"String",
 			"text":"data"
 		}
@@ -40,16 +37,10 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const encryption_key = block.getFieldValue('encryption_key');
-    const decryption_key = block.getFieldValue('decryption_key');
+    const header = block.getFieldValue('header');
+    const data = block.getFieldValue('data');
 
-    return JSON.stringify({"__encryption_key__": encryption_key, "__decryption_key__": decryption_key})
-}
-// ----------------------------------------------------------------------------------------------------
-function splitConcatenatedJsonObjects(concatenatedString: String): RegExpMatchArray|[]|[String]
-{
-    const matches = concatenatedString.match(/\{[^{}]*\}/g);
-    return (!matches ? [concatenatedString] : matches);
+    return ("{\"" + header + "\":\"" + data + "\"}")
 }
 // ----------------------------------------------------------------------------------------------------
 

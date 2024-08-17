@@ -2,13 +2,13 @@
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-
+import { splitConcatenatedJSON } from "./blockly_common";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_get_plugin",
+	"type":"reality2_post_plugin",
 	"message0":"name: %1",
 	"args0":[
 		{
@@ -23,10 +23,10 @@ const shape = {
 	"args1":[
 		{
 			"type":"field_input",
-			"name":"description",
+			"name":"url",
 			"check":"String",
-			"text":"description",
-			"tooltip":"A short decription of the plugin"
+			"text":"url",
+			"tooltip":"Full URL including http:// or https://"
 		}
 	],
 	"message2":"headers: %1",
@@ -36,8 +36,15 @@ const shape = {
 			"name":"headers"
 		}
 	],
-	"message3":"output: send %1 = %2 with event %3",
+	"message3":"body: %1",
 	"args3":[
+		{
+			"type":"input_statement",
+			"name":"body"
+		}
+	],
+	"message4":"output: send %1 = %2 with event %3",
+	"args4":[
 		{
 			"type":"field_input",
 			"name":"output_key",
@@ -77,22 +84,22 @@ function process(block: any, generator: any): string | [string, number] | null
     plugin["description"] = block.getFieldValue('description');
 
     const headers = generator.statementToCode(block, "headers");
-    console.log(headers);
     if (headers != "") {
-        var multiple_headers: any = splitConcatenatedJsonObjects(headers);
-        plugin["headers"] = multiple_headers.map((header: any) => JSON.parse(header))
+        plugin["headers"] = splitConcatenatedJSON(headers);
+    };
+
+    const body = generator.statementToCode(block, "body");
+    if (body != null) {
+        plugin["body"] = {};
     }
 
-    console.log(plugin);
-    console.log(JSON.stringify(plugin));
+    plugin["output"] = {
+        "key": block.getFieldValue('output_key'),
+        "value": block.getFieldValue('output_value'),
+        "event": block.getFieldValue('output_event')
+    };
 
     return JSON.stringify(plugin);
-}
-// ----------------------------------------------------------------------------------------------------
-function splitConcatenatedJsonObjects(concatenatedString: String): RegExpMatchArray|[]|[String]
-{
-    const matches = concatenatedString.match(/\{[^{}]*\}/g);
-    return (!matches ? [concatenatedString] : matches);
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -103,3 +110,5 @@ function splitConcatenatedJsonObjects(concatenatedString: String): RegExpMatchAr
 // ----------------------------------------------------------------------------------------------------
 export default {shape, process};
 // ----------------------------------------------------------------------------------------------------
+
+
