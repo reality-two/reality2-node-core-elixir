@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
 
-    import {Icon, Button, Segment, Divider} from "svelte-fomantic-ui";
+    import {Icon, Button, Segment, Buttons, Grid, Column} from "svelte-fomantic-ui";
 
 
     // Import Blockly core.
@@ -19,7 +19,9 @@
     // Import a message file.
     import * as En from "blockly/msg/en";
 
-    import DarkTheme from '@blockly/theme-dark/package.json';
+    import Theme from '@blockly/theme-dark';
+
+    import {Backpack} from '@blockly/workspace-backpack';
 
     import { onMount } from "svelte";
     import { onDestroy } from "svelte";
@@ -43,6 +45,9 @@
     export let variables = {};
 
     $: height = "400px";
+    $: fullHeight = "800px";
+    $: fullscreen = false;
+
     let workspace: any;
     $: code = "";
 
@@ -61,6 +66,7 @@
 
     function updateHeight() {
         height = `${(window.innerHeight - 140)/2}px`;
+        fullHeight = `${(window.innerHeight - 140)}px`;
     }
 
 
@@ -72,8 +78,11 @@
         workspace = Blockly.inject( "blocklyDiv", 
         {
             toolbox: toolbox,
-            theme: DarkTheme
+            theme: Theme
         });
+
+        const backpack = new Backpack(workspace);
+        backpack.init();
 
         // Add resize event listener
         window.addEventListener("resize", updateHeight);
@@ -102,13 +111,35 @@
 
 
 </script>
-<Segment ui attached id="blocklyDiv" style="height: {height}; width: 100%; --json-tree-font-size: 16px;"></Segment>
-<Button ui attached blue icon on:click={()=>{code = JSON.parse(javascriptGenerator.workspaceToCode(workspace))}}>
-    <Icon ui arrow down></Icon>
-    Generate
-    <Icon ui arrow down></Icon>
-</Button>
-<Segment ui attached style="height: {height}; width: 100%; text-align: left">
-    <JSONTree value={code} />
-</Segment>
+<Grid ui inverted>
+    <Column thirteen wide left attached>
+        <div id="blocklyDiv" style="height: {fullscreen?fullHeight:height}; width: 100%;"></div>
+        <Segment ui attached inverted style="height: {fullscreen?"0px":height}; width: 100%; text-align: left">
+            <div class="json">
+                <JSONTree value={code} />
+            </div>
+        </Segment>
+    </Column>
+    <Column three wide right attached>
+        <Buttons ui icon vertical fluid>
+            <Button ui huge basic on:click={()=>{code = JSON.parse(javascriptGenerator.workspaceToCode(workspace))}}>
+                <Icon ui code></Icon>&nbsp;
+                JSON
+            </Button>
+            <Button ui huge basic on:click={()=>{fullscreen = !fullscreen; updateHeight(); setTimeout(() => { Blockly.svgResize(workspace); }, 0);}}>
+                <Icon ui _={fullscreen?"compress":"expand"}></Icon>&nbsp;
+                {fullscreen?"Half Height":"Full Height"}
+            </Button>
+            <Button ui huge basic on:click={()=>{}}>
+                <Icon ui arrow down></Icon>&nbsp;
+                Load to Reality2
+            </Button>
+            <Button ui huge basic on:click={() => {const state = Blockly.serialization.workspaces.save(workspace); console.log(state);}}>
+                <Icon ui save></Icon>&nbsp;
+                Save
+            </Button>
+        </Buttons>
+    </Column>
+</Grid>
+
 

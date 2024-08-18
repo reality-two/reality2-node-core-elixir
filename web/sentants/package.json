@@ -22,6 +22,8 @@
     "@apollo/client": "^3.7.15",
     "@blockly/theme-dark": "^7.0.5",
     "@blockly/theme-modern": "^6.0.5",
+    "@blockly/workspace-backpack": "^6.0.7",
+    "@blockly/zoom-to-fit": "^6.0.7",
     "@threlte/core": "^7.1.0",
     "@threlte/xr": "^0.1.2",
     "@types/three": "^0.161.2",
