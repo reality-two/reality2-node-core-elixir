@@ -46,7 +46,7 @@
                 {
                     "kind":"category",
                     "colour": 150,
-                    "name":"...",
+                    "name":"header",
                     "expanded":true,
                     "contents":[
                         {
@@ -68,9 +68,29 @@
 					"type":"reality2_automation"
 				},
                 {
-					"kind":"block",
-					"type":"reality2_transition"
-				}
+                    "kind":"category",
+                    "colour": 250,
+                    "name":"Transitions",
+                    "expanded":true,
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_transition"
+                        },
+                        {
+                            "kind":"category",
+                            "colour": 300,
+                            "name":"Actions",
+                            "expanded":true,
+                            "contents":[
+                                {
+                                    "kind":"block",
+                                    "type":"reality2_action"
+                                }
+                            ]
+                        }
+                    ]
+                }
 			]            
         }
 	]

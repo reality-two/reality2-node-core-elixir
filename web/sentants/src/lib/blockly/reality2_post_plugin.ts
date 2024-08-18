@@ -19,14 +19,14 @@ const shape = {
 			"tooltip":"Plugin name in reverse DNS format eg: com.openai.api"
 		}
 	],
-	"message1":"description %1",
+	"message1":"url %1",
 	"args1":[
 		{
 			"type":"field_input",
-			"name":"description",
+			"name":"url",
 			"check":"String",
 			"text":"",
-			"tooltip":"A short decription of the plugin"
+			"tooltip":"The full URL of the API"
 		}
 	],
 	"message2":"headers %1",
@@ -81,7 +81,8 @@ function process(block: any, generator: any): string | [string, number] | null
     var plugin: any = {};
 
     plugin["name"] = block.getFieldValue('name');
-    plugin["description"] = block.getFieldValue('description');
+    plugin["url"] = block.getFieldValue('url');
+    plugin["method"] = "POST";
 
     const headers = generator.statementToCode(block, "headers");
     if (headers != "") {

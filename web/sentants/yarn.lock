@@ -38,6 +38,16 @@
   resolved "https://registry.yarnpkg.com/@blockly/theme-modern/-/theme-modern-6.0.5.tgz#4ab15d22baf2c4a307ec655e0711321582fa2b87"
   integrity sha512-IoibTj/ZkraZ4RbEb+9AQOEZv1a0pR/W6KptSgADR7ZpvYfhEGv7Ce7snXSP7aQpwCcu/T3IRxfi8wBmWgQ+jQ==
 
+"@blockly/workspace-backpack@^6.0.7":
+  version "6.0.7"
+  resolved "https://registry.yarnpkg.com/@blockly/workspace-backpack/-/workspace-backpack-6.0.7.tgz#4f1a69112ea7ce60f6e8d4d7c8d3bfa50ed571d2"
+  integrity sha512-+7cjyLHLlw8F+fAp/GHg0l+bKCwACSBSb/d3xZCm/yYOMNiTfkt4t+a+2KW/apnKlraplYeOQLjA1mGSILbePg==
+
+"@blockly/zoom-to-fit@^6.0.7":
+  version "6.0.7"
+  resolved "https://registry.yarnpkg.com/@blockly/zoom-to-fit/-/zoom-to-fit-6.0.7.tgz#634270fcdf04e7c2b62cd623611effcc939640d8"
+  integrity sha512-YEXYbDg3QPZSPwnVddF+9lHRGFhAiWfdakyioGeRReH64ulN1yIrs7PvCvqMSVyCLc7QQGyLePCqbsYm6Mc0hg==
+
 "@esbuild/android-arm64@0.19.8":
   version "0.19.8"
   resolved "https://registry.yarnpkg.com/@esbuild/android-arm64/-/android-arm64-0.19.8.tgz#fb7130103835b6d43ea499c3f30cfb2b2ed58456"
