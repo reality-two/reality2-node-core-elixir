@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
 
-    import {Icon, Button, Segment, Buttons, Grid, Column} from "svelte-fomantic-ui";
+    import {Icon, Button, Segment, Buttons, Grid, Column, Text} from "svelte-fomantic-ui";
 
 
     // Import Blockly core.
@@ -43,10 +43,13 @@
     export let r2_node: R2;
     export let sentantData: any[]|any = [];
     export let variables = {};
+    export let savedState: any; 
 
     $: height = "400px";
     $: fullHeight = "800px";
     $: fullscreen = false;
+    $: message = "";
+    $: stateMessage = savedState;
 
     let workspace: any;
     $: code = "";
@@ -70,6 +73,14 @@
     }
 
 
+    function beforeUnload() {
+        console.log("leaving");
+        savedState = Blockly.serialization.workspaces.save(workspace);
+
+        return '...';
+    }
+
+
     onMount(() => {
         Blockly.setLocale(En);
         Blockly.defineBlocksWithJsonArray(blockly_definition);
@@ -80,6 +91,7 @@
             toolbox: toolbox,
             theme: Theme
         });
+
 
         const backpack = new Backpack(workspace);
         backpack.init();
@@ -102,6 +114,33 @@
         javascriptGenerator.forBlock['reality2_key_value'] = reality2_key_value.process;   
         javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;   
         javascriptGenerator.forBlock['reality2_transition'] = reality2_transition.process;   
+
+        setTimeout(() => { 
+            try {
+                let savedState = {
+                    "blocks" : {
+                        "languageVersion": 0,
+                        "blocks" : [
+                            {
+                                "type":"reality2_sentant",
+                                "x": 100,
+                                "y": 100,
+                                "fields": {
+                                    "name":"hello",
+                                    "description":"world"
+                                }
+                            }
+                        ]
+                    }
+                }
+
+                console.log("LOADING");
+                Blockly.serialization.workspaces.load(savedState, workspace);
+            }
+            catch {
+
+            }
+        }, 2000);
         
     });
 
@@ -110,13 +149,45 @@
     });
 
 
+
+    function loadToNode() {
+        var definition: string = javascriptGenerator.workspaceToCode(workspace);
+        var definitionJSON: any = JSON.parse(definition);
+        var new_name = definitionJSON["name"];
+        if (new_name) {
+            r2_node.sentantGetByName(new_name)
+            .then((result: any) => {
+                r2_node.sentantUnload(R2.JSONPath(result, "sentantGet.id"));
+            })
+            .then((_) => {
+                r2_node.sentantLoad(definition)
+                .then((_) => {
+                    message = "Sentant Loaded OK";
+                    setTimeout(() => { message = ""; }, 5);
+                })
+            })
+        }
+    }
+
+
 </script>
+
+
+<svelte:window on:beforeunload={beforeUnload}/>
+
 <Grid ui inverted>
     <Column thirteen wide left attached>
         <div id="blocklyDiv" style="height: {fullscreen?fullHeight:height}; width: 100%;"></div>
+        <Segment ui attached>
+            <Text ui inverted>{message}</Text>
+        </Segment>
         <Segment ui attached inverted style="height: {fullscreen?"0px":height}; width: 100%; text-align: left">
             <div class="json">
                 <JSONTree value={code} />
+            </div>
+            <div class="json">
+                <JSONTree value={JSON.parse(JSON.stringify(savedState))} />
+                <!-- {JSON.stringify(currentState)} -->
             </div>
         </Segment>
     </Column>
@@ -130,13 +201,17 @@
                 <Icon ui _={fullscreen?"compress":"expand"}></Icon>&nbsp;
                 {fullscreen?"Half Height":"Full Height"}
             </Button>
-            <Button ui huge basic on:click={()=>{}}>
+            <Button ui huge basic on:click={()=>loadToNode()}>
                 <Icon ui arrow down></Icon>&nbsp;
-                Load to Reality2
+                sentantLoad
             </Button>
-            <Button ui huge basic on:click={() => {const state = Blockly.serialization.workspaces.save(workspace); console.log(state);}}>
+            <Button ui huge basic on:click={()=>{}}>
+                <Icon ui load></Icon>&nbsp;
+                Load from disk
+            </Button>
+            <Button ui huge basic on:click={() => {savedState = Blockly.serialization.workspaces.save(workspace); console.log(savedState);}}>
                 <Icon ui save></Icon>&nbsp;
-                Save
+                Save to disk
             </Button>
         </Buttons>
     </Column>

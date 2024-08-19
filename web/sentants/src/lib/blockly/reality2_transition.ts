@@ -27,7 +27,7 @@ const shape = {
             "text":""
         }
     ],
-    "message2":"transitions %1",
+    "message2":"to %1",
     "args2":[
         {
             "type":"field_input",
