@@ -32,6 +32,9 @@
     var set_state = "loading";
     $: state = set_state;
 
+    // Saved state for constructor
+    let savedState = {};
+
 
     let load_sentant = {
         title: 'Load a Sentant',
@@ -334,9 +337,10 @@
     // -------------------------------------------------------------------------------------------------
 
     function change_state(e: any) {
-        let hostname = use_default_url ? "localhost" : window.location.hostname;
+        state = e.detail.value;
+        // let hostname = use_default_url ? "localhost" : window.location.hostname;
         
-        window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value;
+        // window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value;
         // window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?" + e.detail.value + "&variables=" + encodeURIComponent(JSON.stringify(variables))
     }
 
@@ -559,7 +563,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "construct"}
             <!--------------------------------------------------------------------------------------------->
-                <Construct {r2_node} {sentantData} />
+                <Construct {r2_node} {sentantData} bind:savedState />
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "id"}
             <!--------------------------------------------------------------------------------------------->
