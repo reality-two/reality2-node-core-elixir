@@ -9,8 +9,9 @@
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_encrypt_decrypt_keys",
-	"message0":"encryption key = %1",
-	"args0":[
+    "message0":"ENCRYPTION",
+	"message1":" - encryption key = %1",
+	"args1":[
 		{
 			"type":"field_input",
 			"name":"encryption_key",
@@ -18,8 +19,8 @@ const shape = {
 			"text":""
 		}
 	],
-	"message1":"decryption key = %1",
-	"args1":[
+	"message2":" - decryption key = %1",
+	"args2":[
 		{
 			"type":"field_input",
 			"name":"decryption_key",
@@ -29,7 +30,7 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 100
+    "colour": 80
 }
 // ----------------------------------------------------------------------------------------------------
 

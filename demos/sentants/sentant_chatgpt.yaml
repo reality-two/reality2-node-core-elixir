@@ -27,7 +27,7 @@ sentant:
         # This is a secret, so it is not shown here (replace before passing to Reality2)
         "Authorization": "Bearer __openai_api_key__"
 
-      # This is the body to send (see ChatGPT API documentation).  Note the __message__ placeholder.
+      # This is the body to send (see ChatGPT API documentation).  Note the __question__ placeholder.
       body:
         model: "gpt-3.5-turbo-1106"
         messages:

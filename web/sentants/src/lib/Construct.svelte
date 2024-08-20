@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
 
-    import {Icon, Button, Segment, Buttons, Grid, Column, Text} from "svelte-fomantic-ui";
+    import {Icon, Button, Segment, Buttons, Grid, Column, Text, Divider} from "svelte-fomantic-ui";
 
 
     // Import Blockly core.
@@ -30,14 +30,19 @@
 
     import R2 from "./reality2";
 
+    import reality2_swarm from "./blockly/reality2_swarm";
     import reality2_sentant from "./blockly/reality2_sentant";
     import reality2_key_value from "./blockly/reality2_key_value";
+    import reality2_data from "./blockly/reality2_data";
     import reality2_encrypt_decrypt_keys from "./blockly/reality2_encrypt_decrypt_keys";
     import reality2_get_plugin from "./blockly/reality2_get_plugin";
     import reality2_post_plugin from "./blockly/reality2_post_plugin";
     import reality2_plugin_header from "./blockly/reality2_plugin_header";
     import reality2_automation from "./blockly/reality2_automation";
+    import reality2_parameter from "./blockly/reality2_parameter";
     import reality2_transition from "./blockly/reality2_transition";
+    import reality2_start_transition from "./blockly/reality2_start_transition";
+    import reality2_simple_transition from "./blockly/reality2_simple_transition";
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
 
     export let r2_node: R2;
@@ -47,22 +52,27 @@
 
     $: height = "400px";
     $: fullHeight = "800px";
-    $: fullscreen = false;
+    $: fullscreen = true;
     $: message = "";
     $: stateMessage = savedState;
 
     let workspace: any;
-    $: code = "";
+    $: code = {};
 
     let blockly_definition = [
+        reality2_swarm.shape,
         reality2_sentant.shape,
         reality2_key_value.shape,
+        reality2_data.shape,
         reality2_encrypt_decrypt_keys.shape,
         reality2_get_plugin.shape,
         reality2_post_plugin.shape,
         reality2_plugin_header.shape,
         reality2_automation.shape,
-        reality2_transition.shape
+        reality2_parameter.shape,
+        reality2_transition.shape,
+        reality2_start_transition.shape,
+        reality2_simple_transition.shape
     ];
 
 
@@ -106,32 +116,33 @@
         setTimeout(() => { Blockly.svgResize(workspace); }, 0);
 
         // Set up the blocks
+        javascriptGenerator.forBlock['reality2_swarm'] = reality2_swarm.process;
         javascriptGenerator.forBlock['reality2_sentant'] = reality2_sentant.process;
         javascriptGenerator.forBlock['reality2_encrypt_decrypt_keys'] = reality2_encrypt_decrypt_keys.process;
         javascriptGenerator.forBlock['reality2_get_plugin'] = reality2_get_plugin.process;
         javascriptGenerator.forBlock['reality2_post_plugin'] = reality2_post_plugin.process;
         javascriptGenerator.forBlock['reality2_plugin_header'] = reality2_plugin_header.process;   
         javascriptGenerator.forBlock['reality2_key_value'] = reality2_key_value.process;   
+        javascriptGenerator.forBlock['reality2_data'] = reality2_data.process;   
         javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;   
+        javascriptGenerator.forBlock['reality2_parameter'] = reality2_parameter.process;   
         javascriptGenerator.forBlock['reality2_transition'] = reality2_transition.process;   
+        javascriptGenerator.forBlock['reality2_start_transition'] = reality2_start_transition.process;   
+        javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
 
         setTimeout(() => { 
             try {
                 let savedState = {
-                    "blocks" : {
-                        "languageVersion": 0,
-                        "blocks" : [
-                            {
-                                "type":"reality2_sentant",
-                                "x": 100,
-                                "y": 100,
-                                "fields": {
-                                    "name":"hello",
-                                    "description":"world"
-                                }
+                    "backpack" : [
+                        {
+                            "kind": "BLOCK",
+                            "type": "reality2_sentant",
+                            "fields": {
+                                "name":"hello",
+                                "description":"world"
                             }
-                        ]
-                    }
+                        }
+                    ]
                 }
 
                 console.log("LOADING");
@@ -183,9 +194,14 @@
         </Segment>
         <Segment ui attached inverted style="height: {fullscreen?"0px":height}; width: 100%; text-align: left">
             <div class="json">
-                <JSONTree value={code} />
+                <Text ui large>JSON</Text>
+                <Divider ui inverted></Divider>
+                <JSONTree value={JSON.parse(JSON.stringify(code))} />
             </div>
+            <Divider ui inverted></Divider>
             <div class="json">
+                <Text ui large>Blockly</Text>
+                <Divider ui inverted></Divider>
                 <JSONTree value={JSON.parse(JSON.stringify(savedState))} />
                 <!-- {JSON.stringify(currentState)} -->
             </div>
