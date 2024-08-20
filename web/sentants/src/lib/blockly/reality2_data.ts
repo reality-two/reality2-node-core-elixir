@@ -1,3 +1,5 @@
+
+
 // ----------------------------------------------------------------------------------------------------
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
@@ -8,60 +10,26 @@ import { splitConcatenatedJSON } from "./blockly_common";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_get_plugin",
-    "message0":"GET PLUGIN",
-	"message1":" - name %1",
+	"type":"reality2_data",
+    "message0":"DATA",
+	"message1":" - %1 = %2",
 	"args1":[
 		{
 			"type":"field_input",
-			"name":"name",
+			"name":"key",
 			"check":"String",
-			"text":"",
-			"tooltip":"Plugin name in reverse DNS format eg: com.openai.api"
-		}
-	],
-	"message2":" - url %1",
-	"args2":[
-		{
-			"type":"field_input",
-			"name":"url",
-			"check":"String",
-			"text":"",
-			"tooltip":"The full URL of the API"
-		}
-	],
-	"message3":" - headers %1",
-	"args3":[
-		{
-			"type":"input_statement",
-			"name":"headers"
-		}
-	],
-	"message4":" - output send %1 = %2 with event %3",
-	"args4":[
-		{
-			"type":"field_input",
-			"name":"output_key",
-			"check":"String",
-			"text":""
+			"text":"key"
 		},
 		{
 			"type":"field_input",
-			"name":"output_value",
+			"name":"value",
 			"check":"String",
-			"text":"",
-			"tooltip":"A JSONPath, for example choices.0.message.content"
-		},
-		{
-			"type":"field_input",
-			"name":"output_event",
-			"check":"String",
-			"text":""
+			"text":"value"
 		}
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-	"colour":150
+    "colour": 110
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -72,24 +40,10 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    var plugin: any = {};
+    const key = block.getFieldValue('key');
+    const value = block.getFieldValue('value');
 
-    plugin["name"] = block.getFieldValue('name');
-    plugin["url"] = block.getFieldValue('url');
-    plugin["method"] = "GET";
-
-    const headers = generator.statementToCode(block, "headers");
-    if (headers != "") {
-        plugin["headers"] = splitConcatenatedJSON(headers);
-    };
-
-    plugin["output"] = {
-        "key": block.getFieldValue('output_key'),
-        "value": block.getFieldValue('output_value'),
-        "event": block.getFieldValue('output_event')
-    };
-
-    return JSON.stringify(plugin);
+    return ("{\"" + key + "\":\"" + value + "\"}")
 }
 // ----------------------------------------------------------------------------------------------------
 

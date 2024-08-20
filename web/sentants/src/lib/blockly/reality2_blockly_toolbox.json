@@ -1,11 +1,21 @@
 {
 	"kind":"categoryToolbox",
 	"contents":[
+        {
+			"kind":"category",
+            "colour": 20,
+			"name":"Swarm",
+			"contents":[
+				{
+					"kind":"block",
+					"type":"reality2_swarm"
+				}
+			]
+		},
 		{
 			"kind":"category",
             "colour": 50,
 			"name":"Sentant",
-            "expanded":true,
 			"contents":[
 				{
 					"kind":"block",
@@ -15,9 +25,8 @@
 		},
 		{
 			"kind":"category",
-            "colour": 100,
+            "colour": 80,
 			"name":"Keys",
-            "expanded":true,
 			"contents":[
 				{
 					"kind":"block",
@@ -29,11 +38,21 @@
 				}
 			]
 		},
+        {
+			"kind":"category",
+            "colour": 110,
+			"name":"Data",
+			"contents":[
+				{
+					"kind":"block",
+					"type":"reality2_data"
+				}
+			]
+		},
 		{
 			"kind":"category",
             "colour": 150,
 			"name":"Plugins",
-            "expanded":true,
 			"contents":[
 				{
 					"kind":"block",
@@ -44,16 +63,8 @@
 					"type":"reality2_post_plugin"
 				},
                 {
-                    "kind":"category",
-                    "colour": 150,
-                    "name":"header",
-                    "expanded":true,
-                    "contents":[
-                        {
-                            "kind":"block",
-                            "type":"reality2_plugin_header"
-                        }
-                    ]
+                    "kind":"block",
+                    "type":"reality2_plugin_header"
                 }
 			]
 		},
@@ -61,37 +72,46 @@
 			"kind":"category",
             "colour": 200,
 			"name":"Automations",
-            "expanded":true,
 			"contents":[
 				{
 					"kind":"block",
 					"type":"reality2_automation"
-				},
-                {
-                    "kind":"category",
-                    "colour": 250,
-                    "name":"Transitions",
-                    "expanded":true,
-                    "contents":[
-                        {
-                            "kind":"block",
-                            "type":"reality2_transition"
-                        },
-                        {
-                            "kind":"category",
-                            "colour": 300,
-                            "name":"Actions",
-                            "expanded":true,
-                            "contents":[
-                                {
-                                    "kind":"block",
-                                    "type":"reality2_action"
-                                }
-                            ]
-                        }
-                    ]
-                }
+				}
 			]            
+        },
+        {
+            "kind":"category",
+            "colour": 250,
+            "name":"Transitions",
+            "contents":[
+                {
+                    "kind":"block",
+                    "type":"reality2_start_transition"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_transition"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_simple_transition"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_parameter"
+                }
+            ]
+        },
+        {
+            "kind":"category",
+            "colour": 300,
+            "name":"Actions",
+            "contents":[
+                {
+                    "kind":"block",
+                    "type":"reality2_action"
+                }
+            ]
         }
 	]
 }

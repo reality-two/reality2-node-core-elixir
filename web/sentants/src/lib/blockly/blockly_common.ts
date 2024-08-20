@@ -1,5 +1,5 @@
-export function splitConcatenatedJSON(jsonString: string): any[] {
-    const objects: any[] = [];
+export function splitConcatenatedJSON(jsonString: string, is_object: boolean = true): any {
+    let objects: any[] = [];
     let braceLevel = 0;
     let start = 0;
 
@@ -24,5 +24,16 @@ export function splitConcatenatedJSON(jsonString: string): any[] {
         }
     }
 
-    return objects;
+    console.log(objects);
+
+    if (is_object) {
+        let single_object = objects.reduce((accumulator, currentObject) => {
+            return { ...accumulator, ...currentObject };
+          }, {});
+        console.log(single_object);
+        return single_object;
+    }
+    else {
+        return objects;
+    }
 }

@@ -9,8 +9,9 @@
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_plugin_header",
-	"message0":"header %1 = %2",
-	"args0":[
+    "message0":"HEADER",
+	"message1":" - header %1 = %2",
+	"args1":[
 		{
 			"type":"field_input",
 			"name":"header",
@@ -26,7 +27,7 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-	"colour":100
+	"colour":150
 }
 // ----------------------------------------------------------------------------------------------------
 

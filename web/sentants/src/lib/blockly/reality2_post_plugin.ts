@@ -9,8 +9,9 @@ import { splitConcatenatedJSON } from "./blockly_common";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_post_plugin",
-	"message0":"name %1",
-	"args0":[
+    "message0":"POST PLUGIN",
+	"message1":" - name %1",
+	"args1":[
 		{
 			"type":"field_input",
 			"name":"name",
@@ -19,8 +20,8 @@ const shape = {
 			"tooltip":"Plugin name in reverse DNS format eg: com.openai.api"
 		}
 	],
-	"message1":"url %1",
-	"args1":[
+	"message2":" - url %1",
+	"args2":[
 		{
 			"type":"field_input",
 			"name":"url",
@@ -29,22 +30,22 @@ const shape = {
 			"tooltip":"The full URL of the API"
 		}
 	],
-	"message2":"headers %1",
-	"args2":[
+	"message3":" - headers %1",
+	"args3":[
 		{
 			"type":"input_statement",
 			"name":"headers"
 		}
 	],
-	"message3":"body %1",
-	"args3":[
+	"message4":" - body %1",
+	"args4":[
 		{
 			"type":"input_statement",
 			"name":"body"
 		}
 	],
-	"message4":"output send %1 = %2 with event %3",
-	"args4":[
+    "message5":" - output send %1 = %2 with event %3",
+	"args5":[
 		{
 			"type":"field_input",
 			"name":"output_key",
@@ -67,7 +68,7 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-	"colour":100
+	"colour":150
 }
 // ----------------------------------------------------------------------------------------------------
 
