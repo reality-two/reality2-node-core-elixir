@@ -69,10 +69,10 @@ function process(block: any, generator: any): string | [string, number] | null
         transition["parameters"] = splitConcatenatedJSON(parameters);
     };
 
-    // const transitions = generator.statementToCode(block, "transitions");
-    // if (transitions != "") {
-    //     transition["transitions"] = splitConcatenatedJSON(transitions);
-    // }
+    const actions = generator.statementToCode(block, "actions");
+    if (actions != "") {
+        actions["actions"] = splitConcatenatedJSON(actions);
+    }
 
     return JSON.stringify(transition);
 }

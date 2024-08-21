@@ -92,15 +92,15 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const plugins = generator.statementToCode(block, "plugins");
     if (plugins != "") {
-        sentant["plugins"] = splitConcatenatedJSON(plugins);
+        sentant["plugins"] = splitConcatenatedJSON(plugins, false);
     }
 
     const automations = generator.statementToCode(block, "automations");
     if (automations != "") {
-        sentant["automations"] = splitConcatenatedJSON(automations);
+        sentant["automations"] = splitConcatenatedJSON(automations, false);
     }
 
-    return JSON.stringify(sentant);
+    return JSON.stringify({"sentant":sentant});
 }
 // ----------------------------------------------------------------------------------------------------
 

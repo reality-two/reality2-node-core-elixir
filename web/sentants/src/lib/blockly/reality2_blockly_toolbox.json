@@ -109,7 +109,11 @@
             "contents":[
                 {
                     "kind":"block",
-                    "type":"reality2_action"
+                    "type":"reality2_action_send"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_action_set"
                 }
             ]
         }

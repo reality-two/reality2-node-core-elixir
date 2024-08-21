@@ -55,10 +55,10 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const sentants = generator.statementToCode(block, "sentants");
     if (sentants != "") {
-        swarm["sentants"] = splitConcatenatedJSON(sentants);
+        swarm["sentants"] = splitConcatenatedJSON(sentants, false).map((sentant: any) => { return (sentant["sentant"]) });
     };
 
-    return JSON.stringify(swarm);
+    return JSON.stringify({"swarm":swarm});
 }
 // ----------------------------------------------------------------------------------------------------
 

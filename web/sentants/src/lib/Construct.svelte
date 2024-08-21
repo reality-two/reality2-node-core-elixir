@@ -43,6 +43,9 @@
     import reality2_transition from "./blockly/reality2_transition";
     import reality2_start_transition from "./blockly/reality2_start_transition";
     import reality2_simple_transition from "./blockly/reality2_simple_transition";
+    import reality2_action_set from "./blockly/reality2_action_set";
+    import reality2_action_send from "./blockly/reality2_action_send";
+    
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
 
     export let r2_node: R2;
@@ -54,7 +57,6 @@
     $: fullHeight = "800px";
     $: fullscreen = true;
     $: message = "";
-    $: stateMessage = savedState;
 
     let workspace: any;
     $: code = {};
@@ -72,7 +74,9 @@
         reality2_parameter.shape,
         reality2_transition.shape,
         reality2_start_transition.shape,
-        reality2_simple_transition.shape
+        reality2_simple_transition.shape,
+        reality2_action_set.shape,
+        reality2_action_send.shape
     ];
 
 
@@ -129,6 +133,8 @@
         javascriptGenerator.forBlock['reality2_transition'] = reality2_transition.process;   
         javascriptGenerator.forBlock['reality2_start_transition'] = reality2_start_transition.process;   
         javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
+        javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
+        javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
 
         setTimeout(() => { 
             try {
@@ -161,22 +167,48 @@
 
 
 
+    function reLoadSentant(name, definition) {
+
+    }
+
+
+
     function loadToNode() {
         var definition: string = javascriptGenerator.workspaceToCode(workspace);
         var definitionJSON: any = JSON.parse(definition);
-        var new_name = definitionJSON["name"];
-        if (new_name) {
-            r2_node.sentantGetByName(new_name)
-            .then((result: any) => {
-                r2_node.sentantUnload(R2.JSONPath(result, "sentantGet.id"));
-            })
-            .then((_) => {
-                r2_node.sentantLoad(definition)
-                .then((_) => {
-                    message = "Sentant Loaded OK";
-                    setTimeout(() => { message = ""; }, 5);
+        var isSentant = definitionJSON["sentant"] !== null;
+        var isSwarm = definitionJSON["swarm"] != null;
+
+        if (isSentant) {
+            var new_name = definitionJSON["sentant"]["name"];
+            if (new_name) {
+                r2_node.sentantGetByName(new_name)
+                .then((result: any) => {
+                    r2_node.sentantUnload(R2.JSONPath(result, "sentantGet.id"))
+                    .then((_) => {
+                        r2_node.sentantLoad(definition)
+                        .then((_) => {
+                            message = "Sentant Loaded OK";
+                            setTimeout(() => { message = ""; }, 10);
+                        })
+                        .catch((error) => {
+                            console.log("error loading");
+                            message = "Sentant didn't load: " + error;
+                        })
+                    })
+                    .catch((error) => {
+                        console.log("error unloading");
+                        message = "Error unloading";
+                    })
                 })
-            })
+                .catch((error) => {
+                    r2_node.sentantLoad(definition)
+                    .then((_) => {
+                        message = "Sentant Loaded OK";
+                        setTimeout(() => { message = ""; }, 10);
+                    })
+                })
+            }
         }
     }
 
@@ -188,9 +220,9 @@
 
 <Grid ui inverted>
     <Column thirteen wide left attached>
-        <div id="blocklyDiv" style="height: {fullscreen?fullHeight:height}; width: 100%;"></div>
+        <Segment id="blocklyDiv" style="height: {fullscreen?fullHeight:height}; width: 100%;"></Segment>
         <Segment ui attached>
-            <Text ui inverted>{message}</Text>
+            <Text ui>{message}</Text>
         </Segment>
         <Segment ui attached inverted style="height: {fullscreen?"0px":height}; width: 100%; text-align: left">
             <div class="json">
@@ -203,7 +235,6 @@
                 <Text ui large>Blockly</Text>
                 <Divider ui inverted></Divider>
                 <JSONTree value={JSON.parse(JSON.stringify(savedState))} />
-                <!-- {JSON.stringify(currentState)} -->
             </div>
         </Segment>
     </Column>
@@ -215,19 +246,19 @@
             </Button>
             <Button ui huge basic on:click={()=>{fullscreen = !fullscreen; updateHeight(); setTimeout(() => { Blockly.svgResize(workspace); }, 0);}}>
                 <Icon ui _={fullscreen?"compress":"expand"}></Icon>&nbsp;
-                {fullscreen?"Half Height":"Full Height"}
+                {(fullscreen?"Show":"Hide") + " definitions"}
             </Button>
             <Button ui huge basic on:click={()=>loadToNode()}>
                 <Icon ui arrow down></Icon>&nbsp;
-                sentantLoad
+                load to Reality2 Node
             </Button>
             <Button ui huge basic on:click={()=>{}}>
                 <Icon ui load></Icon>&nbsp;
-                Load from disk
+                Load from library
             </Button>
             <Button ui huge basic on:click={() => {savedState = Blockly.serialization.workspaces.save(workspace); console.log(savedState);}}>
                 <Icon ui save></Icon>&nbsp;
-                Save to disk
+                Save to library
             </Button>
         </Buttons>
     </Column>
