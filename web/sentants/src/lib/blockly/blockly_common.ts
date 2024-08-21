@@ -24,13 +24,10 @@ export function splitConcatenatedJSON(jsonString: string, is_object: boolean = t
         }
     }
 
-    console.log(objects);
-
     if (is_object) {
         let single_object = objects.reduce((accumulator, currentObject) => {
             return { ...accumulator, ...currentObject };
           }, {});
-        console.log(single_object);
         return single_object;
     }
     else {

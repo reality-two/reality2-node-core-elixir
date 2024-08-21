@@ -58,7 +58,7 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const transitions = generator.statementToCode(block, "transitions");
     if (transitions != "") {
-        automation["transitions"] = splitConcatenatedJSON(transitions);
+        automation["transitions"] = splitConcatenatedJSON(transitions, false);
     }
 
     return JSON.stringify(automation);
