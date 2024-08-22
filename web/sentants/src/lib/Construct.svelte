@@ -271,6 +271,7 @@
                         <pre style={"text-align: left;"}>
                             {#if code !== ""}
                                 {"\n"+yaml.dump(code)}
+                                {"\n"+JSON.stringify(code, null, 2)}
                             {/if}
                         </pre>
                         <!-- <JSONTree value={JSON.parse(JSON.stringify(code))} /> -->
