@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
 
-    import {Icon, Button, Segment, Buttons, Grid, Column, Text, Divider} from "svelte-fomantic-ui";
+    import {Icon, Button, Segment, Buttons, Grid, Column, Row, Text, Divider} from "svelte-fomantic-ui";
 
 
     // Import Blockly core.
@@ -20,6 +20,8 @@
     import * as En from "blockly/msg/en";
 
     import Theme from '@blockly/theme-dark';
+
+    import yaml from 'js-yaml';
 
     import {Backpack} from '@blockly/workspace-backpack';
 
@@ -53,13 +55,11 @@
     export let variables = {};
     export let savedState: any; 
 
-    $: height = "400px";
     $: fullHeight = "800px";
-    $: fullscreen = true;
-    $: message = "";
+    $: message = "No Message";
 
     let workspace: any;
-    $: code = {};
+    $: code = "";
 
     let blockly_definition = [
         reality2_swarm.shape,
@@ -82,7 +82,6 @@
 
 
     function updateHeight() {
-        height = `${(window.innerHeight - 140)/2}px`;
         fullHeight = `${(window.innerHeight - 140)}px`;
     }
 
@@ -218,13 +217,13 @@
 
 <svelte:window on:beforeunload={beforeUnload}/>
 
-<Grid ui inverted>
+<Grid ui stackable celled>
     <Column thirteen wide left attached>
-        <Segment id="blocklyDiv" style="height: {fullscreen?fullHeight:height}; width: 100%;"></Segment>
-        <Segment ui attached>
+        <Segment id="blocklyDiv" style="height: {fullHeight}; width: 100%;"></Segment>
+        <!-- <Segment ui attached>
             <Text ui>{message}</Text>
-        </Segment>
-        <Segment ui attached inverted style="height: {fullscreen?"0px":height}; width: 100%; text-align: left">
+        </Segment> -->
+        <!-- <Segment ui attached inverted style="height: {fullscreen?"0px":height}; width: 100%; text-align: left">
             <div class="json">
                 <Text ui large>JSON</Text>
                 <Divider ui inverted></Divider>
@@ -236,31 +235,49 @@
                 <Divider ui inverted></Divider>
                 <JSONTree value={JSON.parse(JSON.stringify(savedState))} />
             </div>
-        </Segment>
+        </Segment> -->
     </Column>
-    <Column three wide right attached>
-        <Buttons ui icon vertical fluid>
-            <Button ui huge basic on:click={()=>{code = JSON.parse(javascriptGenerator.workspaceToCode(workspace))}}>
-                <Icon ui code></Icon>&nbsp;
-                JSON
-            </Button>
-            <Button ui huge basic on:click={()=>{fullscreen = !fullscreen; updateHeight(); setTimeout(() => { Blockly.svgResize(workspace); }, 0);}}>
-                <Icon ui _={fullscreen?"compress":"expand"}></Icon>&nbsp;
-                {(fullscreen?"Show":"Hide") + " definitions"}
-            </Button>
-            <Button ui huge basic on:click={()=>loadToNode()}>
-                <Icon ui arrow down></Icon>&nbsp;
-                load to Reality2 Node
-            </Button>
-            <Button ui huge basic on:click={()=>{}}>
-                <Icon ui load></Icon>&nbsp;
-                Load from library
-            </Button>
-            <Button ui huge basic on:click={() => {savedState = Blockly.serialization.workspaces.save(workspace); console.log(savedState);}}>
-                <Icon ui save></Icon>&nbsp;
-                Save to library
-            </Button>
-        </Buttons>
+    <Column three wide>
+        <Grid ui>
+            <Row>
+                <Column attached>
+                    <Buttons ui labeled icon vertical fluid>
+                        <Button ui huge on:click={()=>{}}>
+                            <Icon ui cloud download></Icon>
+                            Load from library
+                        </Button>
+                        <Button ui huge on:click={() => {savedState = Blockly.serialization.workspaces.save(workspace); console.log(savedState);}}>
+                            <Icon ui cloud upload></Icon>
+                            Save to library
+                        </Button>
+                        <Divider ui inverted></Divider>
+                        <Button ui huge on:click={()=>loadToNode()}>
+                            <Icon ui running></Icon>
+                            Send to Reality2 Node
+                        </Button>
+                        <Divider ui inverted></Divider>
+                        <Button ui huge on:click={()=>{var newCode=javascriptGenerator.workspaceToCode(workspace); code=(newCode==""?"":JSON.parse(newCode))}}>
+                            <Icon ui arrow down></Icon>
+                            Update definition
+                        </Button>
+                    </Buttons>
+                </Column>
+            </Row>
+            <Row>
+                <Column attached>
+                    <Segment ui attached inverted style={'text-align: left; background-color: #444444; height:100%'}>
+                        <Text ui large>YAML definition</Text>
+                        <Divider ui inverted></Divider>
+                        <pre style={"text-align: left;"}>
+                            {#if code !== ""}
+                                {"\n"+yaml.dump(code)}
+                            {/if}
+                        </pre>
+                        <!-- <JSONTree value={JSON.parse(JSON.stringify(code))} /> -->
+                    </Segment>
+                </Column>
+            </Row>
+        </Grid>
     </Column>
 </Grid>
 
