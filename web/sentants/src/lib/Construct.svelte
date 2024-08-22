@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
 
-    import {Icon, Button, Segment, Buttons, Grid, Column, Row, Text, Divider} from "svelte-fomantic-ui";
+    import {Icon, Button, Segment, Buttons, Grid, Column, Row, Text, Divider, Checkbox} from "svelte-fomantic-ui";
 
 
     // Import Blockly core.
@@ -57,6 +57,7 @@
 
     $: fullHeight = "800px";
     $: message = "No Message";
+    $: showJSON = [];
 
     let workspace: any;
     $: code = "";
@@ -166,11 +167,6 @@
 
 
 
-    function reLoadSentant(name, definition) {
-
-    }
-
-
 
     function loadToNode() {
         var definition: string = javascriptGenerator.workspaceToCode(workspace);
@@ -266,12 +262,15 @@
             <Row>
                 <Column attached>
                     <Segment ui attached inverted style={'text-align: left; background-color: #444444; height:100%'}>
-                        <Text ui large>YAML definition</Text>
+                        <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox ui toggle large inverted bind:group={showJSON} value="json" label=" " grey/><Text ui large>JSON Definition</Text>
                         <Divider ui inverted></Divider>
                         <pre style={"text-align: left;"}>
                             {#if code !== ""}
-                                {"\n"+yaml.dump(code)}
-                                {"\n"+JSON.stringify(code, null, 2)}
+                                {#if showJSON[0] === "json"}
+                                    {"\n"+JSON.stringify(code, null, 2)}
+                                {:else}
+                                    {"\n"+yaml.dump(code)}
+                                {/if}
                             {/if}
                         </pre>
                         <!-- <JSONTree value={JSON.parse(JSON.stringify(code))} /> -->
