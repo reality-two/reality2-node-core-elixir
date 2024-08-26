@@ -10,7 +10,8 @@
     import { onMount } from 'svelte';
     import { onDestroy } from 'svelte';
 
-    import * as L from 'leaflet';
+    import type { Map as LeafletMap } from 'leaflet';
+    import L from 'leaflet';
     import 'leaflet/dist/leaflet.css';
 
     import type { Sentant } from './reality2.js';
