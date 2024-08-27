@@ -19,16 +19,16 @@
     // Import a message file.
     import * as En from "blockly/msg/en";
 
+    //@ts-ignore
     import Theme from '@blockly/theme-dark';
 
+    //@ts-ignore
     import yaml from 'js-yaml';
 
     import {Backpack} from '@blockly/workspace-backpack';
 
     import { onMount } from "svelte";
     import { onDestroy } from "svelte";
-
-    import JSONTree from 'svelte-json-tree';
 
     import R2 from "./reality2";
 
