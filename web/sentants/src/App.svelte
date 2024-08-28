@@ -77,6 +77,7 @@
     // Window width
     // -------------------------------------------------------------------------------------------------
     let windowWidth: number = 0;
+    let fullHeight: String = "400px";
     let sentant_loader: any;
     let swarm_loader: any;
     let variables_loader: any;
@@ -84,6 +85,7 @@
 
     const setDimensions = () => { 
         windowWidth = window.innerWidth;
+        fullHeight = `${(window.innerHeight - 90)}px`;
     };
 
     // GraphQL client setup 
@@ -213,7 +215,7 @@
             const regex = new RegExp(key, 'g');
             // Replace all occurrences of the key with its corresponding value
             str = str.replace(regex, value);
-                }
+        }
         return str;
     }
 
@@ -547,7 +549,7 @@ Layout
                 </Dropdown>
             </Menu>
         </Menu>
-        <Segment ui bottom attached grey>
+        <Segment ui bottom attached grey style="height: {fullHeight}; width: 100%;">
             <!--------------------------------------------------------------------------------------------->
             {#if state == "start"}
             <!--------------------------------------------------------------------------------------------->
