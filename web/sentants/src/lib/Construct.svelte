@@ -109,7 +109,7 @@
     // What to do when the window size is changed
     // ------------------------------------------------------------------------------------------------
     function updateHeight() {
-        const leftHeight = window.innerHeight - 160;
+        const leftHeight = window.innerHeight - 120;
         const leftDiv = document.getElementById('blocklyDiv');
         const rightDiv = document.getElementById('codeDiv');
 
@@ -122,7 +122,7 @@
             const leftDivBottomY = leftDivTopY + leftHeight;
 
             // Calculate the required height for the right div to align the bottoms
-            codeHeight = `${leftDivBottomY - rightDivTopY - 15}px`;
+            codeHeight = `${leftDivBottomY - rightDivTopY - 66}px`;
         }
 
         fullHeight = `${leftHeight}px`;
@@ -380,57 +380,61 @@
     // Do the actual download
     // ------------------------------------------------------------------------------------------------
     async function downloadDefinition(definition: string, name: string) {
-        // // Example content to save
-        // const content = definition;
-        // const filename = name;
 
-        // // Create a Blob with the content
-        // const blob = new Blob([content], { type: 'text/plain' });
+        // If there is a show file picker, then give the useer an option of where to save the definition
+        if (window.showSaveFilePicker){
+            try {
+                // Open a file save dialog and get a file handle
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: name,
+                    types: [
+                        {
+                            description: 'Reality2 Files',
+                            accept: { 'text/plain': ['.json', '.yaml', '.toml'] }
+                        }
+                    ]
+                });
 
-        // // Create an object URL from the Blob
-        // const url = URL.createObjectURL(blob);
+                // Create a writable stream
+                const writable = await handle.createWritable();
 
-        // // Create an invisible <a> element with the download attribute
-        // const a = document.createElement('a');
-        // a.href = url;
-        // a.download = filename;
-        // document.body.appendChild(a);
+                // Write the content to the file
+                await writable.write(definition);
 
-        // // Programmatically click the <a> element to trigger the download
-        // a.click();
+                // Close the writable stream
+                await writable.close();
 
-        // // Clean up: remove the <a> element and revoke the object URL
-        // document.body.removeChild(a);
-        // URL.revokeObjectURL(url);
-
-        try {
-            // Open a file save dialog and get a file handle
-            const handle = await window.showSaveFilePicker({
-                suggestedName: name,
-                types: [
-                    {
-                        description: 'Reality2 Files',
-                        accept: { 'text/plain': ['.json', '.yaml', '.toml'] }
-                    }
-                ]
-            });
-
-            // Create a writable stream
-            const writable = await handle.createWritable();
-
-            // Write the content to the file
-            await writable.write(definition);
-
-            // Close the writable stream
-            await writable.close();
-
-            alert('File saved successfully!');           
-        } catch (err: any) {
-            if (err.name === 'AbortError') {
-                console.log('User canceled the save operation.');
-            } else {
-                console.error('Save failed:', err);
+                alert('Definition saved successfully!');           
+            } catch (err: any) {
+                if (err.name === 'AbortError') {
+                    console.log('User canceled the save operation.');
+                } else {
+                    console.error('Save failed:', err);
+                }
             }
+        } else {
+            // Otherwise, just download it to the downloads folder
+
+            // Create a Blob with the content
+            const blob = new Blob([definition], { type: 'text/plain' });
+
+            // Create an object URL from the Blob
+            const url = URL.createObjectURL(blob);
+
+            // Create an invisible <a> element with the download attribute
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+
+            // Programmatically click the <a> element to trigger the download
+            a.click();
+
+            // Clean up: remove the <a> element and revoke the object URL
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert('Definition saved successfully!');           
         }
     }
     // ------------------------------------------------------------------------------------------------
@@ -441,11 +445,11 @@
 
 <svelte:window on:beforeunload={beforeUnload}/>
 
-<Grid ui stackable celled>
+<Grid ui stackable>
     <Column thirteen wide left attached>
         <Segment id="blocklyDiv" style="height: {fullHeight}; width: 100%;"></Segment>
     </Column>
-    <Column three wide>
+    <Column three wide right attached>
         <Grid ui>
             <Row>
                 <Column attached>
@@ -455,29 +459,31 @@
                         </Input>
                         <Label ui button huge _for="load">
                             <Icon ui cloud upload/>
-                            load definition
+                            load
                         </Label>
                         <Button ui huge on:click={()=>saveSentantDefinition()}>
                             <Icon ui cloud download></Icon>
-                            save definition
+                            save
                         </Button>
                         <Divider ui inverted></Divider>
                         <Button ui huge on:click={()=>loadToNode()}>
                             <Icon ui running></Icon>
-                            Send to Reality2 Node
-                        </Button>
-                        <Divider ui inverted></Divider>
-                        <Button ui huge on:click={()=>{var newCode=javascriptGenerator.workspaceToCode(workspace); code=(newCode==""?"":JSON.parse(newCode))}}>
-                            <Icon ui arrow down></Icon>
-                            Update definition
+                            run
                         </Button>
                     </Buttons>
                 </Column>
             </Row>
             <Row>
                 <Column attached>
+                    <Button ui fluid huge top attached on:click={()=>{var newCode=javascriptGenerator.workspaceToCode(workspace); code=(newCode==""?"":JSON.parse(newCode))}}>
+                        <Icon ui arrow down></Icon>
+                        update&nbsp;&nbsp;
+                        <Icon ui arrow down></Icon>
+                    </Button>
                     <Segment ui attached inverted style={'text-align: left; background-color: #444444; height:100%'}>
-                        <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox ui toggle large inverted bind:group={showJSON} value="json" label=" " grey/><Text ui large>JSON Definition</Text>
+                        <div style="text-align: center;">
+                            <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox ui toggle large inverted bind:group={showJSON} value="json" label=" " grey/><Text ui large>JSON</Text>
+                        </div>
                         <Divider ui inverted></Divider>
                         <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
                             <pre style="text-align: left;">
@@ -490,7 +496,6 @@
                                 {/if}
                             </pre>
                         </div>
-
                     </Segment>
                 </Column>
             </Row>
