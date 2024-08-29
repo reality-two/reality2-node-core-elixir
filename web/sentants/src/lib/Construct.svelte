@@ -326,6 +326,7 @@
                 ]
             };
             Blockly.serialization.workspaces.load(savedState, workspace);
+            alert('Swarm definition loaded into backpack.');           
         }
         else if (R2.JSONPath(code, "sentant")) {
             let savedState = {
@@ -334,6 +335,7 @@
                 ]
             };
             Blockly.serialization.workspaces.load(savedState, workspace);
+            alert('Sentant definition loaded into backpack.');           
         }
 
         // If is a sentant, create a sentant structure
@@ -381,8 +383,8 @@
     // ------------------------------------------------------------------------------------------------
     async function downloadDefinition(definition: string, name: string) {
 
-        // If there is a show file picker, then give the useer an option of where to save the definition
-        if (window.showSaveFilePicker){
+        // If there is a show file picker, then give the user an option of where to save the definition
+        if (window.showSaveFilePicker) {
             try {
                 // Open a file save dialog and get a file handle
                 const handle = await window.showSaveFilePicker({
@@ -438,8 +440,6 @@
         }
     }
     // ------------------------------------------------------------------------------------------------
-
-
 </script>
 
 
@@ -475,7 +475,11 @@
             </Row>
             <Row>
                 <Column attached>
-                    <Button ui fluid huge top attached on:click={()=>{var newCode=javascriptGenerator.workspaceToCode(workspace); code=(newCode==""?"":JSON.parse(newCode))}}>
+                    <Button ui fluid huge top attached on:click={()=>{
+                            const savedState = Blockly.serialization.workspaces.save(workspace);
+                            console.log(savedState);
+                            var newCode=javascriptGenerator.workspaceToCode(workspace); code=(newCode==""?"":JSON.parse(newCode))
+                        }}>
                         <Icon ui arrow down></Icon>
                         update&nbsp;&nbsp;
                         <Icon ui arrow down></Icon>
