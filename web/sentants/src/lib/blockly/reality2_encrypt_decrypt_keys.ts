@@ -57,33 +57,38 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 function construct(data: any)
 {
-    // Get the encryption and decryption keys if they are there, then remove them
-    const encryption_key = R2.JSONPath(data, "encryption_key");
-    if (encryption_key) delete data.encryption_key;
-    const decryption_key = R2.JSONPath(data, "decryption_key");
-    if (decryption_key) delete data.decryption_key;
+    if (data) {
+        // Get the encryption and decryption keys if they are there, then remove them
+        const encryption_key = R2.JSONPath(data, "encryption_key");
+        if (encryption_key) delete data.encryption_key;
+        const decryption_key = R2.JSONPath(data, "decryption_key");
+        if (decryption_key) delete data.decryption_key;
 
-    let block: any = {
-        "kind": "BLOCK",
-        "type": "reality2_encrypt_decrypt_keys",
-        "fields": {
-            "encryption_key": encryption_key,
-            "decryption_key": decryption_key
+        let block: any = {
+            "kind": "BLOCK",
+            "type": "reality2_encrypt_decrypt_keys",
+            "fields": {
+                "encryption_key": encryption_key,
+                "decryption_key": decryption_key
+            }
         }
-    }
 
-    // get any other keys
-    if (Object.keys(data).length > 0)
-    {
-        let next = reality2_key_value.construct(data);
-        if (next) {
-            block["next"] = {
-                "block": next
-            };
+        // get any other keys
+        if (Object.keys(data).length > 0)
+        {
+            let next = reality2_key_value.construct(data);
+            if (next) {
+                block["next"] = {
+                    "block": next
+                };
+            }
         }
-    }
 
-    return(block);
+        return(block);
+    }
+    else {
+        return null;
+    }
 }
 // ----------------------------------------------------------------------------------------------------
 
