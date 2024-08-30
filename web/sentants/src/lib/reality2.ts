@@ -124,6 +124,65 @@ export default class R2 {
         }
         return result;
     }
+
+    public static convert(variable: any, no_json = true) : any {
+        if (typeof variable === 'number') {
+            return variable; // It's already a number
+        }
+      
+        if (typeof variable === 'boolean') {
+            return variable; // It's already a boolean
+        }
+      
+        if (typeof variable === 'string') {
+            // First, check if it's a boolean string
+            if (variable.toLowerCase() === 'true') {
+                return true;
+            }
+            if (variable.toLowerCase() === 'false') {
+                return false;
+            }
+        
+            // Next, check if it's a numeric string
+            const num = Number(variable);
+            if (!isNaN(num)) {
+                return num; // Convert string to number if it's a valid number
+            }
+        
+            // Finally, try to parse it as JSON
+            try {
+                const parsed = JSON.parse(variable);
+        
+                if (typeof parsed === 'object' && parsed !== null) {
+                    if (no_json)
+                        return JSON.stringify(variable); // Return the parsed JSON object or array
+                    else
+                        return variable;
+                }
+            } catch (e) {
+                // If it's not valid JSON, return the string as is
+            }
+        
+            return variable; // Return the original string if none of the above
+        }
+      
+        if (Array.isArray(variable)) {
+            if (no_json)
+                return JSON.stringify(variable); // Convert the array to a JSON string
+            else
+                return variable;
+        }
+      
+        if (typeof variable === 'object' && variable !== null) {
+            if (no_json)
+                return JSON.stringify(variable);
+            else
+                return variable; // Return the object as is
+        }
+      
+        // Fallback: return the variable as a string
+        return String(variable);
+    }
     // ----------------------------------------------------------------------------------------------------
 
 

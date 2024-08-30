@@ -4,6 +4,9 @@
 
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
+import reality2_encrypt_decrypt_keys from "./reality2_encrypt_decrypt_keys";
+import reality2_key_value from "./reality2_key_value";
+import reality2_data from "./reality2_data";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -110,16 +113,36 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(data: any)
+function construct(sentant: any)
 {
+    // Set the initial structure
     let block = {
         "kind": "BLOCK",
         "type": "reality2_sentant",
         "fields": {
-            "name": R2.JSONPath(data, "name"),
-            "description": R2.JSONPath(data, "description")
+            "name": R2.JSONPath(sentant, "name"),
+            "description": R2.JSONPath(sentant, "description")
+        },
+        "inputs": {
+            "keys": {},
+            "data": {}
         }
     }
+
+    // Check if there are any keys - first, are there encryption or decryption keys
+    if (R2.JSONPath(sentant, "keys.encryption_key") || R2.JSONPath(sentant, "keys.decryption_key")) {
+        let keys = reality2_encrypt_decrypt_keys.construct(R2.JSONPath(sentant, "keys"));
+        if (keys) block["inputs"]["keys"] = { "block": keys }
+    } else {
+        let keys = reality2_key_value.construct(R2.JSONPath(sentant, "keys"));
+        if (keys) block["inputs"]["keys"] = { "block": keys }
+    }
+
+    // Check if there is data
+    let data = reality2_data.construct(R2.JSONPath(sentant, "data"));
+    if (data) block["inputs"]["data"] = data;
+
+    console.log(block);
 
     return (block);
 }

@@ -276,6 +276,7 @@
     // ------------------------------------------------------------------------------------------------
     function loadSentantDefinitionFile(event: ProgressEvent) {
         const input = event.target as HTMLInputElement;
+
         if (input.files && input.files[0]) {
             const file = input.files[0];
             const fileName = file.name;
@@ -306,6 +307,7 @@
                 };
 
                 reader.readAsText(file); // Read the file as text
+                input.value = ''; // Reset in case the same file is to be loaded again.
             }
         } else {
             console.error("No file selected");
@@ -319,6 +321,8 @@
     // ------------------------------------------------------------------------------------------------
     function putIntoBackpack(code: any)
     {
+        console.log(code);
+        
         if (R2.JSONPath(code, "swarm")) {
             let savedState = {
                 "backpack" : [
