@@ -188,28 +188,28 @@
         javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
 
-        setTimeout(() => { 
-            try {
-                let savedState = {
-                    "backpack" : [
-                        {
-                            "kind": "BLOCK",
-                            "type": "reality2_sentant",
-                            "fields": {
-                                "name":"hello",
-                                "description":"world"
-                            }
-                        }
-                    ]
-                }
+        // setTimeout(() => { 
+        //     try {
+        //         let savedState = {
+        //             "backpack" : [
+        //                 {
+        //                     "kind": "BLOCK",
+        //                     "type": "reality2_sentant",
+        //                     "fields": {
+        //                         "name":"hello",
+        //                         "description":"world"
+        //                     }
+        //                 }
+        //             ]
+        //         }
 
-                console.log("LOADING");
-                Blockly.serialization.workspaces.load(savedState, workspace);
-            }
-            catch {
+        //         console.log("LOADING");
+        //         Blockly.serialization.workspaces.load(savedState, workspace);
+        //     }
+        //     catch {
 
-            }
-        }, 2000);
+        //     }
+        // }, 2000);
         
     });
     // ------------------------------------------------------------------------------------------------
@@ -324,21 +324,27 @@
         console.log(code);
         
         if (R2.JSONPath(code, "swarm")) {
-            let savedState = {
-                "backpack" : [
-                    blockly_construct["swarm"](R2.JSONPath(code, "swarm"))
-                ]
-            };
-            Blockly.serialization.workspaces.load(savedState, workspace);
+            // let savedState = {
+            //     "backpack" : [
+            //         blockly_construct["swarm"](R2.JSONPath(code, "swarm"))
+            //     ]
+            // };
+            var theState = Blockly.serialization.workspaces.save(workspace);
+            theState["backpack"].push(blockly_construct["swarm"](R2.JSONPath(code, "swarm")))
+
+            Blockly.serialization.workspaces.load(theState, workspace);
             alert('Swarm definition loaded into backpack.');           
         }
         else if (R2.JSONPath(code, "sentant")) {
-            let savedState = {
-                "backpack" : [
-                    blockly_construct["sentant"](R2.JSONPath(code, "sentant"))
-                ]
-            };
-            Blockly.serialization.workspaces.load(savedState, workspace);
+            // let savedState = {
+            //     "backpack" : [
+            //         blockly_construct["sentant"](R2.JSONPath(code, "sentant"))
+            //     ]
+            // };
+            var theState = Blockly.serialization.workspaces.save(workspace);
+            theState["backpack"].push(blockly_construct["sentant"](R2.JSONPath(code, "sentant")))
+
+            Blockly.serialization.workspaces.load(theState, workspace);
             alert('Sentant definition loaded into backpack.');           
         }
 

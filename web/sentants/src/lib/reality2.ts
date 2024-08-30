@@ -125,6 +125,13 @@ export default class R2 {
         return result;
     }
 
+    public static ToSimple(variable: any) {
+        return this.convert(variable, true);
+    }
+    public static ToJSON(variable: any) {
+        return this.convert(variable, false);
+    }
+
     public static convert(variable: any, no_json = true) : any {
         if (typeof variable === 'number') {
             return variable; // It's already a number
@@ -134,7 +141,7 @@ export default class R2 {
             return variable; // It's already a boolean
         }
       
-        if (typeof variable === 'string') {
+        if (typeof variable === 'string') {            
             // First, check if it's a boolean string
             if (variable.toLowerCase() === 'true') {
                 return true;
@@ -155,9 +162,9 @@ export default class R2 {
         
                 if (typeof parsed === 'object' && parsed !== null) {
                     if (no_json)
-                        return JSON.stringify(variable); // Return the parsed JSON object or array
+                        return JSON.stringify(parsed); // Return the parsed JSON object or array
                     else
-                        return variable;
+                        return parsed;
                 }
             } catch (e) {
                 // If it's not valid JSON, return the string as is
