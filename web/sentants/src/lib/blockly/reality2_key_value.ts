@@ -4,7 +4,7 @@
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-import { splitConcatenatedJSON } from "./blockly_common";
+import R2 from "../reality2";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -50,7 +50,49 @@ function process(block: any, generator: any): string | [string, number] | null
 
 
 // ----------------------------------------------------------------------------------------------------
+// Create a blockly block object from the JSON
+// ----------------------------------------------------------------------------------------------------
+function construct(data: any)
+{
+    let keys = Object.keys(data);
+    if (keys.length > 0) {
+        let block: any = {
+            "kind": "BLOCK",
+            "type": "reality2_key_value",
+            "fields": {
+                "key": keys[0],
+                "value": R2.JSONPath(data, keys[0])
+            }
+        }
+
+        // Remove the key we've just been using
+        delete data[keys[0]]
+
+        // get any other keys, recursively
+        if (Object.keys(data).length > 0)
+        {
+            let next = construct(data);
+            if (next) {
+                block["next"] = {
+                    "block": next
+                };
+            }
+        }
+
+        // Return the structure
+        return (block);
+    }
+    else
+    {
+        return null;
+    }
+}
+// ----------------------------------------------------------------------------------------------------
+
+
+
+// ----------------------------------------------------------------------------------------------------
 // Export defaults
 // ----------------------------------------------------------------------------------------------------
-export default {shape, process};
+export default {shape, process, construct};
 // ----------------------------------------------------------------------------------------------------
