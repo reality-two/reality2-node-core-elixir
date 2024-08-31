@@ -40,11 +40,6 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    // const key = block.getFieldValue('key');
-    // const value = block.getFieldValue('value');
-
-    // return ("{\"" + key + "\":\"" + value + "\"}")
-
     const key = block.getFieldValue('key');
     const value = R2.convert(block.getFieldValue('value'));
 

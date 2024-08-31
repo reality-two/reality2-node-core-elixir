@@ -77,6 +77,7 @@
     $: showJSON = [];
 
     let workspace: any;
+    let backpack: any;
     $: code = {};
 
     let blockly_definition = [
@@ -99,7 +100,10 @@
 
     let blockly_construct = {
         "sentant": reality2_sentant.construct,
-        "swarm": reality2_swarm.construct
+        "swarm": reality2_swarm.construct,
+        "get_plugin": reality2_get_plugin.construct,
+        "post_plugin": reality2_post_plugin.construct,
+        "automation": reality2_automation.construct
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -159,7 +163,7 @@
         });
 
 
-        const backpack = new Backpack(workspace);
+        backpack = new Backpack(workspace);
         backpack.init();
 
         // Add resize event listener
@@ -324,31 +328,39 @@
         console.log(code);
         
         if (R2.JSONPath(code, "swarm")) {
-            // let savedState = {
-            //     "backpack" : [
-            //         blockly_construct["swarm"](R2.JSONPath(code, "swarm"))
-            //     ]
-            // };
-            var theState = Blockly.serialization.workspaces.save(workspace);
-            theState["backpack"].push(blockly_construct["swarm"](R2.JSONPath(code, "swarm")))
-
-            Blockly.serialization.workspaces.load(theState, workspace);
+            backpack.addItem(JSON.stringify(blockly_construct["swarm"](R2.JSONPath(code, "swarm"))));
+            backpack.open();
             alert('Swarm definition loaded into backpack.');           
         }
         else if (R2.JSONPath(code, "sentant")) {
-            // let savedState = {
-            //     "backpack" : [
-            //         blockly_construct["sentant"](R2.JSONPath(code, "sentant"))
-            //     ]
-            // };
-            var theState = Blockly.serialization.workspaces.save(workspace);
-            theState["backpack"].push(blockly_construct["sentant"](R2.JSONPath(code, "sentant")))
-
-            Blockly.serialization.workspaces.load(theState, workspace);
+            backpack.addItem(JSON.stringify(blockly_construct["sentant"](R2.JSONPath(code, "sentant"))));
+            backpack.open();
             alert('Sentant definition loaded into backpack.');           
         }
-
-        // If is a sentant, create a sentant structure
+        else if (R2.JSONPath(code, "plugin")) {
+            const method = R2.JSONPath(code, "plugin.method");
+            switch(method) {
+                case "GET": 
+                    backpack.addItem(JSON.stringify(blockly_construct["get_plugin"](R2.JSONPath(code, "plugin"))));
+                    backpack.open();
+                    alert('Plugin definition loaded into backpack.');
+                    break;
+                case "POST":
+                    backpack.addItem(JSON.stringify(blockly_construct["post_plugin"](R2.JSONPath(code, "plugin"))));
+                    backpack.open();
+                    alert('Plugin definition loaded into backpack.');
+                    break;
+                default:
+                    alert('Incorrect format');                 
+            }          
+        }
+        else if (R2.JSONPath(code, "automation")) {
+            backpack.addItem(JSON.stringify(blockly_construct["automation"](R2.JSONPath(code, "automation"))));
+            backpack.open();
+            alert('Automation definition loaded into backpack.');           
+        }
+        else
+            alert('Incorrect format');  
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -368,10 +380,16 @@
             // Get filename
             var filename = "definition";
             if (R2.JSONPath(code, "swarm.name")) {
-                filename = R2.JSONPath(code, "swarm.name") + "_swarm";
+                filename = R2.JSONPath(code, "swarm.name") + ".swarm";
             }
             else if (R2.JSONPath(code, "sentant.name")) {
-                filename = R2.JSONPath(code, "sentant.name") + "_sentant";
+                filename = R2.JSONPath(code, "sentant.name") + ".sentant";
+            }
+            else if (R2.JSONPath(code, "plugin.name")) {
+                filename = R2.JSONPath(code, "plugin.name") + ".plugin";
+            }
+            else if (R2.JSONPath(code, "automation.name")) {
+                filename = R2.JSONPath(code, "automation.name") + ".automation";
             }
 
             // Save JSON or YAML

@@ -3,6 +3,9 @@
 // ----------------------------------------------------------------------------------------------------
 
 import { splitConcatenatedJSON } from "./blockly_common";
+import R2 from "../reality2";
+import reality2_plugin_header from "./reality2_plugin_header";
+
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -101,7 +104,41 @@ function process(block: any, generator: any): string | [string, number] | null
         "event": block.getFieldValue('output_event')
     };
 
-    return JSON.stringify(plugin);
+    return JSON.stringify({"plugin": plugin});
+}
+// ----------------------------------------------------------------------------------------------------
+
+
+
+// ----------------------------------------------------------------------------------------------------
+// Create a blockly block object from the JSON
+// ----------------------------------------------------------------------------------------------------
+function construct(plugin: any)
+{
+    if (plugin) {
+        // Set the initial structure
+        let block = {
+            "kind": "BLOCK",
+            "type": "reality2_get_plugin",
+            "fields": {
+                "name": R2.JSONPath(plugin, "name"),
+                "url": R2.JSONPath(plugin, "url"),
+                "method": "POST"
+            },
+            "inputs": {
+                "headers": {}
+            }
+        }
+
+        // Check if there are headers
+        let headers = reality2_plugin_header.construct(R2.JSONPath(plugin, "headers"));
+        if (headers) block["inputs"]["headers"] = { "block": headers }
+
+        return (block);
+    }
+    else {
+        return null;
+    }
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -110,7 +147,7 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Export defaults
 // ----------------------------------------------------------------------------------------------------
-export default {shape, process};
+export default {shape, process, construct};
 // ----------------------------------------------------------------------------------------------------
 
 
