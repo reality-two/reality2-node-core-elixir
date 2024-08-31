@@ -7,6 +7,8 @@ import R2 from "../reality2";
 import reality2_encrypt_decrypt_keys from "./reality2_encrypt_decrypt_keys";
 import reality2_key_value from "./reality2_key_value";
 import reality2_data from "./reality2_data";
+import reality2_get_plugin from "./reality2_get_plugin";
+import reality2_post_plugin from "./reality2_post_plugin";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -84,24 +86,24 @@ function process(block: any, generator: any): string | [string, number] | null
     sentant["name"] = block.getFieldValue('name');
     sentant["description"] = block.getFieldValue('description');
 
-    const keys = generator.statementToCode(block, "keys");
+    let keys = generator.statementToCode(block, "keys");
     if (keys != "") {
         sentant["keys"] = splitConcatenatedJSON(keys);
     }
 
-    const data = generator.statementToCode(block, "data");
+    let data = generator.statementToCode(block, "data");
     if (data != "") {
         sentant["data"] = splitConcatenatedJSON(data);
     }
 
-    const plugins = generator.statementToCode(block, "plugins");
+    let plugins = generator.statementToCode(block, "plugins");
     if (plugins != "") {
-        sentant["plugins"] = splitConcatenatedJSON(plugins, false);
+        sentant["plugins"] = splitConcatenatedJSON(plugins, false).map((plugin: any) => {return (plugin["plugin"])});
     }
 
-    const automations = generator.statementToCode(block, "automations");
+    let automations = generator.statementToCode(block, "automations");
     if (automations != "") {
-        sentant["automations"] = splitConcatenatedJSON(automations, false);
+        sentant["automations"] = splitConcatenatedJSON(automations, false).map((automation: any) => {return (automation["automation"])});
     }
 
     return JSON.stringify({"sentant":sentant});
@@ -126,7 +128,9 @@ function construct(sentant: any)
             },
             "inputs": {
                 "keys": {},
-                "data": {}
+                "data": {},
+                "plugins": {},
+                "automations": {}
             }
         }
 
@@ -141,7 +145,33 @@ function construct(sentant: any)
 
         // Check if there is data
         let data = reality2_data.construct(R2.JSONPath(sentant, "data"));
-        if (data) block["inputs"]["data"] = { "block": data }
+        if (data) block["inputs"]["data"] = { "block": data };
+
+        // Check if there are plugins
+        let plugins: [any] = R2.JSONPath(sentant, "plugins");
+
+        let plugins_block = plugins.reduce((acc, plugin) => {
+            let method = R2.JSONPath(sentant, "plugin.method");
+            switch (method) {
+                case "GET":
+                    var plugin_block: any = reality2_get_plugin.construct(plugin);
+                    plugin_block["next"] =  { "block": acc };
+                    break;
+                case "POST":
+                    var plugin_block: any = reality2_post_plugin.construct(plugin);
+                    plugin_block["next"] =  { "block": acc };
+                    break;
+                default:
+                    var plugin_block = acc;
+                    break;
+            };
+
+            return plugin_block;
+        }, {});
+
+        if (plugins_block) block["inputs"]["plugins"] = { "block": plugins_block };
+
+        // Check if there are automations
 
         console.log("SENTANT:", block);
         return (block);

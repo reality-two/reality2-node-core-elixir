@@ -44,8 +44,6 @@ function process(block: any, generator: any): string | [string, number] | null
     var return_value:any = {};
     return_value[key] = value;
 
-    console.log(return_value);
-
     return (JSON.stringify(return_value));
 }
 // ----------------------------------------------------------------------------------------------------
@@ -57,7 +55,6 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 function construct(data: any)
 {
-    console.log("START", data);
     if (data) {
         let keys = Object.keys(data);
         if (keys.length > 0) {
@@ -81,7 +78,6 @@ function construct(data: any)
                 };
             }
     
-            console.log("END:", block);
             // Return the structure
             return (block);
         }
