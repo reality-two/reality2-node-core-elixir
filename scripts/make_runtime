@@ -42,10 +42,10 @@ mix deps.get
 echo "***** Building the Reality2 Node..."
 mix release
 
-echo "***** Copying the Reality2 Demos to the release directory..."
+# echo "***** Copying the Reality2 Demos to the release directory..."
 cp "scripts/runtime_run" "_build/prod/rel/reality2/run"
-cp -r demos/python "_build/prod/rel/reality2"
-cp -r demos/SBC "_build/prod/rel/reality2"
+# cp -r demos/python "_build/prod/rel/reality2"
+# cp -r demos/SBC "_build/prod/rel/reality2"
 
 echo "***** Adding some useful extras..."
 cp -r extras "_build/prod/rel/reality2"

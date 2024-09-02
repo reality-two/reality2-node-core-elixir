@@ -35,3 +35,7 @@ erl_crash.dump
 mix.lock
 
 /.mnesia/
+
+/.vscode/
+
+/.kdev4/
