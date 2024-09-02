@@ -1,8 +1,0 @@
-/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/.utmp/RelWithDebInfo/1e126d2n/arm64-v8a/CMakeFiles/edit_cache.dir
-/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/.utmp/RelWithDebInfo/1e126d2n/arm64-v8a/CMakeFiles/rebuild_cache.dir
-/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/.utmp/RelWithDebInfo/1e126d2n/arm64-v8a/GameActivity/CMakeFiles/game.dir
-/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/.utmp/RelWithDebInfo/1e126d2n/arm64-v8a/GameActivity/CMakeFiles/edit_cache.dir
-/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/.utmp/RelWithDebInfo/1e126d2n/arm64-v8a/GameActivity/CMakeFiles/rebuild_cache.dir
-/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/.utmp/RelWithDebInfo/1e126d2n/arm64-v8a/FramePacing/CMakeFiles/swappywrapper.dir
-/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/.utmp/RelWithDebInfo/1e126d2n/arm64-v8a/FramePacing/CMakeFiles/edit_cache.dir
-/Volumes/Storage/Development/Reality2/Reality2/XR/unity/Reality2 Browser/.utmp/RelWithDebInfo/1e126d2n/arm64-v8a/FramePacing/CMakeFiles/rebuild_cache.dir
