@@ -152,21 +152,28 @@ function construct(sentant: any)
 
         let plugins_block = plugins.reduce((acc, plugin) => {
             let method = R2.JSONPath(sentant, "plugin.method");
+            let the_plugin: any;
             switch (method) {
                 case "GET":
                     var plugin_block: any = reality2_get_plugin.construct(plugin);
-                    plugin_block["next"] =  { "block": acc };
+                    if (plugin_block) {
+                        the_plugin = plugin_block["plugin"];
+                        the_plugin["next"] =  { "block": acc };
+                    }
                     break;
                 case "POST":
                     var plugin_block: any = reality2_post_plugin.construct(plugin);
-                    plugin_block["next"] =  { "block": acc };
+                    if (plugin_block) {
+                        the_plugin = plugin_block["plugin"];
+                        the_plugin["next"] =  { "block": acc };
+                    }
                     break;
                 default:
-                    var plugin_block = acc;
+                    the_plugin = acc;
                     break;
             };
 
-            return plugin_block;
+            return the_plugin;
         }, {});
 
         if (plugins_block) block["inputs"]["plugins"] = { "block": plugins_block };

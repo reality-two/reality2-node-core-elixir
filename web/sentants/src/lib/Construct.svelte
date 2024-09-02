@@ -29,7 +29,7 @@
     //@ts-ignore
     import yaml from 'js-yaml';
 
-    import {Backpack} from '@blockly/workspace-backpack';
+    import {Backpack, backpackChange} from '@blockly/workspace-backpack';
 
     import { onMount } from "svelte";
     import { onDestroy } from "svelte";
@@ -163,7 +163,19 @@
         });
 
 
-        backpack = new Backpack(workspace);
+        backpack = new Backpack(workspace, {
+            allowEmptyBackpackOpen: true,
+            useFilledBackpackImage: true,
+            skipSerializerRegistration: true,
+            contextMenu: {
+                emptyBackpack: true,
+                removeFromBackpack: true,
+                copyToBackpack: true,
+                copyAllToBackpack: false,
+                pasteAllToBackpack: false,
+                disablePreconditionChecks: false,
+            },
+        });
         backpack.init();
 
         // Add resize event listener
