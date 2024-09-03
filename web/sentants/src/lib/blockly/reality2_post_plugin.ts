@@ -119,14 +119,18 @@ function construct(plugin: any)
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "reality2_get_plugin",
+            "type": "reality2_post_plugin",
             "fields": {
                 "name": R2.JSONPath(plugin, "name"),
                 "url": R2.JSONPath(plugin, "url"),
-                "method": "POST"
+                "method": "POST",
+                "output_key": R2.JSONPath(plugin, "output.key"),
+                "output_value": R2.JSONPath(plugin, "output.value"),
+                "output_event": R2.JSONPath(plugin, "output.event")
             },
             "inputs": {
-                "headers": {}
+                "headers": {},
+                "body": {}
             }
         }
 
