@@ -150,6 +150,8 @@ function construct(sentant: any)
         // Check if there are plugins
         let plugins: [any] = R2.JSONPath(sentant, "plugins");
 
+        console.log("PLUGINS: ", plugins);
+
         let plugins_block = plugins.reduce((acc, plugin) => {
             let method = R2.JSONPath(sentant, "plugin.method");
             let the_plugin: any;
@@ -175,6 +177,8 @@ function construct(sentant: any)
 
             return the_plugin;
         }, {});
+
+        console.log("PLUGINS: ", plugins_block);
 
         if (plugins_block) block["inputs"]["plugins"] = { "block": plugins_block };
 
