@@ -4,6 +4,7 @@
 
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
+import reality2_sentant from "./reality2_sentant";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -68,16 +69,47 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(data: any)
+function construct(swarm: any)
 {
     let block = {
         "kind": "BLOCK",
         "type": "reality2_swarm",
         "fields": {
-            "name": R2.JSONPath(data, "name"),
-            "description": R2.JSONPath(data, "description")
+            "name": R2.JSONPath(swarm, "name"),
+            "description": R2.JSONPath(swarm, "description")
+        },
+        "inputs": {
+            "sentants": {}
         }
     }
+
+    console.log("SWARM:", JSON.stringify(swarm));
+
+    // Check if there are sentants
+    let sentants: [any] = R2.JSONPath(swarm, "sentants");
+
+    console.log("SENTANTS:", JSON.stringify(sentants));
+
+    if (sentants) {
+        let sentants_block = sentants.reduce((acc, sentant) => {
+
+            console.log("SENTANT:", JSON.stringify(sentant));
+
+            let sentant_block: any = reality2_sentant.construct(sentant);
+
+            console.log("SENTANT BLOCK:", JSON.stringify(sentant_block));
+    
+            if (sentant_block) {
+                sentant_block["next"] = { "block": acc }
+            }
+    
+            return sentant_block;
+        }, {});
+    
+        block["inputs"]["sentants"] = sentants_block;
+    }
+
+    console.log("SWARM BLOCK:", JSON.stringify(block));
 
     return (block);
 }

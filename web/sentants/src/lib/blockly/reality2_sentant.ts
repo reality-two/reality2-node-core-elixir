@@ -149,38 +149,39 @@ function construct(sentant: any)
 
         // Check if there are plugins
         let plugins: [any] = R2.JSONPath(sentant, "plugins");
+        if (plugins) block["inputs"]["plugins"] = { "block": plugins };
 
-        console.log("PLUGINS: ", plugins);
+        // console.log("PLUGINS: ", plugins);
 
-        let plugins_block = plugins.reduce((acc, plugin) => {
-            let method = R2.JSONPath(sentant, "plugin.method");
-            let the_plugin: any;
-            switch (method) {
-                case "GET":
-                    var plugin_block: any = reality2_get_plugin.construct(plugin);
-                    if (plugin_block) {
-                        the_plugin = plugin_block["plugin"];
-                        the_plugin["next"] =  { "block": acc };
-                    }
-                    break;
-                case "POST":
-                    var plugin_block: any = reality2_post_plugin.construct(plugin);
-                    if (plugin_block) {
-                        the_plugin = plugin_block["plugin"];
-                        the_plugin["next"] =  { "block": acc };
-                    }
-                    break;
-                default:
-                    the_plugin = acc;
-                    break;
-            };
+        // let plugins_block = plugins.reduce((acc, plugin) => {
+        //     let method = R2.JSONPath(sentant, "plugin.method");
+        //     let the_plugin: any;
+        //     switch (method) {
+        //         case "GET":
+        //             var plugin_block: any = reality2_get_plugin.construct(plugin);
+        //             if (plugin_block) {
+        //                 the_plugin = plugin_block["plugin"];
+        //                 the_plugin["next"] =  { "block": acc };
+        //             }
+        //             break;
+        //         case "POST":
+        //             var plugin_block: any = reality2_post_plugin.construct(plugin);
+        //             if (plugin_block) {
+        //                 the_plugin = plugin_block["plugin"];
+        //                 the_plugin["next"] =  { "block": acc };
+        //             }
+        //             break;
+        //         default:
+        //             the_plugin = acc;
+        //             break;
+        //     };
 
-            return the_plugin;
-        }, {});
+        //     return the_plugin;
+        // }, {});
 
-        console.log("PLUGINS: ", plugins_block);
+        // console.log("PLUGINS: ", plugins_block);
 
-        if (plugins_block) block["inputs"]["plugins"] = { "block": plugins_block };
+        // if (plugins_block) block["inputs"]["plugins"] = { "block": plugins_block };
 
         // Check if there are automations
 
