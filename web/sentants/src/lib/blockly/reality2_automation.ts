@@ -4,6 +4,9 @@
 
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
+import reality2_transition from "./reality2_transition";
+import reality2_simple_transition from "./reality2_simple_transition";
+import reality2_start_transition from "./reality2_start_transition";
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -88,9 +91,47 @@ function construct(automation: any)
             }
         }
 
-        // Check if there are headers
-        // let transitions = reality2_transition.construct(R2.JSONPath(automation, "transitions"));
-        // if (transitions) block["inputs"]["transitions"] = { "block": transitions }
+        // Check if there are transitions
+        let transitions: [any] = R2.JSONPath(automation, "transitions");
+
+        // If there are, go backwards through the array creating each block, and linking to the next
+        if (transitions) {
+            let transitions_block = transitions.reduceRight((acc, transition) => {
+
+                let event = transition["event"];
+                let to = transition["to"];
+                let from = transition["from"];
+
+                let transition_block: any;
+
+                if ((event && !to && !from)) {
+                    // Command
+                    transition_block = reality2_simple_transition.construct(transition);
+                    if (transition_block && acc) {
+                        transition_block["next"] =  { "block": acc };
+                    }
+                }
+                else if ((event == "init") && (from == "start")) {
+                    // Init
+                    transition_block = reality2_start_transition.construct(transition);
+                    if (transition_block && acc) {
+                        transition_block["next"] =  { "block": acc };
+                    }
+                }
+                else {
+                    transition_block = reality2_transition.construct(transition);
+                    if (transition_block && acc) {
+                        transition_block["next"] =  { "block": acc };
+                    }
+                }
+        
+                // accumulate the block so far
+                return transition_block;
+            }, null);
+        
+            // Sentants starts as a block
+            block["inputs"]["transitions"] = {"block": transitions_block};
+        }
 
         return (block);
     }

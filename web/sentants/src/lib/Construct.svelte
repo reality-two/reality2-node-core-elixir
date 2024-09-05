@@ -517,7 +517,7 @@
                 <Column attached>
                     <Button ui fluid huge top attached on:click={()=>{
                             const savedState = Blockly.serialization.workspaces.save(workspace);
-                            console.log(savedState);
+                            console.log(JSON.stringify(savedState, null, 2));
                             var newCode=javascriptGenerator.workspaceToCode(workspace); code=(newCode==""?"":JSON.parse(newCode))
                         }}>
                         <Icon ui arrow down></Icon>

@@ -9,6 +9,7 @@ import reality2_key_value from "./reality2_key_value";
 import reality2_data from "./reality2_data";
 import reality2_get_plugin from "./reality2_get_plugin";
 import reality2_post_plugin from "./reality2_post_plugin";
+import reality2_automation from "./reality2_automation";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -149,43 +150,61 @@ function construct(sentant: any)
 
         // Check if there are plugins
         let plugins: [any] = R2.JSONPath(sentant, "plugins");
-        if (plugins) block["inputs"]["plugins"] = { "block": plugins };
 
-        // console.log("PLUGINS: ", plugins);
+        // If there are, go backwards through the array creating each block, and linking to the next
+        if (plugins) {
+            let plugins_block = plugins.reduceRight((acc, plugin) => {
 
-        // let plugins_block = plugins.reduce((acc, plugin) => {
-        //     let method = R2.JSONPath(sentant, "plugin.method");
-        //     let the_plugin: any;
-        //     switch (method) {
-        //         case "GET":
-        //             var plugin_block: any = reality2_get_plugin.construct(plugin);
-        //             if (plugin_block) {
-        //                 the_plugin = plugin_block["plugin"];
-        //                 the_plugin["next"] =  { "block": acc };
-        //             }
-        //             break;
-        //         case "POST":
-        //             var plugin_block: any = reality2_post_plugin.construct(plugin);
-        //             if (plugin_block) {
-        //                 the_plugin = plugin_block["plugin"];
-        //                 the_plugin["next"] =  { "block": acc };
-        //             }
-        //             break;
-        //         default:
-        //             the_plugin = acc;
-        //             break;
-        //     };
-
-        //     return the_plugin;
-        // }, {});
-
-        // console.log("PLUGINS: ", plugins_block);
-
-        // if (plugins_block) block["inputs"]["plugins"] = { "block": plugins_block };
+                let method = R2.JSONPath(plugin, "method");
+                let plugin_block: any;
+                switch (method) {
+                    case "GET":
+                        plugin_block = reality2_get_plugin.construct(plugin);
+                        if (plugin_block && acc) {
+                            plugin_block["next"] =  { "block": acc };
+                        }
+                        break;
+                    case "POST":
+                        plugin_block = reality2_post_plugin.construct(plugin);
+                        if (plugin_block && acc) {
+                            plugin_block["next"] =  { "block": acc };
+                        }
+                        break;
+                    default:
+                        plugin_block = acc;
+                        break;
+                };
+        
+                // accumulate the block so far
+                return plugin_block;
+            }, null);
+        
+            // Sentants starts as a block
+            block["inputs"]["plugins"] = {"block": plugins_block};
+        }
 
         // Check if there are automations
+        let automations: [any] = R2.JSONPath(sentant, "automations");
 
-        console.log("SENTANT:", block);
+        console.log("AUTOMATIONS", automations);
+
+        // If there are, go backwards through the array creating each block, and linking to the next
+        if (automations) {
+            let automations_block = automations.reduceRight((acc, automation) => {
+
+                let automation_block: any = reality2_automation.construct(automation);
+                if (automation_block && acc) {
+                    automation_block["next"] =  { "block": acc };
+                }
+        
+                // accumulate the block so far
+                return automation_block;
+            }, null);
+        
+            // Sentants starts as a block
+            block["inputs"]["automations"] = {"block": automations_block};
+        }
+
         return (block);
     }
     else {
