@@ -83,33 +83,28 @@ function construct(swarm: any)
         }
     }
 
-    console.log("SWARM:", JSON.stringify(swarm));
-
     // Check if there are sentants
     let sentants: [any] = R2.JSONPath(swarm, "sentants");
 
-    console.log("SENTANTS:", JSON.stringify(sentants));
-
+    // If there are, go backwards through the array creating each block, and linking to the next
     if (sentants) {
-        let sentants_block = sentants.reduce((acc, sentant) => {
+        let sentants_block = sentants.reduceRight((acc, sentant) => {
 
-            console.log("SENTANT:", JSON.stringify(sentant));
-
+            // Get a Sentant block
             let sentant_block: any = reality2_sentant.construct(sentant);
-
-            console.log("SENTANT BLOCK:", JSON.stringify(sentant_block));
     
-            if (sentant_block) {
+            // If the block is not empty, and the accumulator is also not empty, add it as the next.
+            if (sentant_block && acc) {
                 sentant_block["next"] = { "block": acc }
             }
     
+            // accumulate the block so far
             return sentant_block;
-        }, {});
+        }, null);
     
-        block["inputs"]["sentants"] = sentants_block;
+        // Sentants starts as a block
+        block["inputs"]["sentants"] = {"block": sentants_block};
     }
-
-    console.log("SWARM BLOCK:", JSON.stringify(block));
 
     return (block);
 }

@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------------------------------------
 
 import { splitConcatenatedJSON } from "./blockly_common";
+import R2 from "../reality2";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -56,7 +57,38 @@ function process(block: any, generator: any): string | [string, number] | null
 
 
 // ----------------------------------------------------------------------------------------------------
+// Create a blockly block object from the JSON
+// ----------------------------------------------------------------------------------------------------
+function construct(action: any)
+{
+    if (action) {
+        // Set the initial structure
+        let block = {
+            "kind": "BLOCK",
+            "type": "reality2_action_set",
+            "fields": {
+                "command": "set",
+                "parameters": {
+                    "key": R2.JSONPath(action, "parameters.key"),
+                    "value": R2.JSONPath(action, "parameters.value")
+                }
+            },
+            "inputs": {
+            }
+        }
+
+        return (block);
+    }
+    else {
+        return null;
+    }
+}
+// ----------------------------------------------------------------------------------------------------
+
+
+
+// ----------------------------------------------------------------------------------------------------
 // Export defaults
 // ----------------------------------------------------------------------------------------------------
-export default {shape, process};
+export default {shape, process, construct};
 // ----------------------------------------------------------------------------------------------------
