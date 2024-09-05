@@ -5,6 +5,7 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_action_set from "./reality2_action_set";
+import reality2_action_debug from "./reality2_action_debug";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -133,9 +134,9 @@ function construct(transition: any)
             let actions_block = actions.reduceRight((acc, action) => {
 
                 let command = action["command"];
-
                 let action_block: any;
 
+                console.log("COMMAND:",command);
                 switch (command) {
                     case "set":
                         action_block = reality2_action_set.construct(action);
@@ -148,6 +149,11 @@ function construct(transition: any)
                     case "signal":
                         break;
                     case "debug":
+                        console.log("DEBUG");
+                        action_block = reality2_action_debug.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        }
                         break;
                 }
         

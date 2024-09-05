@@ -9,23 +9,8 @@ import R2 from "../reality2";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_action_set",
-    "message0":"ACTION - SET",
-	"message1":" - set %1 = %2",
-	"args1":[
-        {
-			"type":"field_input",
-			"name":"key",
-			"check":"String",
-			"text":""
-		},
-        {
-			"type":"field_input",
-			"name":"value",
-			"check":"Json",
-			"text":""
-		}
-	],
+	"type":"reality2_action_debug",
+    "message0":"ACTION - DEBUG",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300
@@ -39,15 +24,8 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const key = block.getFieldValue('key');
-    const value = block.getFieldValue('value');
-
     const action = {
-        "command": "set",
-        "parameters": {
-            "key": key,
-            "value": value
-        }
+        "command": "debug"
     }
 
     return (JSON.stringify(action));
@@ -61,18 +39,17 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 function construct(action: any)
 {
+    console.log("DEBUG:", action);
+    
     if (action) {
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "reality2_action_set",
-            "fields": {
-                "key": R2.JSONPath(action, "parameters.key"),
-                "value": R2.JSONPath(action, "parameters.value")
-            },
-            "inputs": {
-            }
+            "type": "reality2_action_debug"
         }
+
+        console.log("DEBUG:", block);
+
         return (block);
     }
     else {

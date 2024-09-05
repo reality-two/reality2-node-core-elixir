@@ -51,6 +51,7 @@
     import reality2_simple_transition from "./blockly/reality2_simple_transition";
     import reality2_action_set from "./blockly/reality2_action_set";
     import reality2_action_send from "./blockly/reality2_action_send";
+    import reality2_action_debug from "./blockly/reality2_action_debug";
     
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
     // ------------------------------------------------------------------------------------------------
@@ -95,7 +96,8 @@
         reality2_start_transition.shape,
         reality2_simple_transition.shape,
         reality2_action_set.shape,
-        reality2_action_send.shape
+        reality2_action_send.shape,
+        reality2_action_debug.shape
     ];
 
     let blockly_construct = {
@@ -203,29 +205,7 @@
         javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
         javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
-
-        // setTimeout(() => { 
-        //     try {
-        //         let savedState = {
-        //             "backpack" : [
-        //                 {
-        //                     "kind": "BLOCK",
-        //                     "type": "reality2_sentant",
-        //                     "fields": {
-        //                         "name":"hello",
-        //                         "description":"world"
-        //                     }
-        //                 }
-        //             ]
-        //         }
-
-        //         console.log("LOADING");
-        //         Blockly.serialization.workspaces.load(savedState, workspace);
-        //     }
-        //     catch {
-
-        //     }
-        // }, 2000);
+        javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
         
     });
     // ------------------------------------------------------------------------------------------------
