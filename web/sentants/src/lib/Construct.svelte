@@ -44,6 +44,7 @@
     import reality2_get_plugin from "./blockly/reality2_get_plugin";
     import reality2_post_plugin from "./blockly/reality2_post_plugin";
     import reality2_plugin_header from "./blockly/reality2_plugin_header";
+    import reality2_plugin_body from "./blockly/reality2_plugin_body";
     import reality2_automation from "./blockly/reality2_automation";
     import reality2_parameter from "./blockly/reality2_parameter";
     import reality2_transition from "./blockly/reality2_transition";
@@ -51,6 +52,7 @@
     import reality2_simple_transition from "./blockly/reality2_simple_transition";
     import reality2_action_set from "./blockly/reality2_action_set";
     import reality2_action_send from "./blockly/reality2_action_send";
+    import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
     import reality2_action_debug from "./blockly/reality2_action_debug";
     import reality2_action_signal from "./blockly/reality2_action_signal";
     
@@ -91,6 +93,7 @@
         reality2_get_plugin.shape,
         reality2_post_plugin.shape,
         reality2_plugin_header.shape,
+        reality2_plugin_body.shape,
         reality2_automation.shape,
         reality2_parameter.shape,
         reality2_transition.shape,
@@ -98,6 +101,7 @@
         reality2_simple_transition.shape,
         reality2_action_set.shape,
         reality2_action_send.shape,
+        reality2_action_send_plugin.shape,
         reality2_action_debug.shape,
         reality2_action_signal.shape
     ];
@@ -198,6 +202,7 @@
         javascriptGenerator.forBlock['reality2_get_plugin'] = reality2_get_plugin.process;
         javascriptGenerator.forBlock['reality2_post_plugin'] = reality2_post_plugin.process;
         javascriptGenerator.forBlock['reality2_plugin_header'] = reality2_plugin_header.process;   
+        javascriptGenerator.forBlock['reality2_plugin_body'] = reality2_plugin_body.process;   
         javascriptGenerator.forBlock['reality2_key_value'] = reality2_key_value.process;   
         javascriptGenerator.forBlock['reality2_data'] = reality2_data.process;   
         javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;   
@@ -207,6 +212,7 @@
         javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
         javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
+        javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
         

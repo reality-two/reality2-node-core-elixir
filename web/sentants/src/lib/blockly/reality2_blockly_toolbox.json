@@ -65,6 +65,10 @@
                 {
                     "kind":"block",
                     "type":"reality2_plugin_header"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_plugin_body"
                 }
 			]
 		},
@@ -95,7 +99,14 @@
                 {
                     "kind":"block",
                     "type":"reality2_simple_transition"
-                },
+                }
+            ]
+        },
+        {
+            "kind":"category",
+            "colour": 300,
+            "name":"Parameters",
+            "contents":[
                 {
                     "kind":"block",
                     "type":"reality2_parameter"
@@ -104,12 +115,16 @@
         },
         {
             "kind":"category",
-            "colour": 300,
+            "colour": 350,
             "name":"Actions",
             "contents":[
                 {
                     "kind":"block",
                     "type":"reality2_action_send"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_action_send_plugin"
                 },
                 {
                     "kind":"block",

@@ -5,6 +5,11 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_action_set from "./reality2_action_set";
+import reality2_action_debug from "./reality2_action_debug";
+import reality2_action_send from "./reality2_action_send";
+import reality2_action_send_plugin from "./reality2_action_send_plugin";
+import reality2_action_signal from "./reality2_action_signal";
+import reality2_parameter from "./reality2_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -35,7 +40,7 @@ const shape = {
         {
             "type":"input_statement",
             "name":"parameters",
-            "check":"reality_parameter"
+            "check": ["reality_parameter"]
         }
     ],
     "message3":" - actions %1",
@@ -43,7 +48,7 @@ const shape = {
         {
             "type":"input_statement",
             "name":"actions",
-            "check": "reality2_action"
+            "check": ["reality2_action_debug", "reality2_action_send", "reality2_action_set", "reality2_action_signal"]
         }
     ],
     "previousStatement":null,
@@ -104,9 +109,11 @@ function construct(transition: any)
         }
 
         // Check if there are parameters
-
-
-
+        let parameters: [any] = R2.JSONPath(transition, "parameters");
+        if (parameters) {
+            let parameters_block = reality2_parameter.construct(parameters);
+            block["inputs"]["parameters"] = {"block": parameters_block}
+        }
 
         // Check if there are actions
         let actions: [any] = R2.JSONPath(transition, "actions");
@@ -127,10 +134,30 @@ function construct(transition: any)
                         }
                         break;
                     case "send":
+                        let plugin_name = action["plugin"];
+                        if (plugin_name) {
+                            action_block = reality2_action_send_plugin.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                        } else {
+                            action_block = reality2_action_send.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                        }
                         break;
                     case "signal":
+                        action_block = reality2_action_signal.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        }
                         break;
                     case "debug":
+                        action_block = reality2_action_debug.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        }
                         break;
                 }
         

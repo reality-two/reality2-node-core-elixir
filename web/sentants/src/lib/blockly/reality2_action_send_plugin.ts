@@ -1,5 +1,3 @@
-
-
 // ----------------------------------------------------------------------------------------------------
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
@@ -11,31 +9,28 @@ import R2 from "../reality2";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_parameter",
-    "message0":"PARAMETER : TYPE",
-	"message1":" - %1 : %2",
+	"type":"reality2_action_send_plugin",
+    "message0":"ACTION - PLUGIN",
+	"message1":" - send to %1",
 	"args1":[
-		{
+        {
 			"type":"field_input",
-			"name":"parameter",
+			"name":"plugin",
 			"check":"String",
 			"text":""
-		},
-        {
-            "type":"field_dropdown",
-            "name":"type",
-            "options":[
-                ["number", "number"],
-                ["string", "string"],
-                ["boolean", "boolean"],
-                ["json", "json"]
-            ],
-            "tooltip":"Various parameter types"
         }
 	],
+    "message2":" - parameters %1",
+    "args2":[
+        {
+            "type":"input_statement",
+            "name":"parameters",
+            "check":"reality_parameter"
+        }
+    ],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300
+    "colour": 350
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -46,10 +41,21 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const parameter = block.getFieldValue('parameter');
-    const type = block.getFieldValue('type');
+    var params = {};
 
-    return ("{\"" + parameter + "\":\"" + type + "\"}")
+    const plugin = block.getFieldValue('plugin');
+    const parameters = generator.statementToCode(block, "parameters");
+    if (parameters !== "") {
+       params = splitConcatenatedJSON(parameters);
+    };
+
+    const action = {
+        "command": "send",
+        "plugin": plugin,
+        "parameters": params
+    }
+
+    return (JSON.stringify(action));
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -58,41 +64,21 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(parameters: any)
+function construct(action: any)
 {
-    if (parameters) {
-        let keys = Object.keys(parameters);
-        if (keys.length > 0) {
-            let param_name = keys[0];
-            let param_type = R2.JSONPath(parameters, param_name);
-
-            let block: any = {
-                "kind": "BLOCK",
-                "type": "reality2_parameter",
-                "fields": {
-                    "parameter": param_name,
-                    "type": param_type
-                }
+    if (action) {
+        // Set the initial structure
+        let block = {
+            "kind": "BLOCK",
+            "type": "reality2_action_send_plugin",
+            "fields": {
+                "plugin": R2.JSONPath(action, "plugin")
+            },
+            "inputs": {
+                "parameters": {}
             }
-    
-            // Remove the key we've just been using
-            delete parameters[keys[0]];
-    
-            // get any other keys, recursively
-            let next = construct(parameters);
-            if (next) {
-                block["next"] = {
-                    "block": next
-                };
-            }
-    
-            // Return the structure
-            return (block);
         }
-        else
-        {
-            return null;
-        }
+        return (block);
     }
     else {
         return null;

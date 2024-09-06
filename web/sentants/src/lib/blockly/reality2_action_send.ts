@@ -10,7 +10,7 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_send",
-    "message0":"SEND",
+    "message0":"ACTION - SEND",
 	"message1":" - send %1 to %2 after %3 seconds",
 	"args1":[
         {
@@ -42,7 +42,7 @@ const shape = {
     ],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300
+    "colour": 350
 }
 // ----------------------------------------------------------------------------------------------------
 
