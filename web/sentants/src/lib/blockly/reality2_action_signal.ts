@@ -9,10 +9,19 @@ import R2 from "../reality2";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_action_send",
-    "message0":"ACTION - SEND",
-	"message1":" - send %1 to %2 after %3 seconds",
+	"type":"reality2_action_signal",
+    "message0":"ACTION - SIGNAL",
+	"message1":" - %1 signal %2 to %3",
 	"args1":[
+        {
+            "type":"field_dropdown",
+            "name":"access",
+            "options":[
+                ["public", "public"],
+                ["private", "private"]
+            ],
+            "tooltip":"Only public events can be triggered by external Sentants."
+        },
         {
 			"type":"field_input",
 			"name":"event",
@@ -24,20 +33,14 @@ const shape = {
 			"name":"to",
 			"check":"String",
 			"text":""
-		},
-        {
-			"type":"field_input",
-			"name":"delay",
-			"check":"Number",
-			"text":"0"
-        }
+		}
 	],
     "message2":" - parameters %1",
     "args2":[
         {
             "type":"input_statement",
             "name":"parameters",
-            "check":"reality_parameter"
+            "check":"reality2_parameter"
         }
     ],
 	"previousStatement":null,
@@ -57,18 +60,18 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const event = block.getFieldValue('event');
     const to = block.getFieldValue('to');
-    const delay = block.getFieldValue('delay');
+    const public_var = block.getFieldValue('access') === "public"
     const parameters = generator.statementToCode(block, "parameters");
     if (parameters !== "") {
        params = splitConcatenatedJSON(parameters);
     };
 
     const action = {
-        "command": "send",
+        "command": "signal",
+        "public": public_var,
         "parameters": {
             "event": event,
             "to": to,
-            "delay": delay,
             "parameters": params
         }
     }
@@ -88,11 +91,11 @@ function construct(action: any)
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "reality2_action_send",
+            "type": "reality2_action_signal",
             "fields": {
                 "event": R2.JSONPath(action, "event"),
                 "to": R2.JSONPath(action, "to"),
-                "delay": R2.JSONPath(action, "delay")
+                "public": R2.JSONPath(action, "public")
             },
             "inputs": {
                 "parameters": {}
