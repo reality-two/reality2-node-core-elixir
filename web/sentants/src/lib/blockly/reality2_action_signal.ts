@@ -10,8 +10,8 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_signal",
-    "message0":"SIGNAL",
-	"message1":" - %1 signal %2 to %3",
+    "message0":"ACTION - SIGNAL",
+	"message1":" - %1 signal %2",
 	"args1":[
         {
             "type":"field_dropdown",
@@ -20,17 +20,11 @@ const shape = {
                 ["public", "public"],
                 ["private", "private"]
             ],
-            "tooltip":"Only public events can be triggered by external Sentants."
+            "tooltip":"Only public signals can be received by external Sentants and Devices."
         },
         {
 			"type":"field_input",
 			"name":"event",
-			"check":"String",
-			"text":""
-		},
-        {
-			"type":"field_input",
-			"name":"to",
 			"check":"String",
 			"text":""
 		}
@@ -45,7 +39,7 @@ const shape = {
     ],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300
+    "colour": 350
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -59,7 +53,6 @@ function process(block: any, generator: any): string | [string, number] | null
     var params = {};
 
     const event = block.getFieldValue('event');
-    const to = block.getFieldValue('to');
     const public_var = block.getFieldValue('access') === "public"
     const parameters = generator.statementToCode(block, "parameters");
     if (parameters !== "") {
@@ -71,7 +64,6 @@ function process(block: any, generator: any): string | [string, number] | null
         "parameters": {
             "public": public_var,
             "event": event,
-            "to": to,
             "parameters": params
         }
     }
@@ -87,6 +79,7 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 function construct(action: any)
 {
+    console.log("SIGNAL", action);
     if (action) {
         // Set the initial structure
         let block = {
@@ -94,7 +87,6 @@ function construct(action: any)
             "type": "reality2_action_signal",
             "fields": {
                 "event": R2.JSONPath(action, "parameters.event"),
-                "to": R2.JSONPath(action, "parameters.to"),
                 "public": R2.JSONPath(action, "public") === null ? (R2.JSONPath(action, "parameters.public") === true) : (R2.JSONPath(action, "public") === true)
             },
             "inputs": {

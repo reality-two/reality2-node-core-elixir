@@ -5,6 +5,7 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_plugin_header from "./reality2_plugin_header";
+import reality2_plugin_body from "./reality2_plugin_body";
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -94,9 +95,9 @@ function process(block: any, generator: any): string | [string, number] | null
     };
 
     const body = generator.statementToCode(block, "body");
-    if (body != null) {
-        plugin["body"] = {};
-    }
+    if (body != "") {
+        plugin["body"] = splitConcatenatedJSON(body);
+    };
 
     plugin["output"] = {
         "key": block.getFieldValue('output_key'),
@@ -137,6 +138,10 @@ function construct(plugin: any)
         // Check if there are headers
         let headers = reality2_plugin_header.construct(R2.JSONPath(plugin, "headers"));
         if (headers) block["inputs"]["headers"] = { "block": headers }
+
+        // Check if there are body parameters
+        let body = reality2_plugin_body.construct(R2.JSONPath(plugin, "body"));
+        if (body) block["inputs"]["body"] = { "block": body }
 
         return (block);
     }

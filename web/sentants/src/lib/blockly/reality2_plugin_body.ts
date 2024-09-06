@@ -1,41 +1,33 @@
-
-
 // ----------------------------------------------------------------------------------------------------
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_parameter",
-    "message0":"PARAMETER : TYPE",
-	"message1":" - %1 : %2",
+	"type":"reality2_plugin_body",
+    "message0":"BODY",
+	"message1":" - %1 = %2",
 	"args1":[
 		{
 			"type":"field_input",
-			"name":"parameter",
+			"name":"key",
 			"check":"String",
-			"text":""
+			"text":"key"
 		},
-        {
-            "type":"field_dropdown",
-            "name":"type",
-            "options":[
-                ["number", "number"],
-                ["string", "string"],
-                ["boolean", "boolean"],
-                ["json", "json"]
-            ],
-            "tooltip":"Various parameter types"
-        }
+		{
+			"type":"field_input",
+			"name":"value",
+			"check":"String",
+			"text":"value"
+		}
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300
+    "colour": 175
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -46,10 +38,13 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const parameter = block.getFieldValue('parameter');
-    const type = block.getFieldValue('type');
+    const key = block.getFieldValue('key');
+    const value = R2.ToJSON(block.getFieldValue('value'));
 
-    return ("{\"" + parameter + "\":\"" + type + "\"}")
+    var return_value:any = {};
+    return_value[key] = value;
+
+    return (JSON.stringify(return_value));
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -58,28 +53,25 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(parameters: any)
+function construct(data: any)
 {
-    if (parameters) {
-        let keys = Object.keys(parameters);
+    if (data) {
+        let keys = Object.keys(data);
         if (keys.length > 0) {
-            let param_name = keys[0];
-            let param_type = R2.JSONPath(parameters, param_name);
-
             let block: any = {
                 "kind": "BLOCK",
-                "type": "reality2_parameter",
+                "type": "reality2_plugin_body",
                 "fields": {
-                    "parameter": param_name,
-                    "type": param_type
+                    "key": keys[0],
+                    "value": R2.ToSimple(R2.JSONPath(data, keys[0]))
                 }
             }
     
             // Remove the key we've just been using
-            delete parameters[keys[0]];
+            delete data[keys[0]];
     
             // get any other keys, recursively
-            let next = construct(parameters);
+            let next = construct(data);
             if (next) {
                 block["next"] = {
                     "block": next
