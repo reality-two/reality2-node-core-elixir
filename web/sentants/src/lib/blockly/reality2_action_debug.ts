@@ -10,7 +10,7 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_debug",
-    "message0":"ACTION - DEBUG",
+    "message0":"DEBUG",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300
