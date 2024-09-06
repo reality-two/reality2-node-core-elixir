@@ -118,6 +118,10 @@
                 {
                     "kind":"block",
                     "type":"reality2_action_debug"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_action_signal"
                 }
             ]
         }
