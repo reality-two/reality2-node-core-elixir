@@ -90,6 +90,7 @@ function process(block: any, generator: any): string | [string, number] | null
     };
 
     const actions = generator.statementToCode(block, "actions");
+
     if (actions != "") {
         transition["actions"] = splitConcatenatedJSON(actions, false);
     }
@@ -136,7 +137,6 @@ function construct(transition: any)
                 let command = action["command"];
                 let action_block: any;
 
-                console.log("COMMAND:",command);
                 switch (command) {
                     case "set":
                         action_block = reality2_action_set.construct(action);
@@ -162,7 +162,7 @@ function construct(transition: any)
             }, null);
         
             // Sentants starts as a block
-            block["inputs"]["actions"] = {"block": actions_block};
+            block["inputs"]["actions"] = { "block": actions_block };
         }
 
         return (block);
