@@ -6,6 +6,8 @@ import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_action_set from "./reality2_action_set";
 import reality2_action_debug from "./reality2_action_debug";
+import reality2_action_send from "./reality2_action_send";
+import reality2_action_signal from "./reality2_action_signal";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -145,8 +147,16 @@ function construct(transition: any)
                         }
                         break;
                     case "send":
+                        action_block = reality2_action_send.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        }
                         break;
                     case "signal":
+                        action_block = reality2_action_signal.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        }
                         break;
                     case "debug":
                         console.log("DEBUG");

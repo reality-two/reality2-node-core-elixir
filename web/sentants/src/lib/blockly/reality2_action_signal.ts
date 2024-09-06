@@ -10,7 +10,7 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_signal",
-    "message0":"ACTION - SIGNAL",
+    "message0":"SIGNAL",
 	"message1":" - %1 signal %2 to %3",
 	"args1":[
         {
@@ -68,8 +68,8 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const action = {
         "command": "signal",
-        "public": public_var,
         "parameters": {
+            "public": public_var,
             "event": event,
             "to": to,
             "parameters": params
@@ -93,9 +93,9 @@ function construct(action: any)
             "kind": "BLOCK",
             "type": "reality2_action_signal",
             "fields": {
-                "event": R2.JSONPath(action, "event"),
-                "to": R2.JSONPath(action, "to"),
-                "public": R2.JSONPath(action, "public")
+                "event": R2.JSONPath(action, "parameters.event"),
+                "to": R2.JSONPath(action, "parameters.to"),
+                "public": R2.JSONPath(action, "public") === null ? (R2.JSONPath(action, "parameters.public") === true) : (R2.JSONPath(action, "public") === true)
             },
             "inputs": {
                 "parameters": {}

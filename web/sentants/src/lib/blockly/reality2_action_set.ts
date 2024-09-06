@@ -10,7 +10,7 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_set",
-    "message0":"ACTION - SET",
+    "message0":"SET",
 	"message1":" - set %1 = %2",
 	"args1":[
         {
