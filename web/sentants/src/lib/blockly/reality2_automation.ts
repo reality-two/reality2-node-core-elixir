@@ -62,6 +62,7 @@ function process(block: any, generator: any): string | [string, number] | null
     automation["description"] = block.getFieldValue('description');
 
     const transitions = generator.statementToCode(block, "transitions");
+
     if (transitions != "") {
         automation["transitions"] = splitConcatenatedJSON(transitions, false);
     }

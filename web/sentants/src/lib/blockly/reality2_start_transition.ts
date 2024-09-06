@@ -75,7 +75,7 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const actions = generator.statementToCode(block, "actions");
     if (actions != "") {
-        actions["actions"] = splitConcatenatedJSON(actions);
+        transition["actions"] = splitConcatenatedJSON(actions, false);
     }
 
     return JSON.stringify(transition);

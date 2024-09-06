@@ -507,44 +507,6 @@ Layout
                             <Icon users/>
                             Swarm
                         </Item>
-
-                        <!-- <Divider ui fitted/><Divider ui fitted/>
-                        <Header ui>
-                            Multi
-                        </Header>
-                        <Item value="load_variables" on:click={()=>{ variables_loader.click(); }}>
-                            &nbsp;&nbsp;
-                            <Label ui>1</Label>
-                            <Icon database/>
-                            Data
-                            <Menu ui>
-                                <Table ui>
-                                    <Table_Head>
-                                        <Table_Row>
-                                            <Table_Col head>key</Table_Col>
-                                            <Table_Col head>value</Table_Col>
-                                        </Table_Row>
-                                    </Table_Head>
-                                    <Table_Body>
-                                        {#each Object.keys(variables) as key}
-                                            <Table_Row>
-                                                <Table_Col>{key}</Table_Col>
-                                                <Table_Col>{variables[key]}</Table_Col>
-                                            </Table_Row>
-                                        {/each}
-                                    </Table_Body>
-                                </Table>
-                            </Menu>
-                        </Item>
-                        <Divider ui horizontal tiny>
-                            then
-                        </Divider>
-                        <Item value="load_pattern" on:click={()=>{ sentant_loader.click(); }}>
-                            &nbsp;&nbsp;
-                            <Label ui>2</Label>
-                            <Icon puzzle piece/>
-                            Pattern
-                        </Item> -->
                     </Menu>
                 </Dropdown>
             </Menu>
