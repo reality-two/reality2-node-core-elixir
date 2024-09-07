@@ -105,7 +105,7 @@
         {
             "kind":"category",
             "colour": 300,
-            "name":"Parameters",
+            "name":"Inputs",
             "contents":[
                 {
                     "kind":"block",

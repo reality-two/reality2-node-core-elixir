@@ -90,9 +90,9 @@ function construct(action: any)
             "kind": "BLOCK",
             "type": "reality2_action_send",
             "fields": {
-                "event": R2.JSONPath(action, "event"),
-                "to": R2.JSONPath(action, "to"),
-                "delay": R2.JSONPath(action, "delay")
+                "event": R2.JSONPath(action, "parameters.event"),
+                "to": R2.JSONPath(action, "parameters.to"),
+                "delay": R2.JSONPath(action, "parameters.delay")
             },
             "inputs": {
                 "parameters": {}
