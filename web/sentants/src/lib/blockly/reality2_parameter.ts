@@ -12,7 +12,7 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_parameter",
-    "message0":"PARAMETER : TYPE",
+    "message0":"INPUT : TYPE",
 	"message1":" - %1 : %2",
 	"args1":[
 		{

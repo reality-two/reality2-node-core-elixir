@@ -36,7 +36,8 @@ const shape = {
 	"args3":[
 		{
 			"type":"input_statement",
-			"name":"sentants"
+			"name":"sentants",
+            "check": ["reality2_sentant"]
 		}
 	],
 	"colour":20

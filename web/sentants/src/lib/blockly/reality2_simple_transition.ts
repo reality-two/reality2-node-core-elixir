@@ -35,12 +35,12 @@ const shape = {
             "text":""
         }
     ],
-    "message2":" - parameters %1",
+    "message2":" - inputs %1",
     "args2":[
         {
             "type":"input_statement",
             "name":"parameters",
-            "check": ["reality_parameter"]
+            "check": ["reality2_parameter"]
         }
     ],
     "message3":" - actions %1",
@@ -48,7 +48,7 @@ const shape = {
         {
             "type":"input_statement",
             "name":"actions",
-            "check": ["reality2_action_debug", "reality2_action_send", "reality2_action_set", "reality2_action_signal"]
+            "check": ["reality2_action_debug", "reality2_action_send", "reality2_action_send_plugin", "reality2_action_set", "reality2_action_signal"]
         }
     ],
     "previousStatement":null,
@@ -98,6 +98,7 @@ function construct(transition: any)
             "kind": "BLOCK",
             "type": "reality2_simple_transition",
             "fields": {
+                "public": R2.JSONPath(transition, "public") ? "public" : "private",
                 "from": R2.JSONPath(transition, "from"),
                 "event": R2.JSONPath(transition, "event"),
                 "to": R2.JSONPath(transition, "to")
