@@ -8,7 +8,7 @@ Users interact with the digital agents directly, so the focus of attention is at
 
 That said, at least initially, internet connected devices such as browsers, which communicate using TCP-IP, work at the device level, so the interaction with the Sentants does have to go via the node.
 
-More detailed documentation can be found [here](./docs/instructions/README.md).
+More detailed documentation can be found [here](https://github.com/reality-two/reality2-documentation).
 
 ## GraphQL
 
