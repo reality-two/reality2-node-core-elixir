@@ -11,28 +11,28 @@ import reality2_sentant from "./reality2_sentant";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_swarm",
-    "message0": "SWARM",
-	"message1": " - name %1",
-	"args1":[
+    "message0": "SWARM %1",
+	"args0":[
 		{
 			"type":"field_input",
 			"name":"name",
 			"check":"String",
-			"text":"",
+			"text":"name",
 			"tooltip":"Name of Swarm"
 		}
 	],
-	"message2":" - description %1",
-	"args2":[
+	"message1":"%1",
+	"args1":[
 		{
 			"type":"field_input",
 			"name":"description",
 			"check":"String",
-			"text":"",
+			"text":"description",
 			"tooltip":"Swarm description"
 		}
 	],
-	"message3":" - sentants %1",
+	"message2":"SENTANTS",
+	"message3":"%1",
 	"args3":[
 		{
 			"type":"input_statement",
@@ -40,7 +40,9 @@ const shape = {
             "check": ["reality2_sentant"]
 		}
 	],
-	"colour":20
+	"colour": 20,
+    "tooltip": "An Swarm of Sentient Digital Agents (Sentants).",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

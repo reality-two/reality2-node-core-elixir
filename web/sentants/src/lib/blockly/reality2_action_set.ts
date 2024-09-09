@@ -10,9 +10,8 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_set",
-    "message0":"ACTION - SET",
-	"message1":" - set %1 = %2",
-	"args1":[
+    "message0":"set %1 to %2",
+	"args0":[
         {
 			"type":"field_input",
 			"name":"key",
@@ -28,7 +27,7 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 350
+    "colour": 300
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -40,7 +39,8 @@ const shape = {
 function process(block: any, generator: any): string | [string, number] | null
 {
     const key = block.getFieldValue('key');
-    const value = block.getFieldValue('value');
+    const value = R2.ToJSON(block.getFieldValue('value'));
+    console.log("ACTION SET", value);
 
     const action = {
         "command": "set",
@@ -68,7 +68,7 @@ function construct(action: any)
             "type": "reality2_action_set",
             "fields": {
                 "key": R2.JSONPath(action, "parameters.key"),
-                "value": R2.JSONPath(action, "parameters.value")
+                "value": R2.ToSimple(R2.JSONPath(action, "parameters.value"))
             },
             "inputs": {
             }

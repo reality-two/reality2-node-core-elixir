@@ -11,18 +11,26 @@ import reality2_plugin_header from "./reality2_plugin_header";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_get_plugin",
-    "message0":"GET PLUGIN",
-	"message1":" - name %1",
-	"args1":[
+    "message0":"LINK %1",
+	"args0":[
 		{
 			"type":"field_input",
 			"name":"name",
 			"check":"String",
-			"text":"",
+			"text":"name",
 			"tooltip":"Plugin name in reverse DNS format eg: com.openai.api"
 		}
 	],
-	"message2":" - url %1",
+    "message1":"%1",
+    "args1":[
+        {
+            "type":"field_input",
+            "name":"description",
+            "check":"String",
+            "text":"description"
+        }
+    ],
+	"message2":"GET from %1 with",
 	"args2":[
 		{
 			"type":"field_input",
@@ -39,7 +47,7 @@ const shape = {
 			"name":"headers"
 		}
 	],
-	"message4":" - output send %1 = %2 with event %3",
+	"message4":"OUTPUT %1 = %2 with event %3",
 	"args4":[
 		{
 			"type":"field_input",
@@ -63,7 +71,9 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-	"colour":150
+	"colour":150,
+    "tooltip":"A plugin to an internet connected resource that uses a GET API.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -77,6 +87,7 @@ function process(block: any, generator: any): string | [string, number] | null
     var plugin: any = {};
 
     plugin["name"] = block.getFieldValue('name');
+    plugin["description"] = block.getFieldValue('description');
     plugin["url"] = block.getFieldValue('url');
     plugin["method"] = "GET";
 
@@ -109,6 +120,7 @@ function construct(plugin: any)
             "type": "reality2_get_plugin",
             "fields": {
                 "name": R2.JSONPath(plugin, "name"),
+                "description": R2.JSONPath(plugin, "description"),
                 "url": R2.JSONPath(plugin, "url"),
                 "method": "GET",
                 "output_key": R2.JSONPath(plugin, "output.key"),

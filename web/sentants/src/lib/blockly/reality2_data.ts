@@ -9,25 +9,24 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_data",
-    "message0":"DATA",
-	"message1":" - %1 = %2",
-	"args1":[
+    "message0":"data %1 = %2",
+	"args0":[
 		{
 			"type":"field_input",
 			"name":"key",
 			"check":"String",
-			"text":"key"
+			"text":""
 		},
 		{
 			"type":"field_input",
 			"name":"value",
 			"check":"String",
-			"text":"value"
+			"text":""
 		}
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 110
+    "colour": 50
 }
 // ----------------------------------------------------------------------------------------------------
 

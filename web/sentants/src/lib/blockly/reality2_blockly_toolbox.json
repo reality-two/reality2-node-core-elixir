@@ -20,39 +20,39 @@
 				{
 					"kind":"block",
 					"type":"reality2_sentant"
-				}
-			]
-		},
-		{
-			"kind":"category",
-            "colour": 80,
-			"name":"Keys",
-			"contents":[
-				{
-					"kind":"block",
-					"type":"reality2_encrypt_decrypt_keys"
 				},
                 {
-					"kind":"block",
-					"type":"reality2_key_value"
-				}
-			]
-		},
-        {
-			"kind":"category",
-            "colour": 110,
-			"name":"Data",
-			"contents":[
-				{
-					"kind":"block",
-					"type":"reality2_data"
-				}
+                    "kind":"category",
+                    "colour": 50,
+                    "name":"Keys",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_encrypt_decrypt_keys"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_key_value"
+                        }
+                    ]
+                },
+                {
+                    "kind":"category",
+                    "colour": 50,
+                    "name":"Data",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_data"
+                        }
+                    ]
+                }
 			]
 		},
 		{
 			"kind":"category",
             "colour": 150,
-			"name":"Plugins",
+			"name":"Links",
 			"contents":[
 				{
 					"kind":"block",
@@ -63,19 +63,33 @@
 					"type":"reality2_post_plugin"
 				},
                 {
-                    "kind":"block",
-                    "type":"reality2_plugin_header"
+                    "kind":"category",
+                    "colour": 150,
+                    "name":"Header",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_plugin_header"
+                        }
+                    ]
                 },
                 {
-                    "kind":"block",
-                    "type":"reality2_plugin_body"
+                    "kind":"category",
+                    "colour": 150,
+                    "name":"Body",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_plugin_body"
+                        }
+                    ]
                 }
 			]
 		},
         {
 			"kind":"category",
             "colour": 200,
-			"name":"Automations",
+			"name":"Behaviours",
 			"contents":[
 				{
 					"kind":"block",
@@ -86,7 +100,7 @@
         {
             "kind":"category",
             "colour": 250,
-            "name":"Transitions",
+            "name":"Decisions",
             "contents":[
                 {
                     "kind":"block",
@@ -99,24 +113,24 @@
                 {
                     "kind":"block",
                     "type":"reality2_simple_transition"
+                },
+                {
+                    "kind":"category",
+                    "colour": 250,
+                    "name":"Input",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_parameter"
+                        }
+                    ]
                 }
             ]
         },
         {
             "kind":"category",
             "colour": 300,
-            "name":"Inputs",
-            "contents":[
-                {
-                    "kind":"block",
-                    "type":"reality2_parameter"
-                }
-            ]
-        },
-        {
-            "kind":"category",
-            "colour": 350,
-            "name":"Actions",
+            "name":"Tasks",
             "contents":[
                 {
                     "kind":"block",
@@ -137,6 +151,17 @@
                 {
                     "kind":"block",
                     "type":"reality2_action_signal"
+                },
+                {
+                    "kind":"category",
+                    "colour": 300,
+                    "name":"Outputs",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_parameter"
+                        }
+                    ]
                 }
             ]
         }

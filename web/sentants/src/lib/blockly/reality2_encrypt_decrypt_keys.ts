@@ -11,9 +11,8 @@ import reality2_key_value from "./reality2_key_value";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_encrypt_decrypt_keys",
-    "message0":"ENCRYPTION",
-	"message1":" - encryption key = %1",
-	"args1":[
+    "message0":"encryption_key = %1",
+	"args0":[
 		{
 			"type":"field_input",
 			"name":"encryption_key",
@@ -21,8 +20,8 @@ const shape = {
 			"text":""
 		}
 	],
-	"message2":" - decryption key = %1",
-	"args2":[
+	"message1":"decryption_key = %1",
+	"args1":[
 		{
 			"type":"field_input",
 			"name":"decryption_key",
@@ -32,7 +31,7 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 80
+    "colour": 50
 }
 // ----------------------------------------------------------------------------------------------------
 

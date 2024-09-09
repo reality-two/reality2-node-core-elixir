@@ -12,9 +12,8 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_parameter",
-    "message0":"INPUT : TYPE",
-	"message1":" - %1 : %2",
-	"args1":[
+    "message0":"input %1 as %2",
+	"args0":[
 		{
 			"type":"field_input",
 			"name":"parameter",

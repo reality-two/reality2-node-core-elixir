@@ -14,26 +14,26 @@ import reality2_start_transition from "./reality2_start_transition";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
     "type":"reality2_automation",
-    "message0":"AUTOMATION",
-    "message1":" - name %1",
-    "args1":[
+    "message0":"BEHAVIOUR %1",
+    "args0":[
         {
             "type":"field_input",
             "name":"name",
             "check":"String",
-            "text":""
+            "text":"name"
         }
     ],
-    "message2":" - description %1",
-    "args2":[
+    "message1":"%1",
+    "args1":[
         {
             "type":"field_input",
             "name":"description",
             "check":"String",
-            "text":""
+            "text":"description"
         }
     ],
-    "message3":" - transitions %1",
+    "message2":"DECISIONS",
+    "message3":"%1",
     "args3":[
         {
             "type":"input_statement",
@@ -45,7 +45,7 @@ const shape = {
 	"nextStatement":null,
     "colour": 200,
     "tooltip": "An automation, which is a type of Finite State Machine",
-    "helpUrl": "https://github.com/reality-two/reality2-node-core-elixir/blob/f39e4ac1ef781632781fde73d8a7b4f3c2a52abf/docs/instructions/2%20Definitions/Automations.md"
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 
