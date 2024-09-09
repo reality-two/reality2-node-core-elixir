@@ -8,25 +8,25 @@ import R2 from "../reality2";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_plugin_header",
-    "message0":"header %1 = %2",
+	"type":"reality2_action_parameter",
+    "message0":"%1 = %2",
 	"args0":[
 		{
 			"type":"field_input",
-			"name":"header",
+			"name":"key",
 			"check":"String",
 			"text":""
 		},
 		{
 			"type":"field_input",
-			"name":"data",
+			"name":"value",
 			"check":"String",
 			"text":""
 		}
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-	"colour":150
+    "colour": 300
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -37,11 +37,11 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const header = block.getFieldValue('header');
-    const data = R2.ToJSON(block.getFieldValue('data'));
+    const key = block.getFieldValue('key');
+    const value = R2.ToJSON(block.getFieldValue('value'));
 
     var return_value:any = {};
-    return_value[header] = data;
+    return_value[key] = value;
 
     return (JSON.stringify(return_value));
 }
@@ -59,10 +59,10 @@ function construct(data: any)
         if (keys.length > 0) {
             let block: any = {
                 "kind": "BLOCK",
-                "type": "reality2_plugin_header",
+                "type": "reality2_action_parameter",
                 "fields": {
-                    "header": keys[0],
-                    "data": R2.ToSimple(R2.JSONPath(data, keys[0]))
+                    "key": keys[0],
+                    "value": R2.ToSimple(R2.JSONPath(data, keys[0]))
                 }
             }
     

@@ -55,6 +55,7 @@
     import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
     import reality2_action_debug from "./blockly/reality2_action_debug";
     import reality2_action_signal from "./blockly/reality2_action_signal";
+    import reality2_action_parameter from "./blockly/reality2_action_parameter";
     
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
     // ------------------------------------------------------------------------------------------------
@@ -103,7 +104,8 @@
         reality2_action_send.shape,
         reality2_action_send_plugin.shape,
         reality2_action_debug.shape,
-        reality2_action_signal.shape
+        reality2_action_signal.shape,
+        reality2_action_parameter.shape
     ];
 
     let blockly_construct = {
@@ -215,6 +217,7 @@
         javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
+        javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
         
     });
     // ------------------------------------------------------------------------------------------------

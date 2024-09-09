@@ -4,15 +4,15 @@
 
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
+import reality2_action_parameter from "./reality2_action_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_send_plugin",
-    "message0":"ACTION - PLUGIN",
-	"message1":" - send to %1",
-	"args1":[
+    "message0":"plugin %1",
+	"args0":[
         {
 			"type":"field_input",
 			"name":"plugin",
@@ -20,17 +20,17 @@ const shape = {
 			"text":""
         }
 	],
-    "message2":" - parameters %1",
-    "args2":[
+    "message1":"with %1",
+    "args1":[
         {
             "type":"input_statement",
             "name":"parameters",
-            "check":"reality_parameter"
+            "check":"reality2_action_parameter"
         }
     ],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 350
+    "colour": 300
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -78,6 +78,11 @@ function construct(action: any)
                 "parameters": {}
             }
         }
+
+        // Check if there are parameters
+        let parameters = reality2_action_parameter.construct(R2.JSONPath(action, "parameters"));
+        if (parameters) block["inputs"]["parameters"] = { "block": parameters }
+
         return (block);
     }
     else {

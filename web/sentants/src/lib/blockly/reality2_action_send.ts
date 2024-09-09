@@ -4,15 +4,15 @@
 
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
+import reality2_action_parameter from "./reality2_action_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_send",
-    "message0":"ACTION - SEND",
-	"message1":" - send %1 to %2 after %3 seconds",
-	"args1":[
+    "message0":"send %1 to %2 after %3 seconds",
+	"args0":[
         {
 			"type":"field_input",
 			"name":"event",
@@ -32,17 +32,17 @@ const shape = {
 			"text":"0"
         }
 	],
-    "message2":" - parameters %1",
-    "args2":[
+    "message1":"with %1",
+    "args1":[
         {
             "type":"input_statement",
             "name":"parameters",
-            "check":"reality_parameter"
+            "check":"reality2_action_parameter"
         }
     ],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 350
+    "colour": 300
 }
 // ----------------------------------------------------------------------------------------------------
 

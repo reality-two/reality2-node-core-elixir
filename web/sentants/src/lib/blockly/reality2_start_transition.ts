@@ -16,9 +16,8 @@ import reality2_parameter from "./reality2_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
     "type":"reality2_start_transition",
-    "message0":"INIT",
-    "message1":"%1 :: start + init => %2",
-    "args1":[
+    "message0":"start + init => %2 is %1",
+    "args0":[
         {
             "type":"field_dropdown",
             "name":"access",
@@ -35,15 +34,16 @@ const shape = {
             "text": ""
         }
     ],
-    "message2":" - inputs %1",
-    "args2":[
+    "message1":"with %1",
+    "args1":[
         {
             "type":"input_statement",
             "name":"parameters",
             "check":["reality_parameter"]
         }
     ],
-    "message3":" - actions %1",
+    "message2":"TASKS",
+    "message3":"%1",
     "args3":[
         {
             "type":"input_statement",
@@ -55,7 +55,7 @@ const shape = {
 	"nextStatement":null,
     "colour": 250,
     "tooltip":"The initialise transition called once when an Automation begins.",
-    "helpUrl":"https://github.com/reality-two/reality2-node-core-elixir/blob/f39e4ac1ef781632781fde73d8a7b4f3c2a52abf/docs/instructions/2%20Definitions/Automations.md"
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

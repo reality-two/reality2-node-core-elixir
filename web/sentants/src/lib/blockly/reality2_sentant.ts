@@ -16,42 +16,43 @@ import reality2_automation from "./reality2_automation";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
     "type":"reality2_sentant",
-    "message0":"SENTANT",
-    "message1":" - name %1",
-    "args1":[
+    "message0":"SENTANT %1",
+    "args0":[
         {
             "type":"field_input",
             "name":"name",
             "check":"String",
-            "text":""
+            "text":"name",
+            "tooltip":"Name of Sentant"
         }
     ],
-    "message2":" - description %1",
-    "args2":[
+    "message1":"%1",
+    "args1":[
         {
             "type":"field_input",
             "name":"description",
             "check":"String",
-            "text":""
+            "text":"description"
         }
     ],
-    "message3":" - keys %1",
-    "args3":[
+    "message2":" - keys %1",
+    "args2":[
         {
             "type":"input_statement",
             "name":"keys",
             "check": "reality2_encrypt_decrypt_keys"
         }
     ],
-    "message4":" - data %1",
-    "args4":[
+    "message3":" - data %1",
+    "args3":[
         {
             "type":"input_statement",
             "name":"data",
             "check": "reality2_data"
         }
     ],
-    "message5":" - plugins %1",
+    "message4":"LINKS",
+    "message5":"%1",
     "args5":[
         {
             "type":"input_statement",
@@ -59,8 +60,9 @@ const shape = {
             "check": ["reality2_get_plugin", "reality2_post_plugin"]
         }
     ],
-    "message6":" - automations %1",
-    "args6":[
+    "message6":"BEHAVIOURS",
+    "message7":"%1",
+    "args7":[
         {
             "type":"input_statement",
             "name":"automations",
@@ -71,7 +73,7 @@ const shape = {
 	"nextStatement":null,
     "colour": 50,
     "tooltip": "A Reality2 Sentient Digital Agent",
-    "helpUrl": "https://github.com/reality-two/reality2-node-core-elixir/blob/f39e4ac1ef781632781fde73d8a7b4f3c2a52abf/docs/instructions/2%20Definitions/Sentants.md"
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

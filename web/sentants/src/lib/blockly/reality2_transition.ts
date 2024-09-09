@@ -16,9 +16,8 @@ import reality2_parameter from "./reality2_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
     "type":"reality2_transition",
-    "message0":"TRANSITION",
-    "message1":"%1 :: %2 +  %3 => %4",
-    "args1":[
+    "message0":"%2 +  %3 => %4 is %1",
+    "args0":[
         {
             "type":"field_dropdown",
             "name":"access",
@@ -50,15 +49,16 @@ const shape = {
             "tooltip":"to"
         }
     ],
-    "message2":" - inputs %1",
-    "args2":[
+    "message1":"with %1",
+    "args1":[
         {
             "type":"input_statement",
             "name":"parameters",
             "check":"reality_parameter"
         }
     ],
-    "message3":" - actions %1",
+    "message2":"TASKS",
+    "message3":"%1",
     "args3":[
         {
             "type":"input_statement",
@@ -69,8 +69,8 @@ const shape = {
     "previousStatement":null,
 	"nextStatement":null,
     "colour": 250,
-    "tooltip":"A Transition  which signifies a state change given an event.",
-    "helpUrl":"https://github.com/reality-two/reality2-node-core-elixir/blob/f39e4ac1ef781632781fde73d8a7b4f3c2a52abf/docs/instructions/2%20Definitions/Automations.md"
+    "tooltip":"A Transition, which signifies a state change given an event.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 
