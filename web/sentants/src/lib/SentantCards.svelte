@@ -6,7 +6,7 @@
   Contact: roycdavies.github.io
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-
+    //@ts-ignore
     import { Cards } from "svelte-fomantic-ui";
     import SentantCard from './SentantCard.svelte';
 

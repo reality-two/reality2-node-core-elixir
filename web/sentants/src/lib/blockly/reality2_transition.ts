@@ -83,7 +83,7 @@ function process(block: any, generator: any): string | [string, number] | null
 {
     var transition: any = {};
 
-    transition["public"] = block.getFieldValue('access') === "visible"
+    if (block.getFieldValue('access') === "visible") transition["public"] = true;
     transition["from"] = block.getFieldValue('from');
     transition["event"] = block.getFieldValue('event');
     transition["to"] = block.getFieldValue('to');

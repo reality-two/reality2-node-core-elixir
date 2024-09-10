@@ -189,8 +189,6 @@ function construct(sentant: any)
         // Check if there are automations
         let automations: [any] = R2.JSONPath(sentant, "automations");
 
-        console.log("AUTOMATIONS", automations);
-
         // If there are, go backwards through the array creating each block, and linking to the next
         if (automations) {
             let automations_block = automations.reduceRight((acc, automation) => {

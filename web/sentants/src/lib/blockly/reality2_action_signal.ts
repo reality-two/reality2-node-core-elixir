@@ -59,14 +59,15 @@ function process(block: any, generator: any): string | [string, number] | null
        params = splitConcatenatedJSON(parameters);
     };
 
-    const action = {
+    const action: any = {
         "command": "signal",
         "parameters": {
-            "public": public_var,
-            "event": event,
-            "parameters": params
+            "event": event
         }
     }
+
+    if (public_var) action["parameters"]["public"] = true;
+    if (Object.keys(params).length !== 0) action["parameters"]["parameters"] = params;
 
     return (JSON.stringify(action));
 }

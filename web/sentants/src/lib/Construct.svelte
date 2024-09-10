@@ -11,7 +11,7 @@
     // Imports
     // ------------------------------------------------------------------------------------------------
     //@ts-ignore
-    import {Icon, Button, Segment, Buttons, Grid, Column, Row, Text, Divider, Checkbox, Input, Label} from "svelte-fomantic-ui";
+    import {behavior, Icon, Button, Segment, Buttons, Grid, Column, Row, Text, Divider, Checkbox, Input, Label} from "svelte-fomantic-ui";
 
 
     // Import Blockly core.
@@ -56,8 +56,11 @@
     import reality2_action_debug from "./blockly/reality2_action_debug";
     import reality2_action_signal from "./blockly/reality2_action_signal";
     import reality2_action_parameter from "./blockly/reality2_action_parameter";
+
+    import { splitConcatenatedJSON } from "./blockly/blockly_common";
     
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
+    import { _SRGBAFormat } from "three";
     // ------------------------------------------------------------------------------------------------
 
 
@@ -78,7 +81,6 @@
     // ------------------------------------------------------------------------------------------------
     $: fullHeight = "800px";
     $: codeHeight = "300px";
-    $: message = "No Message";
     $: showJSON = [];
 
     let workspace: any;
@@ -146,19 +148,6 @@
 
 
     // ------------------------------------------------------------------------------------------------
-    // What to do when closing and unloading the page
-    // ------------------------------------------------------------------------------------------------
-    function beforeUnload() {
-        console.log("leaving");
-        savedState = Blockly.serialization.workspaces.save(workspace);
-
-        return '...';
-    }
-    // ------------------------------------------------------------------------------------------------
-
-
-
-    // ------------------------------------------------------------------------------------------------
     // What to do whe the page is loaded
     // ------------------------------------------------------------------------------------------------
     onMount(() => {
@@ -218,8 +207,39 @@
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
         javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
+
+        console.log("SAVED", savedState);
+        setTimeout(() => {
+            if (typeof savedState === "object") {
+                if (savedState.hasOwnProperty("backpack")) loadBackpack(savedState["backpack"]);
+                if (savedState.hasOwnProperty("workspace")) loadWorkspace(savedState["workspace"]);
+            }
+        }, 2);
         
     });
+    // ------------------------------------------------------------------------------------------------
+
+
+
+    // ------------------------------------------------------------------------------------------------
+    // Load and Save workspace and backpack
+    // ------------------------------------------------------------------------------------------------
+    function saveWorkspace() {
+        return Blockly.serialization.workspaces.save(workspace);
+    }
+    function loadWorkspace(state: any) {
+        Blockly.serialization.workspaces.load(state, workspace);
+    }
+    function saveBackpack() {
+        const backpackBlocks = backpack.getContents();
+        console.log(backpackBlocks);
+        const serializedBackpack = backpackBlocks.map(block => Blockly.serialization.blocks.save(block));
+        console.log(serializedBackpack);
+        return serializedBackpack;
+    }
+    function loadBackpack(backpack: any) {
+        backpack.forEach(blockJson => { backpack.addBlock(blockJson); });
+    }
     // ------------------------------------------------------------------------------------------------
 
 
@@ -228,8 +248,28 @@
     // What to do when the page is removed
     // ------------------------------------------------------------------------------------------------
     onDestroy(() => { 
+        savedState = {
+            workspace: saveWorkspace(),
+            backpack: saveBackpack()
+        }
         window.removeEventListener("resize", updateHeight); 
     });
+    // ------------------------------------------------------------------------------------------------
+
+
+
+    // ------------------------------------------------------------------------------------------------
+    // Briefly show a message
+    // ------------------------------------------------------------------------------------------------
+    function showMessage(title: String, message: String, color: String) {
+        behavior({type:"toast", settings:{
+            title: title,
+            message: message,
+            class : color,
+            className: {
+                toast: 'ui message'
+        }}});
+    }
     // ------------------------------------------------------------------------------------------------
 
 
@@ -238,41 +278,51 @@
     // Load the current definition as a swarm or sentant
     // ------------------------------------------------------------------------------------------------
     function loadToNode() {
-        var definition: string = javascriptGenerator.workspaceToCode(workspace);
-        var definitionJSON: any = JSON.parse(definition);
-        var isSentant = definitionJSON["sentant"] !== null;
-        var isSwarm = definitionJSON["swarm"] != null;
+        var definitionJSON: any = firstWorkspaceBlock();
+        if (Object.keys(definitionJSON).length !== 0) {
+            var definition = JSON.stringify(definitionJSON);
+            var isSentant = definitionJSON.hasOwnProperty("sentant");
+            var isSwarm = definitionJSON.hasOwnProperty("swarm");
 
-        if (isSentant) {
-            var new_name = definitionJSON["sentant"]["name"];
-            if (new_name) {
-                r2_node.sentantGetByName(new_name)
-                .then((result: any) => {
-                    r2_node.sentantUnload(R2.JSONPath(result, "sentantGet.id"))
-                    .then((_) => {
-                        r2_node.sentantLoad(definition)
+            if (isSentant) {
+                var new_name = definitionJSON["sentant"]["name"];
+                if (new_name) {
+                    r2_node.sentantGetByName(new_name)
+                    .then((result: any) => {
+                        r2_node.sentantUnload(R2.JSONPath(result, "sentantGet.id"))
                         .then((_) => {
-                            message = "Sentant Loaded OK";
-                            setTimeout(() => { message = ""; }, 10);
+                            r2_node.sentantLoad(definition)
+                            .then((_) => {
+                                showMessage("Success", "Sentant Loaded", "green");
+                            })
+                            .catch((error) => {
+                                showMessage("Problem", "Error Loading", "red");
+                            })
                         })
                         .catch((error) => {
-                            console.log("error loading");
-                            message = "Sentant didn't load: " + error;
+                            showMessage("Problem", "Error Unloading", "red");
                         })
                     })
                     .catch((error) => {
-                        console.log("error unloading");
-                        message = "Error unloading";
+                        r2_node.sentantLoad(definition)
+                        .then((_) => {
+                            showMessage("Success", "Sentant Loaded", "green");
+                        })
                     })
+                }
+            }
+            else if(isSwarm) {
+                r2_node.swarmLoad(definition)
+                .then((_) => {
+                    showMessage("Success", "Swarm Loaded", "green");
                 })
                 .catch((error) => {
-                    r2_node.sentantLoad(definition)
-                    .then((_) => {
-                        message = "Sentant Loaded OK";
-                        setTimeout(() => { message = ""; }, 10);
-                    })
+                    showMessage("Problem", "Error Loading", "red");
                 })
             }
+        }
+        else {
+            showMessage("Status", "Nothing to load", "blue");
         }
     }
     // ------------------------------------------------------------------------------------------------
@@ -311,14 +361,14 @@
                 };
 
                 reader.onerror = function(e) {
-                    console.error("Error reading file");
+                    showMessage("Problem", "Error reading file", "red");
                 };
 
                 reader.readAsText(file); // Read the file as text
                 input.value = ''; // Reset in case the same file is to be loaded again.
             }
         } else {
-            console.error("No file selected");
+            showMessage("Problem", "No file selected", "red");
         }
     }
     // ------------------------------------------------------------------------------------------------
@@ -328,18 +378,16 @@
     // ------------------------------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------------------
     function putIntoBackpack(code: any)
-    {
-        console.log(code);
-        
+    {    
         if (R2.JSONPath(code, "swarm")) {
             backpack.addItem(JSON.stringify(blockly_construct["swarm"](R2.JSONPath(code, "swarm"))));
             backpack.open();
-            alert('Swarm definition loaded into backpack.');           
+            showMessage("Success", "Swarm definition loaded into backpack", "green");
         }
         else if (R2.JSONPath(code, "sentant")) {
             backpack.addItem(JSON.stringify(blockly_construct["sentant"](R2.JSONPath(code, "sentant"))));
             backpack.open();
-            alert('Sentant definition loaded into backpack.');           
+            showMessage("Success", "Sentant definition loaded into backpack", "green");
         }
         else if (R2.JSONPath(code, "plugin")) {
             const method = R2.JSONPath(code, "plugin.method");
@@ -347,24 +395,24 @@
                 case "GET": 
                     backpack.addItem(JSON.stringify(blockly_construct["get_plugin"](R2.JSONPath(code, "plugin"))));
                     backpack.open();
-                    alert('Plugin definition loaded into backpack.');
+                    showMessage("Success", "Plugin definition loaded into backpack", "green");
                     break;
                 case "POST":
                     backpack.addItem(JSON.stringify(blockly_construct["post_plugin"](R2.JSONPath(code, "plugin"))));
                     backpack.open();
-                    alert('Plugin definition loaded into backpack.');
+                    showMessage("Success", "Plugin definition loaded into backpack", "green");
                     break;
                 default:
-                    alert('Incorrect format');                 
+                    showMessage("Problem", "Incorrect format", "red");
             }          
         }
         else if (R2.JSONPath(code, "automation")) {
             backpack.addItem(JSON.stringify(blockly_construct["automation"](R2.JSONPath(code, "automation"))));
             backpack.open();
-            alert('Automation definition loaded into backpack.');           
+            showMessage("Success", "Automation definition loaded into backpack", "green");
         }
         else
-            alert('Incorrect format');  
+            showMessage("Problem", "Incorrect format", "red");
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -375,12 +423,11 @@
     // ------------------------------------------------------------------------------------------------
     function saveSentantDefinition() {
         // Compile the code
-        var newCode = javascriptGenerator.workspaceToCode(workspace);
-        if (newCode !== "")
+        var newCode = firstWorkspaceBlock();
+        if (Object.keys(newCode).length !== 0)
         {
             // Get the code in JSON format.
-            code = JSON.parse(newCode);
-
+            code = newCode;
             // Get filename
             var filename = "definition";
             if (R2.JSONPath(code, "swarm.name")) {
@@ -438,12 +485,12 @@
                 // Close the writable stream
                 await writable.close();
 
-                alert('Definition saved successfully!');           
+                showMessage("Success", "Definition saved successfully", "green");
             } catch (err: any) {
                 if (err.name === 'AbortError') {
-                    console.log('User canceled the save operation.');
+                    showMessage("Status", "Cancelled loading", "blue");
                 } else {
-                    console.error('Save failed:', err);
+                    showMessage("Problem", "Could not save", "red");
                 }
             }
         } else {
@@ -468,14 +515,36 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            alert('Definition saved successfully!');           
+            showMessage("Success", "Definition saved successfully", "green");
         }
     }
     // ------------------------------------------------------------------------------------------------
+
+
+
+    // ------------------------------------------------------------------------------------------------
+    // Convert the first block to JSON.
+    // ------------------------------------------------------------------------------------------------
+    function firstWorkspaceBlock() {
+        const newCode: any = splitConcatenatedJSON(javascriptGenerator.workspaceToCode(workspace));
+        const objType = Object.keys(newCode)[0];
+        var theCode: any = {};
+        theCode[objType] = newCode[objType];
+        return (theCode);       
+    }
+    // ------------------------------------------------------------------------------------------------
+
+
+
+    // ------------------------------------------------------------------------------------------------
+    // Show the visible code.
+    // ------------------------------------------------------------------------------------------------
+    function convertBlocks() {
+        code = firstWorkspaceBlock();
+    }
+    // ------------------------------------------------------------------------------------------------
+
 </script>
-
-
-<svelte:window on:beforeunload={beforeUnload}/>
 
 <Grid ui stackable>
     <Column thirteen wide left attached>
@@ -507,13 +576,9 @@
             </Row>
             <Row>
                 <Column attached>
-                    <Button ui fluid huge top attached on:click={()=>{
-                            const savedState = Blockly.serialization.workspaces.save(workspace);
-                            console.log(JSON.stringify(savedState, null, 2));
-                            var newCode=javascriptGenerator.workspaceToCode(workspace); code=(newCode==""?"":JSON.parse(newCode))
-                        }}>
+                    <Button ui fluid huge top attached on:click={()=>convertBlocks()}>
                         <Icon ui arrow down></Icon>
-                        update&nbsp;&nbsp;
+                        convert&nbsp;&nbsp;
                         <Icon ui arrow down></Icon>
                     </Button>
                     <Segment ui attached inverted style={'text-align: left; background-color: #444444; height:100%'}>
