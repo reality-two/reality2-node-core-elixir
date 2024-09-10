@@ -11,14 +11,14 @@ import reality2_plugin_header from "./reality2_plugin_header";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_get_plugin",
-    "message0":"LINK %1",
+    "message0":"ANTENNA %1",
 	"args0":[
 		{
 			"type":"field_input",
 			"name":"name",
 			"check":"String",
 			"text":"name",
-			"tooltip":"Plugin name in reverse DNS format eg: com.openai.api"
+			"tooltip":"Link name in reverse DNS format eg: com.openai.api"
 		}
 	],
     "message1":"%1",
@@ -113,6 +113,8 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 function construct(plugin: any)
 {
+    let description = R2.JSONPath(plugin, "description") ? R2.JSONPath(plugin, "description") : "";
+
     if (plugin) {
         // Set the initial structure
         let block = {
@@ -120,7 +122,7 @@ function construct(plugin: any)
             "type": "reality2_get_plugin",
             "fields": {
                 "name": R2.JSONPath(plugin, "name"),
-                "description": R2.JSONPath(plugin, "description"),
+                "description": description,
                 "url": R2.JSONPath(plugin, "url"),
                 "method": "GET",
                 "output_key": R2.JSONPath(plugin, "output.key"),

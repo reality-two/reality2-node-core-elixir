@@ -11,8 +11,14 @@ import reality2_action_parameter from "./reality2_action_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_send_plugin",
-    "message0":"plugin %1",
+    "message0":"send %1 to antenna %2",
 	"args0":[
+        {
+			"type":"field_input",
+			"name":"command",
+			"check":"String",
+			"text":""
+        },
         {
 			"type":"field_input",
 			"name":"plugin",
@@ -44,13 +50,14 @@ function process(block: any, generator: any): string | [string, number] | null
     var params = {};
 
     const plugin = block.getFieldValue('plugin');
+    const command = block.getFieldValue('command');
     const parameters = generator.statementToCode(block, "parameters");
     if (parameters !== "") {
        params = splitConcatenatedJSON(parameters);
     };
 
     const action = {
-        "command": "send",
+        "command": command,
         "plugin": plugin,
         "parameters": params
     }
@@ -72,7 +79,8 @@ function construct(action: any)
             "kind": "BLOCK",
             "type": "reality2_action_send_plugin",
             "fields": {
-                "plugin": R2.JSONPath(action, "plugin")
+                "plugin": R2.JSONPath(action, "plugin"),
+                "command": R2.JSONPath(action, "command")
             },
             "inputs": {
                 "parameters": {}
@@ -80,7 +88,7 @@ function construct(action: any)
         }
 
         // Check if there are parameters
-        let parameters = reality2_action_parameter.construct(R2.JSONPath(action, "parameters"));
+        let parameters = reality2_action_parameter.construct(R2.JSONPath(action, "parameters.parameters"));
         if (parameters) block["inputs"]["parameters"] = { "block": parameters }
 
         return (block);

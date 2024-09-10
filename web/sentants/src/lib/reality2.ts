@@ -133,6 +133,8 @@ export default class R2 {
     }
 
     public static convert(variable: any, no_json = true) : any {
+        if ((variable) == null) return null;
+        
         if (typeof variable === 'number') {
             return variable; // It's already a number
         }

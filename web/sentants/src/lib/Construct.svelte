@@ -387,13 +387,13 @@
                 filename = R2.JSONPath(code, "swarm.name") + ".swarm";
             }
             else if (R2.JSONPath(code, "sentant.name")) {
-                filename = R2.JSONPath(code, "sentant.name") + ".sentant";
+                filename = R2.JSONPath(code, "sentant.name") + ".bee";
             }
             else if (R2.JSONPath(code, "plugin.name")) {
-                filename = R2.JSONPath(code, "plugin.name") + ".plugin";
+                filename = R2.JSONPath(code, "plugin.name") + ".link";
             }
             else if (R2.JSONPath(code, "automation.name")) {
-                filename = R2.JSONPath(code, "automation.name") + ".automation";
+                filename = R2.JSONPath(code, "automation.name") + ".behaviour";
             }
 
             // Save JSON or YAML

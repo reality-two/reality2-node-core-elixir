@@ -39,7 +39,9 @@ const shape = {
 function process(block: any, generator: any): string | [string, number] | null
 {
     const key = block.getFieldValue('key');
-    const value = R2.ToJSON(block.getFieldValue('value'));
+    const raw_value = block.getFieldValue('value');
+
+    const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
     console.log("ACTION SET", value);
 
     const action = {

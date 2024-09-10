@@ -15,7 +15,7 @@
 		{
 			"kind":"category",
             "colour": 50,
-			"name":"Sentant",
+			"name":"Bees",
 			"contents":[
 				{
 					"kind":"block",
@@ -52,7 +52,7 @@
 		{
 			"kind":"category",
             "colour": 150,
-			"name":"Links",
+			"name":"Antennae",
 			"contents":[
 				{
 					"kind":"block",
@@ -117,7 +117,7 @@
                 {
                     "kind":"category",
                     "colour": 250,
-                    "name":"Input",
+                    "name":"Inputs",
                     "contents":[
                         {
                             "kind":"block",

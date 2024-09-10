@@ -16,14 +16,14 @@ import reality2_automation from "./reality2_automation";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
     "type":"reality2_sentant",
-    "message0":"SENTANT %1",
+    "message0":"BEE %1",
     "args0":[
         {
             "type":"field_input",
             "name":"name",
             "check":"String",
             "text":"name",
-            "tooltip":"Name of Sentant"
+            "tooltip":"Name of Bee"
         }
     ],
     "message1":"%1",
@@ -51,7 +51,7 @@ const shape = {
             "check": "reality2_data"
         }
     ],
-    "message4":"LINKS",
+    "message4":"ANTENNAE",
     "message5":"%1",
     "args5":[
         {
@@ -120,6 +120,7 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 function construct(sentant: any)
 {
+    let description = R2.JSONPath(sentant, "description") ? R2.JSONPath(sentant, "description") : "";
     if (sentant) {
         // Set the initial structure
         let block = {
@@ -127,7 +128,7 @@ function construct(sentant: any)
             "type": "reality2_sentant",
             "fields": {
                 "name": R2.JSONPath(sentant, "name"),
-                "description": R2.JSONPath(sentant, "description")
+                "description": description
             },
             "inputs": {
                 "keys": {},

@@ -31,7 +31,7 @@ const shape = {
 			"tooltip":"Swarm description"
 		}
 	],
-	"message2":"SENTANTS",
+	"message2":"BEES",
 	"message3":"%1",
 	"args3":[
 		{
@@ -79,7 +79,7 @@ function construct(swarm: any)
         "type": "reality2_swarm",
         "fields": {
             "name": R2.JSONPath(swarm, "name"),
-            "description": R2.JSONPath(swarm, "description")
+            "description": R2.JSONPath(swarm, "description") ? R2.JSONPath(swarm, "description") : ""
         },
         "inputs": {
             "sentants": {}

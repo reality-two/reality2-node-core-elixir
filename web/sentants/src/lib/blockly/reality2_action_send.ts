@@ -98,6 +98,11 @@ function construct(action: any)
                 "parameters": {}
             }
         }
+
+        // Check if there are parameters
+        let parameters = reality2_action_parameter.construct(R2.JSONPath(action, "parameters.parameters"));
+        if (parameters) block["inputs"]["parameters"] = { "block": parameters }
+
         return (block);
     }
     else {
