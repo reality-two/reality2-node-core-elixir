@@ -11,14 +11,14 @@ import reality2_action_parameter from "./reality2_action_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_signal",
-    "message0":"signal %1 %2",
+    "message0":"%2 signal is %1",
 	"args0":[
         {
             "type":"field_dropdown",
             "name":"access",
             "options":[
-                ["public", "public"],
-                ["private", "private"]
+                ["visible", "visible"],
+                ["hidden", "hidden"]
             ],
             "tooltip":"Only public signals can be received by external Sentants and Devices."
         },
@@ -53,7 +53,7 @@ function process(block: any, generator: any): string | [string, number] | null
     var params = {};
 
     const event = block.getFieldValue('event');
-    const public_var = block.getFieldValue('access') === "public"
+    const public_var = block.getFieldValue('access') === "visible"
     const parameters = generator.statementToCode(block, "parameters");
     if (parameters !== "") {
        params = splitConcatenatedJSON(parameters);
@@ -79,7 +79,9 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 function construct(action: any)
 {
-    console.log("SIGNAL", action);
+    let access = "private";
+    if ((R2.JSONPath(action, "parameters.public") === true) || (R2.JSONPath(action, "public") === true)) access = "public";
+
     if (action) {
         // Set the initial structure
         let block = {
@@ -87,7 +89,7 @@ function construct(action: any)
             "type": "reality2_action_signal",
             "fields": {
                 "event": R2.JSONPath(action, "parameters.event"),
-                "public": R2.JSONPath(action, "public") === null ? (R2.JSONPath(action, "parameters.public") === true) : (R2.JSONPath(action, "public") === true)
+                "access": access
             },
             "inputs": {
                 "parameters": {}
@@ -95,7 +97,7 @@ function construct(action: any)
         }
 
         // Check if there are parameters
-        let parameters = reality2_action_parameter.construct(R2.JSONPath(action, "parameters"));
+        let parameters = reality2_action_parameter.construct(R2.JSONPath(action, "parameters.parameters"));
         if (parameters) block["inputs"]["parameters"] = { "block": parameters };
         
         return (block);

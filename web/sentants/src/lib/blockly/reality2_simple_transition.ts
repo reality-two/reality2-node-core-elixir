@@ -22,8 +22,8 @@ const shape = {
             "type":"field_dropdown",
             "name":"access",
             "options":[
-                ["public", "public"],
-                ["private", "private"]
+                ["visible", "visible"],
+                ["internal", "internal"]
             ],
             "tooltip":"Only public events can be triggered by external Sentants."
         },
@@ -68,7 +68,7 @@ function process(block: any, generator: any): string | [string, number] | null
 {
     var transition: any = {};
 
-    transition["public"] = block.getFieldValue('access') === "public"
+    transition["public"] = block.getFieldValue('access') === "visible"
     transition["event"] = block.getFieldValue('event');
 
     const parameters = generator.statementToCode(block, "parameters");
@@ -98,7 +98,7 @@ function construct(transition: any)
             "kind": "BLOCK",
             "type": "reality2_simple_transition",
             "fields": {
-                "public": R2.JSONPath(transition, "public") ? "public" : "private",
+                "access": R2.JSONPath(transition, "public") ? "visible" : "internal",
                 "from": R2.JSONPath(transition, "from"),
                 "event": R2.JSONPath(transition, "event"),
                 "to": R2.JSONPath(transition, "to")
@@ -123,43 +123,44 @@ function construct(transition: any)
         if (actions) {
             let actions_block = actions.reduceRight((acc, action) => {
 
-                let command = action["command"];
-
+                let command = R2.JSONPath(action, "command");
                 let action_block: any;
+                let plugin_name = action["plugin"];
 
-                switch (command) {
-                    case "set":
-                        action_block = reality2_action_set.construct(action);
-                        if (action_block && acc) {
-                            action_block["next"] =  { "block": acc };
-                        }
-                        break;
-                    case "send":
-                        let plugin_name = action["plugin"];
-                        if (plugin_name) {
-                            action_block = reality2_action_send_plugin.construct(action);
+                if (plugin_name) {
+                    action_block = reality2_action_send_plugin.construct(action);
+                    if (action_block && acc) {
+                        action_block["next"] =  { "block": acc };
+                    }
+                }
+                else
+                {
+                    switch (command) {
+                        case "set":
+                            action_block = reality2_action_set.construct(action);
                             if (action_block && acc) {
                                 action_block["next"] =  { "block": acc };
                             }
-                        } else {
+                            break;
+                        case "send":
                             action_block = reality2_action_send.construct(action);
                             if (action_block && acc) {
                                 action_block["next"] =  { "block": acc };
                             }
-                        }
-                        break;
-                    case "signal":
-                        action_block = reality2_action_signal.construct(action);
-                        if (action_block && acc) {
-                            action_block["next"] =  { "block": acc };
-                        }
-                        break;
-                    case "debug":
-                        action_block = reality2_action_debug.construct(action);
-                        if (action_block && acc) {
-                            action_block["next"] =  { "block": acc };
-                        }
-                        break;
+                            break;
+                        case "signal":
+                            action_block = reality2_action_signal.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                            break;
+                        case "debug":
+                            action_block = reality2_action_debug.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                            break;
+                    }
                 }
         
                 // accumulate the block so far

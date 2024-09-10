@@ -85,7 +85,7 @@ function construct(automation: any)
             "type": "reality2_automation",
             "fields": {
                 "name": R2.JSONPath(automation, "name"),
-                "description": R2.JSONPath(automation, "description")
+                "description": R2.JSONPath(automation, "description") ? R2.JSONPath(automation, "description") : ""
             },
             "inputs": {
                 "transitions": {}
