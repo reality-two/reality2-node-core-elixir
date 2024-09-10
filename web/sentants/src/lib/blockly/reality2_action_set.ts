@@ -42,8 +42,6 @@ function process(block: any, generator: any): string | [string, number] | null
     const raw_value = block.getFieldValue('value');
 
     const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
-    console.log("ACTION SET", value);
-
     const action = {
         "command": "set",
         "parameters": {

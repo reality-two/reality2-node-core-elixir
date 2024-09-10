@@ -68,7 +68,7 @@ function process(block: any, generator: any): string | [string, number] | null
 {
     var transition: any = {};
 
-    transition["public"] = block.getFieldValue('access') === "visible"
+    if (block.getFieldValue('access') === "visible") transition["public"] = true;
     transition["event"] = block.getFieldValue('event');
 
     const parameters = generator.statementToCode(block, "parameters");

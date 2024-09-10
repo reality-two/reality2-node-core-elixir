@@ -7,6 +7,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
     import { onMount } from 'svelte';
+    //@ts-ignore
     import {Card, Content, Header, Image, Button, Text, Input, Link, Popup} from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
@@ -113,7 +114,7 @@
                                 <Input text large placeholder={key} bind:value={input_text[event.event+key]}/>
                             </Input>
                         {/each}
-                        <Button ui teal fluid on:click={(_e) => event_button_pressed(sentant.id, event.event)} style={"margin-bottom:20px;"}>
+                        <Button ui teal fluid on:click={() => event_button_pressed(sentant.id, event.event)} style={"margin-bottom:20px;"}>
                             {event.event}
                         </Button>
                     {/each}

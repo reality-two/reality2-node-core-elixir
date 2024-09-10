@@ -56,11 +56,12 @@ function process(block: any, generator: any): string | [string, number] | null
        params = splitConcatenatedJSON(parameters);
     };
 
-    const action = {
+    const action: any = {
         "command": command,
-        "plugin": plugin,
-        "parameters": params
+        "plugin": plugin
     }
+
+    if (Object.keys(params).length !== 0) action["parameters"] = params;
 
     return (JSON.stringify(action));
 }

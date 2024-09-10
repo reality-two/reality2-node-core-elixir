@@ -29,7 +29,7 @@ const shape = {
 			"type":"field_input",
 			"name":"delay",
 			"check":"Number",
-			"text":"0"
+			"text":""
         }
 	],
     "message1":"with %1",
@@ -57,21 +57,22 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const event = block.getFieldValue('event');
     const to = block.getFieldValue('to');
-    const delay = block.getFieldValue('delay');
+    const delay = R2.ToSimple(block.getFieldValue('delay'));
     const parameters = generator.statementToCode(block, "parameters");
     if (parameters !== "") {
        params = splitConcatenatedJSON(parameters);
     };
 
-    const action = {
+    const action:any  = {
         "command": "send",
         "parameters": {
-            "event": event,
-            "to": to,
-            "delay": delay,
-            "parameters": params
+            "event": event
         }
     }
+
+    if ((to !== "") && (to !== "me")) action["parameters"]["to"] = to;
+    if (Object.keys(params).length !== 0) action["parameters"]["parameters"] = params;
+    if (delay && (delay > 0)) action["parameters"]["delay"] = delay;
 
     return (JSON.stringify(action));
 }
@@ -86,13 +87,16 @@ function construct(action: any)
 {
     if (action) {
         // Set the initial structure
+        let delay = R2.ToSimple(R2.JSONPath(action, "parameters.delay"));
+        let to = R2.JSONPath(action, "parameters.to");
+
         let block = {
             "kind": "BLOCK",
             "type": "reality2_action_send",
             "fields": {
                 "event": R2.JSONPath(action, "parameters.event"),
-                "to": R2.JSONPath(action, "parameters.to"),
-                "delay": R2.JSONPath(action, "parameters.delay")
+                "to": (to === "") ? "me" : to,
+                "delay": (delay && (delay > 0)) ? delay : ""
             },
             "inputs": {
                 "parameters": {}
