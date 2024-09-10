@@ -170,8 +170,8 @@
                 emptyBackpack: true,
                 removeFromBackpack: true,
                 copyToBackpack: true,
-                copyAllToBackpack: false,
-                pasteAllToBackpack: false,
+                copyAllToBackpack: true,
+                pasteAllToBackpack: true,
                 disablePreconditionChecks: false,
             },
         });
@@ -231,14 +231,19 @@
         Blockly.serialization.workspaces.load(state, workspace);
     }
     function saveBackpack() {
-        const backpackBlocks = backpack.getContents();
-        console.log(backpackBlocks);
-        const serializedBackpack = backpackBlocks.map(block => Blockly.serialization.blocks.save(block));
-        console.log(serializedBackpack);
-        return serializedBackpack;
+        console.log(backpack.getContents());
+        return (JSON.parse(backpack.getContents()));
+
+        // const backpackBlocks = backpack.getContents();
+        // console.log(backpackBlocks);
+        // const serializedBackpack = backpackBlocks.map((block) => {console.log(block); Blockly.serialization.blocks.save(JSON.parse(block)); });
+        // console.log(serializedBackpack);
+        // return serializedBackpack;
     }
-    function loadBackpack(backpack: any) {
-        backpack.forEach(blockJson => { backpack.addBlock(blockJson); });
+    function loadBackpack(backpack_data: any) {
+        console.log(backpack_data);
+        // backpack.setContents(backpack);
+        backpack_data.forEach(blockJson => { backpack.addItem(JSON.stringify(blockJson)); });
     }
     // ------------------------------------------------------------------------------------------------
 
