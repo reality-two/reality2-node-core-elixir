@@ -11,7 +11,7 @@
     // Imports
     // ------------------------------------------------------------------------------------------------
     //@ts-ignore
-    import {behavior, Icon, Button, Segment, Buttons, Grid, Column, Row, Text, Divider, Checkbox, Input, Label} from "svelte-fomantic-ui";
+    import {behavior, Icon, Button, Segment, Buttons, Grid, Column, Row, Text, Divider, Checkbox, Input, Label, Table, Table_Head, Table_Row, Table_Col, Table_Body} from "svelte-fomantic-ui";
 
 
     // Import Blockly core.
@@ -82,6 +82,8 @@
     $: fullHeight = "800px";
     $: codeHeight = "300px";
     $: showJSON = [];
+    let variables_loader: any;
+
 
     let workspace: any;
     let backpack: any;
@@ -138,7 +140,7 @@
             const leftDivBottomY = leftDivTopY + leftHeight;
 
             // Calculate the required height for the right div to align the bottoms
-            codeHeight = `${leftDivBottomY - rightDivTopY - 66}px`;
+            codeHeight = `${leftDivBottomY - rightDivTopY - 67}px`;
         }
 
         fullHeight = `${leftHeight}px`;
@@ -183,6 +185,27 @@
         // Update the height for the first time
         updateHeight();
 
+        // Set up the variables loader
+        variables_loader = document.createElement('input');
+        variables_loader.type = 'file';
+
+        variables_loader.onchange = (e:any) => { 
+            // getting a hold of the file reference
+            var file = e.target.files[0]; 
+
+            // setting up the reader
+            var reader = new FileReader();
+            reader.readAsText(file,'UTF-8');
+
+            // here we tell the reader what to do when it's done reading...
+            reader.onload = (readerEvent: any) => {
+                if (readerEvent !== null) {
+                    variables = JSON.parse(readerEvent["target"]["result"]);  
+                    setTimeout(() => { updateHeight(); }, 2);    
+                }
+            }
+        }
+
         // Update the Blockly workspace
         setTimeout(() => { Blockly.svgResize(workspace); }, 0);
 
@@ -208,7 +231,6 @@
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
         javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
 
-        console.log("SAVED", savedState);
         setTimeout(() => {
             if (typeof savedState === "object") {
                 if (savedState.hasOwnProperty("backpack")) loadBackpack(savedState["backpack"]);
@@ -231,19 +253,11 @@
         Blockly.serialization.workspaces.load(state, workspace);
     }
     function saveBackpack() {
-        console.log(backpack.getContents());
-        return (JSON.parse(backpack.getContents()));
-
-        // const backpackBlocks = backpack.getContents();
-        // console.log(backpackBlocks);
-        // const serializedBackpack = backpackBlocks.map((block) => {console.log(block); Blockly.serialization.blocks.save(JSON.parse(block)); });
-        // console.log(serializedBackpack);
-        // return serializedBackpack;
+        const the_backpack: [any] = backpack.getContents();
+        return (the_backpack);
     }
-    function loadBackpack(backpack_data: any) {
-        console.log(backpack_data);
-        // backpack.setContents(backpack);
-        backpack_data.forEach(blockJson => { backpack.addItem(JSON.stringify(blockJson)); });
+    function loadBackpack(backpack_data: [any]) {
+        backpack.setContents(backpack_data);
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -279,13 +293,27 @@
 
 
 
+    function replaceVariables(str: string, variables: {}) {
+        // Iterate over each key in the variables object
+        for (const [key, value] of Object.entries(variables)) {
+            // Create a regular expression to match the key in the string
+            // The 'g' flag ensures that all occurrences are replaced
+            const regex = new RegExp(key, 'g');
+            // Replace all occurrences of the key with its corresponding value
+            str = str.replace(regex, value);
+        }
+        return str;
+    }
+
+
+
     // ------------------------------------------------------------------------------------------------
     // Load the current definition as a swarm or sentant
     // ------------------------------------------------------------------------------------------------
     function loadToNode() {
         var definitionJSON: any = firstWorkspaceBlock();
         if (Object.keys(definitionJSON).length !== 0) {
-            var definition = JSON.stringify(definitionJSON);
+            var definition = replaceVariables(JSON.stringify(definitionJSON), variables);
             var isSentant = definitionJSON.hasOwnProperty("sentant");
             var isSwarm = definitionJSON.hasOwnProperty("swarm");
 
@@ -559,6 +587,26 @@
         <Grid ui>
             <Row>
                 <Column attached>
+                    <Button ui huge fluid labeled icon vertical on:click={()=> {variables_loader.click();} }>
+                        <Icon ui table></Icon>
+                        variables
+                    </Button>
+                    <Table ui celled>
+                        <Table_Head>
+                            <Table_Row>
+                                <Table_Col head>key</Table_Col>
+                                <Table_Col head>value</Table_Col>
+                            </Table_Row>
+                        </Table_Head>
+                        <Table_Body>
+                            {#each Object.keys(variables) as key}
+                                <Table_Row>
+                                    <Table_Col>{key}</Table_Col>
+                                    <Table_Col>{variables[key]}</Table_Col>
+                                </Table_Row>
+                            {/each}
+                        </Table_Body>
+                    </Table>
                     <Buttons ui labeled icon vertical fluid>
                         <Input ui file invisible>
                             <Input type="file" id="load" accept=".json, .yaml, .toml" on:change={(e)=>loadSentantDefinitionFile(e)}/>
