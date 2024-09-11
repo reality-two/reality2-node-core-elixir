@@ -349,19 +349,7 @@
     // return true if there are no Sentants, or only the one called "monitor"
     function none_or_monitor_only(sentants: any[]|[]) : boolean {
         let response = true;
-        // let sentants: Sentant[] = R2.JSONPath(data, "sentantAll");
-        // if (sentants == null) {
-        //     let name = R2.JSONPath(data, "sentantGet.name");
-        //     if (name !== "monitor")
-        //         response = false;
-        // } else {
-        //     for (let i = 0; i < sentants.length; i++) {
-        //         if (R2.JSONPath(sentants[i], "name") !== "monitor") {
-        //             response = false;
-        //             break;
-        //         }
-        //     }
-        // }
+
         for (let i = 0; i < sentants.length; i++) {
             if (R2.JSONPath(sentants[i], "name") !== "monitor") {
                 response = false;
@@ -453,7 +441,7 @@ Layout
                         <Item value="construct" on:click={change_state}>
                             &nbsp;&nbsp;
                             <Icon ui hammer/>
-                            Constructor 
+                            Construct
                         </Item>
                         <!-- <Item value="mr" on:click={change_state}>
                             &nbsp;&nbsp;
@@ -461,7 +449,7 @@ Layout
                             Mixed Reality
                         </Item> -->
 
-                        <Divider ui fitted/><Divider ui fitted/>
+                        <!-- <Divider ui fitted/><Divider ui fitted/>
                         <Header ui>
                         Load
                         </Header>
@@ -506,7 +494,7 @@ Layout
                             <Label ui>2</Label>
                             <Icon users/>
                             Swarm
-                        </Item>
+                        </Item> -->
                     </Menu>
                 </Dropdown>
             </Menu>
@@ -527,7 +515,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "construct"}
             <!--------------------------------------------------------------------------------------------->
-                <Construct {r2_node} {sentantData} bind:savedState />
+                <Construct {r2_node} {sentantData} bind:savedState bind:variables/>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "id"}
             <!--------------------------------------------------------------------------------------------->
