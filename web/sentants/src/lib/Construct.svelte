@@ -10,9 +10,9 @@
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    //@ts-ignore
-    import {behavior, Icon, Button, Segment, Buttons, Grid, Column, Row, Text, Divider, Checkbox, Input, Label, Table, Table_Head, Table_Row, Table_Col, Table_Body} from "svelte-fomantic-ui";
+    import {behavior, Icon, Button, Segment, Flyout, Pusher, Grid, Column, Row, Text, Divider, Checkbox, Header, Content } from "svelte-fomantic-ui";
 
+    //@ts-ignore
 
     // Import Blockly core.
     import * as Blockly from "blockly";
@@ -71,7 +71,8 @@
     export let r2_node: R2;
     export let sentantData: any[]|any = [];
     export let variables = {};
-    export let savedState: any; 
+    export let savedState: any;
+    export let construct_command: string = "";
     // ------------------------------------------------------------------------------------------------
 
 
@@ -82,8 +83,7 @@
     $: fullHeight = "800px";
     $: codeHeight = "300px";
     $: showJSON = [];
-    let variables_loader: any;
-
+    let code_loader: any;
 
     let workspace: any;
     let backpack: any;
@@ -119,6 +119,32 @@
         "post_plugin": reality2_post_plugin.construct,
         "automation": reality2_automation.construct
     }
+
+    $: if (construct_command) {
+        console.log("MODE:", construct_command);
+        switch (construct_command) {
+        case 'load':
+            code_loader.click();
+            break;
+        case 'save':
+            saveSentantDefinition();
+            break;
+        case 'run':
+            loadToNode()
+            break;
+        case 'code':
+            console.log("Showing Code");
+            convertBlocks();
+            behavior('code_space', 'toggle');
+            break;
+        case '':
+            break;
+        default:
+            showMessage("Problem", "Unknown command", "red");
+        }
+        // Reset the command if necessary
+        construct_command = '';
+    }
     // ------------------------------------------------------------------------------------------------
 
 
@@ -127,7 +153,7 @@
     // What to do when the window size is changed
     // ------------------------------------------------------------------------------------------------
     function updateHeight() {
-        const leftHeight = window.innerHeight - 120;
+        const leftHeight = window.innerHeight - 100;
         const leftDiv = document.getElementById('blocklyDiv');
         const rightDiv = document.getElementById('codeDiv');
 
@@ -140,7 +166,7 @@
             const leftDivBottomY = leftDivTopY + leftHeight;
 
             // Calculate the required height for the right div to align the bottoms
-            codeHeight = `${leftDivBottomY - rightDivTopY - 67}px`;
+            codeHeight = `${leftDivBottomY - rightDivTopY - 30}px`;
         }
 
         fullHeight = `${leftHeight}px`;
@@ -160,10 +186,26 @@
         workspace = Blockly.inject( "blocklyDiv", 
         {
             toolbox: toolbox,
-            theme: Theme
+            theme: Theme,
+            zoom: {
+                controls: true,
+                wheel: false,
+                startScale: 1.0,
+                maxScale: 3,
+                minScale: 0.3,
+                scaleSpeed: 1.2,
+                pinch: true
+            },
+            grid: {
+                spacing: 20,
+                length: 3,
+                colour: '#333',
+                snap: true
+            },
+            trashcan: true
         });
 
-
+        // The Blockly backpack
         backpack = new Backpack(workspace, {
             allowEmptyBackpackOpen: true,
             useFilledBackpackImage: true,
@@ -185,13 +227,15 @@
         // Update the height for the first time
         updateHeight();
 
-        // Set up the variables loader
-        variables_loader = document.createElement('input');
-        variables_loader.type = 'file';
+        // Set up the item loader
+        code_loader = document.createElement('input');
+        code_loader.type = 'file';
+        code_loader.accept=".json, .yaml";
 
-        variables_loader.onchange = (e:any) => { 
+        code_loader.onchange = (e:any) => { 
             // getting a hold of the file reference
-            var file = e.target.files[0]; 
+            const file = e.target.files[0];
+            console.log(file);
 
             // setting up the reader
             var reader = new FileReader();
@@ -199,10 +243,22 @@
 
             // here we tell the reader what to do when it's done reading...
             reader.onload = (readerEvent: any) => {
-                if (readerEvent !== null) {
-                    variables = JSON.parse(readerEvent["target"]["result"]);  
-                    setTimeout(() => { updateHeight(); }, 2);    
-                }
+                setTimeout(() => { 
+                    if (readerEvent !== null) {
+                        var definition: any = readerEvent["target"]["result"];
+
+                        if (definition !== null) {
+                            if (file.type == "application/json") {
+                                var newCode = JSON.parse(definition);
+                                putIntoBackpack(newCode);
+                            }
+                            else if (file.type == "application/yaml") {
+                                var newCode = yaml.load(definition);
+                                putIntoBackpack(newCode);
+                            }
+                        }
+                    }
+                }, 50);
             }
         }
 
@@ -231,6 +287,7 @@
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
         javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
 
+        // (re)load the blocks and backpack from variables, for when the mode changes.
         setTimeout(() => {
             if (typeof savedState === "object") {
                 if (savedState.hasOwnProperty("backpack")) loadBackpack(savedState["backpack"]);
@@ -270,7 +327,7 @@
         savedState = {
             workspace: saveWorkspace(),
             backpack: saveBackpack()
-        }
+        };
         window.removeEventListener("resize", updateHeight); 
     });
     // ------------------------------------------------------------------------------------------------
@@ -293,6 +350,9 @@
 
 
 
+    // ------------------------------------------------------------------------------------------------
+    // Replace variables in the definition.
+    // ------------------------------------------------------------------------------------------------
     function replaceVariables(str: string, variables: {}) {
         // Iterate over each key in the variables object
         for (const [key, value] of Object.entries(variables)) {
@@ -300,10 +360,12 @@
             // The 'g' flag ensures that all occurrences are replaced
             const regex = new RegExp(key, 'g');
             // Replace all occurrences of the key with its corresponding value
+            //@ts-ignore
             str = str.replace(regex, value);
         }
         return str;
     }
+    // ------------------------------------------------------------------------------------------------
 
 
 
@@ -362,53 +424,9 @@
 
 
 
-    // ------------------------------------------------------------------------------------------------
-    // Load a file from the local computer and use it to create blocks
-    // ------------------------------------------------------------------------------------------------
-    function loadSentantDefinitionFile(event: ProgressEvent) {
-        const input = event.target as HTMLInputElement;
-
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-            const fileName = file.name;
-
-            if (file) {
-                const reader = new FileReader();
-                const fileType = fileName.split('.').pop()?.toLowerCase();
-
-                reader.onload = function(e:ProgressEvent<FileReader>) {
-                    var target: FileReader | null = e.target;
-                    if (target !== null) {
-                        let contents = target.result as string;
-                        if (contents !== null) {
-                            if (fileType == "json") {
-                                var newCode = JSON.parse(contents);
-                                putIntoBackpack(newCode);
-                            }
-                            else if (fileType == "yaml") {
-                                var newCode = yaml.load(contents);
-                                putIntoBackpack(newCode);
-                            }
-                        }
-                    }
-                };
-
-                reader.onerror = function(e) {
-                    showMessage("Problem", "Error reading file", "red");
-                };
-
-                reader.readAsText(file); // Read the file as text
-                input.value = ''; // Reset in case the same file is to be loaded again.
-            }
-        } else {
-            showMessage("Problem", "No file selected", "red");
-        }
-    }
-    // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
+    // Put the given definition into the backpack
     // ------------------------------------------------------------------------------------------------
     function putIntoBackpack(code: any)
     {    
@@ -569,7 +587,7 @@
 
 
 
-    // ------------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
     // Show the visible code.
     // ------------------------------------------------------------------------------------------------
     function convertBlocks() {
@@ -579,82 +597,36 @@
 
 </script>
 
-<Grid ui stackable>
-    <Column thirteen wide left attached>
-        <Segment id="blocklyDiv" style="height: {fullHeight}; width: 100%;"></Segment>
-    </Column>
-    <Column three wide right attached>
-        <Grid ui>
-            <Row>
-                <Column attached>
-                    <Button ui huge fluid labeled icon vertical on:click={()=> {variables_loader.click();} }>
-                        <Icon ui table></Icon>
-                        variables
-                    </Button>
-                    <Table ui celled>
-                        <Table_Head>
-                            <Table_Row>
-                                <Table_Col head>key</Table_Col>
-                                <Table_Col head>value</Table_Col>
-                            </Table_Row>
-                        </Table_Head>
-                        <Table_Body>
-                            {#each Object.keys(variables) as key}
-                                <Table_Row>
-                                    <Table_Col>{key}</Table_Col>
-                                    <Table_Col>{variables[key]}</Table_Col>
-                                </Table_Row>
-                            {/each}
-                        </Table_Body>
-                    </Table>
-                    <Buttons ui labeled icon vertical fluid>
-                        <Input ui file invisible>
-                            <Input type="file" id="load" accept=".json, .yaml, .toml" on:change={(e)=>loadSentantDefinitionFile(e)}/>
-                        </Input>
-                        <Label ui button huge _for="load">
-                            <Icon ui cloud upload/>
-                            load
-                        </Label>
-                        <Button ui huge on:click={()=>saveSentantDefinition()}>
-                            <Icon ui cloud download></Icon>
-                            save
-                        </Button>
-                        <Divider ui inverted></Divider>
-                        <Button ui huge on:click={()=>loadToNode()}>
-                            <Icon ui running></Icon>
-                            run
-                        </Button>
-                    </Buttons>
-                </Column>
-            </Row>
-            <Row>
-                <Column attached>
-                    <Button ui fluid huge top attached on:click={()=>convertBlocks()}>
-                        <Icon ui arrow down></Icon>
-                        convert&nbsp;&nbsp;
-                        <Icon ui arrow down></Icon>
-                    </Button>
-                    <Segment ui attached inverted style={'text-align: left; background-color: #444444; height:100%'}>
-                        <div style="text-align: center;">
-                            <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox ui toggle large inverted bind:group={showJSON} value="json" label=" " grey/><Text ui large>JSON</Text>
-                        </div>
-                        <Divider ui inverted></Divider>
-                        <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
-                            <pre style="text-align: left;">
-                                {#if Object.keys(code).length !== 0}
-                                    {#if showJSON[0] === "json"}
-                                        {"\n"+JSON.stringify(code, null, 2)}
-                                    {:else}
-                                        {"\n"+yaml.dump(code)}
-                                    {/if}
-                                {/if}
-                            </pre>
-                        </div>
-                    </Segment>
-                </Column>
-            </Row>
-        </Grid>
-    </Column>
-</Grid>
+
+<Flyout ui very wide id = "code_space">
+    <!-- <Icon close/>
+    <Header ui>
+        <Icon pencil/>
+        <Content>
+            Definition
+        </Content>
+    </Header> -->
+    <Segment ui attached inverted style={'text-align: left; background-color: #444444; height:100%'}>
+        <div style="text-align: center;">
+            <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox ui toggle large inverted bind:group={showJSON} value="json" label=" " grey/><Text ui large>JSON</Text>
+        </div>
+        <Divider ui inverted></Divider>
+        <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
+            <pre style="text-align: left;">
+                {#if Object.keys(code).length !== 0}
+                    {#if showJSON[0] === "json"}
+                        {"\n"+JSON.stringify(code, null, 2)}
+                    {:else}
+                        {"\n"+yaml.dump(code)}
+                    {/if}
+                {/if}
+            </pre>
+        </div>
+    </Segment>
+</Flyout>
+
+<Pusher>
+    <div id="blocklyDiv" style="height: {fullHeight}; width: 100%;"/>
+</Pusher>
 
 

@@ -33,30 +33,8 @@
     $: state = set_state;
 
     // Saved state for constructor
+    var construct_command = "";
     let savedState = {};
-
-
-    let load_sentant = {
-        title: 'Load a Sentant',
-        class: 'mini',
-        closeIcon: true,
-        content: 'Choose a Sentant to load...',
-        actions: [{
-            text: 'OK',
-            class: 'green'
-        }]
-    }
-
-    let load_swarm = {
-        title: 'Load a Swarm',
-        class: 'mini',
-        closeIcon: true,
-        content: 'Choose a Swarm to load...',
-        actions: [{
-            text: 'OK',
-            class: 'green'
-        }]
-    }
 
 
     // -------------------------------------------------------------------------------------------------
@@ -78,8 +56,6 @@
     // -------------------------------------------------------------------------------------------------
     let windowWidth: number = 0;
     let fullHeight: String = "400px";
-    let sentant_loader: any;
-    let swarm_loader: any;
     let variables_loader: any;
     $: variables = variables_query ? JSON.parse(decodeURIComponent(variables_query)) : {};
 
@@ -99,71 +75,6 @@
         else {
             set_state = "start";
             view_query = "";
-        }
-
-        console.log(variables_query);
-        console.log(JSON.parse(variables_query));
-
-        // Set up the sentant loader
-        sentant_loader = document.createElement('input');
-        sentant_loader.type = 'file';
-
-        sentant_loader.onchange = (e:any) => { 
-            // getting a hold of the file reference
-            var file = e.target.files[0]; 
-
-            // setting up the reader
-            var reader = new FileReader();
-            reader.readAsText(file,'UTF-8');
-
-            // here we tell the reader what to do when it's done reading...
-            reader.onload = (readerEvent: any) => {
-                if (readerEvent !== null) {
-                    var definition: any = readerEvent["target"]["result"];
-
-                    definition = replaceVariables(definition, variables);
-                    console.log(definition);
-
-                    r2_node.sentantLoad(definition)
-                    .then((result) =>{
-                        console.log("LOADED", result)
-                    })
-                    .catch(() => {
-                        console.log("ERROR LOADING")
-                    });
-                }
-            }
-        }
-
-        // Set up the swarm loader
-        swarm_loader = document.createElement('input');
-        swarm_loader.type = 'file';
-
-        swarm_loader.onchange = (e:any) => { 
-            // getting a hold of the file reference
-            var file = e.target.files[0]; 
-
-            // setting up the reader
-            var reader = new FileReader();
-            reader.readAsText(file,'UTF-8');
-
-            // here we tell the reader what to do when it's done reading...
-            reader.onload = (readerEvent: any) => {
-                if (readerEvent !== null) {
-                    var definition: any = readerEvent["target"]["result"];
-
-                    definition = replaceVariables(definition, variables);
-                    console.log(definition);
-
-                    r2_node.swarmLoad(definition)
-                    .then((result) =>{
-                        console.log("LOADED", result)
-                    })
-                    .catch(() => {
-                        console.log("ERROR LOADING")
-                    });
-                }
-            }
         }
 
         // Set up the variables loader
@@ -428,18 +339,15 @@ Layout
                         <Header ui>
                             View
                         </Header>
-                        <Item value="view" on:click={change_state}>
-                            &nbsp;&nbsp;
+                        <Item icon value="view" on:click={change_state}>
                             <Icon ui th/>
                             Grid
                         </Item>
-                        <Item value="map" on:click={change_state}>
-                            &nbsp;&nbsp;
+                        <Item icon value="map" on:click={change_state}>
                             <Icon ui map outline/>
                             Map
                         </Item>
-                        <Item value="construct" on:click={change_state}>
-                            &nbsp;&nbsp;
+                        <Item icon value="construct" on:click={change_state}>
                             <Icon ui hammer/>
                             Construct
                         </Item>
@@ -448,58 +356,57 @@ Layout
                             <Icon ui box/>
                             Mixed Reality
                         </Item> -->
-
-                        <!-- <Divider ui fitted/><Divider ui fitted/>
-                        <Header ui>
-                        Load
-                        </Header>
-                        <Item value="load_variables" on:click={()=>{ variables_loader.click(); }}>
-                            &nbsp;&nbsp;
-                            <Label ui>1</Label>
-                            <Icon database/>
-                            Variables
-                            <Menu ui>
-                                <Table ui>
-                                    <Table_Head>
-                                        <Table_Row>
-                                            <Table_Col head>key</Table_Col>
-                                            <Table_Col head>value</Table_Col>
-                                        </Table_Row>
-                                    </Table_Head>
-                                    <Table_Body>
-                                        {#each Object.keys(variables) as key}
+                        {#if state == "construct"}
+                            <Divider ui fitted/><Divider ui fitted/>
+                            <Header ui>
+                            Construct
+                            </Header>
+                            <Item icon value="load_variables" on:click={()=>{ variables_loader.click(); }}>
+                                <Icon table/>
+                                Variables
+                                <Menu ui>
+                                    <Table ui>
+                                        <Table_Head>
                                             <Table_Row>
-                                                <Table_Col>{key}</Table_Col>
-                                                <Table_Col>{variables[key]}</Table_Col>
+                                                <Table_Col head>key</Table_Col>
+                                                <Table_Col head>value</Table_Col>
                                             </Table_Row>
-                                        {/each}
-                                    </Table_Body>
-                                </Table>
-                            </Menu>
-                        </Item>
-                        <Divider ui horizontal tiny>
-                            then
-                        </Divider>
-                        <Item value="load_sentant" on:click={()=>{ sentant_loader.click(); }}>
-                            &nbsp;&nbsp;
-                            <Label ui>2</Label>
-                            <Icon user/>
-                            Sentant
-                        </Item>
-                        <Divider ui horizontal tiny>
-                            or
-                        </Divider>
-                        <Item value="load_swarm" on:click={()=>{ swarm_loader.click(); }}>
-                            &nbsp;&nbsp;
-                            <Label ui>2</Label>
-                            <Icon users/>
-                            Swarm
-                        </Item> -->
+                                        </Table_Head>
+                                        <Table_Body>
+                                            {#each Object.keys(variables) as key}
+                                                <Table_Row>
+                                                    <Table_Col>{key}</Table_Col>
+                                                    <Table_Col>{variables[key]}</Table_Col>
+                                                </Table_Row>
+                                            {/each}
+                                        </Table_Body>
+                                    </Table>
+                                </Menu>
+                            </Item>
+                            <Divider ui horizontal tiny/>
+                            <Item icon value="load" on:click={()=>{ construct_command = "load"; }}>
+                                <Icon ui cloud upload/>
+                                Load
+                            </Item>
+                            <Item icon value="save" on:click={()=>{ construct_command = "save"; }}>
+                                <Icon ui cloud download/>
+                                Save
+                            </Item>
+                            <Divider ui horizontal tiny/>
+                            <Item icon value="code" on:click={()=>{ construct_command = "code"; }}>
+                                <Icon ui pencil/>
+                                Definition
+                            </Item>                            
+                            <Item icon value="run" on:click={()=>{ construct_command = "run"; }}>
+                                <Icon ui running/>
+                                Run
+                            </Item>
+                        {/if}
                     </Menu>
                 </Dropdown>
             </Menu>
         </Menu>
-        <Segment ui bottom attached grey style="height: {fullHeight}; width: 100%;">
+        <Segment ui bottom attached grey compact style="height: {fullHeight}; width: 100%; padding-left: 0px; padding-right: 0px; padding-bottom: 0px;">
             <!--------------------------------------------------------------------------------------------->
             {#if state == "start"}
             <!--------------------------------------------------------------------------------------------->
@@ -515,7 +422,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "construct"}
             <!--------------------------------------------------------------------------------------------->
-                <Construct {r2_node} {sentantData} bind:savedState bind:variables/>
+                <Construct bind:construct_command {r2_node} {sentantData} bind:savedState bind:variables/>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "id"}
             <!--------------------------------------------------------------------------------------------->

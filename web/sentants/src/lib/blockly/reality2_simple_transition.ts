@@ -16,7 +16,7 @@ import reality2_parameter from "./reality2_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
     "type":"reality2_simple_transition",
-    "message0":"%2 is %1",
+    "message0":"%2 : %1",
     "args0":[
         {
             "type":"field_dropdown",
