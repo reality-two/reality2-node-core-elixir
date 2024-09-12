@@ -59,7 +59,7 @@ function process(block: any, generator: any): string | [string, number] | null
     var automation: any = {};
 
     automation["name"] = block.getFieldValue('name');
-    automation["description"] = block.getFieldValue('description');
+    if (block.getFieldValue('description') !== "") automation["description"] = block.getFieldValue('description');
 
     const transitions = generator.statementToCode(block, "transitions");
 

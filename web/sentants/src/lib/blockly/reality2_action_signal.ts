@@ -11,7 +11,7 @@ import reality2_action_parameter from "./reality2_action_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_signal",
-    "message0":"%2 signal is %1",
+    "message0":"send %2 : %1 signal",
 	"args0":[
         {
             "type":"field_dropdown",

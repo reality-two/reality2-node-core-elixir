@@ -87,7 +87,7 @@ function process(block: any, generator: any): string | [string, number] | null
     var sentant: any = {};
 
     sentant["name"] = block.getFieldValue('name');
-    sentant["description"] = block.getFieldValue('description');
+    if (block.getFieldValue('description') !== "") sentant["description"] = block.getFieldValue('description');
 
     let keys = generator.statementToCode(block, "keys");
     if (keys != "") {

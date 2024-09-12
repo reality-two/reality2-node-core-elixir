@@ -56,7 +56,7 @@ function process(block: any, generator: any): string | [string, number] | null
     var swarm: any = {};
 
     swarm["name"] = block.getFieldValue('name');
-    swarm["description"] = block.getFieldValue('description');
+    if (block.getFieldValue('description') !== "") swarm["description"] = block.getFieldValue('description');
 
     const sentants = generator.statementToCode(block, "sentants");
     if (sentants != "") {

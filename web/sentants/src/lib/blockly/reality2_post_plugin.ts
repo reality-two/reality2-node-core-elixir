@@ -96,7 +96,7 @@ function process(block: any, generator: any): string | [string, number] | null
     var plugin: any = {};
 
     plugin["name"] = block.getFieldValue('name');
-    plugin["description"] = block.getFieldValue('description');
+    if (block.getFieldValue('description') !== "") plugin["description"] = block.getFieldValue('description');
     plugin["url"] = block.getFieldValue('url');
     plugin["method"] = "POST";
 

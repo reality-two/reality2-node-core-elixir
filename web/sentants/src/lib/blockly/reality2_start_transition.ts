@@ -16,17 +16,8 @@ import reality2_parameter from "./reality2_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
     "type":"reality2_start_transition",
-    "message0":"start + init => %2 is %1",
+    "message0":"start as %1",
     "args0":[
-        {
-            "type":"field_dropdown",
-            "name":"access",
-            "options":[
-                ["visible", "visible"],
-                ["internal", "internal"]
-            ],
-            "tooltip":"Only public events can be triggered by external Sentants."
-        },
         {
             "type":"field_input",
             "name":"to",
@@ -68,7 +59,6 @@ function process(block: any, generator: any): string | [string, number] | null
 {
     var transition: any = {};
 
-    if (block.getFieldValue('access') === "visible") transition["public"] = true;
     transition["from"] = "start";
     transition["event"] = "init";
     transition["to"] = block.getFieldValue('to');
@@ -100,7 +90,6 @@ function construct(transition: any)
             "kind": "BLOCK",
             "type": "reality2_start_transition",
             "fields": {
-                "access": R2.JSONPath(transition, "public") ? "visible" : "internal",
                 "from": "start",
                 "event": "init",
                 "to": R2.JSONPath(transition, "to")
