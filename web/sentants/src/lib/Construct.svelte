@@ -10,7 +10,7 @@
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import {behavior, Icon, Button, Segment, Flyout, Pusher, Grid, Column, Row, Text, Divider, Checkbox, Header, Content } from "svelte-fomantic-ui";
+    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -121,7 +121,6 @@
     }
 
     $: if (construct_command) {
-        console.log("MODE:", construct_command);
         switch (construct_command) {
         case 'load':
             code_loader.click();
@@ -133,7 +132,6 @@
             loadToNode()
             break;
         case 'code':
-            console.log("Showing Code");
             convertBlocks();
             behavior('code_space', 'toggle');
             break;
@@ -235,7 +233,6 @@
         code_loader.onchange = (e:any) => { 
             // getting a hold of the file reference
             const file = e.target.files[0];
-            console.log(file);
 
             // setting up the reader
             var reader = new FileReader();
@@ -247,12 +244,14 @@
                     if (readerEvent !== null) {
                         var definition: any = readerEvent["target"]["result"];
 
+                        console.log("LOADING", file.type);
+
                         if (definition !== null) {
-                            if (file.type == "application/json") {
+                            if (file.type.includes("json")) {
                                 var newCode = JSON.parse(definition);
                                 putIntoBackpack(newCode);
                             }
-                            else if (file.type == "application/yaml") {
+                            else if (file.type.includes("yaml")) {
                                 var newCode = yaml.load(definition);
                                 putIntoBackpack(newCode);
                             }
@@ -430,6 +429,8 @@
     // ------------------------------------------------------------------------------------------------
     function putIntoBackpack(code: any)
     {    
+        console.log("PUTTING", code);
+
         if (R2.JSONPath(code, "swarm")) {
             backpack.addItem(JSON.stringify(blockly_construct["swarm"](R2.JSONPath(code, "swarm"))));
             backpack.open();
@@ -488,7 +489,7 @@
                 filename = R2.JSONPath(code, "sentant.name") + ".bee";
             }
             else if (R2.JSONPath(code, "plugin.name")) {
-                filename = R2.JSONPath(code, "plugin.name") + ".link";
+                filename = R2.JSONPath(code, "plugin.name") + ".antenna";
             }
             else if (R2.JSONPath(code, "automation.name")) {
                 filename = R2.JSONPath(code, "automation.name") + ".behaviour";
