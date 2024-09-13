@@ -6,7 +6,7 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { Divider, Table, Table_Head, Table_Row, Table_Col, Table_Body, Cards, Menu, Label, Icon, Segment, Button, Buttons, Item, Message, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
+    import { Divider, Table, Table_Head, Table_Row, Table_Col, Table_Body, Cards, Menu, Label, Icon, Segment, Button, Buttons, Item, Link, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import type Sentant from './lib/reality2';
@@ -335,7 +335,7 @@ Layout
             <Menu right>
                 <Dropdown ui item style="position: relative; z-index:1000">
                     <Icon sidebar/>
-                    <Menu vertical ui>
+                    <Menu vertical ui style="width: 350px;">
                         <Header ui>
                             View
                         </Header>
@@ -357,13 +357,13 @@ Layout
                             Mixed Reality
                         </Item> -->
                         {#if state == "construct"}
-                            <Divider ui fitted/><Divider ui fitted/>
+                            <Divider ui fitted/>
                             <Header ui>
                             Construct
                             </Header>
                             <Item icon value="load_variables" on:click={()=>{ variables_loader.click(); }}>
                                 <Icon table/>
-                                Variables
+                                Load Variables
                                 <Menu ui>
                                     <Table ui>
                                         <Table_Head>
@@ -386,21 +386,22 @@ Layout
                             <Divider ui horizontal tiny/>
                             <Item icon value="load" on:click={()=>{ construct_command = "load"; }}>
                                 <Icon ui cloud upload/>
-                                Load
+                                Put in Backack
                             </Item>
                             <Item icon value="save" on:click={()=>{ construct_command = "save"; }}>
                                 <Icon ui cloud download/>
-                                Save
+                                Save to Disk
                             </Item>
                             <Divider ui horizontal tiny/>
                             <Item icon value="code" on:click={()=>{ construct_command = "code"; }}>
                                 <Icon ui pencil/>
-                                Definition
+                                Show Definition
                             </Item>                            
-                            <Item icon value="run" on:click={()=>{ construct_command = "run"; }}>
+                            <Divider ui horizontal tiny/>
+                            <Link item value="run" on:click={()=>{ construct_command = "run"; }}>
                                 <Icon ui running/>
-                                Run
-                            </Item>
+                                Load Swarm or Bee to Node
+                            </Link>
                         {/if}
                     </Menu>
                 </Dropdown>
