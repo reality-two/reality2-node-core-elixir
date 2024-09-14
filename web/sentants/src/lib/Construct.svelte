@@ -54,7 +54,9 @@
     import reality2_action_set_jsonpath from "./blockly/reality2_action_set_jsonpath";
     import reality2_action_set_data from "./blockly/reality2_action_set_data";
     import reality2_action_set_calculation from "./blockly/reality2_action_set_calculation";
+    import reality2_action_set_value from "./blockly/reality2_action_set_value";
     import reality2_action_send from "./blockly/reality2_action_send";
+    import reality2_action_send_now from "./blockly/reality2_action_send_now";
     import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
     import reality2_action_debug from "./blockly/reality2_action_debug";
     import reality2_action_signal from "./blockly/reality2_action_signal";
@@ -111,7 +113,9 @@
         reality2_action_set_jsonpath.shape,
         reality2_action_set_data.shape,
         reality2_action_set_calculation.shape,
+        reality2_action_set_value.shape,
         reality2_action_send.shape,
+        reality2_action_send_now.shape,
         reality2_action_send_plugin.shape,
         reality2_action_debug.shape,
         reality2_action_signal.shape,
@@ -289,7 +293,9 @@
         javascriptGenerator.forBlock['reality2_action_set_jsonpath'] = reality2_action_set_jsonpath.process;   
         javascriptGenerator.forBlock['reality2_action_set_data'] = reality2_action_set_data.process;   
         javascriptGenerator.forBlock['reality2_action_set_calculation'] = reality2_action_set_calculation.process;   
+        javascriptGenerator.forBlock['reality2_action_set_value'] = reality2_action_set_value.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
+        javascriptGenerator.forBlock['reality2_action_send_now'] = reality2_action_send_now.process;
         javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;

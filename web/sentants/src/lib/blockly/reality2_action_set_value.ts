@@ -4,34 +4,23 @@
 
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
-import reality2_action_parameter from "./reality2_action_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_action_signal",
-    "message0":"signal %1",
+	"type":"reality2_action_set_value",
+    "message0":"%1",
 	"args0":[
         {
 			"type":"field_input",
-			"name":"event",
+			"name":"value",
 			"check":"String",
 			"text":""
 		}
 	],
-    "message1":"with %1",
-    "args1":[
-        {
-            "type":"input_statement",
-            "name":"parameters",
-            "check":"reality2_action_parameter"
-        }
-    ],
-	"previousStatement":null,
-	"nextStatement":null,
     "colour": 300,
-    "inputsInline": true
+    "output":"Json"
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -40,28 +29,15 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 // Process Block
 // ----------------------------------------------------------------------------------------------------
-function process(block: any, generator: any): string | [string, number] | null
+function process(block: any, generator: any): string | [string, number]
 {
-    var params = {};
+    const raw_value = block.getFieldValue('value');
 
-    const event = block.getFieldValue('event');
-    const public_var = block.getFieldValue('access') === "visible"
-    const parameters = generator.statementToCode(block, "parameters");
-    if (parameters !== "") {
-       params = splitConcatenatedJSON(parameters);
-    };
+    const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
 
-    const action: any = {
-        "command": "signal",
-        "parameters": {
-            "event": event,
-            "public": true
-        }
-    }
+    const action = value;
 
-    if (Object.keys(params).length !== 0) action["parameters"]["parameters"] = params;
-
-    return (JSON.stringify(action));
+    return [JSON.stringify(action), 99];
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -70,28 +46,17 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(action: any)
+function construct(data: any)
 {
-    let access = "private";
-    if ((R2.JSONPath(action, "parameters.public") === true) || (R2.JSONPath(action, "public") === true)) access = "public";
-
-    if (action) {
+    if (data) {
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "reality2_action_signal",
+            "type": "reality2_action_set_value",
             "fields": {
-                "event": R2.JSONPath(action, "parameters.event")
-            },
-            "inputs": {
-                "parameters": {}
+                "value": R2.ToSimple(data)
             }
         }
-
-        // Check if there are parameters
-        let parameters = reality2_action_parameter.construct(R2.JSONPath(action, "parameters.parameters"));
-        if (parameters) block["inputs"]["parameters"] = { "block": parameters };
-        
         return (block);
     }
     else {
