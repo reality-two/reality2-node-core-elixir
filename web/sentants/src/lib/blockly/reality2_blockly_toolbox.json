@@ -146,6 +146,25 @@
                 },
                 {
                     "kind":"block",
+                    "type":"reality2_action_set_jsonpath"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_action_set_data"
+                },
+                {
+                    "kind":"category",
+                    "colour": 300,
+                    "name":"Calculations",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_calculation"
+                        }
+                    ]
+                },
+                {
+                    "kind":"block",
                     "type":"reality2_action_debug"
                 },
                 {

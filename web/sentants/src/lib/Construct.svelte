@@ -51,6 +51,9 @@
     import reality2_start_transition from "./blockly/reality2_start_transition";
     import reality2_simple_transition from "./blockly/reality2_simple_transition";
     import reality2_action_set from "./blockly/reality2_action_set";
+    import reality2_action_set_jsonpath from "./blockly/reality2_action_set_jsonpath";
+    import reality2_action_set_data from "./blockly/reality2_action_set_data";
+    import reality2_action_set_calculation from "./blockly/reality2_action_set_calculation";
     import reality2_action_send from "./blockly/reality2_action_send";
     import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
     import reality2_action_debug from "./blockly/reality2_action_debug";
@@ -105,6 +108,9 @@
         reality2_start_transition.shape,
         reality2_simple_transition.shape,
         reality2_action_set.shape,
+        reality2_action_set_jsonpath.shape,
+        reality2_action_set_data.shape,
+        reality2_action_set_calculation.shape,
         reality2_action_send.shape,
         reality2_action_send_plugin.shape,
         reality2_action_debug.shape,
@@ -280,6 +286,9 @@
         javascriptGenerator.forBlock['reality2_start_transition'] = reality2_start_transition.process;   
         javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
         javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
+        javascriptGenerator.forBlock['reality2_action_set_jsonpath'] = reality2_action_set_jsonpath.process;   
+        javascriptGenerator.forBlock['reality2_action_set_data'] = reality2_action_set_data.process;   
+        javascriptGenerator.forBlock['reality2_action_set_calculation'] = reality2_action_set_calculation.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
         javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;

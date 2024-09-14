@@ -5,6 +5,9 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_action_set from "./reality2_action_set";
+import reality2_action_set_jsonpath from "./reality2_action_set_jsonpath";
+import reality2_action_set_data from "./reality2_action_set_data";
+import reality2_action_set_calculation from "./reality2_action_set_calculation";
 import reality2_action_debug from "./reality2_action_debug";
 import reality2_action_send from "./reality2_action_send";
 import reality2_action_send_plugin from "./reality2_action_send_plugin";
@@ -46,7 +49,8 @@ const shape = {
 	"nextStatement":null,
     "colour": 250,
     "tooltip":"The initialise transition called once when an Automation begins.",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation"
+    "helpUrl": "https://github.com/reality-two/reality2-documentation",
+    "inputsInline": true
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -129,9 +133,30 @@ function construct(transition: any)
                 {
                     switch (command) {
                         case "set":
-                            action_block = reality2_action_set.construct(action);
-                            if (action_block && acc) {
-                                action_block["next"] =  { "block": acc };
+                            let parameters = R2.JSONPath(action, "parameters");
+                            if (R2.JSONPath(parameters, "value.jsonpath")) {
+                                action_block = reality2_action_set_jsonpath.construct(action);
+                                if (action_block && acc) {
+                                    action_block["next"] =  { "block": acc };
+                                }
+                            }
+                            else if (R2.JSONPath(parameters, "value.data")) {
+                                action_block = reality2_action_set_data.construct(action);
+                                if (action_block && acc) {
+                                    action_block["next"] =  { "block": acc };
+                                }
+                            }
+                            else if (R2.JSONPath(parameters, "value.calc")) {
+                                action_block = reality2_action_set_calculation.construct(action);
+                                if (action_block && acc) {
+                                    action_block["next"] =  { "block": acc };
+                                }
+                            }
+                            else {
+                                action_block = reality2_action_set.construct(action);
+                                if (action_block && acc) {
+                                    action_block["next"] =  { "block": acc };
+                                }
                             }
                             break;
                         case "send":

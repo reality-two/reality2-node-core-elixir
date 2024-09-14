@@ -280,6 +280,7 @@ defmodule Reality2.Automation do
       "debug" -> debug(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
       "set" -> set(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
       "signal" -> signal(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
+      "test" -> test(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
       _ -> accumulated_parameters |> Map.merge(%{result: :invalid_command})
     end
   end
@@ -468,6 +469,15 @@ defmodule Reality2.Automation do
         end
       end
     end
+  end
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Test a condition and send an event depending on the outcome
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  defp test(_id, _sentant_name, action_parameters, accumulated_parameters, _passthrough, _decryption_key, data) do
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 

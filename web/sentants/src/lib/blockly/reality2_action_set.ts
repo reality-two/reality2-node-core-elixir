@@ -19,7 +19,7 @@ const shape = {
 			"text":""
 		},
         {
-			"type":"field_input",
+			"type":"input_value",
 			"name":"value",
 			"check":"Json",
 			"text":""
@@ -39,7 +39,9 @@ const shape = {
 function process(block: any, generator: any): string | [string, number] | null
 {
     const key = block.getFieldValue('key');
-    const raw_value = block.getFieldValue('value');
+    // const raw_value = block.getFieldValue('value');
+
+    const raw_value = generator.valueToCode(block, 'value');
 
     const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
     const action = {

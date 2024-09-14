@@ -31,7 +31,8 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 50
+    "colour": 50,
+    "inputsInline": true
 }
 // ----------------------------------------------------------------------------------------------------
 

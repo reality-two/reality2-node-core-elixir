@@ -13,7 +13,8 @@ const shape = {
     "message0":"debug",
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300
+    "colour": 300,
+    "inputsInline": true
 }
 // ----------------------------------------------------------------------------------------------------
 

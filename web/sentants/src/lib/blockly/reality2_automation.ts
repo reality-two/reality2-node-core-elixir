@@ -45,7 +45,8 @@ const shape = {
 	"nextStatement":null,
     "colour": 200,
     "tooltip": "An automation, which is a type of Finite State Machine",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation"
+    "helpUrl": "https://github.com/reality-two/reality2-documentation",
+    "inputsInline": true
 }
 // ----------------------------------------------------------------------------------------------------
 
