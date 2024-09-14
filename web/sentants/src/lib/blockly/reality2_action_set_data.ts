@@ -29,16 +29,17 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 // Process Block
 // ----------------------------------------------------------------------------------------------------
-function process(block: any, generator: any): string | [string, number] | null
+function process(block: any, generator: any): string | [string, number]
 {
     const raw_value = block.getFieldValue('value');
 
     const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
+
     const action = {
         "data": value
     }
 
-    return (JSON.stringify(action));
+    return [JSON.stringify(action), 99];
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -47,18 +48,15 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(action: any)
+function construct(data: any)
 {
-    if (action) {
+    if (data) {
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
             "type": "reality2_action_set_data",
             "fields": {
-                "key": R2.JSONPath(action, "parameters.key"),
-                "value": R2.ToSimple(R2.JSONPath(action, "parameters.value.data"))
-            },
-            "inputs": {
+                "value": R2.ToSimple(R2.JSONPath(data, "data"))
             }
         }
         return (block);

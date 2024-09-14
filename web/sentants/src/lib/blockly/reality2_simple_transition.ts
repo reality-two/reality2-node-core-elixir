@@ -103,9 +103,7 @@ function construct(transition: any)
             "type": "reality2_simple_transition",
             "fields": {
                 "access": R2.JSONPath(transition, "public") ? "visible" : "internal",
-                "from": R2.JSONPath(transition, "from"),
-                "event": R2.JSONPath(transition, "event"),
-                "to": R2.JSONPath(transition, "to")
+                "event": R2.JSONPath(transition, "event")
             },
             "inputs": {
                 "parameters": {},

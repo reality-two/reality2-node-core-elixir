@@ -94,8 +94,6 @@ function construct(transition: any)
             "kind": "BLOCK",
             "type": "reality2_start_transition",
             "fields": {
-                "from": "start",
-                "event": "init",
                 "to": R2.JSONPath(transition, "to")
             },
             "inputs": {
@@ -133,30 +131,9 @@ function construct(transition: any)
                 {
                     switch (command) {
                         case "set":
-                            let parameters = R2.JSONPath(action, "parameters");
-                            if (R2.JSONPath(parameters, "value.jsonpath")) {
-                                action_block = reality2_action_set_jsonpath.construct(action);
-                                if (action_block && acc) {
-                                    action_block["next"] =  { "block": acc };
-                                }
-                            }
-                            else if (R2.JSONPath(parameters, "value.data")) {
-                                action_block = reality2_action_set_data.construct(action);
-                                if (action_block && acc) {
-                                    action_block["next"] =  { "block": acc };
-                                }
-                            }
-                            else if (R2.JSONPath(parameters, "value.calc")) {
-                                action_block = reality2_action_set_calculation.construct(action);
-                                if (action_block && acc) {
-                                    action_block["next"] =  { "block": acc };
-                                }
-                            }
-                            else {
-                                action_block = reality2_action_set.construct(action);
-                                if (action_block && acc) {
-                                    action_block["next"] =  { "block": acc };
-                                }
+                            action_block = reality2_action_set.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
                             }
                             break;
                         case "send":

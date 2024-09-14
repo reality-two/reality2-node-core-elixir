@@ -319,6 +319,7 @@
     }
     function saveBackpack() {
         const the_backpack: [any] = backpack.getContents();
+        console.log(the_backpack);
         return (the_backpack);
     }
     function loadBackpack(backpack_data: [any]) {
@@ -438,8 +439,6 @@
     // ------------------------------------------------------------------------------------------------
     function putIntoBackpack(code: any)
     {    
-        console.log("PUTTING", code);
-
         if (R2.JSONPath(code, "swarm")) {
             backpack.addItem(JSON.stringify(blockly_construct["swarm"](R2.JSONPath(code, "swarm"))));
             backpack.open();
