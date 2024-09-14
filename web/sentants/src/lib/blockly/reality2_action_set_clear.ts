@@ -2,11 +2,7 @@
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
-import reality2_action_set_data from "./reality2_action_set_data";
-import reality2_action_set_jsonpath from "./reality2_action_set_jsonpath";
-import reality2_action_set_value from "./reality2_action_set_value";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition

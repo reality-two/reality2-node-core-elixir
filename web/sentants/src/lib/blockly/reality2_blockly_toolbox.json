@@ -151,9 +151,14 @@
                 {
                     "kind":"block",
                     "type":"reality2_action_send_now_no_params"
-                },                {
+                },
+                {
                     "kind":"block",
                     "type":"reality2_action_send"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_action_send_no_params"
                 },
                 {
                     "kind":"block",
@@ -203,15 +208,15 @@
                 },
                 {
                     "kind":"block",
-                    "type":"reality2_action_debug"
-                },
-                {
-                    "kind":"block",
                     "type":"reality2_action_signal"
                 },
                 {
                     "kind":"block",
                     "type":"reality2_action_signal_no_params"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_action_debug"
                 },
                 {
                     "kind":"category",
