@@ -399,8 +399,8 @@ Layout
                             </Item>                            
                             <Divider ui horizontal tiny/>
                             <Link item value="run" on:click={()=>{ construct_command = "run"; }}>
-                                <Icon ui running/>
-                                <Text ui big>Load Swarm or Bee to Node</Text>
+                                <Icon ui medium running/>
+                                <Text ui medium>Load Swarm or Bee to Node</Text>
                             </Link>
                         {/if}
                     </Menu>

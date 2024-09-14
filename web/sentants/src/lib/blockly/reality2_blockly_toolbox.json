@@ -134,6 +134,10 @@
             "contents":[
                 {
                     "kind":"block",
+                    "type":"reality2_action_send_now"
+                },
+                {
+                    "kind":"block",
                     "type":"reality2_action_send"
                 },
                 {
@@ -156,6 +160,10 @@
                         {
                             "kind":"block",
                             "type":"reality2_action_set_data"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_value"
                         },
                         {
                             "kind":"category",

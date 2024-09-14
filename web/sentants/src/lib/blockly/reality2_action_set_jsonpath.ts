@@ -56,7 +56,7 @@ function construct(data: any)
             "kind": "BLOCK",
             "type": "reality2_action_set_jsonpath",
             "fields": {
-                "value": R2.ToSimple(R2.JSONPath(data, "data"))
+                "value": R2.ToSimple(R2.JSONPath(data, "jsonpath"))
             }
         }
         return (block);
