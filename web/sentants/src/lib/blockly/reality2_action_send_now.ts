@@ -37,7 +37,8 @@ const shape = {
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
-    "inputsInline": true
+    "tooltip": "Send an event with some additional information to add to the data flow.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -88,7 +89,7 @@ function construct(action: any)
             "type": "reality2_action_send_now",
             "fields": {
                 "event": R2.JSONPath(action, "parameters.event"),
-                "to": (to === "") ? "me" : to
+                "to": to ? to : "me"
             },
             "inputs": {
                 "parameters": {}

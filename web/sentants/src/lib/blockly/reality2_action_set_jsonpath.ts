@@ -20,7 +20,9 @@ const shape = {
 		}
 	],
     "colour": 300,
-    "output":"Json"
+    "output":"Json",
+    "tooltip": "A JSON Path, which is a string used to pick data out of a JSON stucture.  For example 'information.[].name' returns and array of names from the information array, whilst 'information.0.name' returns the name of the first element of the information array.  If the JSON key doesn't exist, null is returned.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

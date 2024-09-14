@@ -28,7 +28,8 @@ const shape = {
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
-    "inputsInline": true
+    "tooltip": "A task to perform a calculation.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

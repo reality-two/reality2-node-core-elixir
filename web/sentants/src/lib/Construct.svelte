@@ -1,5 +1,5 @@
 <!------------------------------------------------------------------------------------------------------
-  A Login dialog
+Construct Swarms and Bees / Sentants
 
   Author: Dr. Roy C. Davies
   Created: August 2024
@@ -48,18 +48,25 @@
     import reality2_automation from "./blockly/reality2_automation";
     import reality2_parameter from "./blockly/reality2_parameter";
     import reality2_transition from "./blockly/reality2_transition";
+    import reality2_transition_no_params from "./blockly/reality2_transition_no_params";
     import reality2_start_transition from "./blockly/reality2_start_transition";
+    import reality2_start_transition_no_params from "./blockly/reality2_start_transition_no_params";
     import reality2_simple_transition from "./blockly/reality2_simple_transition";
+    import reality2_simple_transition_no_params from "./blockly/reality2_simple_transition_no_params";
     import reality2_action_set from "./blockly/reality2_action_set";
+    import reality2_action_set_clear from "./blockly/reality2_action_set_clear";
     import reality2_action_set_jsonpath from "./blockly/reality2_action_set_jsonpath";
     import reality2_action_set_data from "./blockly/reality2_action_set_data";
     import reality2_action_set_calculation from "./blockly/reality2_action_set_calculation";
     import reality2_action_set_value from "./blockly/reality2_action_set_value";
     import reality2_action_send from "./blockly/reality2_action_send";
     import reality2_action_send_now from "./blockly/reality2_action_send_now";
+    import reality2_action_send_now_no_params from "./blockly/reality2_action_send_now_no_params";
     import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
+    import reality2_action_send_plugin_no_params from "./blockly/reality2_action_send_plugin_no_params";
     import reality2_action_debug from "./blockly/reality2_action_debug";
     import reality2_action_signal from "./blockly/reality2_action_signal";
+    import reality2_action_signal_no_params from "./blockly/reality2_action_signal_no_params";
     import reality2_action_parameter from "./blockly/reality2_action_parameter";
 
     import { splitConcatenatedJSON } from "./blockly/blockly_common";
@@ -107,18 +114,25 @@
         reality2_automation.shape,
         reality2_parameter.shape,
         reality2_transition.shape,
+        reality2_transition_no_params.shape,
         reality2_start_transition.shape,
+        reality2_start_transition_no_params.shape,
         reality2_simple_transition.shape,
+        reality2_simple_transition_no_params.shape,
         reality2_action_set.shape,
+        reality2_action_set_clear.shape,
         reality2_action_set_jsonpath.shape,
         reality2_action_set_data.shape,
         reality2_action_set_calculation.shape,
         reality2_action_set_value.shape,
         reality2_action_send.shape,
         reality2_action_send_now.shape,
+        reality2_action_send_now_no_params.shape,
         reality2_action_send_plugin.shape,
+        reality2_action_send_plugin_no_params.shape,
         reality2_action_debug.shape,
         reality2_action_signal.shape,
+        reality2_action_signal_no_params.shape,
         reality2_action_parameter.shape
     ];
 
@@ -161,7 +175,7 @@
     // What to do when the window size is changed
     // ------------------------------------------------------------------------------------------------
     function updateHeight() {
-        const leftHeight = window.innerHeight - 100;
+        const leftHeight = window.innerHeight - 90;
         const leftDiv = document.getElementById('blocklyDiv');
         const rightDiv = document.getElementById('codeDiv');
 
@@ -287,18 +301,25 @@
         javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;   
         javascriptGenerator.forBlock['reality2_parameter'] = reality2_parameter.process;   
         javascriptGenerator.forBlock['reality2_transition'] = reality2_transition.process;   
+        javascriptGenerator.forBlock['reality2_transition_no_params'] = reality2_transition_no_params.process;   
         javascriptGenerator.forBlock['reality2_start_transition'] = reality2_start_transition.process;   
+        javascriptGenerator.forBlock['reality2_start_transition_no_params'] = reality2_start_transition_no_params.process;   
         javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
+        javascriptGenerator.forBlock['reality2_simple_transition_no_params'] = reality2_simple_transition_no_params.process;   
         javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
+        javascriptGenerator.forBlock['reality2_action_set_clear'] = reality2_action_set.process;   
         javascriptGenerator.forBlock['reality2_action_set_jsonpath'] = reality2_action_set_jsonpath.process;   
         javascriptGenerator.forBlock['reality2_action_set_data'] = reality2_action_set_data.process;   
         javascriptGenerator.forBlock['reality2_action_set_calculation'] = reality2_action_set_calculation.process;   
         javascriptGenerator.forBlock['reality2_action_set_value'] = reality2_action_set_value.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
         javascriptGenerator.forBlock['reality2_action_send_now'] = reality2_action_send_now.process;
+        javascriptGenerator.forBlock['reality2_action_send_now_no_params'] = reality2_action_send_now_no_params.process;
         javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
+        javascriptGenerator.forBlock['reality2_action_send_plugin_no_params'] = reality2_action_send_plugin.process;
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
+        javascriptGenerator.forBlock['reality2_action_signal_no_params'] = reality2_action_signal_no_params.process;
         javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
 
         // (re)load the blocks and backpack from variables, for when the mode changes.
@@ -614,13 +635,6 @@
 
 
 <Flyout ui very wide id = "code_space">
-    <!-- <Icon close/>
-    <Header ui>
-        <Icon pencil/>
-        <Content>
-            Definition
-        </Content>
-    </Header> -->
     <Segment ui attached inverted style={'text-align: left; background-color: #444444; height:100%'}>
         <div style="text-align: center;">
             <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox ui toggle large inverted bind:group={showJSON} value="json" label=" " grey/><Text ui large>JSON</Text>

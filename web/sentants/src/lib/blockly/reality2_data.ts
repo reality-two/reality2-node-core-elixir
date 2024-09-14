@@ -27,7 +27,8 @@ const shape = {
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 50,
-    "inputsInline": true
+    "tooltip": "Data included with the Bee when set up.  This cannot be altered once the Bee is active, but can be used in the data flow.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

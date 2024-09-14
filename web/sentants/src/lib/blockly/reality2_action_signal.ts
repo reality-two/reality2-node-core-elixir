@@ -31,7 +31,8 @@ const shape = {
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
-    "inputsInline": true
+    "tooltip": "Send a signal to any connected devices, with some additional information to add to the data flow.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

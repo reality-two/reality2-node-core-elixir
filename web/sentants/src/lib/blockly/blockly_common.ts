@@ -1,3 +1,23 @@
+// ----------------------------------------------------------------------------------------------------
+// Some useful Blockly-related functions.
+// Author: Roy C. Davies, September, 2024
+// ----------------------------------------------------------------------------------------------------
+
+import R2 from "../reality2";
+import reality2_action_set from "./reality2_action_set";
+import reality2_action_set_clear from "./reality2_action_set_clear";
+import reality2_action_debug from "./reality2_action_debug";
+import reality2_action_send from "./reality2_action_send";
+import reality2_action_send_now from "./reality2_action_send_now";
+import reality2_action_send_now_no_params from "./reality2_action_send_now_no_params";
+import reality2_action_send_plugin from "./reality2_action_send_plugin";
+import reality2_action_send_plugin_no_params from "./reality2_action_send_plugin_no_params";
+import reality2_action_signal from "./reality2_action_signal";
+import reality2_action_signal_no_params from "./reality2_action_signal_no_params";
+
+// ----------------------------------------------------------------------------------------------------
+// Split and convert conjoined JSON strings
+// ----------------------------------------------------------------------------------------------------
 export function splitConcatenatedJSON(jsonString: string, is_object: boolean = true): any {
     let objects: any[] = [];
     let braceLevel = 0;
@@ -33,4 +53,108 @@ export function splitConcatenatedJSON(jsonString: string, is_object: boolean = t
     else {
         return objects;
     }
+}
+// ----------------------------------------------------------------------------------------------------
+
+
+
+// ----------------------------------------------------------------------------------------------------
+// Interpret the actions required by each Transition
+// ----------------------------------------------------------------------------------------------------
+export function interpret_actions(transition: any, block: any)
+{
+    // Check if there are actions
+    let actions: [any] = R2.JSONPath(transition, "actions");
+
+    // If there are, go backwards through the array creating each block, and linking to the next
+    if (actions) {
+        let actions_block = actions.reduceRight((acc, action) => {
+
+            let action_block: any;
+
+            if (R2.JSONPath(action, "plugin")) {
+                var parameters = R2.JSONPath(action, "parameters.parameters");
+                if (parameters && Object.keys(parameters).length > 0) {
+                    action_block = reality2_action_send_plugin.construct(action);
+                    if (action_block && acc) {
+                        action_block["next"] =  { "block": acc };
+                    }
+                } else {
+                    action_block = reality2_action_send_plugin_no_params.construct(action);
+                    if (action_block && acc) {
+                        action_block["next"] =  { "block": acc };
+                    }
+                }
+            }
+            else
+            {
+                switch (R2.JSONPath(action, "command")) {
+                    case "set":
+                        if (R2.JSONPath(action, "parameters.value")) {
+                            action_block = reality2_action_set.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                        }
+                        else {
+                            action_block = reality2_action_set_clear.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }                           
+                        }
+                        break;
+                    case "send":
+                        let delay = R2.JSONPath(action, "delay");
+                        var parameters = R2.JSONPath(action, "parameters.parameters");
+                        if (delay > 0) {
+                            action_block = reality2_action_send.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                        } else {
+                            if (parameters && Object.keys(parameters).length > 0) {
+                                action_block = reality2_action_send_now.construct(action);
+                                if (action_block && acc) {
+                                    action_block["next"] =  { "block": acc };
+                                }
+                            } else {
+                                action_block = reality2_action_send_now_no_params.construct(action);
+                                if (action_block && acc) {
+                                    action_block["next"] =  { "block": acc };
+                                }
+                            }
+                        }
+                        break;
+                    case "signal":
+                        var parameters = R2.JSONPath(action, "parameters.parameters");
+                        if (parameters && Object.keys(parameters).length > 0) {
+                            action_block = reality2_action_signal.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                        } else {
+                            action_block = reality2_action_signal_no_params.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                        }
+                        break;
+                    case "debug":
+                        action_block = reality2_action_debug.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        }
+                        break;
+                }
+            }
+    
+            // accumulate the block so far
+            return action_block;
+        }, null);
+    
+        // Sentants starts as a block
+        block["inputs"]["actions"] = { "block": actions_block };
+    }
+
+    return (block);
 }

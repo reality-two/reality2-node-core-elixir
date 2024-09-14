@@ -20,7 +20,9 @@ const shape = {
 		}
 	],
     "colour": 300,
-    "output":"Json"
+    "output":"Json",
+    "tooltip": "Set the variable as a copy of the Bee's data.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 
