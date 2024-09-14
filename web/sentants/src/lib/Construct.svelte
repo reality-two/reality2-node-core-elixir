@@ -60,6 +60,7 @@ Construct Swarms and Bees / Sentants
     import reality2_action_set_calculation from "./blockly/reality2_action_set_calculation";
     import reality2_action_set_value from "./blockly/reality2_action_set_value";
     import reality2_action_send from "./blockly/reality2_action_send";
+    import reality2_action_send_no_params from "./blockly/reality2_action_send_no_params";
     import reality2_action_send_now from "./blockly/reality2_action_send_now";
     import reality2_action_send_now_no_params from "./blockly/reality2_action_send_now_no_params";
     import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
@@ -126,6 +127,7 @@ Construct Swarms and Bees / Sentants
         reality2_action_set_calculation.shape,
         reality2_action_set_value.shape,
         reality2_action_send.shape,
+        reality2_action_send_no_params.shape,
         reality2_action_send_now.shape,
         reality2_action_send_now_no_params.shape,
         reality2_action_send_plugin.shape,
@@ -298,7 +300,7 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_plugin_body'] = reality2_plugin_body.process;   
         javascriptGenerator.forBlock['reality2_key_value'] = reality2_key_value.process;   
         javascriptGenerator.forBlock['reality2_data'] = reality2_data.process;   
-        javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;   
+        javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;
         javascriptGenerator.forBlock['reality2_parameter'] = reality2_parameter.process;   
         javascriptGenerator.forBlock['reality2_transition'] = reality2_transition.process;   
         javascriptGenerator.forBlock['reality2_transition_no_params'] = reality2_transition_no_params.process;   
@@ -307,16 +309,17 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
         javascriptGenerator.forBlock['reality2_simple_transition_no_params'] = reality2_simple_transition_no_params.process;   
         javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
-        javascriptGenerator.forBlock['reality2_action_set_clear'] = reality2_action_set.process;   
+        javascriptGenerator.forBlock['reality2_action_set_clear'] = reality2_action_set_clear.process;   
         javascriptGenerator.forBlock['reality2_action_set_jsonpath'] = reality2_action_set_jsonpath.process;   
         javascriptGenerator.forBlock['reality2_action_set_data'] = reality2_action_set_data.process;   
         javascriptGenerator.forBlock['reality2_action_set_calculation'] = reality2_action_set_calculation.process;   
         javascriptGenerator.forBlock['reality2_action_set_value'] = reality2_action_set_value.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
+        javascriptGenerator.forBlock['reality2_action_send_no_params'] = reality2_action_send_no_params.process;
         javascriptGenerator.forBlock['reality2_action_send_now'] = reality2_action_send_now.process;
         javascriptGenerator.forBlock['reality2_action_send_now_no_params'] = reality2_action_send_now_no_params.process;
         javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
-        javascriptGenerator.forBlock['reality2_action_send_plugin_no_params'] = reality2_action_send_plugin.process;
+        javascriptGenerator.forBlock['reality2_action_send_plugin_no_params'] = reality2_action_send_plugin_no_params.process;
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
         javascriptGenerator.forBlock['reality2_action_signal_no_params'] = reality2_action_signal_no_params.process;

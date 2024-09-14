@@ -2,9 +2,7 @@
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
-import reality2_action_parameter from "./reality2_action_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -66,7 +64,7 @@ function construct(action: any)
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "reality2_action_send_plugin",
+            "type": "reality2_action_send_plugin_no_params",
             "fields": {
                 "plugin": R2.JSONPath(action, "plugin"),
                 "command": R2.JSONPath(action, "command")

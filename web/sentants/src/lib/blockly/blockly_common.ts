@@ -8,6 +8,7 @@ import reality2_action_set from "./reality2_action_set";
 import reality2_action_set_clear from "./reality2_action_set_clear";
 import reality2_action_debug from "./reality2_action_debug";
 import reality2_action_send from "./reality2_action_send";
+import reality2_action_send_no_params from "./reality2_action_send_no_params";
 import reality2_action_send_now from "./reality2_action_send_now";
 import reality2_action_send_now_no_params from "./reality2_action_send_now_no_params";
 import reality2_action_send_plugin from "./reality2_action_send_plugin";
@@ -69,7 +70,6 @@ export function interpret_actions(transition: any, block: any)
     // If there are, go backwards through the array creating each block, and linking to the next
     if (actions) {
         let actions_block = actions.reduceRight((acc, action) => {
-
             let action_block: any;
 
             if (R2.JSONPath(action, "plugin")) {
@@ -104,12 +104,19 @@ export function interpret_actions(transition: any, block: any)
                         }
                         break;
                     case "send":
-                        let delay = R2.JSONPath(action, "delay");
+                        var delay = R2.JSONPath(action, "delay");
                         var parameters = R2.JSONPath(action, "parameters.parameters");
                         if (delay > 0) {
-                            action_block = reality2_action_send.construct(action);
-                            if (action_block && acc) {
-                                action_block["next"] =  { "block": acc };
+                            if (parameters && Object.keys(parameters).length > 0) {
+                                action_block = reality2_action_send.construct(action);
+                                if (action_block && acc) {
+                                    action_block["next"] =  { "block": acc };
+                                }
+                            } else {
+                                action_block = reality2_action_send_no_params.construct(action);
+                                if (action_block && acc) {
+                                    action_block["next"] =  { "block": acc };
+                                }
                             }
                         } else {
                             if (parameters && Object.keys(parameters).length > 0) {
