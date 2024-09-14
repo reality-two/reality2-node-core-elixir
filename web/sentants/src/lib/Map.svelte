@@ -38,7 +38,7 @@
             {
                 attribution: `&copy;<a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>,
                 &copy;<a href="https://carto.com/attributions" target="_blank">CARTO</a>`,
-                subdomains: 'abcd'
+                subdomains: 'reality2.ai'
             }).addTo(map);
 
         // Set the initial map height
@@ -127,7 +127,7 @@
     }
 
     function updateMapHeight() {
-        mapHeight = `${window.innerHeight - 105}px`;
+        mapHeight = `${window.innerHeight - 95}px`;
         if(map) { map.invalidateSize() }
     }
 </script>

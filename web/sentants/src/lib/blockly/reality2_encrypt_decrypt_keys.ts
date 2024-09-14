@@ -32,7 +32,8 @@ const shape = {
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 50,
-    "inputsInline": true
+    "tooltip": "Keys, which are a form of data, used specifically for encrypting and decrypting information stored on the Node.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

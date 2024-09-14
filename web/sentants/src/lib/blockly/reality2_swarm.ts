@@ -40,9 +40,8 @@ const shape = {
 		}
 	],
 	"colour": 20,
-    "tooltip": "An Swarm of Sentient Digital Agents (Sentants).",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation",
-    "inputsInline": true
+    "tooltip": "A swarm of Sentient Digital Agents, otherwise known as Sentants or Bees.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

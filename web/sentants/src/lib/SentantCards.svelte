@@ -37,7 +37,7 @@
     }
 </script>
 
-<Cards ui centered style="width: 100%; height: {height}; overflow-y:scroll;">
+<Cards ui centered style="width: 100%; height: {height}; overflow-y:scroll; padding-top: 10px;">
     {#each sentantData as sentant}
         {#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted") && (sentant.name !== "view"))}
             <SentantCard {sentant} {r2_node} {variables}/>

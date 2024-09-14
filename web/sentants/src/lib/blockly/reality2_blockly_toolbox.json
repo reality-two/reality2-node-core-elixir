@@ -108,11 +108,23 @@
                 },
                 {
                     "kind":"block",
-                    "type":"reality2_transition"
+                    "type":"reality2_start_transition_no_params"
                 },
                 {
                     "kind":"block",
                     "type":"reality2_simple_transition"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_simple_transition_no_params"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_transition"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_transition_no_params"
                 },
                 {
                     "kind":"category",
@@ -138,6 +150,9 @@
                 },
                 {
                     "kind":"block",
+                    "type":"reality2_action_send_now_no_params"
+                },                {
+                    "kind":"block",
                     "type":"reality2_action_send"
                 },
                 {
@@ -145,10 +160,18 @@
                     "type":"reality2_action_send_plugin"
                 },
                 {
+                    "kind":"block",
+                    "type":"reality2_action_send_plugin_no_params"
+                },
+                {
                     "kind":"category",
                     "colour": 300,
                     "name":"Set",
                     "contents": [
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_clear"
+                        },
                         {
                             "kind":"block",
                             "type":"reality2_action_set"
@@ -185,6 +208,10 @@
                 {
                     "kind":"block",
                     "type":"reality2_action_signal"
+                },
+                {
+                    "kind":"block",
+                    "type":"reality2_action_signal_no_params"
                 },
                 {
                     "kind":"category",

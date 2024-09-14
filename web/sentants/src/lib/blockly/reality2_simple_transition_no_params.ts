@@ -2,19 +2,46 @@
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-import { splitConcatenatedJSON } from "./blockly_common";
+import { splitConcatenatedJSON, interpret_actions } from "./blockly_common";
 import R2 from "../reality2";
+import reality2_parameter from "./reality2_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_action_debug",
-    "message0":"debug",
-	"previousStatement":null,
+    "type":"reality2_simple_transition_no_params",
+    "message0":"instruction %2 : %1",
+    "args0":[
+        {
+            "type":"field_dropdown",
+            "name":"access",
+            "options":[
+                ["visible", "visible"],
+                ["internal", "internal"]
+            ],
+            "tooltip":"Only public events can be triggered by external Sentants."
+        },
+        {
+            "type":"field_input",
+            "name":"event",
+            "check":"String",
+            "text":""
+        }
+    ],
+    "message1":"TASKS",
+    "message2":"%1",
+    "args2":[
+        {
+            "type":"input_statement",
+            "name":"actions",
+            "check": ["reality2_action_debug", "reality2_action_send", "reality2_action_send_plugin", "reality2_action_set", "reality2_action_signal"]
+        }
+    ],
+    "previousStatement":null,
 	"nextStatement":null,
-    "colour": 300,
-    "tooltip": "A Debug Task that shows the current data flow.",
+    "colour": 270,
+    "tooltip":"Receive an instruction, and subsequently perform some tasks.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -26,11 +53,17 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const action = {
-        "command": "debug"
+    var transition: any = {};
+
+    if (block.getFieldValue('access') === "visible") transition["public"] = true;
+    transition["event"] = block.getFieldValue('event');
+
+    const actions = generator.statementToCode(block, "actions");
+    if (actions != "") {
+        transition["actions"] = splitConcatenatedJSON(actions, false);
     }
 
-    return (JSON.stringify(action));
+    return JSON.stringify(transition);
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -39,15 +72,23 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(action: any)
-{    
-    if (action) {
+function construct(transition: any)
+{
+    if (transition) {
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "reality2_action_debug"
+            "type": "reality2_simple_transition_no_params",
+            "fields": {
+                "access": R2.JSONPath(transition, "public") ? "visible" : "internal",
+                "event": R2.JSONPath(transition, "event")
+            },
+            "inputs": {
+                "actions": {}
+            }
         }
-        return (block);
+
+        return (interpret_actions(transition, block));
     }
     else {
         return null;

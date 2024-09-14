@@ -72,9 +72,8 @@ const shape = {
     "previousStatement":null,
 	"nextStatement": null,
     "colour": 50,
-    "tooltip": "A Reality2 Sentient Digital Agent",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation",
-    "inputsInline": true
+    "tooltip": "A Reality2 Sentient Digital Agent, otherwise known as a Bee, or a Sentant.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

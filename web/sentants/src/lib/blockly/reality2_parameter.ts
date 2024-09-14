@@ -35,7 +35,8 @@ const shape = {
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 250,
-    "inputsInline": true
+    "tooltip": "Additional information to add to the data flow.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

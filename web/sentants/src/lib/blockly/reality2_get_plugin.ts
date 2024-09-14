@@ -72,9 +72,8 @@ const shape = {
 	"previousStatement":null,
 	"nextStatement":null,
 	"colour":150,
-    "tooltip":"A plugin to an internet connected resource that uses a GET API.",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation",
-    "inputsInline": true
+    "tooltip":"An antenna to get information from an internet connected resource that uses a GET API.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

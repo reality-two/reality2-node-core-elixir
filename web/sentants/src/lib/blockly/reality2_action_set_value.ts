@@ -20,7 +20,9 @@ const shape = {
 		}
 	],
     "colour": 300,
-    "output":"Json"
+    "output":"Json",
+    "tooltip": "A value, which can be a number, a string or JSON.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

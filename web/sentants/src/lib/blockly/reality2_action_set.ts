@@ -30,7 +30,9 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300
+    "colour": 300,
+    "tooltip": "Set a variable in the data flow.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

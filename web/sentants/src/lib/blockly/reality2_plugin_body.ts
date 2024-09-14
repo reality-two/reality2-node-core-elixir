@@ -27,7 +27,8 @@ const shape = {
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 150,
-    "inputsInline": true
+    "tooltip": "When defining a POST antenna, often there are data to be sent as the body of the API call.  Check with the API definition help pages.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 

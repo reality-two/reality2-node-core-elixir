@@ -1,35 +1,35 @@
-
-
 // ----------------------------------------------------------------------------------------------------
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
+import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
+import reality2_action_parameter from "./reality2_action_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_key_value",
-    "message0":"key %1 = %2",
+	"type":"reality2_action_send_now_no_params",
+    "message0":"send %1 to %2",
 	"args0":[
-		{
+        {
 			"type":"field_input",
-			"name":"key",
+			"name":"event",
 			"check":"String",
 			"text":""
 		},
-		{
+        {
 			"type":"field_input",
-			"name":"value",
+			"name":"to",
 			"check":"String",
 			"text":""
 		}
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 50,
-    "tooltip": "Keys, which are a form of data, useful for storing secret data such as API keys.",
+    "colour": 330,
+    "tooltip": "Send an event.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -41,13 +41,21 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const key = block.getFieldValue('key');
-    const value = R2.convert(block.getFieldValue('value'));
+    var params = {};
 
-    var return_value:any = {};
-    return_value[key] = value;
+    const event = block.getFieldValue('event');
+    const to = block.getFieldValue('to');
 
-    return (JSON.stringify(return_value));
+    const action:any  = {
+        "command": "send",
+        "parameters": {
+            "event": event
+        }
+    }
+
+    if ((to !== "") && (to !== "me")) action["parameters"]["to"] = to;
+
+    return (JSON.stringify(action));
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -56,41 +64,23 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(data: any)
+function construct(action: any)
 {
-    if (data) {
-        let keys = Object.keys(data);
-        if (keys.length > 0) {
-            let block: any = {
-                "kind": "BLOCK",
-                "type": "reality2_key_value",
-                "fields": {
-                    "key": keys[0],
-                    "value": R2.JSONPath(data, keys[0])
-                }
+    if (action) {
+        // Set the initial structure
+        let delay = R2.ToSimple(R2.JSONPath(action, "parameters.delay"));
+        let to = R2.JSONPath(action, "parameters.to");
+
+        let block = {
+            "kind": "BLOCK",
+            "type": "reality2_action_send_now_no_params",
+            "fields": {
+                "event": R2.JSONPath(action, "parameters.event"),
+                "to": to ? to : "me"
             }
-    
-            // Remove the key we've just been using
-            delete data[keys[0]]
-    
-            // get any other keys, recursively
-            if (Object.keys(data).length > 0)
-            {
-                let next = construct(data);
-                if (next) {
-                    block["next"] = {
-                        "block": next
-                    };
-                }
-            }
-    
-            // Return the structure
-            return (block);
         }
-        else
-        {
-            return null;
-        }
+
+        return (block);
     }
     else {
         return null;

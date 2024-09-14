@@ -5,8 +5,11 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_transition from "./reality2_transition";
+import reality2_transition_no_params from "./reality2_transition_no_params";
 import reality2_simple_transition from "./reality2_simple_transition";
+import reality2_simple_transition_no_params from "./reality2_simple_transition_no_params";
 import reality2_start_transition from "./reality2_start_transition";
+import reality2_start_transition_no_params from "./reality2_start_transition_no_params";
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -44,9 +47,8 @@ const shape = {
     "previousStatement":null,
 	"nextStatement":null,
     "colour": 200,
-    "tooltip": "An automation, which is a type of Finite State Machine",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation",
-    "inputsInline": true
+    "tooltip": "A behaviour, which defines what a Bee is able to do.",
+    "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -108,22 +110,46 @@ function construct(automation: any)
 
                 if ((event && !to && !from)) {
                     // Command
-                    transition_block = reality2_simple_transition.construct(transition);
-                    if (transition_block && acc) {
-                        transition_block["next"] =  { "block": acc };
+                    let parameters: [any] = R2.JSONPath(transition, "parameters");
+                    if (parameters && Object.keys(parameters).length > 0) {
+                        transition_block = reality2_simple_transition.construct(transition);
+                        if (transition_block && acc) {
+                            transition_block["next"] =  { "block": acc };
+                        }
+                    } else {
+                        transition_block = reality2_simple_transition_no_params.construct(transition);
+                        if (transition_block && acc) {
+                            transition_block["next"] =  { "block": acc };
+                        }
                     }
                 }
                 else if ((event == "init") && (from == "start")) {
                     // Init
-                    transition_block = reality2_start_transition.construct(transition);
-                    if (transition_block && acc) {
-                        transition_block["next"] =  { "block": acc };
+                    let parameters: [any] = R2.JSONPath(transition, "parameters");
+                    if (parameters && Object.keys(parameters).length > 0) {
+                        transition_block = reality2_start_transition.construct(transition);
+                        if (transition_block && acc) {
+                            transition_block["next"] =  { "block": acc };
+                        }
+                    } else {
+                        transition_block = reality2_start_transition_no_params.construct(transition);
+                        if (transition_block && acc) {
+                            transition_block["next"] =  { "block": acc };
+                        }
                     }
                 }
                 else {
-                    transition_block = reality2_transition.construct(transition);
-                    if (transition_block && acc) {
-                        transition_block["next"] =  { "block": acc };
+                    let parameters: [any] = R2.JSONPath(transition, "parameters");
+                    if (parameters && Object.keys(parameters).length > 0) {
+                        transition_block = reality2_transition.construct(transition);
+                        if (transition_block && acc) {
+                            transition_block["next"] =  { "block": acc };
+                        }
+                    } else {
+                        transition_block = reality2_transition_no_params.construct(transition);
+                        if (transition_block && acc) {
+                            transition_block["next"] =  { "block": acc };
+                        }                        
                     }
                 }
         
