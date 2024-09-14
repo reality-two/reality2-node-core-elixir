@@ -141,25 +141,32 @@
                     "type":"reality2_action_send_plugin"
                 },
                 {
-                    "kind":"block",
-                    "type":"reality2_action_set"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_action_set_jsonpath"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_action_set_data"
-                },
-                {
                     "kind":"category",
                     "colour": 300,
-                    "name":"Calculations",
-                    "contents":[
+                    "name":"Set",
+                    "contents": [
                         {
                             "kind":"block",
-                            "type":"reality2_action_set_calculation"
+                            "type":"reality2_action_set"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_jsonpath"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_data"
+                        },
+                        {
+                            "kind":"category",
+                            "colour": 300,
+                            "name":"Calculations",
+                            "contents":[
+                                {
+                                    "kind":"block",
+                                    "type":"reality2_action_set_calculation"
+                                }
+                            ]
                         }
                     ]
                 },

@@ -31,9 +31,8 @@ const shape = {
 			"tooltip":"Swarm description"
 		}
 	],
-	"message2":"BEES",
-	"message3":"%1",
-	"args3":[
+	"message2":"%1",
+	"args2":[
 		{
 			"type":"input_statement",
 			"name":"sentants",

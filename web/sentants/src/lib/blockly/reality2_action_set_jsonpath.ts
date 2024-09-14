@@ -10,14 +10,8 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_set_jsonpath",
-    "message0":"set %1 to jsonpath %2",
+    "message0":"jsonpath %1",
 	"args0":[
-        {
-			"type":"field_input",
-			"name":"key",
-			"check":"String",
-			"text":""
-		},
         {
 			"type":"field_input",
 			"name":"value",
@@ -25,10 +19,8 @@ const shape = {
 			"text":""
 		}
 	],
-	"previousStatement":null,
-	"nextStatement":null,
     "colour": 300,
-    "inputsInline": true
+    "output":"Json"
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -37,23 +29,17 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 // Process Block
 // ----------------------------------------------------------------------------------------------------
-function process(block: any, generator: any): string | [string, number] | null
+function process(block: any, generator: any): string | [string, number]
 {
-    const key = block.getFieldValue('key');
     const raw_value = block.getFieldValue('value');
 
     const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
-    const action = {
-        "command": "set",
-        "parameters": {
-            "key": key,
-            "value": {
-                "jsonpath": value
-            }
-        }
-    }
 
-    return (JSON.stringify(action));
+    const action = {
+        "jsonpath": value
+    }
+    
+    return [JSON.stringify(action), 99];
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -62,18 +48,15 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(action: any)
+function construct(data: any)
 {
-    if (action) {
+    if (data) {
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
             "type": "reality2_action_set_jsonpath",
             "fields": {
-                "key": R2.JSONPath(action, "parameters.key"),
-                "value": R2.ToSimple(R2.JSONPath(action, "parameters.value.jsonpath"))
-            },
-            "inputs": {
+                "value": R2.ToSimple(R2.JSONPath(data, "data"))
             }
         }
         return (block);
