@@ -70,10 +70,11 @@ const shape = {
         }
     ],
     "previousStatement":null,
-	"nextStatement":null,
+	"nextStatement": null,
     "colour": 50,
     "tooltip": "A Reality2 Sentient Digital Agent",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation"
+    "helpUrl": "https://github.com/reality-two/reality2-documentation",
+    "inputsInline": true
 }
 // ----------------------------------------------------------------------------------------------------
 

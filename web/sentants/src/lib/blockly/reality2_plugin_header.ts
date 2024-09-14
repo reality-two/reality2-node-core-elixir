@@ -26,7 +26,8 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-	"colour":150
+	"colour":150,
+    "inputsInline": true
 }
 // ----------------------------------------------------------------------------------------------------
 

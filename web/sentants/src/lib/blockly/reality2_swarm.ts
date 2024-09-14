@@ -42,7 +42,8 @@ const shape = {
 	],
 	"colour": 20,
     "tooltip": "An Swarm of Sentient Digital Agents (Sentants).",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation"
+    "helpUrl": "https://github.com/reality-two/reality2-documentation",
+    "inputsInline": true
 }
 // ----------------------------------------------------------------------------------------------------
 
