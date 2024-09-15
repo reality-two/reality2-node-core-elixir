@@ -191,18 +191,11 @@
                         },
                         {
                             "kind":"block",
-                            "type":"reality2_action_set_value"
+                            "type":"reality2_action_set_calculation"
                         },
                         {
-                            "kind":"category",
-                            "colour": 300,
-                            "name":"Calculations",
-                            "contents":[
-                                {
-                                    "kind":"block",
-                                    "type":"reality2_action_set_calculation"
-                                }
-                            ]
+                            "kind":"block",
+                            "type":"reality2_action_set_value"
                         }
                     ]
                 },
@@ -221,7 +214,7 @@
                 {
                     "kind":"category",
                     "colour": 300,
-                    "name":"Outputs",
+                    "name":"Parameters",
                     "contents":[
                         {
                             "kind":"block",
