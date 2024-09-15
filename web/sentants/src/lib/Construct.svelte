@@ -70,6 +70,8 @@ Construct Swarms and Bees / Sentants
     import reality2_action_signal_no_params from "./blockly/reality2_action_signal_no_params";
     import reality2_action_parameter from "./blockly/reality2_action_parameter";
 
+    import ai_reality2_vars_set from "./blockly/ai_reality2_vars_set";
+
     import { splitConcatenatedJSON } from "./blockly/blockly_common";
     
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
@@ -135,7 +137,9 @@ Construct Swarms and Bees / Sentants
         reality2_action_debug.shape,
         reality2_action_signal.shape,
         reality2_action_signal_no_params.shape,
-        reality2_action_parameter.shape
+        reality2_action_parameter.shape,
+
+        ai_reality2_vars_set.shape
     ];
 
     let blockly_construct = {
@@ -270,8 +274,6 @@ Construct Swarms and Bees / Sentants
                     if (readerEvent !== null) {
                         var definition: any = readerEvent["target"]["result"];
 
-                        console.log("LOADING", file.type);
-
                         if (definition !== null) {
                             if (file.type.includes("json")) {
                                 var newCode = JSON.parse(definition);
@@ -324,6 +326,8 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
         javascriptGenerator.forBlock['reality2_action_signal_no_params'] = reality2_action_signal_no_params.process;
         javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
+
+        javascriptGenerator.forBlock['ai_reality2_vars_set'] = ai_reality2_vars_set.process;
 
         // (re)load the blocks and backpack from variables, for when the mode changes.
         setTimeout(() => {

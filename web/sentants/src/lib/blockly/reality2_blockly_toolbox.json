@@ -98,6 +98,10 @@
 			]            
         },
         {
+            "kind": "sep",
+            "gap": "8"
+        },
+        {
             "kind":"category",
             "colour": 250,
             "name":"Decisions",
@@ -223,6 +227,21 @@
                     ]
                 }
             ]
+        },
+        {
+            "kind": "sep",
+            "gap": "32"
+        },
+        {
+			"kind":"category",
+            "colour": 150,
+			"name":"ai_reality2_vars",
+			"contents":[
+                {
+                    "kind":"block",
+                    "type":"ai_reality2_vars_set"
+                }
+			]            
         }
 	]
 }
