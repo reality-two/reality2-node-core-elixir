@@ -250,7 +250,22 @@
     // -------------------------------------------------------------------------------------------------
 
     function change_state(e: any) {
-        state = e.detail.value;
+        let newstate = e.detail.value;
+        if ((newstate == "view") || (newstate == "map")) {
+            loadSentants()
+            .then((result) => {
+                if (result.state !== "error") {
+                    set_state = newstate;
+                    loadedData = result.data;
+                }
+                else {
+                    set_state = result.state;
+                }
+            })
+        }
+        else {
+            set_state = newstate;
+        }
         // let hostname = use_default_url ? "localhost" : window.location.hostname;
         
         // window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value;

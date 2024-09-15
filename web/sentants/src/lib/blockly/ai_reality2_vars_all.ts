@@ -9,26 +9,12 @@ import R2 from "../reality2";
 // Block Definition
 // -------ai.reality2.vars_set---------------------------------------------------------------------------------------------
 const shape = {
-	"type":"ai_reality2_vars_set",
-    "message0":"Store %1 as %2",
-	"args0":[
-		{
-			"type":"field_input",
-			"name":"key",
-			"check":"String",
-			"text":""
-		},
-		{
-			"type":"field_input",
-			"name":"value",
-			"check":"String",
-			"text":""
-		}
-	],
+	"type":"ai_reality2_vars_all",
+    "message0":"Fetch all",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
-    "tooltip": "Store a persistent variable.",
+    "tooltip": "Fetch a persistent variable.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -41,15 +27,10 @@ const shape = {
 function process(block: any, generator: any): string | [string, number] | null
 {
     const key = block.getFieldValue('key');
-    const value = R2.convert(block.getFieldValue('value'));
 
     const action: any = {
         "plugin": "ai.reality2.vars",
-        "command": "set",
-        "parameters": {
-            "key": key,
-            "value": value
-        }
+        "command": "all"
     };
 
     return (JSON.stringify(action));
@@ -67,11 +48,7 @@ function construct(action: any)
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "ai_reality2_vars_set",
-            "fields": {
-                "key": R2.JSONPath(action, "parameters.key"),
-                "value": R2.JSONPath(action, "parameters.value")
-            }
+            "type": "ai_reality2_vars_all"
         }
         
         return (block);

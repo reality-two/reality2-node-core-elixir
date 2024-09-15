@@ -225,23 +225,35 @@
                             "type":"reality2_action_parameter"
                         }
                     ]
+                },
+                {
+                    "kind": "sep",
+                    "gap": "32"
+                },
+                {
+                    "kind":"category",
+                    "colour": 300,
+                    "name":"ai_reality2_vars",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_vars_set"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_vars_set_no_value"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_vars_get"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_vars_all"
+                        }
+                    ]            
                 }
             ]
-        },
-        {
-            "kind": "sep",
-            "gap": "32"
-        },
-        {
-			"kind":"category",
-            "colour": 150,
-			"name":"ai_reality2_vars",
-			"contents":[
-                {
-                    "kind":"block",
-                    "type":"ai_reality2_vars_set"
-                }
-			]            
         }
 	]
 }
