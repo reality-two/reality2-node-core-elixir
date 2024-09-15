@@ -10,14 +10,8 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_set_calculation",
-    "message0":"set %1 to calculation %2",
+    "message0":"calc %1",
 	"args0":[
-        {
-			"type":"field_input",
-			"name":"key",
-			"check":"String",
-			"text":""
-		},
         {
 			"type":"field_input",
 			"name":"value",
@@ -25,10 +19,9 @@ const shape = {
 			"text":""
 		}
 	],
-	"previousStatement":null,
-	"nextStatement":null,
     "colour": 300,
-    "tooltip": "A task to perform a calculation.",
+    "output":"Json",
+    "tooltip": "An expression in a string in reverse polish format.  So to add 1 and 2, for example, that would '1 2 +'.  To add 1 and 2, then multiply by 3 would be '1 2 + 3 *'.  Numbers from the data flow can be used by putting two underscores on either side, for example: '__answer__'.  Therefore, to add 2 to 'answer' would be 'answer 2 +'",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -38,23 +31,17 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 // Process Block
 // ----------------------------------------------------------------------------------------------------
-function process(block: any, generator: any): string | [string, number] | null
+function process(block: any, generator: any): string | [string, number]
 {
-    const key = block.getFieldValue('key');
     const raw_value = block.getFieldValue('value');
 
     const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
-    const action = {
-        "command": "set",
-        "parameters": {
-            "key": key,
-            "value": {
-                "data": value
-            }
-        }
-    }
 
-    return (JSON.stringify(action));
+    const action = {
+        "expr": value
+    }
+    
+    return [JSON.stringify(action), 99];
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -63,18 +50,15 @@ function process(block: any, generator: any): string | [string, number] | null
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(action: any)
+function construct(data: any)
 {
-    if (action) {
+    if (data) {
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
             "type": "reality2_action_set_calculation",
             "fields": {
-                "key": R2.JSONPath(action, "parameters.key"),
-                "value": R2.ToSimple(R2.JSONPath(action, "parameters.value.data"))
-            },
-            "inputs": {
+                "value": R2.ToSimple(R2.JSONPath(data, "expr"))
             }
         }
         return (block);

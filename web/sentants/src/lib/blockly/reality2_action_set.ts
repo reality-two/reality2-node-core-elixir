@@ -7,6 +7,7 @@ import R2 from "../reality2";
 import reality2_action_set_data from "./reality2_action_set_data";
 import reality2_action_set_jsonpath from "./reality2_action_set_jsonpath";
 import reality2_action_set_value from "./reality2_action_set_value";
+import reality2_action_set_calculation from "./reality2_action_set_calculation";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -87,6 +88,10 @@ function construct(action: any)
         {
             block["inputs"]["value"] = {"block": reality2_action_set_jsonpath.construct(R2.JSONPath(action, "parameters.value"))};
         }
+        else if (R2.JSONPath(action, "parameters.value.expr"))
+            {
+                block["inputs"]["value"] = {"block": reality2_action_set_calculation.construct(R2.JSONPath(action, "parameters.value"))};
+            }
         else
         {
             block["inputs"]["value"] = {"block": reality2_action_set_value.construct(R2.JSONPath(action, "parameters.value"))};
