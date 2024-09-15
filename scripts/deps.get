@@ -1,7 +1,8 @@
 #!/bin/bash
 
 cd ..
-export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo"
+#export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo"
+export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo"
 
 echo "Getting dependencies for: " $PLUGINS
 

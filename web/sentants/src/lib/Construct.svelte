@@ -71,6 +71,9 @@ Construct Swarms and Bees / Sentants
     import reality2_action_parameter from "./blockly/reality2_action_parameter";
 
     import ai_reality2_vars_set from "./blockly/ai_reality2_vars_set";
+    import ai_reality2_vars_set_no_value from "./blockly/ai_reality2_vars_set_no_value";
+    import ai_reality2_vars_get from "./blockly/ai_reality2_vars_get";
+    import ai_reality2_vars_all from "./blockly/ai_reality2_vars_all";
 
     import { splitConcatenatedJSON } from "./blockly/blockly_common";
     
@@ -139,7 +142,10 @@ Construct Swarms and Bees / Sentants
         reality2_action_signal_no_params.shape,
         reality2_action_parameter.shape,
 
-        ai_reality2_vars_set.shape
+        ai_reality2_vars_set.shape,
+        ai_reality2_vars_set_no_value.shape,
+        ai_reality2_vars_get.shape,
+        ai_reality2_vars_all.shape
     ];
 
     let blockly_construct = {
@@ -328,6 +334,9 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
 
         javascriptGenerator.forBlock['ai_reality2_vars_set'] = ai_reality2_vars_set.process;
+        javascriptGenerator.forBlock['ai_reality2_vars_set_no_value'] = ai_reality2_vars_set_no_value.process;
+        javascriptGenerator.forBlock['ai_reality2_vars_get'] = ai_reality2_vars_get.process;
+        javascriptGenerator.forBlock['ai_reality2_vars_all'] = ai_reality2_vars_all.process;
 
         // (re)load the blocks and backpack from variables, for when the mode changes.
         setTimeout(() => {
@@ -620,7 +629,49 @@ Construct Swarms and Bees / Sentants
     // Convert the first block to JSON.
     // ------------------------------------------------------------------------------------------------
     function firstWorkspaceBlock() {
-        const newCode: any = splitConcatenatedJSON(javascriptGenerator.workspaceToCode(workspace));
+        let newCode: any = {};
+        let there_is_a_swarm = false;
+        let num_sentants = 0;
+        const codeOnPage: any = splitConcatenatedJSON(javascriptGenerator.workspaceToCode(workspace), false);
+
+        // Check if there is a swarm block, with separated bees
+        codeOnPage.forEach((element: any) => {
+            if (element["swarm"]) {
+                there_is_a_swarm = true;
+                newCode = element;
+            } else if (element["sentant"]) {
+                num_sentants++;
+            }
+        });
+
+        // If there was no swarm, but there are bees, create a swarm
+        if ((! there_is_a_swarm) && (num_sentants > 1)) {
+            newCode = {
+                "swarm": {
+                    "name": "A Swarm",
+                    "sentants": []
+                }
+            };
+            there_is_a_swarm = true;
+        }
+
+        // If there was a swarm, but no sentants, add the sentants array
+        if (there_is_a_swarm && num_sentants > 0) newCode["swarm"]["sentants"] = [];
+
+        console.log(newCode);
+
+        // Now see if there any stray bees to add
+        if (there_is_a_swarm) {
+            codeOnPage.forEach((element: any) => {
+                if (element["sentant"]) {
+                    newCode["swarm"]["sentants"].push(element["sentant"]);
+                }
+            });  
+        } else {
+            newCode = codeOnPage[0];
+        }
+     
+
         const objType = Object.keys(newCode)[0];
         var theCode: any = {};
         theCode[objType] = newCode[objType];

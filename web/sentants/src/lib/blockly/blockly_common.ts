@@ -16,6 +16,11 @@ import reality2_action_send_plugin_no_params from "./reality2_action_send_plugin
 import reality2_action_signal from "./reality2_action_signal";
 import reality2_action_signal_no_params from "./reality2_action_signal_no_params";
 
+import ai_reality2_vars_set from "./ai_reality2_vars_set";
+import ai_reality2_vars_set_no_value from "./ai_reality2_vars_set_no_value";
+import ai_reality2_vars_get from "./ai_reality2_vars_get";
+import ai_reality2_vars_all from "./ai_reality2_vars_all";
+
 // ----------------------------------------------------------------------------------------------------
 // Split and convert conjoined JSON strings
 // ----------------------------------------------------------------------------------------------------
@@ -71,8 +76,42 @@ export function interpret_actions(transition: any, block: any)
     if (actions) {
         let actions_block = actions.reduceRight((acc, action) => {
             let action_block: any;
+            let plugin_name = R2.JSONPath(action, "plugin");
 
-            if (R2.JSONPath(action, "plugin")) {
+            if (plugin_name == "ai.reality2.vars")
+            {
+                let command = R2.JSONPath(action, "command");
+                switch (command) {
+                    case "set":
+                        let key = R2.JSONPath(action, "parameters.key");
+                        let value = R2.JSONPath(action, "parameters.value");
+                        if (value === "__"+key+"__") {
+                            action_block = ai_reality2_vars_set_no_value.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            };
+                        } else {
+                            action_block = ai_reality2_vars_set.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            };
+                        }
+                        break;
+                    case "get": 
+                        action_block = ai_reality2_vars_get.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                    case "all": 
+                        action_block = ai_reality2_vars_all.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                }
+            }
+            else if (R2.JSONPath(action, "plugin")) {
                 var parameters = R2.JSONPath(action, "parameters.parameters");
                 if (parameters && Object.keys(parameters).length > 0) {
                     action_block = reality2_action_send_plugin.construct(action);
