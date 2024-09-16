@@ -10,7 +10,7 @@ import R2 from "../reality2";
 // -------ai.reality2.vars_set---------------------------------------------------------------------------------------------
 const shape = {
 	"type":"ai_reality2_vars_set",
-    "message0":"Store %1 as %2",
+    "message0":"store %1 as %2",
 	"args0":[
 		{
 			"type":"field_input",

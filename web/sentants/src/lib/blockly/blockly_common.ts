@@ -20,6 +20,8 @@ import ai_reality2_vars_set from "./ai_reality2_vars_set";
 import ai_reality2_vars_set_no_value from "./ai_reality2_vars_set_no_value";
 import ai_reality2_vars_get from "./ai_reality2_vars_get";
 import ai_reality2_vars_all from "./ai_reality2_vars_all";
+import ai_reality2_vars_delete from "./ai_reality2_vars_all";
+import ai_reality2_vars_clear from "./ai_reality2_vars_clear";
 
 // ----------------------------------------------------------------------------------------------------
 // Split and convert conjoined JSON strings
@@ -105,6 +107,18 @@ export function interpret_actions(transition: any, block: any)
                         break;
                     case "all": 
                         action_block = ai_reality2_vars_all.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                    case "delete": 
+                        action_block = ai_reality2_vars_delete.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                    case "clear": 
+                        action_block = ai_reality2_vars_clear.construct(action);
                         if (action_block && acc) {
                             action_block["next"] =  { "block": acc };
                         };

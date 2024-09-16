@@ -10,7 +10,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Image, Actions, Button, Description } from "svelte-fomantic-ui";
+    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -74,11 +74,12 @@ Construct Swarms and Bees / Sentants
     import ai_reality2_vars_set_no_value from "./blockly/ai_reality2_vars_set_no_value";
     import ai_reality2_vars_get from "./blockly/ai_reality2_vars_get";
     import ai_reality2_vars_all from "./blockly/ai_reality2_vars_all";
+    import ai_reality2_vars_delete from "./blockly/ai_reality2_vars_delete";
+    import ai_reality2_vars_clear from "./blockly/ai_reality2_vars_clear";
 
     import { splitConcatenatedJSON } from "./blockly/blockly_common";
     
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
-    import { _SRGBAFormat } from "three";
     // ------------------------------------------------------------------------------------------------
 
 
@@ -106,6 +107,9 @@ Construct Swarms and Bees / Sentants
     let workspace: any;
     let backpack: any;
     $: code = {};
+
+    let swarm_name: string = "";
+    let swarm_description: string = "";
 
     let blockly_definition = [
         reality2_swarm.shape,
@@ -145,7 +149,9 @@ Construct Swarms and Bees / Sentants
         ai_reality2_vars_set.shape,
         ai_reality2_vars_set_no_value.shape,
         ai_reality2_vars_get.shape,
-        ai_reality2_vars_all.shape
+        ai_reality2_vars_all.shape,
+        ai_reality2_vars_delete.shape,
+        ai_reality2_vars_clear.shape
     ];
 
     let blockly_construct = {
@@ -337,6 +343,8 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['ai_reality2_vars_set_no_value'] = ai_reality2_vars_set_no_value.process;
         javascriptGenerator.forBlock['ai_reality2_vars_get'] = ai_reality2_vars_get.process;
         javascriptGenerator.forBlock['ai_reality2_vars_all'] = ai_reality2_vars_all.process;
+        javascriptGenerator.forBlock['ai_reality2_vars_delete'] = ai_reality2_vars_delete.process;
+        javascriptGenerator.forBlock['ai_reality2_vars_clear'] = ai_reality2_vars_clear.process;
 
         // (re)load the blocks and backpack from variables, for when the mode changes.
         setTimeout(() => {
@@ -526,35 +534,37 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     function saveSentantDefinition() {
         // Compile the code
-        var newCode = firstWorkspaceBlock();
-        if (Object.keys(newCode).length !== 0)
-        {
-            // Get the code in JSON format.
-            code = newCode;
-            // Get filename
-            var filename = "definition";
-            if (R2.JSONPath(code, "swarm.name")) {
-                filename = R2.JSONPath(code, "swarm.name") + ".swarm";
-            }
-            else if (R2.JSONPath(code, "sentant.name")) {
-                filename = R2.JSONPath(code, "sentant.name") + ".bee";
-            }
-            else if (R2.JSONPath(code, "plugin.name")) {
-                filename = R2.JSONPath(code, "plugin.name") + ".antenna";
-            }
-            else if (R2.JSONPath(code, "automation.name")) {
-                filename = R2.JSONPath(code, "automation.name") + ".behaviour";
-            }
+        // var newCode = firstWorkspaceBlock();
+        firstWorkspaceBlock((newCode) => {
+            if (Object.keys(newCode).length !== 0)
+            {
+                // Get the code in JSON format.
+                code = newCode;
+                // Get filename
+                var filename = "definition";
+                if (R2.JSONPath(code, "swarm.name")) {
+                    filename = R2.JSONPath(code, "swarm.name") + ".swarm";
+                }
+                else if (R2.JSONPath(code, "sentant.name")) {
+                    filename = R2.JSONPath(code, "sentant.name") + ".bee";
+                }
+                else if (R2.JSONPath(code, "plugin.name")) {
+                    filename = R2.JSONPath(code, "plugin.name") + ".antenna";
+                }
+                else if (R2.JSONPath(code, "automation.name")) {
+                    filename = R2.JSONPath(code, "automation.name") + ".behaviour";
+                }
 
-            // Save JSON or YAML
-            if (showJSON[0] === "json") {
-                var jsonDefinition = JSON.stringify(code);
-                downloadDefinition(jsonDefinition, filename + ".json"); 
-            } else {
-                var yamlDefinition = yaml.dump(code);
-                downloadDefinition(yamlDefinition, filename + ".yaml");
+                // Save JSON or YAML
+                if (showJSON[0] === "json") {
+                    var jsonDefinition = JSON.stringify(code);
+                    downloadDefinition(jsonDefinition, filename + ".json"); 
+                } else {
+                    var yamlDefinition = yaml.dump(code);
+                    downloadDefinition(yamlDefinition, filename + ".yaml");
+                }
             }
-        }
+        });
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -628,7 +638,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Convert the first block to JSON.
     // ------------------------------------------------------------------------------------------------
-    function firstWorkspaceBlock() {
+    function firstWorkspaceBlock(callback: (code: [any]) => {}) {
         let newCode: any = {};
         let there_is_a_swarm = false;
         let num_sentants = 0;
@@ -657,36 +667,41 @@ Construct Swarms and Bees / Sentants
             };
             there_is_a_swarm = true;
         }
+        else {
+            // If there was a swarm with no sentants, add the sentants array
+            if (there_is_a_swarm && num_sentants > 0) newCode["swarm"]["sentants"] = [];
 
-        // If there was a swarm with no sentants, add the sentants array
-        if (there_is_a_swarm && num_sentants > 0) newCode["swarm"]["sentants"] = [];
+            // Now see if there any stray sentants to add
+            if (there_is_a_swarm) {
+                codeOnPage.forEach((element: any) => {
+                    if (element["sentant"]) {
+                        newCode["swarm"]["sentants"].push(element["sentant"]);
+                    }
+                });  
+            } else {
+                newCode = codeOnPage[0];
+            };     
 
-        // Now see if there any stray sentants to add
-        if (there_is_a_swarm) {
-            codeOnPage.forEach((element: any) => {
-                if (element["sentant"]) {
-                    newCode["swarm"]["sentants"].push(element["sentant"]);
-                }
-            });  
-        } else {
-            newCode = codeOnPage[0];
+            const objType = Object.keys(newCode)[0];
+            var theCode: any = {};
+            theCode[objType] = newCode[objType];
+
+            callback(theCode);
         }
-     
+    }
 
-        const objType = Object.keys(newCode)[0];
-        var theCode: any = {};
-        theCode[objType] = newCode[objType];
-        return (theCode);       
+    function close_swarm_name_dialog() {
+
     }
     // ------------------------------------------------------------------------------------------------
 
 
 
-    // ----------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------
     // Show the visible code.
     // ------------------------------------------------------------------------------------------------
     function convertBlocks() {
-        code = firstWorkspaceBlock();
+        firstWorkspaceBlock((newcode) => code = newcode);
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -724,14 +739,15 @@ Construct Swarms and Bees / Sentants
         Modal Title
     </Header>
     <Content image>
-        <Image src="/images/eve.png"/>
-        <Description>
-            <p>An image can appear on left or an icon.</p>
-            <p>A description can appear on the right.</p>
-        </Description>
+        <Input ui fluid>
+            <Input type="text" placeholder="Swarm name..." bind:value={swarm_name} />
+        </Input>
+        <Input ui fluid>
+            <Input type="text" placeholder="Optional Description" bind:value={swarm_description} />
+        </Input>
     </Content>
     <Actions>
-        <Button ui on:click={()=>{behavior("example2", "hide")}}>Cancel</Button>
-        <Button ui on:click={()=>{behavior({id: "example2", commands: ["hide"]})}}>OK</Button>
+        <Button ui red on:click={()=>{behavior("swarm_name", "hide")}}>Cancel</Button>
+        <Button ui green on:click={()=>{behavior({id: "swarm_name", commands: ["hide"]})}}>OK</Button>
     </Actions>
 </Modal>

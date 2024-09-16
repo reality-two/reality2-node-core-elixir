@@ -250,6 +250,14 @@
                         {
                             "kind":"block",
                             "type":"ai_reality2_vars_all"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_vars_delete"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_vars_clear"
                         }
                     ]            
                 }

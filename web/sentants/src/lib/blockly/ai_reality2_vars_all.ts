@@ -10,7 +10,7 @@ import R2 from "../reality2";
 // -------ai.reality2.vars_set---------------------------------------------------------------------------------------------
 const shape = {
 	"type":"ai_reality2_vars_all",
-    "message0":"Fetch all",
+    "message0":"fetch all",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
