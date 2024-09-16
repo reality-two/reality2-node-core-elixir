@@ -260,6 +260,21 @@
                             "type":"ai_reality2_vars_clear"
                         }
                     ]            
+                },
+                {
+                    "kind":"category",
+                    "colour": 300,
+                    "name":"ai_reality2_geospatial",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_geospatial_set"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_geospatial_get"
+                        }
+                    ]            
                 }
             ]
         }

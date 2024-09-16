@@ -2,33 +2,18 @@
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"ai_reality2_vars_set",
-    "message0":"store %1 as %2",
-	"args0":[
-		{
-			"type":"field_input",
-			"name":"key",
-			"check":"String",
-			"text":""
-		},
-		{
-			"type":"field_input",
-			"name":"value",
-			"check":"String",
-			"text":""
-		}
-	],
+	"type":"ai_reality2_geospatial_get",
+    "message0":"fetch location",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
-    "tooltip": "Store a persistent variable.",
+    "tooltip": "Fetch a persistent variable.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -41,15 +26,10 @@ const shape = {
 function process(block: any, generator: any): string | [string, number] | null
 {
     const key = block.getFieldValue('key');
-    const value = R2.convert(block.getFieldValue('value'));
 
     const action: any = {
-        "plugin": "ai.reality2.vars",
-        "command": "set",
-        "parameters": {
-            "key": key,
-            "value": value
-        }
+        "plugin": "ai.reality2.geospatial",
+        "command": "get"
     };
 
     return (JSON.stringify(action));
@@ -67,11 +47,7 @@ function construct(action: any)
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "ai_reality2_vars_set",
-            "fields": {
-                "key": R2.JSONPath(action, "parameters.key"),
-                "value": R2.JSONPath(action, "parameters.value")
-            }
+            "type": "ai_reality2_geospatial_get"
         }
         
         return (block);
