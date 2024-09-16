@@ -9,20 +9,12 @@ import R2 from "../reality2";
 // Block Definition
 // -------ai.reality2.vars_set---------------------------------------------------------------------------------------------
 const shape = {
-	"type":"ai_reality2_vars_get",
-    "message0":"fetch %1",
-	"args0":[
-		{
-			"type":"field_input",
-			"name":"key",
-			"check":"String",
-			"text":""
-		}
-	],
+	"type":"ai_reality2_vars_clear",
+    "message0":"clear all",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
-    "tooltip": "Fetch a persistent variable.",
+    "tooltip": "Clears all the persistent variables for this Bee.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -38,10 +30,7 @@ function process(block: any, generator: any): string | [string, number] | null
 
     const action: any = {
         "plugin": "ai.reality2.vars",
-        "command": "get",
-        "parameters": {
-            "key": key
-        }
+        "command": "clear"
     };
 
     return (JSON.stringify(action));
@@ -59,10 +48,7 @@ function construct(action: any)
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "ai_reality2_vars_get",
-            "fields": {
-                "key": R2.JSONPath(action, "parameters.key")
-            }
+            "type": "ai_reality2_vars_clear"
         }
         
         return (block);
