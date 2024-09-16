@@ -10,7 +10,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox } from "svelte-fomantic-ui";
+    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Image, Actions, Button, Description } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -646,6 +646,9 @@ Construct Swarms and Bees / Sentants
 
         // If there was no swarm, but there are bees, create a swarm
         if ((! there_is_a_swarm) && (num_sentants > 1)) {
+            // Get a name and description for the swarm.        
+            behavior("swarm_name", "show");
+
             newCode = {
                 "swarm": {
                     "name": "A Swarm",
@@ -655,12 +658,10 @@ Construct Swarms and Bees / Sentants
             there_is_a_swarm = true;
         }
 
-        // If there was a swarm, but no sentants, add the sentants array
+        // If there was a swarm with no sentants, add the sentants array
         if (there_is_a_swarm && num_sentants > 0) newCode["swarm"]["sentants"] = [];
 
-        console.log(newCode);
-
-        // Now see if there any stray bees to add
+        // Now see if there any stray sentants to add
         if (there_is_a_swarm) {
             codeOnPage.forEach((element: any) => {
                 if (element["sentant"]) {
@@ -717,3 +718,20 @@ Construct Swarms and Bees / Sentants
 </Pusher>
 
 
+<Modal ui small id="swarm_name">
+    <Icon close/>
+    <Header>
+        Modal Title
+    </Header>
+    <Content image>
+        <Image src="/images/eve.png"/>
+        <Description>
+            <p>An image can appear on left or an icon.</p>
+            <p>A description can appear on the right.</p>
+        </Description>
+    </Content>
+    <Actions>
+        <Button ui on:click={()=>{behavior("example2", "hide")}}>Cancel</Button>
+        <Button ui on:click={()=>{behavior({id: "example2", commands: ["hide"]})}}>OK</Button>
+    </Actions>
+</Modal>
