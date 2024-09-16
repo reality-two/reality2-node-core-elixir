@@ -23,6 +23,9 @@ import ai_reality2_vars_all from "./ai_reality2_vars_all";
 import ai_reality2_vars_delete from "./ai_reality2_vars_all";
 import ai_reality2_vars_clear from "./ai_reality2_vars_clear";
 
+import ai_reality2_geospatial_set from "./ai_reality2_geospatial_set";
+import ai_reality2_geospatial_get from "./ai_reality2_geospatial_get";
+
 // ----------------------------------------------------------------------------------------------------
 // Split and convert conjoined JSON strings
 // ----------------------------------------------------------------------------------------------------
@@ -125,6 +128,24 @@ export function interpret_actions(transition: any, block: any)
                         break;
                 }
             }
+            else if (plugin_name == "ai.reality2.geospatial")
+                {
+                    let command = R2.JSONPath(action, "command");
+                    switch (command) {
+                        case "set":
+                            action_block = ai_reality2_geospatial_set.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            };
+                            break;
+                        case "get":
+                            action_block = ai_reality2_geospatial_get.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            };
+                            break;
+                    }
+                }
             else if (R2.JSONPath(action, "plugin")) {
                 var parameters = R2.JSONPath(action, "parameters.parameters");
                 if (parameters && Object.keys(parameters).length > 0) {

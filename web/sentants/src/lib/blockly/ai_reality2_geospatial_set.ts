@@ -2,33 +2,60 @@
 // A Blockly Block
 // ----------------------------------------------------------------------------------------------------
 
-import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"ai_reality2_vars_set",
-    "message0":"store %1 as %2",
+	"type":"ai_reality2_geospatial_set",
+    "message0":"store latitude %1 and longitude %2",
 	"args0":[
 		{
 			"type":"field_input",
-			"name":"key",
+			"name":"latitude",
 			"check":"String",
 			"text":""
 		},
 		{
 			"type":"field_input",
-			"name":"value",
+			"name":"longitude",
 			"check":"String",
 			"text":""
 		}
 	],
+    "message1":"OR geohash %1",
+	"args1":[
+		{
+			"type":"field_input",
+			"name":"geohash",
+			"check":"String",
+			"text":""
+		}
+	],
+    "message2":"with optional altitude %1",
+	"args2":[
+		{
+			"type":"field_input",
+			"name":"altitude",
+			"check":"String",
+			"text":"0"
+		}
+	],
+    "message3":"and privacy radius %1",
+	"args3":[
+		{
+			"type":"field_input",
+			"name":"radius",
+			"check":"String",
+			"text":"0"
+		}
+	],
+    "message4": "use a radius of zero for 'completely public'.",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
-    "tooltip": "Store a persistent variable.",
+    "tooltip": "Store geospatial parameters on a Bee.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -40,15 +67,21 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const key = block.getFieldValue('key');
-    const value = R2.convert(block.getFieldValue('value'));
+    const latitude = R2.convert(block.getFieldValue('latitude'));
+    const longitude = R2.convert(block.getFieldValue('longitude'));
+    const geohash = block.getFieldValue('geohash');
+    const altitude = R2.convert(block.getFieldValue('altitude'));
+    const radius = R2.convert(block.getFieldValue('radius'));
 
     const action: any = {
-        "plugin": "ai.reality2.vars",
+        "plugin": "ai.reality2.geospatial",
         "command": "set",
         "parameters": {
-            "key": key,
-            "value": value
+            "latitude": latitude,
+            "longitude": longitude,
+            "altitude": altitude,
+            "geohash": geohash,
+            "radius": radius
         }
     };
 
@@ -67,10 +100,13 @@ function construct(action: any)
         // Set the initial structure
         let block = {
             "kind": "BLOCK",
-            "type": "ai_reality2_vars_set",
+            "type": "ai_reality2_geospatial_set",
             "fields": {
-                "key": R2.JSONPath(action, "parameters.key"),
-                "value": R2.JSONPath(action, "parameters.value")
+                "latitude": R2.JSONPath(action, "parameters.latitude"),
+                "longitude": R2.JSONPath(action, "parameters.longitude"),
+                "altitude": R2.JSONPath(action, "parameters.altitude"),
+                "geohash": R2.JSONPath(action, "parameters.geohash"),
+                "radius": R2.JSONPath(action, "parameters.radius")
             }
         }
         

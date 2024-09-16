@@ -10,7 +10,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button } from "svelte-fomantic-ui";
+    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Form, Field } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -77,9 +77,14 @@ Construct Swarms and Bees / Sentants
     import ai_reality2_vars_delete from "./blockly/ai_reality2_vars_delete";
     import ai_reality2_vars_clear from "./blockly/ai_reality2_vars_clear";
 
+    import ai_reality2_geospatial_set from "./blockly/ai_reality2_geospatial_set";
+    import ai_reality2_geospatial_get from "./blockly/ai_reality2_geospatial_get";
+
+
     import { splitConcatenatedJSON } from "./blockly/blockly_common";
     
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
+    import { hasAnyDirectives } from "@apollo/client/utilities";
     // ------------------------------------------------------------------------------------------------
 
 
@@ -110,6 +115,10 @@ Construct Swarms and Bees / Sentants
 
     let swarm_name: string = "";
     let swarm_description: string = "";
+    let swarm_name_dialog = {
+        callback: {},
+        codeOnPage: {}
+    }
 
     let blockly_definition = [
         reality2_swarm.shape,
@@ -151,7 +160,10 @@ Construct Swarms and Bees / Sentants
         ai_reality2_vars_get.shape,
         ai_reality2_vars_all.shape,
         ai_reality2_vars_delete.shape,
-        ai_reality2_vars_clear.shape
+        ai_reality2_vars_clear.shape,
+
+        ai_reality2_geospatial_set.shape,
+        ai_reality2_geospatial_get.shape
     ];
 
     let blockly_construct = {
@@ -219,7 +231,7 @@ Construct Swarms and Bees / Sentants
     // What to do whe the page is loaded
     // ------------------------------------------------------------------------------------------------
     onMount(() => {
-        Blockly.setLocale(En);
+        // Blockly.setLocale(En);
         Blockly.defineBlocksWithJsonArray(blockly_definition);
 
         // Passes the injection div.
@@ -346,6 +358,10 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['ai_reality2_vars_delete'] = ai_reality2_vars_delete.process;
         javascriptGenerator.forBlock['ai_reality2_vars_clear'] = ai_reality2_vars_clear.process;
 
+        javascriptGenerator.forBlock['ai_reality2_geospatial_set'] = ai_reality2_geospatial_set.process;
+        javascriptGenerator.forBlock['ai_reality2_geospatial_get'] = ai_reality2_geospatial_get.process;
+
+
         // (re)load the blocks and backpack from variables, for when the mode changes.
         setTimeout(() => {
             if (typeof savedState === "object") {
@@ -433,52 +449,53 @@ Construct Swarms and Bees / Sentants
     // Load the current definition as a swarm or sentant
     // ------------------------------------------------------------------------------------------------
     function loadToNode() {
-        var definitionJSON: any = firstWorkspaceBlock();
-        if (Object.keys(definitionJSON).length !== 0) {
-            var definition = replaceVariables(JSON.stringify(definitionJSON), variables);
-            var isSentant = definitionJSON.hasOwnProperty("sentant");
-            var isSwarm = definitionJSON.hasOwnProperty("swarm");
+        firstWorkspaceBlock((definitionJSON: any) => {
+            if (Object.keys(definitionJSON).length !== 0) {
+                var definition = replaceVariables(JSON.stringify(definitionJSON), variables);
+                var isSentant = definitionJSON.hasOwnProperty("sentant");
+                var isSwarm = definitionJSON.hasOwnProperty("swarm");
 
-            if (isSentant) {
-                var new_name = definitionJSON["sentant"]["name"];
-                if (new_name) {
-                    r2_node.sentantGetByName(new_name)
-                    .then((result: any) => {
-                        r2_node.sentantUnload(R2.JSONPath(result, "sentantGet.id"))
-                        .then((_) => {
+                if (isSentant) {
+                    var new_name = definitionJSON["sentant"]["name"];
+                    if (new_name) {
+                        r2_node.sentantGetByName(new_name)
+                        .then((result: any) => {
+                            r2_node.sentantUnload(R2.JSONPath(result, "sentantGet.id"))
+                            .then((_) => {
+                                r2_node.sentantLoad(definition)
+                                .then((_) => {
+                                    showMessage("Success", "Sentant Loaded", "green");
+                                })
+                                .catch((error) => {
+                                    showMessage("Problem", "Error Loading", "red");
+                                })
+                            })
+                            .catch((error) => {
+                                showMessage("Problem", "Error Unloading", "red");
+                            })
+                        })
+                        .catch((error) => {
                             r2_node.sentantLoad(definition)
                             .then((_) => {
                                 showMessage("Success", "Sentant Loaded", "green");
                             })
-                            .catch((error) => {
-                                showMessage("Problem", "Error Loading", "red");
-                            })
                         })
-                        .catch((error) => {
-                            showMessage("Problem", "Error Unloading", "red");
-                        })
+                    }
+                }
+                else if(isSwarm) {
+                    r2_node.swarmLoad(definition)
+                    .then((_) => {
+                        showMessage("Success", "Swarm Loaded", "green");
                     })
                     .catch((error) => {
-                        r2_node.sentantLoad(definition)
-                        .then((_) => {
-                            showMessage("Success", "Sentant Loaded", "green");
-                        })
+                        showMessage("Problem", "Error Loading", "red");
                     })
                 }
             }
-            else if(isSwarm) {
-                r2_node.swarmLoad(definition)
-                .then((_) => {
-                    showMessage("Success", "Swarm Loaded", "green");
-                })
-                .catch((error) => {
-                    showMessage("Problem", "Error Loading", "red");
-                })
+            else {
+                showMessage("Status", "Nothing to load", "blue");
             }
-        }
-        else {
-            showMessage("Status", "Nothing to load", "blue");
-        }
+        })
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -534,8 +551,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     function saveSentantDefinition() {
         // Compile the code
-        // var newCode = firstWorkspaceBlock();
-        firstWorkspaceBlock((newCode) => {
+        firstWorkspaceBlock((newCode: any) => {
             if (Object.keys(newCode).length !== 0)
             {
                 // Get the code in JSON format.
@@ -638,7 +654,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Convert the first block to JSON.
     // ------------------------------------------------------------------------------------------------
-    function firstWorkspaceBlock(callback: (code: [any]) => {}) {
+    function firstWorkspaceBlock(callback: (code: any) => void) {
         let newCode: any = {};
         let there_is_a_swarm = false;
         let num_sentants = 0;
@@ -654,20 +670,17 @@ Construct Swarms and Bees / Sentants
             }
         });
 
-        // If there was no swarm, but there are bees, create a swarm
+        // If there was no swarm, but there are more than one bees, create a swarm
         if ((! there_is_a_swarm) && (num_sentants > 1)) {
+
+            swarm_name_dialog.callback = callback;
+            swarm_name_dialog.codeOnPage = codeOnPage;
+
             // Get a name and description for the swarm.        
             behavior("swarm_name", "show");
-
-            newCode = {
-                "swarm": {
-                    "name": "A Swarm",
-                    "sentants": []
-                }
-            };
-            there_is_a_swarm = true;
         }
-        else {
+        else
+        {
             // If there was a swarm with no sentants, add the sentants array
             if (there_is_a_swarm && num_sentants > 0) newCode["swarm"]["sentants"] = [];
 
@@ -679,6 +692,7 @@ Construct Swarms and Bees / Sentants
                     }
                 });  
             } else {
+                // Otherwise, it's a single sentant, plugin or automation
                 newCode = codeOnPage[0];
             };     
 
@@ -689,9 +703,38 @@ Construct Swarms and Bees / Sentants
             callback(theCode);
         }
     }
+    // ------------------------------------------------------------------------------------------------
+    function close_swarm_name_dialog(ok: boolean) {
+        let callback: any = swarm_name_dialog.callback;
+        if (ok) {
+            let codeOnPage: any = swarm_name_dialog.codeOnPage;
 
-    function close_swarm_name_dialog() {
+            let newCode: any = {
+                "swarm": {
+                    "name": swarm_name,
+                    "description": swarm_description,
+                    "sentants": []
+                }
+            };
+            
+            newCode["swarm"]["sentants"] = [];
 
+            codeOnPage.forEach((element: any) => {
+                if (element["sentant"]) {
+                    newCode["swarm"]["sentants"].push(element["sentant"]);
+                }
+            });  
+
+            const objType = Object.keys(newCode)[0];
+            var theCode: any = {};
+            theCode[objType] = newCode[objType];
+
+            callback(theCode);
+        }
+        else {
+            // Do nothing
+            callback({});
+        }
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -736,18 +779,20 @@ Construct Swarms and Bees / Sentants
 <Modal ui small id="swarm_name">
     <Icon close/>
     <Header>
-        Modal Title
+        Name your Swarm
     </Header>
     <Content image>
-        <Input ui fluid>
-            <Input type="text" placeholder="Swarm name..." bind:value={swarm_name} />
-        </Input>
-        <Input ui fluid>
-            <Input type="text" placeholder="Optional Description" bind:value={swarm_description} />
-        </Input>
+        <Form ui>
+            <Field fluid>
+                <Input text placeholder="Swarm name..." bind:value={swarm_name} />
+            </Field>
+            <Field fluid>
+                <Input text placeholder="Optional Description" bind:value={swarm_description} />
+            </Field>
+        </Form>
     </Content>
     <Actions>
-        <Button ui red on:click={()=>{behavior("swarm_name", "hide")}}>Cancel</Button>
-        <Button ui green on:click={()=>{behavior({id: "swarm_name", commands: ["hide"]})}}>OK</Button>
+        <Button ui red on:click={()=>{behavior("swarm_name", "hide"); close_swarm_name_dialog(false);}}>Cancel</Button>
+        <Button ui green on:click={()=>{behavior({id: "swarm_name", commands: ["hide"]}); close_swarm_name_dialog(true);}}>OK</Button>
     </Actions>
 </Modal>
