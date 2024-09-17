@@ -144,6 +144,8 @@ export default class R2 {
         }
       
         if (typeof variable === 'string') {            
+            variable = variable.replace(/^['"]+|['"]+$/g, '');
+
             // First, check if it's a boolean string
             if (variable.toLowerCase() === 'true') {
                 return true;
@@ -164,9 +166,9 @@ export default class R2 {
         
                 if (typeof parsed === 'object' && parsed !== null) {
                     if (no_json)
-                        return JSON.stringify(parsed); // Return the parsed JSON object or array
+                        return JSON.stringify(parsed); // Return the parsed JSON object or array back as a string
                     else
-                        return parsed;
+                        return parsed; // Return as JSON
                 }
             } catch (e) {
                 // If it's not valid JSON, return the string as is
