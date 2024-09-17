@@ -10,7 +10,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Form, Field } from "svelte-fomantic-ui";
+    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Form, Field, Dropdown, Table, Table_Body, Table_Head, Table_Col, Table_Row } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -101,7 +101,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     export let r2_node: R2;
     export let sentantData: any[]|any = [];
-    export let variables = {};
+    export let variables: any = {};
     export let savedState: any;
     export let construct_command: string = "";
     // ------------------------------------------------------------------------------------------------
@@ -778,6 +778,22 @@ Construct Swarms and Bees / Sentants
             <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox ui toggle large inverted bind:group={showJSON} value="json" label=" " grey/><Text ui large>JSON</Text>
         </div>
         <Divider ui inverted></Divider>
+        <Table ui inverted>
+            <Table_Head>
+                <Table_Row>
+                    <Table_Col head>key</Table_Col>
+                    <Table_Col head>value</Table_Col>
+                </Table_Row>
+            </Table_Head>
+            <Table_Body>
+                {#each Object.keys(variables) as key}
+                    <Table_Row>
+                        <Table_Col>{key}</Table_Col>
+                        <Table_Col>{variables[key]}</Table_Col>
+                    </Table_Row>
+                {/each}
+            </Table_Body>
+        </Table>
         <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
             <pre style="text-align: left;">
                 {#if Object.keys(code).length !== 0}
@@ -817,3 +833,23 @@ Construct Swarms and Bees / Sentants
         <Button ui green on:click={()=>{behavior({id: "swarm_name", commands: ["hide"]}); close_swarm_name_dialog(true);}}>OK</Button>
     </Actions>
 </Modal>
+
+<Button ui icon popup large style="position: fixed; top: 200px; right: 45px; background-color: #494949" >
+    <Icon table></Icon>
+</Button>
+
+<Button ui icon large style="position: fixed; top: 260px; right: 45px; background-color: #494949" on:click={loadToNode}>
+    <Icon running></Icon>
+</Button>
+
+<Button ui icon large style="position: fixed; top: 320px; right: 45px; background-color: #494949" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
+    <Icon code></Icon>
+</Button>
+
+<Button ui icon large style="position: fixed; top: 380px; right: 45px; background-color: #494949" on:click={() => { code_loader.click(); }}>
+    <Icon folder open outline></Icon>
+</Button>
+
+<Button ui icon large style="position: fixed; top: 440px; right: 45px; background-color: #494949" on:click={saveSentantDefinition}>
+    <Icon share square></Icon>
+</Button>

@@ -17,7 +17,7 @@ const shape = {
 			"type":"field_input",
 			"name":"encryption_key",
 			"check":"String",
-			"text":""
+			"text":"__encryption_key__"
 		}
 	],
 	"message1":"decryption_key = %1",
@@ -26,7 +26,7 @@ const shape = {
 			"type":"field_input",
 			"name":"decryption_key",
 			"check":"String",
-			"text":""
+			"text":"__decryption_key__"
 		}
 	],
 	"previousStatement":null,
