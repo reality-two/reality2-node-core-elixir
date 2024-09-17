@@ -24,7 +24,15 @@ import ai_reality2_vars_delete from "./ai_reality2_vars_all";
 import ai_reality2_vars_clear from "./ai_reality2_vars_clear";
 
 import ai_reality2_geospatial_set from "./ai_reality2_geospatial_set";
+import ai_reality2_geospatial_set_simple from "./ai_reality2_geospatial_set_simple";
 import ai_reality2_geospatial_get from "./ai_reality2_geospatial_get";
+import ai_reality2_geospatial_search from "./ai_reality2_geospatial_search";
+import ai_reality2_geospatial_remove from "./ai_reality2_geospatial_remove";
+
+import ai_reality2_backup_save from "./ai_reality2_backup_save";
+import ai_reality2_backup_load from "./ai_reality2_backup_load";
+import ai_reality2_backup_delete from "./ai_reality2_backup_delete";
+
 
 // ----------------------------------------------------------------------------------------------------
 // Split and convert conjoined JSON strings
@@ -129,23 +137,70 @@ export function interpret_actions(transition: any, block: any)
                 }
             }
             else if (plugin_name == "ai.reality2.geospatial")
-                {
-                    let command = R2.JSONPath(action, "command");
-                    switch (command) {
-                        case "set":
+            {
+                let command = R2.JSONPath(action, "command");
+                switch (command) {
+                    case "set":
+                        let latitude = R2.JSONPath(action, "parameters.latitude");
+                        let longitude = R2.JSONPath(action, "parameters.longitude");
+                        let geohash = R2.JSONPath(action, "parameters.geohash");
+
+                        if((!latitude && !longitude) && (!geohash)) {
+                            action_block = ai_reality2_geospatial_set_simple.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            };
+                        } else {
                             action_block = ai_reality2_geospatial_set.construct(action);
                             if (action_block && acc) {
                                 action_block["next"] =  { "block": acc };
                             };
-                            break;
-                        case "get":
-                            action_block = ai_reality2_geospatial_get.construct(action);
-                            if (action_block && acc) {
-                                action_block["next"] =  { "block": acc };
-                            };
-                            break;
-                    }
+                        }
+                        break;
+                    case "get":
+                        action_block = ai_reality2_geospatial_get.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                    case "search":
+                        action_block = ai_reality2_geospatial_search.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                    case "remove":
+                        action_block = ai_reality2_geospatial_remove.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
                 }
+            }
+            else if (plugin_name == "ai.reality2.backup")
+            {
+                let command = R2.JSONPath(action, "command");
+                switch (command) {
+                    case "store":
+                        action_block = ai_reality2_backup_save.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                    case "retrieve":
+                        action_block = ai_reality2_backup_load.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                    case "delete":
+                        action_block = ai_reality2_backup_delete.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        };
+                        break;
+                }
+            }
             else if (R2.JSONPath(action, "plugin")) {
                 var parameters = R2.JSONPath(action, "parameters.parameters");
                 if (parameters && Object.keys(parameters).length > 0) {

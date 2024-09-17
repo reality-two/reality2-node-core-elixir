@@ -65,7 +65,7 @@ function process(block: any, generator: any): string | [string, number] | null
         }
     }
 
-    if ((to !== "") && (to !== "me")) action["parameters"]["to"] = to;
+    if (to) action["parameters"]["to"] = to;
     if (Object.keys(params).length !== 0) action["parameters"]["parameters"] = params;
 
     return (JSON.stringify(action));
@@ -89,7 +89,7 @@ function construct(action: any)
             "type": "reality2_action_send_now",
             "fields": {
                 "event": R2.JSONPath(action, "parameters.event"),
-                "to": to ? to : "me"
+                "to": to
             },
             "inputs": {
                 "parameters": {}
