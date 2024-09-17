@@ -272,9 +272,40 @@
                         },
                         {
                             "kind":"block",
+                            "type":"ai_reality2_geospatial_set_simple"
+                        },
+                        {
+                            "kind":"block",
                             "type":"ai_reality2_geospatial_get"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_geospatial_search"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_geospatial_remove"
                         }
                     ]            
+                },
+                {
+                    "kind":"category",
+                    "colour": 300,
+                    "name":"ai_reality2_backup",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_backup_save"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_backup_load"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"ai_reality2_backup_delete"
+                        }
+                    ]
                 }
             ]
         }
