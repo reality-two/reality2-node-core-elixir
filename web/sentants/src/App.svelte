@@ -371,7 +371,7 @@ Layout
                             <Icon ui box/>
                             Mixed Reality
                         </Item> -->
-                        {#if state == "construct"}
+                        <!-- {#if state == "construct"}
                             <Divider ui fitted/>
                             <Header ui>
                             Construct
@@ -417,7 +417,7 @@ Layout
                                 <Icon ui medium running/>
                                 <Text ui medium>Load Swarm or Bee to Node</Text>
                             </Link>
-                        {/if}
+                        {/if} -->
                     </Menu>
                 </Dropdown>
             </Menu>

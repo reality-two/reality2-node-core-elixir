@@ -115,6 +115,8 @@ Construct Swarms and Bees / Sentants
     $: codeHeight = "300px";
     $: showJSON = [];
     let code_loader: any;
+    let variables_loader: any;
+
 
     let workspace: any;
     let backpack: any;
@@ -324,6 +326,26 @@ Construct Swarms and Bees / Sentants
                         }
                     }
                 }, 50);
+            }
+        }
+
+        // Set up the variables loader
+        variables_loader = document.createElement('input');
+        variables_loader.type = 'file';
+
+        variables_loader.onchange = (e:any) => { 
+            // getting a hold of the file reference
+            var file = e.target.files[0]; 
+
+            // setting up the reader
+            var reader = new FileReader();
+            reader.readAsText(file,'UTF-8');
+
+            // here we tell the reader what to do when it's done reading...
+            reader.onload = (readerEvent: any) => {
+                if (readerEvent !== null) {
+                    variables = JSON.parse(readerEvent["target"]["result"]);  
+                }
             }
         }
 
@@ -677,10 +699,12 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     function firstWorkspaceBlock(callback: (code: any) => void) {
         let newCode: any = {};
+        let theCode: any = {};
         let there_is_a_swarm = false;
         let num_sentants = 0;
-        const codeOnPage: any = splitConcatenatedJSON(javascriptGenerator.workspaceToCode(workspace), false);
 
+        let codeOnPage: any = splitConcatenatedJSON(javascriptGenerator.workspaceToCode(workspace), false);
+        console.log("there", codeOnPage);
         // Check if there is a swarm block, with separated bees
         codeOnPage.forEach((element: any) => {
             if (element["swarm"]) {
@@ -694,10 +718,11 @@ Construct Swarms and Bees / Sentants
         // If there was no swarm, but there are more than one bees, create a swarm
         if ((! there_is_a_swarm) && (num_sentants > 1)) {
 
+            // Save the state for when the user presses ok or cancel.
             swarm_name_dialog.callback = callback;
             swarm_name_dialog.codeOnPage = codeOnPage;
 
-            // Get a name and description for the swarm.        
+            // Get a name and description for the swarm from the user.
             behavior("swarm_name", "show");
         }
         else
@@ -711,17 +736,21 @@ Construct Swarms and Bees / Sentants
                     if (element["sentant"]) {
                         newCode["swarm"]["sentants"].push(element["sentant"]);
                     }
-                });  
+                });
+                callback(newCode);
             } else {
-                // Otherwise, it's a single sentant, plugin or automation
-                newCode = codeOnPage[0];
-            };     
-
-            const objType = Object.keys(newCode)[0];
-            var theCode: any = {};
-            theCode[objType] = newCode[objType];
-
-            callback(theCode);
+                // Otherwise, it's a single sentant, plugin or automation, so get the first one
+                if (codeOnPage.length > 0) {
+                    newCode = codeOnPage[0];
+                    const objType = Object.keys(newCode)[0];
+                    theCode[objType] = newCode[objType];
+                    callback(theCode);
+                }
+                else
+                {
+                    callback({});
+                }
+            }
         }
     }
     // ------------------------------------------------------------------------------------------------
@@ -744,13 +773,9 @@ Construct Swarms and Bees / Sentants
                 if (element["sentant"]) {
                     newCode["swarm"]["sentants"].push(element["sentant"]);
                 }
-            });  
+            });
 
-            const objType = Object.keys(newCode)[0];
-            var theCode: any = {};
-            theCode[objType] = newCode[objType];
-
-            callback(theCode);
+            callback(newCode);
         }
         else {
             // Do nothing
@@ -794,6 +819,7 @@ Construct Swarms and Bees / Sentants
                 {/each}
             </Table_Body>
         </Table>
+        <Divider ui inverted></Divider>
         <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
             <pre style="text-align: left;">
                 {#if Object.keys(code).length !== 0}
@@ -818,15 +844,25 @@ Construct Swarms and Bees / Sentants
     <Header>
         Name your Swarm
     </Header>
-    <Content image>
-        <Form ui>
-            <Field fluid>
-                <Input text placeholder="Swarm name..." bind:value={swarm_name} />
-            </Field>
-            <Field fluid>
-                <Input text placeholder="Optional Description" bind:value={swarm_description} />
-            </Field>
-        </Form>
+    <Content>
+        <Table ui>
+            <Table_Body>
+                <Table_Row>
+                    <Table_Col>
+                        <Input ui fluid>
+                            <Input text placeholder="Swarm name..." bind:value={swarm_name} />
+                        </Input>
+                    </Table_Col>
+                </Table_Row>
+                <Table_Row>
+                    <Table_Col>
+                        <Input ui fluid>
+                            <Input text placeholder="Optional Description" bind:value={swarm_description} />
+                        </Input>
+                    </Table_Col>
+                </Table_Row>
+            </Table_Body>
+        </Table>
     </Content>
     <Actions>
         <Button ui red on:click={()=>{behavior("swarm_name", "hide"); close_swarm_name_dialog(false);}}>Cancel</Button>
@@ -834,22 +870,22 @@ Construct Swarms and Bees / Sentants
     </Actions>
 </Modal>
 
-<Button ui icon popup large style="position: fixed; top: 200px; right: 45px; background-color: #494949" >
+<Button ui icon popup large data-tooltip="Load keys to use with your Bees." data-position="top right" style="position: fixed; top: 200px; right: 45px; background-color: #494949" on:click={()=>{ variables_loader.click(); }}>
     <Icon table></Icon>
 </Button>
 
-<Button ui icon large style="position: fixed; top: 260px; right: 45px; background-color: #494949" on:click={loadToNode}>
-    <Icon running></Icon>
-</Button>
-
-<Button ui icon large style="position: fixed; top: 320px; right: 45px; background-color: #494949" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
-    <Icon code></Icon>
-</Button>
-
-<Button ui icon large style="position: fixed; top: 380px; right: 45px; background-color: #494949" on:click={() => { code_loader.click(); }}>
+<Button ui icon large popup data-tooltip="Load Swarms, Bees, Antennae or Behaviours from a file." data-position="top right" style="position: fixed; top: 260px; right: 45px; background-color: #494949" on:click={() => { code_loader.click(); }}>
     <Icon folder open outline></Icon>
 </Button>
 
-<Button ui icon large style="position: fixed; top: 440px; right: 45px; background-color: #494949" on:click={saveSentantDefinition}>
+<Button ui icon large popup data-tooltip="Run the Swarm on the Reality2 node." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #494949" on:click={loadToNode}>
+    <Icon running></Icon>
+</Button>
+
+<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 380px; right: 45px; background-color: #494949" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
+    <Icon code></Icon>
+</Button>
+
+<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #494949" on:click={saveSentantDefinition}>
     <Icon share square></Icon>
 </Button>
