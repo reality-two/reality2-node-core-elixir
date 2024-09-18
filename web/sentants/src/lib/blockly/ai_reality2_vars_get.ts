@@ -21,7 +21,7 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300,
+    "colour": 360,
     "tooltip": "Fetch a persistent variable.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
