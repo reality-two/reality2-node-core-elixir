@@ -30,16 +30,12 @@
 
     onMount(() => {
 
-        console.log("MAP", sentantData);
-
         map = L.map('map').setView([-36.86365, 174.76023], 13);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-            {
-                attribution: `&copy;<a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>,
-                &copy;<a href="https://carto.com/attributions" target="_blank">CARTO</a>`,
-                subdomains: 'reality2.ai'
-            }).addTo(map);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png?access_token={token}', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            token: 'pk.eyJ1Ijoicm95Y2RhdmllcyIsImEiOiJua2ZoY3JnIn0.2ybExrs-yDA5hLbt838zdg'
+        }).addTo(map);
 
         // Set the initial map height
         updateMapHeight();
