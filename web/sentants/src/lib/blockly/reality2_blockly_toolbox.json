@@ -174,6 +174,17 @@
                 {
                     "kind":"category",
                     "colour": 250,
+                    "name":"Monitor",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_monitor"
+                        }
+                    ]
+                },
+                {
+                    "kind":"category",
+                    "colour": 250,
                     "name":"Inputs",
                     "contents":[
                         {
@@ -300,7 +311,7 @@
                 },
                 {
                     "kind":"category",
-                    "colour": 300,
+                    "colour": 360,
                     "name":"ai_reality2_vars",
                     "expanded": "true",
                     "contents":[
@@ -336,7 +347,7 @@
                 },
                 {
                     "kind":"category",
-                    "colour": 300,
+                    "colour": 360,
                     "name":"ai_reality2_geospatial",
                     "expanded": "true",
                     "contents":[
@@ -364,7 +375,7 @@
                 },
                 {
                     "kind":"category",
-                    "colour": 300,
+                    "colour": 360,
                     "name":"ai_reality2_backup",
                     "expanded": "true",
                     "contents":[
