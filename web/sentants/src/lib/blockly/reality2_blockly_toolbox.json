@@ -5,6 +5,7 @@
 			"kind":"category",
             "colour": 20,
 			"name":"Swarm",
+            "expanded": "true",
 			"contents":[
 				{
 					"kind":"block",
@@ -16,11 +17,19 @@
 			"kind":"category",
             "colour": 50,
 			"name":"Bees",
+            "expanded": "true",
 			"contents":[
-				{
-					"kind":"block",
-					"type":"reality2_sentant"
-				},
+                {
+                    "kind":"category",
+                    "colour": 50,
+                    "name":"Bee",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_sentant"
+                        }
+                    ]
+                },
                 {
                     "kind":"category",
                     "colour": 50,
@@ -53,15 +62,23 @@
 			"kind":"category",
             "colour": 150,
 			"name":"Antennae",
+            "expanded": "true",
 			"contents":[
-				{
-					"kind":"block",
-					"type":"reality2_get_plugin"
-				},
                 {
-					"kind":"block",
-					"type":"reality2_post_plugin"
-				},
+                    "kind":"category",
+                    "colour": 150,
+                    "name":"Antenna",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_get_plugin"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_post_plugin"
+                        }
+                    ]
+                },
                 {
                     "kind":"category",
                     "colour": 150,
@@ -90,6 +107,7 @@
 			"kind":"category",
             "colour": 200,
 			"name":"Behaviours",
+            "expanded": "true",
 			"contents":[
 				{
 					"kind":"block",
@@ -105,30 +123,53 @@
             "kind":"category",
             "colour": 250,
             "name":"Decisions",
+            "expanded": "true",
             "contents":[
                 {
-                    "kind":"block",
-                    "type":"reality2_start_transition"
+                    "kind":"category",
+                    "colour": 250,
+                    "name":"Start",
+                    "expanded": "true",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_start_transition"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_start_transition_no_params"
+                        }
+                    ]
                 },
                 {
-                    "kind":"block",
-                    "type":"reality2_start_transition_no_params"
+                    "kind":"category",
+                    "colour": 250,
+                    "name":"Instruction",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_simple_transition"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_simple_transition_no_params"
+                        }
+                    ]
                 },
                 {
-                    "kind":"block",
-                    "type":"reality2_simple_transition"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_simple_transition_no_params"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_transition"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_transition_no_params"
+                    "kind":"category",
+                    "colour": 250,
+                    "name":"Event",
+                    "contents":[
+                        {
+                            "kind":"block",
+                            "type":"reality2_transition"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_transition_no_params"
+                        }
+                    ]
                 },
                 {
                     "kind":"category",
@@ -147,35 +188,45 @@
             "kind":"category",
             "colour": 300,
             "name":"Tasks",
+            "expanded": "true",
             "contents":[
                 {
-                    "kind":"block",
-                    "type":"reality2_action_send_now"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_action_send_now_no_params"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_action_send"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_action_send_no_params"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_action_send_plugin"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_action_send_plugin_no_params"
+                    "kind":"category",
+                    "colour": 300,
+                    "name":"Send",
+                    "expanded": "true",
+                    "contents": [
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_send_now"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_send_now_no_params"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_send"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_send_no_params"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_send_plugin"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_send_plugin_no_params"
+                        }
+                    ]
                 },
                 {
                     "kind":"category",
                     "colour": 300,
                     "name":"Set",
+                    "expanded": "true",
                     "contents": [
                         {
                             "kind":"block",
@@ -204,21 +255,38 @@
                     ]
                 },
                 {
-                    "kind":"block",
-                    "type":"reality2_action_signal"
+                    "kind":"category",
+                    "colour": 300,
+                    "name":"Signal",
+                    "expanded": "true",
+                    "contents": [
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_signal"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_signal_no_params"
+                        }
+                    ]
                 },
                 {
-                    "kind":"block",
-                    "type":"reality2_action_signal_no_params"
-                },
-                {
-                    "kind":"block",
-                    "type":"reality2_action_debug"
+                    "kind":"category",
+                    "colour": 300,
+                    "name":"Debug",
+                    "expanded": "true",
+                    "contents": [
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_debug"
+                        }
+                    ]
                 },
                 {
                     "kind":"category",
                     "colour": 300,
                     "name":"Parameters",
+                    "expanded": "true",
                     "contents":[
                         {
                             "kind":"block",
@@ -234,7 +302,12 @@
                     "kind":"category",
                     "colour": 300,
                     "name":"ai_reality2_vars",
+                    "expanded": "true",
                     "contents":[
+                        {
+                            "kind": "label",
+                            "text": "Additional Features"
+                        },
                         {
                             "kind":"block",
                             "type":"ai_reality2_vars_set"
@@ -265,6 +338,7 @@
                     "kind":"category",
                     "colour": 300,
                     "name":"ai_reality2_geospatial",
+                    "expanded": "true",
                     "contents":[
                         {
                             "kind":"block",
@@ -292,6 +366,7 @@
                     "kind":"category",
                     "colour": 300,
                     "name":"ai_reality2_backup",
+                    "expanded": "true",
                     "contents":[
                         {
                             "kind":"block",
