@@ -10,6 +10,7 @@ import reality2_simple_transition from "./reality2_simple_transition";
 import reality2_simple_transition_no_params from "./reality2_simple_transition_no_params";
 import reality2_start_transition from "./reality2_start_transition";
 import reality2_start_transition_no_params from "./reality2_start_transition_no_params";
+import reality2_start_transition_simple from "./reality2_start_transition_simple";
 import reality2_monitor from "./reality2_monitor";
 
 
@@ -134,7 +135,13 @@ function construct(automation: any)
                 else if ((event == "init") && (from == "start")) {
                     // Init
                     let parameters: [any] = R2.JSONPath(transition, "parameters");
-                    if (parameters && Object.keys(parameters).length > 0) {
+                    if (!to) {
+                        transition_block = reality2_start_transition_simple.construct(transition);
+                        if (transition_block && acc) {
+                            transition_block["next"] =  { "block": acc };
+                        }
+                    }
+                    else if (parameters && Object.keys(parameters).length > 0) {
                         transition_block = reality2_start_transition.construct(transition);
                         if (transition_block && acc) {
                             transition_block["next"] =  { "block": acc };

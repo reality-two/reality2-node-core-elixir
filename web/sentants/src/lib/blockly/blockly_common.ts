@@ -15,6 +15,9 @@ import reality2_action_send_plugin from "./reality2_action_send_plugin";
 import reality2_action_send_plugin_no_params from "./reality2_action_send_plugin_no_params";
 import reality2_action_signal from "./reality2_action_signal";
 import reality2_action_signal_no_params from "./reality2_action_signal_no_params";
+import reality2_action_test from "./reality2_action_test";
+import reality2_action_test_no_params from "./reality2_action_test_no_params";
+import reality2_action_test_simple from "./reality2_action_test_simple";
 
 import ai_reality2_vars_set from "./ai_reality2_vars_set";
 import ai_reality2_vars_set_no_value from "./ai_reality2_vars_set_no_value";
@@ -281,6 +284,27 @@ export function interpret_actions(transition: any, block: any)
                             action_block["next"] =  { "block": acc };
                         }
                         break;
+                    case "test":
+                        var parameters = R2.JSONPath(action, "parameters.parameters");
+                        var else_param = R2.JSONPath(action, "parameters.else");
+                        var to = R2.JSONPath(action, "parameters.to");
+                        if (parameters && Object.keys(parameters).length > 0) {
+                            action_block = reality2_action_test.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }
+                        } else if (else_param || to) {
+                            action_block = reality2_action_test_no_params.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }  
+                        } else {
+                            action_block = reality2_action_test_simple.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            }                            
+                        }
+                        break;                       
                 }
             }
     

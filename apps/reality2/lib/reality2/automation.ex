@@ -477,7 +477,7 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Test a condition and send an event depending on the outcome
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp test(id, _sentant_name, action_parameters, accumulated_parameters, _passthrough, _decryption_key, data) do
+  defp test(id, _sentant_name, action_parameters, accumulated_parameters, passthrough, _decryption_key, _data) do
     override = R2Map.get(action_parameters, :override, false)
     combined_parameters = if (override) do
       Map.merge(accumulated_parameters, action_parameters)

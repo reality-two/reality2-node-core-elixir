@@ -33,7 +33,7 @@
                 {
                     "kind":"category",
                     "colour": 50,
-                    "name":"Keys",
+                    "name":"- - - Keys",
                     "contents":[
                         {
                             "kind":"block",
@@ -48,7 +48,7 @@
                 {
                     "kind":"category",
                     "colour": 50,
-                    "name":"Data",
+                    "name":"- - - Data",
                     "contents":[
                         {
                             "kind":"block",
@@ -82,7 +82,7 @@
                 {
                     "kind":"category",
                     "colour": 150,
-                    "name":"Header",
+                    "name":"- - - Header",
                     "contents":[
                         {
                             "kind":"block",
@@ -93,7 +93,7 @@
                 {
                     "kind":"category",
                     "colour": 150,
-                    "name":"Body",
+                    "name":"- - - Body",
                     "contents":[
                         {
                             "kind":"block",
@@ -138,6 +138,10 @@
                         {
                             "kind":"block",
                             "type":"reality2_start_transition_no_params"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_start_transition_simple"
                         }
                     ]
                 },
@@ -185,7 +189,7 @@
                 {
                     "kind":"category",
                     "colour": 250,
-                    "name":"Inputs",
+                    "name":"- - - Inputs",
                     "contents":[
                         {
                             "kind":"block",
@@ -284,6 +288,26 @@
                 {
                     "kind":"category",
                     "colour": 300,
+                    "name":"Test",
+                    "expanded": "true",
+                    "contents": [
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_test"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_test_no_params"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_test_simple"
+                        }
+                    ]
+                },
+                {
+                    "kind":"category",
+                    "colour": 300,
                     "name":"Debug",
                     "expanded": "true",
                     "contents": [
@@ -296,7 +320,7 @@
                 {
                     "kind":"category",
                     "colour": 300,
-                    "name":"Parameters",
+                    "name":"- - - Parameters",
                     "expanded": "true",
                     "contents":[
                         {
@@ -312,7 +336,7 @@
                 {
                     "kind":"category",
                     "colour": 360,
-                    "name":"ai_reality2_vars",
+                    "name":"Variables",
                     "expanded": "true",
                     "contents":[
                         {
@@ -348,7 +372,7 @@
                 {
                     "kind":"category",
                     "colour": 360,
-                    "name":"ai_reality2_geospatial",
+                    "name":"Geospatial",
                     "expanded": "true",
                     "contents":[
                         {
@@ -376,7 +400,7 @@
                 {
                     "kind":"category",
                     "colour": 360,
-                    "name":"ai_reality2_backup",
+                    "name":"Storage",
                     "expanded": "true",
                     "contents":[
                         {

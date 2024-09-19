@@ -4,35 +4,61 @@
 
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
-import reality2_action_set_data from "./reality2_action_set_data";
-import reality2_action_set_jsonpath from "./reality2_action_set_jsonpath";
-import reality2_action_set_value from "./reality2_action_set_value";
-import reality2_action_set_calculation from "./reality2_action_set_calculation";
+import reality2_action_parameter from "./reality2_action_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_action_set",
-    "message0":"set %1 to %2",
+	"type":"reality2_action_test",
+    "message0":"if %1",
 	"args0":[
         {
 			"type":"field_input",
-			"name":"key",
+			"name":"if",
 			"check":"String",
 			"text":""
-		},
+		}
+    ],
+    "message1":"send event %1",
+    "args1":[
         {
-			"type":"input_value",
-			"name":"value",
-			"check":"Json",
+			"type":"field_input",
+			"name":"then",
+			"check":"String",
 			"text":""
 		}
+    ],
+    "message2":"otherwise send event %1",
+    "args2":[
+        {
+			"type":"field_input",
+			"name":"else",
+			"check":"String",
+			"text":""
+        }
+    ],
+    "message3":"to %1",
+    "args3": [
+        {
+			"type":"field_input",
+			"name":"to",
+			"check":"String",
+			"text":""
+        }
 	],
+    "message4":"with %1",
+    "args4":[
+        {
+            "type":"input_statement",
+            "name":"parameters",
+            "check":"reality2_action_parameter"
+        }
+    ],
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 300,
-    "tooltip": "Set a variable in the data flow.",
+    "tooltip": "Test the condition, and if true, send one event or send the other.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -44,35 +70,31 @@ const shape = {
 // ----------------------------------------------------------------------------------------------------
 function process(block: any, generator: any): string | [string, number] | null
 {
-    const key = block.getFieldValue('key');
-    const raw_value = generator.valueToCode(block, 'value', 99);
+    var params = {};
 
-    // const action0 = {
-    //     "command": "get",
-    //     "plugin": "ai.reality2.vars",
-    //     "parameters": {
-    //         "key": key
-    //     }
-    // }
-    const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
-    const action1 = {
-        "command": "set",
+    const if_param = block.getFieldValue('if');
+    const then_param = block.getFieldValue('then');
+    const else_param = block.getFieldValue('else');
+    const to = block.getFieldValue('to');
+
+    const parameters = generator.statementToCode(block, "parameters");
+    if (parameters !== "") {
+       params = splitConcatenatedJSON(parameters);
+    };
+
+    const action:any  = {
+        "command": "test",
         "parameters": {
-            "key": key,
-            "value": value
+            "if": if_param,
+            "then": then_param
         }
     }
-    // const action2 = {
-    //     "command": "set",
-    //     "plugin": "ai.reality2.vars",
-    //     "parameters": {
-    //         "key": key,
-    //         "value": "__"+key+"__"
-    //     }
-    // }
 
-    // return (JSON.stringify(action0) + JSON.stringify(action1) + JSON.stringify(action2));
-    return (JSON.stringify(action1));
+    if (else_param !== "") action["parameters"]["else"] = else_param;
+    if ((to !== "") && (to !== "me")) action["parameters"]["to"] = to;
+    if (Object.keys(params).length !== 0) action["parameters"]["parameters"] = params;
+
+    return (JSON.stringify(action));
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -85,33 +107,25 @@ function construct(action: any)
 {
     if (action) {
         // Set the initial structure
+        let to = R2.JSONPath(action, "parameters.to");
+
         let block = {
             "kind": "BLOCK",
-            "type": "reality2_action_set",
+            "type": "reality2_action_test",
             "fields": {
-                "key": R2.JSONPath(action, "parameters.key")
+                "if": R2.JSONPath(action, "parameters.if"),
+                "then": R2.JSONPath(action, "parameters.then"),
+                "else": R2.JSONPath(action, "parameters.else"),
+                "to": (to === "") ? "me" : to,
             },
             "inputs": {
-                "value": {}
+                "parameters": {}
             }
         }
 
-        if (R2.JSONPath(action, "parameters.value.data"))
-        {
-            block["inputs"]["value"] = {"block": reality2_action_set_data.construct(R2.JSONPath(action, "parameters.value"))};
-        }
-        else if (R2.JSONPath(action, "parameters.value.jsonpath"))
-        {
-            block["inputs"]["value"] = {"block": reality2_action_set_jsonpath.construct(R2.JSONPath(action, "parameters.value"))};
-        }
-        else if (R2.JSONPath(action, "parameters.value.expr"))
-            {
-                block["inputs"]["value"] = {"block": reality2_action_set_calculation.construct(R2.JSONPath(action, "parameters.value"))};
-            }
-        else
-        {
-            block["inputs"]["value"] = {"block": reality2_action_set_value.construct(R2.JSONPath(action, "parameters.value"))};
-        }
+        // Check if there are parameters
+        let parameters = reality2_action_parameter.construct(R2.JSONPath(action, "parameters.parameters"));
+        if (parameters) block["inputs"]["parameters"] = { "block": parameters }
 
         return (block);
     }
