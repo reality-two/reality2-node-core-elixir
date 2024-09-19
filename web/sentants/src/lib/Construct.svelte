@@ -53,6 +53,7 @@ Construct Swarms and Bees / Sentants
     import reality2_start_transition_no_params from "./blockly/reality2_start_transition_no_params";
     import reality2_simple_transition from "./blockly/reality2_simple_transition";
     import reality2_simple_transition_no_params from "./blockly/reality2_simple_transition_no_params";
+    import reality2_start_transition_simple from "./blockly/reality2_start_transition_simple";
     import reality2_monitor from "./blockly/reality2_monitor";
     import reality2_action_set from "./blockly/reality2_action_set";
     import reality2_action_set_clear from "./blockly/reality2_action_set_clear";
@@ -67,6 +68,9 @@ Construct Swarms and Bees / Sentants
     import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
     import reality2_action_send_plugin_no_params from "./blockly/reality2_action_send_plugin_no_params";
     import reality2_action_debug from "./blockly/reality2_action_debug";
+    import reality2_action_test from "./blockly/reality2_action_test";
+    import reality2_action_test_no_params from "./blockly/reality2_action_test_no_params";
+    import reality2_action_test_simple from "./blockly/reality2_action_test_simple";
     import reality2_action_signal from "./blockly/reality2_action_signal";
     import reality2_action_signal_no_params from "./blockly/reality2_action_signal_no_params";
     import reality2_action_parameter from "./blockly/reality2_action_parameter";
@@ -146,6 +150,7 @@ Construct Swarms and Bees / Sentants
         reality2_transition_no_params.shape,
         reality2_start_transition.shape,
         reality2_start_transition_no_params.shape,
+        reality2_start_transition_simple.shape,
         reality2_simple_transition.shape,
         reality2_simple_transition_no_params.shape,
         reality2_monitor.shape,
@@ -162,6 +167,9 @@ Construct Swarms and Bees / Sentants
         reality2_action_send_plugin.shape,
         reality2_action_send_plugin_no_params.shape,
         reality2_action_debug.shape,
+        reality2_action_test.shape,
+        reality2_action_test_no_params.shape,
+        reality2_action_test_simple.shape,
         reality2_action_signal.shape,
         reality2_action_signal_no_params.shape,
         reality2_action_parameter.shape,
@@ -371,6 +379,7 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_transition_no_params'] = reality2_transition_no_params.process;   
         javascriptGenerator.forBlock['reality2_start_transition'] = reality2_start_transition.process;   
         javascriptGenerator.forBlock['reality2_start_transition_no_params'] = reality2_start_transition_no_params.process;   
+        javascriptGenerator.forBlock['reality2_start_transition_simple'] = reality2_start_transition_simple.process;   
         javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
         javascriptGenerator.forBlock['reality2_simple_transition_no_params'] = reality2_simple_transition_no_params.process;   
         javascriptGenerator.forBlock['reality2_monitor'] = reality2_monitor.process;   
@@ -387,6 +396,9 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
         javascriptGenerator.forBlock['reality2_action_send_plugin_no_params'] = reality2_action_send_plugin_no_params.process;
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
+        javascriptGenerator.forBlock['reality2_action_test'] = reality2_action_test.process;
+        javascriptGenerator.forBlock['reality2_action_test_no_params'] = reality2_action_test_no_params.process;
+        javascriptGenerator.forBlock['reality2_action_test_simple'] = reality2_action_test_simple.process;
         javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
         javascriptGenerator.forBlock['reality2_action_signal_no_params'] = reality2_action_signal_no_params.process;
         javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
