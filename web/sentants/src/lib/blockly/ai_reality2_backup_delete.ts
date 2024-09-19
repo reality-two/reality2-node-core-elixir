@@ -11,7 +11,7 @@ const shape = {
     "message0":"delete saved data",
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300,
+    "colour": 360,
     "tooltip": "Delete encrypted blob from database on this node.  Remember to set the encryption and decryption keys in the Bee header.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }

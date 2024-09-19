@@ -54,7 +54,7 @@ const shape = {
     "message4": "use a radius of zero for 'completely public'.",
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300,
+    "colour": 360,
     "tooltip": "Store geospatial parameters on a Bee.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }

@@ -13,7 +13,7 @@ const shape = {
     "message0":"clear all",
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300,
+    "colour": 360,
     "tooltip": "Clears all the persistent variables for this Bee.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }

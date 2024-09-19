@@ -12,7 +12,7 @@ const shape = {
     "message0": "store location",
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300,
+    "colour": 360,
     "tooltip": "Store geospatial parameters on a Bee.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
