@@ -344,7 +344,8 @@ Construct Swarms and Bees / Sentants
             // here we tell the reader what to do when it's done reading...
             reader.onload = (readerEvent: any) => {
                 if (readerEvent !== null) {
-                    variables = JSON.parse(readerEvent["target"]["result"]);  
+                    variables = JSON.parse(readerEvent["target"]["result"]);
+                    showMessage("Success", "Variables Loaded", "green");
                 }
             }
         }
@@ -461,6 +462,8 @@ Construct Swarms and Bees / Sentants
             title: title,
             message: message,
             class : color,
+            position: "top attached",
+            size: "large",
             className: {
                 toast: 'ui message'
         }}});
