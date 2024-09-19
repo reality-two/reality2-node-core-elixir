@@ -2,8 +2,8 @@ defmodule RPN do
 
   alias Reality2.Helpers.R2Map, as: R2Map
 
-  @binary_ops ~w(+ - / * ^ atan2 fmod pow geohash)
-  @unary_ops ~w(+ - acos acosh asin asinh atan atanh ceil cos cosh exp floor log log10 log2 sin sinh sqrt tan tanh latlong)
+  @binary_ops ~w(+ - / * ^ atan2 fmod pow geohash && || == != > < >= <=)
+  @unary_ops ~w(+ - ! acos acosh asin asinh atan atanh ceil cos cosh exp floor log log10 log2 sin sinh sqrt tan tanh latlong)
   @ops @binary_ops ++ @unary_ops
 
   def convert(input, context) when is_binary(input) do
@@ -25,6 +25,14 @@ defmodule RPN do
       "fmod" -> [:math.fmod(b, a) | tail]
       "pow" -> [:math.pow(b, a) | tail]
       "geohash" -> [Geohash.encode(b, a) | tail]
+      "&&" -> [a && b | tail]
+      "||" -> [a || b | tail]
+      "==" -> [a == b | tail]
+      "!=" -> [a != b | tail]
+      ">" -> [a > b | tail]
+      "<" -> [a < b | tail]
+      ">=" -> [a >= b | tail]
+      "<=" -> [a <= b | tail]
     end
   end
 
@@ -51,6 +59,8 @@ defmodule RPN do
       "sqrt" -> [:math.sqrt(a) | tail]
       "tan" -> [:math.tan(a) | tail]
       "tanh" -> [:math.tanh(a) | tail]
+
+      "!" -> [!a | tail]
 
       "latlong" -> [Geohash.decode(a) | tail]
     end
@@ -85,6 +95,8 @@ defmodule RPN do
           case num_str do
             "pi" -> {:ok, :math.pi} # Special case for pi
             "e" -> {:ok, 2.7182818284590452353602874713527} # Special case for e
+            "true" -> {:ok, :true}
+            "false" -> {:ok, :false}
             _ -> {:str, num_str} # Probably a variable naame or something else.
           end
       end

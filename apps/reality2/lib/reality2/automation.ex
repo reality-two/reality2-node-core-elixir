@@ -477,7 +477,62 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Test a condition and send an event depending on the outcome
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp test(_id, _sentant_name, action_parameters, accumulated_parameters, _passthrough, _decryption_key, data) do
+  defp test(id, _sentant_name, action_parameters, accumulated_parameters, _passthrough, _decryption_key, data) do
+    override = R2Map.get(action_parameters, :override, false)
+    combined_parameters = if (override) do
+      Map.merge(accumulated_parameters, action_parameters)
+    else
+      Map.merge(action_parameters, accumulated_parameters)
+    end
+    |> interpret()
+
+    # Test the condition to choose the event to send
+    event = case RPN.convert(R2Map.get(combined_parameters, :if), combined_parameters) do
+      true -> R2Map.get(combined_parameters, :then, "event")
+      _ -> R2Map.get(combined_parameters, :else, "event")
+    end
+
+    # Get the 'to' parameter, if it exists.  If not, return an empty list.
+    to_field = R2Map.get(combined_parameters, :to, [id])
+
+    # If the 'to' parameter was not a list, turn it into one with a single element.
+    to_list = case is_list(to_field) do
+      true -> to_field
+      false -> [to_field]
+    end
+
+    # Go through the list, sending the event to each one.
+    for to <- to_list do
+
+      # Create a map with either the name or the ID of the Sentant to send the event to.
+      name_or_id = case Reality2.Metadata.get(:SentantIDs, to) do
+        nil ->
+          %{id: to}  # Not a Name for a Sentant on this Node, so send to the Sentant with that ID.
+        id ->
+          %{id: id}    # Must have been a name.
+      end
+
+      event_parameters = R2Map.get(action_parameters, :parameters, %{})
+
+      # Make sure there is no timer for this event already in process.  If so, cancel it before doing the new one.
+      case R2Process.whereis(id <> "|timers|" <> event) do
+        nil -> :ok
+        timer ->
+          Process.cancel_timer(timer)
+          R2Process.deregister(id <> "|timers|" <> event)
+      end
+
+      # Send the event either immediately or after a delay.
+      case R2Map.get(combined_parameters, :delay) do
+        nil ->
+          Reality2.Sentants.sendto(name_or_id, %{event: event, parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough: passthrough})
+        delay ->
+          timer = Process.send_after(self(), {:send, name_or_id, %{event: event, parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough: passthrough}}, delay)
+          R2Process.register(id <> "|timers|" <> event, timer)
+      end
+
+    end
+
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
