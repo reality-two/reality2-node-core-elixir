@@ -10,7 +10,7 @@ const shape = {
     "message0":"save data flow",
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300,
+    "colour": 360,
     "tooltip": "Save data flow as encrypted blob to database on this node.  Remember to set the encryption and decryption keys in the Bee header.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }

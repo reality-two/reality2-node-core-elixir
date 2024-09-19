@@ -20,7 +20,7 @@ const shape = {
 	],
 	"previousStatement":null,
 	"nextStatement":null,
-    "colour": 300,
+    "colour": 360,
     "tooltip": "Search for Bees within the given radius of this Bee (in meters) and return an array of those that are nearby in the 'to' variable.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }

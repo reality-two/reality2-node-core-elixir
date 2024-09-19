@@ -53,6 +53,7 @@ Construct Swarms and Bees / Sentants
     import reality2_start_transition_no_params from "./blockly/reality2_start_transition_no_params";
     import reality2_simple_transition from "./blockly/reality2_simple_transition";
     import reality2_simple_transition_no_params from "./blockly/reality2_simple_transition_no_params";
+    import reality2_monitor from "./blockly/reality2_monitor";
     import reality2_action_set from "./blockly/reality2_action_set";
     import reality2_action_set_clear from "./blockly/reality2_action_set_clear";
     import reality2_action_set_jsonpath from "./blockly/reality2_action_set_jsonpath";
@@ -147,6 +148,7 @@ Construct Swarms and Bees / Sentants
         reality2_start_transition_no_params.shape,
         reality2_simple_transition.shape,
         reality2_simple_transition_no_params.shape,
+        reality2_monitor.shape,
         reality2_action_set.shape,
         reality2_action_set_clear.shape,
         reality2_action_set_jsonpath.shape,
@@ -345,7 +347,7 @@ Construct Swarms and Bees / Sentants
             reader.onload = (readerEvent: any) => {
                 if (readerEvent !== null) {
                     variables = JSON.parse(readerEvent["target"]["result"]);
-                    showMessage("Success", "Variables Loaded", "green");
+                    showMessage("Success", "Variables loadd successfully", "green");
                 }
             }
         }
@@ -371,6 +373,7 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_start_transition_no_params'] = reality2_start_transition_no_params.process;   
         javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
         javascriptGenerator.forBlock['reality2_simple_transition_no_params'] = reality2_simple_transition_no_params.process;   
+        javascriptGenerator.forBlock['reality2_monitor'] = reality2_monitor.process;   
         javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
         javascriptGenerator.forBlock['reality2_action_set_clear'] = reality2_action_set_clear.process;   
         javascriptGenerator.forBlock['reality2_action_set_jsonpath'] = reality2_action_set_jsonpath.process;   
@@ -461,9 +464,8 @@ Construct Swarms and Bees / Sentants
         behavior({type:"toast", settings:{
             title: title,
             message: message,
-            class : color,
-            position: "top attached",
-            size: "large",
+            position: 'top attached',
+            class: 'center aligned huge ' + color,
             className: {
                 toast: 'ui message'
         }}});
@@ -510,7 +512,7 @@ Construct Swarms and Bees / Sentants
                             .then((_) => {
                                 r2_node.sentantLoad(definition)
                                 .then((_) => {
-                                    showMessage("Success", "Sentant Loaded", "green");
+                                    showMessage("Success", "Bee Loaded", "green");
                                 })
                                 .catch((error) => {
                                     showMessage("Problem", "Error Loading", "red");
@@ -523,7 +525,7 @@ Construct Swarms and Bees / Sentants
                         .catch((error) => {
                             r2_node.sentantLoad(definition)
                             .then((_) => {
-                                showMessage("Success", "Sentant Loaded", "green");
+                                showMessage("Success", "Bee Loaded", "green");
                             })
                         })
                     }
@@ -556,12 +558,12 @@ Construct Swarms and Bees / Sentants
         if (R2.JSONPath(code, "swarm")) {
             backpack.addItem(JSON.stringify(blockly_construct["swarm"](R2.JSONPath(code, "swarm"))));
             backpack.open();
-            showMessage("Success", "Swarm definition loaded into backpack", "green");
+            showMessage("Success", "Swarm loaded into backpack", "green");
         }
         else if (R2.JSONPath(code, "sentant")) {
             backpack.addItem(JSON.stringify(blockly_construct["sentant"](R2.JSONPath(code, "sentant"))));
             backpack.open();
-            showMessage("Success", "Sentant definition loaded into backpack", "green");
+            showMessage("Success", "Bee loaded into backpack", "green");
         }
         else if (R2.JSONPath(code, "plugin")) {
             const method = R2.JSONPath(code, "plugin.method");
@@ -569,12 +571,12 @@ Construct Swarms and Bees / Sentants
                 case "GET": 
                     backpack.addItem(JSON.stringify(blockly_construct["get_plugin"](R2.JSONPath(code, "plugin"))));
                     backpack.open();
-                    showMessage("Success", "Plugin definition loaded into backpack", "green");
+                    showMessage("Success", "Antenna loaded into backpack", "green");
                     break;
                 case "POST":
                     backpack.addItem(JSON.stringify(blockly_construct["post_plugin"](R2.JSONPath(code, "plugin"))));
                     backpack.open();
-                    showMessage("Success", "Plugin definition loaded into backpack", "green");
+                    showMessage("Success", "Antenna loaded into backpack", "green");
                     break;
                 default:
                     showMessage("Problem", "Incorrect format", "red");
@@ -583,7 +585,7 @@ Construct Swarms and Bees / Sentants
         else if (R2.JSONPath(code, "automation")) {
             backpack.addItem(JSON.stringify(blockly_construct["automation"](R2.JSONPath(code, "automation"))));
             backpack.open();
-            showMessage("Success", "Automation definition loaded into backpack", "green");
+            showMessage("Success", "Behaviour loaded into backpack", "green");
         }
         else
             showMessage("Problem", "Incorrect format", "red");
@@ -881,14 +883,14 @@ Construct Swarms and Bees / Sentants
     <Icon folder open outline></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Run the Swarm on the Reality2 node." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #494949" on:click={loadToNode}>
-    <Icon running></Icon>
+<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #494949" on:click={saveSentantDefinition}>
+    <Icon share square></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 380px; right: 45px; background-color: #494949" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
+<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #494949" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
     <Icon code></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #494949" on:click={saveSentantDefinition}>
-    <Icon share square></Icon>
+<Button ui icon large popup data-tooltip="Run the Swarm on the Reality2 node." data-position="top right" style="position: fixed; top: 500px; right: 45px; background-color: #494949" on:click={loadToNode}>
+    <Icon running></Icon>
 </Button>
