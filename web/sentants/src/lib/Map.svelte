@@ -41,9 +41,7 @@
         updateMapHeight();
 
         // Force Leaflet to recalculate the map size after it's rendered
-        setTimeout(() => {
-            map.invalidateSize();
-        }, 0);
+        setTimeout(() => { map.invalidateSize(); }, 0);
 
         // Add resize event listener
         window.addEventListener('resize', updateMapHeight);
