@@ -33,7 +33,7 @@
                 {
                     "kind":"category",
                     "colour": 50,
-                    "name":"- - - Keys",
+                    "name":". . . Keys",
                     "contents":[
                         {
                             "kind":"block",
@@ -48,7 +48,7 @@
                 {
                     "kind":"category",
                     "colour": 50,
-                    "name":"- - - Data",
+                    "name":". . . Data",
                     "contents":[
                         {
                             "kind":"block",
@@ -82,7 +82,7 @@
                 {
                     "kind":"category",
                     "colour": 150,
-                    "name":"- - - Header",
+                    "name":". . . Header",
                     "contents":[
                         {
                             "kind":"block",
@@ -93,7 +93,7 @@
                 {
                     "kind":"category",
                     "colour": 150,
-                    "name":"- - - Body",
+                    "name":". . . Body",
                     "contents":[
                         {
                             "kind":"block",
@@ -189,7 +189,7 @@
                 {
                     "kind":"category",
                     "colour": 250,
-                    "name":"- - - Inputs",
+                    "name":". . . Inputs",
                     "contents":[
                         {
                             "kind":"block",
@@ -320,7 +320,7 @@
                 {
                     "kind":"category",
                     "colour": 300,
-                    "name":"- - - Parameters",
+                    "name":". . . Parameters",
                     "expanded": "true",
                     "contents":[
                         {
