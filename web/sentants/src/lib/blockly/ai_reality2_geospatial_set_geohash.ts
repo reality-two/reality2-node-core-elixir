@@ -9,7 +9,7 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"ai_reality2_geospatial_set_geohash",
-    "message0":"store geohash %1",
+    "message0":"set geohash %1",
 	"args0":[
 		{
 			"type":"field_input",
@@ -18,20 +18,10 @@ const shape = {
 			"text":""
 		}
 	],
-    "message1":"with privacy radius %1",
-	"args1":[
-		{
-			"type":"field_input",
-			"name":"radius",
-			"check":"String",
-			"text":"0"
-		}
-	],
-    "message2": "use a radius of zero for 'completely public'.",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 360,
-    "tooltip": "Store geospatial parameters on a Bee.",
+    "tooltip": "Set a Geohash.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------
@@ -44,16 +34,23 @@ const shape = {
 function process(block: any, generator: any): string | [string, number] | null
 {
     const geohash = block.getFieldValue('geohash');
-    const radius = R2.convert(block.getFieldValue('radius'));
+    // const raw_value = generator.valueToCode(block, 'value', 99);
 
-    const action: any = {
-        "plugin": "ai.reality2.geospatial",
+    // const action: any = {
+    //     "plugin": "ai.reality2.geospatial",
+    //     "command": "set",
+    //     "parameters": {
+    //         "geohash": geohash
+    //     }
+    // };
+
+    const action = {
         "command": "set",
         "parameters": {
-            "geohash": geohash,
-            "radius": radius
+            "key": "geohash",
+            "value": geohash
         }
-    };
+    }
 
     return (JSON.stringify(action));
 }
@@ -72,8 +69,7 @@ function construct(action: any)
             "kind": "BLOCK",
             "type": "ai_reality2_geospatial_set_geohash",
             "fields": {
-                "geohash": R2.JSONPath(action, "parameters.geohash"),
-                "radius": R2.JSONPath(action, "parameters.radius")
+                "geohash": R2.JSONPath(action, "parameters.geohash")
             }
         }
         

@@ -385,6 +385,10 @@
                         },
                         {
                             "kind":"block",
+                            "type":"ai_reality2_geospatial_set_radius"
+                        },
+                        {
+                            "kind":"block",
                             "type":"ai_reality2_geospatial_set_simple"
                         },
                         {
