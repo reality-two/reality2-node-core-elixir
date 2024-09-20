@@ -381,6 +381,10 @@
                         },
                         {
                             "kind":"block",
+                            "type":"ai_reality2_geospatial_set_geohash"
+                        },
+                        {
+                            "kind":"block",
                             "type":"ai_reality2_geospatial_set_simple"
                         },
                         {
