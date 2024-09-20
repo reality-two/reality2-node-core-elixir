@@ -4,7 +4,7 @@ defmodule AiReality2Rustdemo.MixProject do
   def project do
     [
       app: :ai_reality2_rustdemo,
-      version: "0.1.9",
+      version: "0.1.10",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
