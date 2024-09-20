@@ -9,11 +9,11 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"ai_reality2_geospatial_set_simple",
-    "message0": "store location",
+    "message0": "set location",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 360,
-    "tooltip": "Store geospatial parameters on a Bee.",
+    "tooltip": "Set geospatial parameters on a Bee from the data flow.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------

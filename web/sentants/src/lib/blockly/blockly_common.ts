@@ -29,6 +29,7 @@ import ai_reality2_vars_clear from "./ai_reality2_vars_clear";
 import ai_reality2_geospatial_set from "./ai_reality2_geospatial_set";
 import ai_reality2_geospatial_set_simple from "./ai_reality2_geospatial_set_simple";
 import ai_reality2_geospatial_set_geohash from "./ai_reality2_geospatial_set_geohash";
+import ai_reality2_geospatial_set_radius from "./ai_reality2_geospatial_set_radius";
 import ai_reality2_geospatial_get from "./ai_reality2_geospatial_get";
 import ai_reality2_geospatial_search from "./ai_reality2_geospatial_search";
 import ai_reality2_geospatial_remove from "./ai_reality2_geospatial_remove";
@@ -228,8 +229,19 @@ export function interpret_actions(transition: any, block: any)
             {
                 switch (R2.JSONPath(action, "command")) {
                     case "set":
-                        if (R2.JSONPath(action, "parameters.value")) {
-                            action_block = reality2_action_set.construct(action);
+                        let value = R2.JSONPath(action, "parameters.value");
+                        if (value) {
+                            switch (value) {
+                                case "radius":
+                                    action_block = ai_reality2_geospatial_set_radius.construct(action);
+                                    break;
+                                case "geohash":
+                                    action_block = ai_reality2_geospatial_set_geohash.construct(action);
+                                    break;
+                                default:
+                                    action_block = reality2_action_set.construct(action);
+                                    break;
+                            }
                             if (action_block && acc) {
                                 action_block["next"] =  { "block": acc };
                             }

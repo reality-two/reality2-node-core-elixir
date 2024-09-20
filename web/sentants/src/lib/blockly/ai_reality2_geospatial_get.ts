@@ -9,11 +9,11 @@ import R2 from "../reality2";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"ai_reality2_geospatial_get",
-    "message0":"fetch location",
+    "message0":"get location",
 	"previousStatement":null,
 	"nextStatement":null,
     "colour": 360,
-    "tooltip": "Fetch a geospatial details from a Bee.",
+    "tooltip": "Get geospatial details from a Bee.",
     "helpUrl": "https://github.com/reality-two/reality2-documentation"
 }
 // ----------------------------------------------------------------------------------------------------

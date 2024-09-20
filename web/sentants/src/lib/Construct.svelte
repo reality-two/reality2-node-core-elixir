@@ -85,6 +85,7 @@ Construct Swarms and Bees / Sentants
     import ai_reality2_geospatial_set from "./blockly/ai_reality2_geospatial_set";
     import ai_reality2_geospatial_set_simple from "./blockly/ai_reality2_geospatial_set_simple";
     import ai_reality2_geospatial_set_geohash from "./blockly/ai_reality2_geospatial_set_geohash";
+    import ai_reality2_geospatial_set_radius from "./blockly/ai_reality2_geospatial_set_radius";
     import ai_reality2_geospatial_get from "./blockly/ai_reality2_geospatial_get";
     import ai_reality2_geospatial_search from "./blockly/ai_reality2_geospatial_search";
     import ai_reality2_geospatial_remove from "./blockly/ai_reality2_geospatial_remove";
@@ -185,6 +186,7 @@ Construct Swarms and Bees / Sentants
         ai_reality2_geospatial_set.shape,
         ai_reality2_geospatial_set_simple.shape,
         ai_reality2_geospatial_set_geohash.shape,
+        ai_reality2_geospatial_set_radius.shape,
         ai_reality2_geospatial_get.shape,
         ai_reality2_geospatial_search.shape,
         ai_reality2_geospatial_remove.shape,
@@ -357,7 +359,7 @@ Construct Swarms and Bees / Sentants
             reader.onload = (readerEvent: any) => {
                 if (readerEvent !== null) {
                     variables = JSON.parse(readerEvent["target"]["result"]);
-                    showMessage("Success", "Variables loadd successfully", "green");
+                    showMessage("Success", "Variables loaded successfully", "green");
                 }
             }
         }
@@ -415,6 +417,7 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['ai_reality2_geospatial_set'] = ai_reality2_geospatial_set.process;
         javascriptGenerator.forBlock['ai_reality2_geospatial_set_simple'] = ai_reality2_geospatial_set_simple.process;
         javascriptGenerator.forBlock['ai_reality2_geospatial_set_geohash'] = ai_reality2_geospatial_set_geohash.process;
+        javascriptGenerator.forBlock['ai_reality2_geospatial_set_radius'] = ai_reality2_geospatial_set_radius.process;
         javascriptGenerator.forBlock['ai_reality2_geospatial_get'] = ai_reality2_geospatial_get.process;
         javascriptGenerator.forBlock['ai_reality2_geospatial_search'] = ai_reality2_geospatial_search.process;
         javascriptGenerator.forBlock['ai_reality2_geospatial_remove'] = ai_reality2_geospatial_remove.process;
