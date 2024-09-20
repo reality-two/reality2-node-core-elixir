@@ -28,6 +28,7 @@ import ai_reality2_vars_clear from "./ai_reality2_vars_clear";
 
 import ai_reality2_geospatial_set from "./ai_reality2_geospatial_set";
 import ai_reality2_geospatial_set_simple from "./ai_reality2_geospatial_set_simple";
+import ai_reality2_geospatial_set_geohash from "./ai_reality2_geospatial_set_geohash";
 import ai_reality2_geospatial_get from "./ai_reality2_geospatial_get";
 import ai_reality2_geospatial_search from "./ai_reality2_geospatial_search";
 import ai_reality2_geospatial_remove from "./ai_reality2_geospatial_remove";
@@ -148,11 +149,16 @@ export function interpret_actions(transition: any, block: any)
                         let longitude = R2.JSONPath(action, "parameters.longitude");
                         let geohash = R2.JSONPath(action, "parameters.geohash");
 
-                        if((!latitude && !longitude) && (!geohash)) {
+                        if(!latitude && !longitude && !geohash) {
                             action_block = ai_reality2_geospatial_set_simple.construct(action);
                             if (action_block && acc) {
                                 action_block["next"] =  { "block": acc };
                             };
+                        } else if(!(latitude || longitude) && geohash) {
+                            action_block = ai_reality2_geospatial_set_geohash.construct(action);
+                            if (action_block && acc) {
+                                action_block["next"] =  { "block": acc };
+                            };                            
                         } else {
                             action_block = ai_reality2_geospatial_set.construct(action);
                             if (action_block && acc) {
