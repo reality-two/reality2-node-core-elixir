@@ -1,6 +1,6 @@
 [package]
 name = "aireality2rustdemo"
-version = "0.1.9"
+version = "0.1.10"
 authors = []
 edition = "2021"
 
