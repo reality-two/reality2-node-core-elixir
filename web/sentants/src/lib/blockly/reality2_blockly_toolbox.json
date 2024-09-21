@@ -133,10 +133,6 @@
                     "contents":[
                         {
                             "kind":"block",
-                            "type":"reality2_start_transition"
-                        },
-                        {
-                            "kind":"block",
                             "type":"reality2_start_transition_no_params"
                         },
                         {
