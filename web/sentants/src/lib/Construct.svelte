@@ -441,6 +441,28 @@ Construct Swarms and Bees / Sentants
 
 
     // ------------------------------------------------------------------------------------------------
+    // Generate encryption (and decryption) keys for synchronous encryption / decryption.
+    // ------------------------------------------------------------------------------------------------
+    function generateEncryptionKey() {
+        // Generate 32 random bytes
+        const binaryKey = new Uint8Array(32);
+        window.crypto.getRandomValues(binaryKey);
+
+        // Convert to base64
+        const encryptionKey = btoa(String.fromCharCode(...binaryKey));
+
+        if (variables) {
+            variables["__encryption_key__"] = encryptionKey;
+            variables["__decryption_key__"] = encryptionKey;
+        }
+
+        downloadDefinition(JSON.stringify(variables), "variables.json"); 
+    }
+    // ------------------------------------------------------------------------------------------------
+
+
+
+    // ------------------------------------------------------------------------------------------------
     // Load and Save workspace and backpack
     // ------------------------------------------------------------------------------------------------
     function saveWorkspace() {
@@ -842,6 +864,7 @@ Construct Swarms and Bees / Sentants
                 {/each}
             </Table_Body>
         </Table>
+        <Button ui fluid basic inverted data-variation="wide" data-tooltip="Generate encryption keys.  Use the same keys between subsequent versions of a Bee to ensure access to saved data." on:click={generateEncryptionKey}>generate and save encryption and decryption keys</Button>
         <Divider ui inverted></Divider>
         <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
             <pre style="text-align: left;">
