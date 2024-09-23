@@ -11,7 +11,7 @@ import reality2_action_parameter from "./reality2_action_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_test_simple",
-    "message0":"if %1 send event %2",
+    "message0":"if %1 send %2",
 	"args0":[
         {
 			"type":"field_input",

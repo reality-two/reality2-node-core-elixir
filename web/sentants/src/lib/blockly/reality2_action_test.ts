@@ -20,7 +20,7 @@ const shape = {
 			"text":""
 		}
     ],
-    "message1":"send event %1",
+    "message1":"send %1",
     "args1":[
         {
 			"type":"field_input",
@@ -29,7 +29,7 @@ const shape = {
 			"text":""
 		}
     ],
-    "message2":"otherwise send event %1",
+    "message2":"otherwise send %1",
     "args2":[
         {
 			"type":"field_input",

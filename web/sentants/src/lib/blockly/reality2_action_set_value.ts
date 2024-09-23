@@ -50,7 +50,7 @@ function process(block: any, generator: any): string | [string, number]
 // ----------------------------------------------------------------------------------------------------
 function construct(data: any)
 {
-    if (data) {
+    if (data != null) {
         // Set the initial structure
         let block = {
             "kind": "BLOCK",

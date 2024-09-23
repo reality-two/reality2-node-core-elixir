@@ -10,7 +10,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Form, Field, Dropdown, Table, Table_Body, Table_Head, Table_Col, Table_Row } from "svelte-fomantic-ui";
+    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Buttons, Field, Dropdown, Table, Table_Body, Table_Head, Table_Col, Table_Row } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -451,12 +451,11 @@ Construct Swarms and Bees / Sentants
         // Convert to base64
         const encryptionKey = btoa(String.fromCharCode(...binaryKey));
 
+        // Add to the variables
         if (variables) {
             variables["__encryption_key__"] = encryptionKey;
             variables["__decryption_key__"] = encryptionKey;
-        }
-
-        downloadDefinition(JSON.stringify(variables), "variables.json"); 
+        }      
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -705,7 +704,7 @@ Construct Swarms and Bees / Sentants
                 showMessage("Success", "Definition saved successfully", "green");
             } catch (err: any) {
                 if (err.name === 'AbortError') {
-                    showMessage("Status", "Cancelled loading", "blue");
+                    showMessage("Status", "Cancelled", "blue");
                 } else {
                     showMessage("Problem", "Could not save", "red");
                 }
@@ -732,7 +731,7 @@ Construct Swarms and Bees / Sentants
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            showMessage("Success", "Definition saved successfully", "green");
+            showMessage("Success", "Saved successfully", "green");
         }
     }
     // ------------------------------------------------------------------------------------------------
@@ -864,7 +863,10 @@ Construct Swarms and Bees / Sentants
                 {/each}
             </Table_Body>
         </Table>
-        <Button ui fluid basic inverted data-variation="wide" data-tooltip="Generate encryption keys.  Use the same keys between subsequent versions of a Bee to ensure access to saved data." on:click={generateEncryptionKey}>generate and save encryption and decryption keys</Button>
+        <Buttons ui fluid horizontal>
+            <Button ui inverted blue data-variation="wide" data-tooltip="Generate encryption keys.  Use the same keys between subsequent versions of a Bee to ensure access to saved data." on:click={generateEncryptionKey}>generate encryption and decryption keys</Button>
+            <Button ui inverted green on:click={() => {downloadDefinition(JSON.stringify(variables), "variables.json"); }}>Save Variables</Button>
+        </Buttons>
         <Divider ui inverted></Divider>
         <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
             <pre style="text-align: left;">
