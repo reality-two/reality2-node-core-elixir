@@ -11,7 +11,7 @@ import reality2_action_parameter from "./reality2_action_parameter";
 // ----------------------------------------------------------------------------------------------------
 const shape = {
 	"type":"reality2_action_send",
-    "message0":"send %1 to %2 after %3 seconds",
+    "message0":"send %1 to %2 after %3 milliseconds",
 	"args0":[
         {
 			"type":"field_input",
