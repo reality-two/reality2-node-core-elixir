@@ -918,22 +918,22 @@ Construct Swarms and Bees / Sentants
     </Actions>
 </Modal>
 
-<Button ui icon popup large data-tooltip="Load keys to use with your Bees." data-position="top right" style="position: fixed; top: 200px; right: 45px; background-color: #494949" on:click={()=>{ variables_loader.click(); }}>
+<Button ui icon popup large data-tooltip="Load keys to use with your Bees." data-position="top right" style="position: fixed; top: 200px; right: 45px; background-color: #696969" on:click={()=>{ variables_loader.click(); }}>
     <Icon table></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Load Swarms, Bees, Antennae or Behaviours from a file." data-position="top right" style="position: fixed; top: 260px; right: 45px; background-color: #494949" on:click={() => { code_loader.click(); }}>
+<Button ui icon large popup data-tooltip="Load Swarms, Bees, Antennae or Behaviours from a file." data-position="top right" style="position: fixed; top: 260px; right: 45px; background-color: #696969" on:click={() => { code_loader.click(); }}>
     <Icon folder open outline></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #494949" on:click={saveSentantDefinition}>
+<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #696969" on:click={saveSentantDefinition}>
     <Icon share square></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #494949" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
+<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #696969" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
     <Icon code></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Run the Swarm on the Reality2 node." data-position="top right" style="position: fixed; top: 500px; right: 45px; background-color: #494949" on:click={loadToNode}>
+<Button ui icon large popup data-tooltip="Run the Swarm on the Reality2 node." data-position="top right" style="position: fixed; top: 500px; right: 45px; background-color: #696969" on:click={loadToNode}>
     <Icon running></Icon>
 </Button>

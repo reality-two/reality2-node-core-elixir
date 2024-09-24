@@ -69,6 +69,8 @@ defmodule Reality2.Automation do
 
     # Get the data from the Sentant Database (if there is any)
     data = get_data(id, R2Map.get(keys, "decryption_key"))
+    IO.puts("DATA")
+    IO.puts(inspect(data))
 
     case R2Map.get(args, :event) do
       nil -> {:noreply, {name, id, sentant_name, automation_map, keys, state}}

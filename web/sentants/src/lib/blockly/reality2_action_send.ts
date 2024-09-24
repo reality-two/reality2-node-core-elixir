@@ -98,7 +98,7 @@ function construct(action: any)
             "fields": {
                 "event": R2.JSONPath(action, "parameters.event"),
                 "to": (to === "") ? "me" : to,
-                "delay": (delay && (delay > 0)) ? delay : ""
+                "delay": ((delay!== null) && (delay > 0)) ? delay : ""
             },
             "inputs": {
                 "parameters": {}
