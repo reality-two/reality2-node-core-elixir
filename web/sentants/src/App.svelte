@@ -6,7 +6,7 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { Divider, Table, Table_Head, Table_Row, Table_Col, Table_Body, Cards, Menu, Label, Icon, Segment, Button, Buttons, Item, Link, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
+    import { Divider, Table, Table_Head, Table_Row, Table_Col, Table_Body, Message, Content, Cards, Menu, Label, Icon, Segment, Button, Buttons, Item, Link, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
     import type Sentant from './lib/reality2';
@@ -426,15 +426,27 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {#if state == "start"}
             <!--------------------------------------------------------------------------------------------->
-                <Text ui large>Loading...</Text>
+                <Message ui centered blue massive>
+                    <Content ui>
+                        Loading ...
+                    </Content>
+                </Message>            
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "error"}
             <!--------------------------------------------------------------------------------------------->
-                <Text ui large>Something bad happened</Text>
+                <Message ui centered red massive>
+                    <Content ui>
+                        Something bad happened
+                    </Content>
+                </Message>      
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "loading"}
             <!--------------------------------------------------------------------------------------------->
-                <Text ui large>Loading...</Text>
+                <Message ui centered blue massive>
+                    <Content ui>
+                        Loading ...
+                    </Content>
+                </Message>      
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "construct"}
             <!--------------------------------------------------------------------------------------------->
@@ -458,7 +470,11 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if none_or_monitor_only(sentantData)}
             <!--------------------------------------------------------------------------------------------->
-                <Text ui large>No Sentants</Text>
+                <Message ui centered green massive>
+                    <Content ui>
+                        No Sentants
+                    </Content>
+                </Message>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "view"}
             <!--------------------------------------------------------------------------------------------->
@@ -466,7 +482,11 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "mr"}
             <!--------------------------------------------------------------------------------------------->
-                <Text ui large>Coming Soon...</Text>
+                <Message ui centered blue massive>
+                    <Content ui>
+                        Coming soon ...
+                    </Content>
+                </Message>      
             <!--------------------------------------------------------------------------------------------->
             {/if}
         </Segment>
