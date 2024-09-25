@@ -12,20 +12,19 @@
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
-    import type { RGBA_ASTC_8x5_Format } from 'three';
 
     export let sentant: Sentant = {name: "", id: "", description: "", events: [], signals: []};
     export let r2_node: R2;
     export let mini:boolean = false;
-    export let height: string = "800px";
+    export let height: string = "1000px";
     export let variables = {};
 
     type input_text_type = {[key:string]: any}
     type params_type = {[key:string]: string}
 
-    let messages = ["|", "|", "|", "|"];
+    let messages = ["|", "|", "|", "|", "|", "|", "|", "|"];
     let input_text: input_text_type = {};
-    let max_messages = 4; //Object.keys(sentant.events).length > 0 ? 4 : 8;
+    let max_messages = 8; //Object.keys(sentant.events).length > 0 ? 4 : 8;
 
     function try_convert(value: string): any {
         if ((value === "") || (value === null)) {
@@ -100,7 +99,7 @@
             <p><Text ui small blue>{sentant.id}</Text></p>
             <p>{sentant.description}</p>
         </Content>
-        <Content extra style={mini?"text-align: center;":"height:100px; text-align: center;"}>
+        <Content extra style={mini?"text-align: center;":"height:200px; text-align: center;"}>
             {#each messages as message, i}
                 <Text ui popup small data-variation="multiline wide" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text><br/>
             {/each}

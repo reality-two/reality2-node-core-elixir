@@ -138,7 +138,7 @@ defmodule Reality2.Sentant.Comms do
   defp convert_for_output(data) when is_map(data) do
     automations = data |> R2Map.get(:automations, [])
     events = automations |> find_events_in_automations
-    signals = automations |> find_signals_in_automations
+    signals = (automations |> find_signals_in_automations)
 
     data
     |> Map.drop([:automations, :plugins])
@@ -185,6 +185,8 @@ defmodule Reality2.Sentant.Comms do
               true -> [R2Map.get(parameters, :event, [])]
             end
         end
+      "debug" ->
+        [:debug]
       _ -> []
     end
   end
