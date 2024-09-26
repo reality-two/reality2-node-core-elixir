@@ -129,7 +129,7 @@ function process(block: any, generator: any): string | [string, number]
     const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
 
     const action = {
-        "expr": infixToPostfix(value)
+        "expr": value
     }
     
     return [JSON.stringify(action), 99];
@@ -149,7 +149,7 @@ function construct(data: any)
             "kind": "BLOCK",
             "type": "reality2_action_set_calculation",
             "fields": {
-                "value": postfixToInfix(R2.ToSimple(R2.JSONPath(data, "expr")))
+                "value": R2.ToSimple(R2.JSONPath(data, "expr"))
             }
         }
         return (block);

@@ -69,8 +69,6 @@ defmodule Reality2.Automation do
 
     # Get the data from the Sentant Database (if there is any)
     data = get_data(id, R2Map.get(keys, "decryption_key"))
-    IO.puts("DATA")
-    IO.puts(inspect(data))
 
     case R2Map.get(args, :event) do
       nil -> {:noreply, {name, id, sentant_name, automation_map, keys, state}}
@@ -442,12 +440,16 @@ defmodule Reality2.Automation do
         end
       else
         if (is_map(value) && R2Map.get(value, :expr) != nil) do
-          case RPN.convert(R2Map.get(value, :expr), combined_parameters) do
-            value2 ->
-              accumulated_parameters
-              |> interpret()
-              |> Map.merge(%{key => value2})
-              |> Map.merge(%{result: :ok})
+          case InfixToPostfix.convert(R2Map.get(value, :expr)) do
+            postfix ->
+              IO.puts("POSTFIX " <> postfix)
+              case RPN.convert(postfix, combined_parameters) do
+                value2 ->
+                  accumulated_parameters
+                  |> interpret()
+                  |> Map.merge(%{key => value2})
+                  |> Map.merge(%{result: :ok})
+              end
           end
         else
           if (is_map(value) && R2Map.get(value, :data) != nil) do
