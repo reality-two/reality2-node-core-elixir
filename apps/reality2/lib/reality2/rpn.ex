@@ -104,4 +104,5 @@ defmodule RPN do
       _ -> {:ok, num_str} # Is not a string, perhaps a number, so return that
     end
   end
+
 end
