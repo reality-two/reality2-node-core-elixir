@@ -257,7 +257,7 @@
                         },
                         {
                             "kind":"block",
-                            "type":"reality2_action_set_calculation"
+                            "type":"reality2_action_set_calc_binary"
                         },
                         {
                             "kind":"block",
