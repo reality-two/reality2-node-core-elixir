@@ -60,6 +60,7 @@ Construct Swarms and Bees / Sentants
     import reality2_action_set_jsonpath from "./blockly/reality2_action_set_jsonpath";
     import reality2_action_set_data from "./blockly/reality2_action_set_data";
     import reality2_action_set_calculation from "./blockly/reality2_action_set_calculation";
+    import reality2_action_set_calc_binary from "./blockly/reality2_action_set_calc_binary";
     import reality2_action_set_value from "./blockly/reality2_action_set_value";
     import reality2_action_send from "./blockly/reality2_action_send";
     import reality2_action_send_no_params from "./blockly/reality2_action_send_no_params";
@@ -161,6 +162,7 @@ Construct Swarms and Bees / Sentants
         reality2_action_set_jsonpath.shape,
         reality2_action_set_data.shape,
         reality2_action_set_calculation.shape,
+        reality2_action_set_calc_binary.shape,
         reality2_action_set_value.shape,
         reality2_action_send.shape,
         reality2_action_send_no_params.shape,
@@ -392,6 +394,7 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_action_set_jsonpath'] = reality2_action_set_jsonpath.process;   
         javascriptGenerator.forBlock['reality2_action_set_data'] = reality2_action_set_data.process;   
         javascriptGenerator.forBlock['reality2_action_set_calculation'] = reality2_action_set_calculation.process;   
+        javascriptGenerator.forBlock['reality2_action_set_calc_binary'] = reality2_action_set_calc_binary.process;   
         javascriptGenerator.forBlock['reality2_action_set_value'] = reality2_action_set_value.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
         javascriptGenerator.forBlock['reality2_action_send_no_params'] = reality2_action_send_no_params.process;

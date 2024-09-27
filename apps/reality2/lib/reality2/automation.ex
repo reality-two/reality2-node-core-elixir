@@ -414,6 +414,8 @@ defmodule Reality2.Automation do
     end
     |> interpret()
 
+    IO.puts("SET: #{inspect(combined_parameters)}")
+
     key = R2Map.get(combined_parameters, :key)
 
     # Get the value, and then process it to replace
@@ -440,15 +442,24 @@ defmodule Reality2.Automation do
         end
       else
         if (is_map(value) && R2Map.get(value, :expr) != nil) do
-          case InfixToPostfix.convert(R2Map.get(value, :expr)) do
-            postfix ->
-              IO.puts("POSTFIX " <> postfix)
-              case RPN.convert(postfix, combined_parameters) do
-                value2 ->
-                  accumulated_parameters
-                  |> interpret()
-                  |> Map.merge(%{key => value2})
-                  |> Map.merge(%{result: :ok})
+          case R2Map.get(value, :expr) do
+            expr ->
+              if is_map(expr) do
+                IO.puts("EXPRESSION : #{inspect(expr)}")
+                value3 = Reality2.Calculation.calculate(expr, combined_parameters)
+                accumulated_parameters
+                |> interpret()
+                |> Map.merge(%{key => value3})
+                |> Map.merge(%{result: :ok})
+              else
+                IO.puts("EXPRESSION RPN: #{inspect(expr)}")
+                case RPN.convert(expr, combined_parameters) do
+                  value2 ->
+                    accumulated_parameters
+                    |> interpret()
+                    |> Map.merge(%{key => value2})
+                    |> Map.merge(%{result: :ok})
+                end
               end
           end
         else
