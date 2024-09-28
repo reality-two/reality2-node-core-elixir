@@ -414,8 +414,6 @@ defmodule Reality2.Automation do
     end
     |> interpret()
 
-    IO.puts("SET: #{inspect(combined_parameters)}")
-
     key = R2Map.get(combined_parameters, :key)
 
     # Get the value, and then process it to replace
@@ -445,14 +443,12 @@ defmodule Reality2.Automation do
           case R2Map.get(value, :expr) do
             expr ->
               if is_map(expr) do
-                IO.puts("EXPRESSION : #{inspect(expr)}")
                 value3 = Reality2.Calculation.calculate(expr, combined_parameters)
                 accumulated_parameters
                 |> interpret()
                 |> Map.merge(%{key => value3})
                 |> Map.merge(%{result: :ok})
               else
-                IO.puts("EXPRESSION RPN: #{inspect(expr)}")
                 case RPN.convert(expr, combined_parameters) do
                   value2 ->
                     accumulated_parameters
@@ -501,8 +497,15 @@ defmodule Reality2.Automation do
     end
     |> interpret()
 
+    test_expr = R2Map.get(combined_parameters, :if)
+    result = if is_map(test_expr) do
+      Reality2.Calculation.calculate(test_expr, combined_parameters)
+    else
+      RPN.convert(test_expr, combined_parameters)
+    end
+
     # Test the condition to choose the event to send
-    event = case RPN.convert(R2Map.get(combined_parameters, :if), combined_parameters) do
+    event = case result do
       true -> R2Map.get(combined_parameters, :then, "event")
       _ -> R2Map.get(combined_parameters, :else, "event")
     end
@@ -529,24 +532,11 @@ defmodule Reality2.Automation do
 
       event_parameters = R2Map.get(action_parameters, :parameters, %{})
 
-      # Make sure there is no timer for this event already in process.  If so, cancel it before doing the new one.
-      case R2Process.whereis(id <> "|timers|" <> event) do
-        nil -> :ok
-        timer ->
-          Process.cancel_timer(timer)
-          R2Process.deregister(id <> "|timers|" <> event)
-      end
-
-      # Send the event either immediately or after a delay.
-      case R2Map.get(combined_parameters, :delay) do
-        nil ->
-          Reality2.Sentants.sendto(name_or_id, %{event: event, parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough: passthrough})
-        delay ->
-          timer = Process.send_after(self(), {:send, name_or_id, %{event: event, parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough: passthrough}}, delay)
-          R2Process.register(id <> "|timers|" <> event, timer)
-      end
+      Reality2.Sentants.sendto(name_or_id, %{event: event, parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough: passthrough})
 
     end
+
+    accumulated_parameters |> Map.merge(%{result: :ok})
 
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------

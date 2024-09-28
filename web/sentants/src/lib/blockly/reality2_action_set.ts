@@ -89,10 +89,9 @@ function construct(action: any)
             block["inputs"]["value"] = {"block": reality2_action_set_jsonpath.construct(R2.JSONPath(action, "parameters.value"))};
         }
         else if (R2.JSONPath(action, "parameters.value.expr"))
-            {
-                block["inputs"]["value"] = {"block": reality2_action_set_calc_binary.construct(R2.JSONPath(action, "parameters.value.expr"))};
-                console.log(block);
-            }
+        {
+            block["inputs"]["value"] = {"block": reality2_action_set_calc_binary.construct(R2.JSONPath(action, "parameters.value.expr"))};
+        }
         else
         {
             block["inputs"]["value"] = {"block": reality2_action_set_value.construct(R2.JSONPath(action, "parameters.value"))};

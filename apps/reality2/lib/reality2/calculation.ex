@@ -58,8 +58,36 @@ defmodule Reality2.Calculation do
 
   defp binaryop(nil, _, _), do: nil
   defp binaryop(_, nil, _), do: nil
-  defp binaryop(op1, op2, func), do: func.(op1, op2)
+  defp binaryop(op1, op2, func) do
+    {_, op1_converted} = safe_convert(op1)
+    {_, op2_converted} = safe_convert(op2)
+
+    func.(op1_converted, op2_converted)
+  end
 
   defp unaryop(nil, _), do: nil
-  defp unaryop(op1, func), do: func.(op1)
+  defp unaryop(op1, func) do
+    {_, op1_converted} = safe_convert(op1)
+
+    func.(op1_converted)
+  end
+
+
+  defp safe_convert(num_str) do
+    try do
+      case Float.parse(num_str) do
+        {num, _} -> {:ok, num} # Was a number in a string, so all good.
+        _ ->
+          case num_str do
+            "pi" -> {:ok, :math.pi} # Special case for pi
+            "e" -> {:ok, 2.7182818284590452353602874713527} # Special case for e
+            "true" -> {:ok, :true}
+            "false" -> {:ok, :false}
+            _ -> {:str, num_str} # Probably a variable naame or something else.
+          end
+      end
+    rescue
+      _ -> {:ok, num_str} # Is not a string, perhaps a number, so return that
+    end
+  end
 end
