@@ -5,13 +5,14 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_action_set_value from "./reality2_action_set_value";
+import reality2_action_set_calc_unary from "./reality2_action_set_calc_unary";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_action_set_calc_binary",
-    "message0":"( %1 %2 %3 )",
+	"type":"reality2_action_set_calc_unary",
+    "message0":"%2 ( %1 )",
 	"args0":[
         {
 			"type":"input_value",
@@ -21,35 +22,35 @@ const shape = {
             "type":"field_dropdown",
             "name":"operator",
             "options":[
-                ["+", "+"],
                 ["-", "-"],
-                ["*", "*"],
-                ["/", "/"],
+                ["!", "!"],
 
-                ["&&", "&&"],
-                ["||", "||"],
-                
-                ["==", "=="],
-                ["!=", "!="],
-                ["<", "<"],
-                [">", ">"],
-                ["<=", "<="],
-                [">=", ">="],
-
-                ["pow", "pow"],
-                ["fmod", "fmod"],
-                ["atan2", "atan2"],
-                ["geohash", "geohash"]
+                ["acos", "acos"],
+                ["acosh", "acosh"],
+                ["asin", "asin"],
+                ["asinh", "asinh"],
+                ["atan", "atan"],
+                ["atanh", "atanh"],
+                ["ceil", "ceil"],
+                ["cos", "cos"],
+                ["cosh", "cosh"],
+                ["exp", "exp"],
+                ["floor", "floor"],
+                ["log", "log"],
+                ["log10", "log10"],
+                ["log2", "log2"],
+                ["sin", "sin"],
+                ["sinh", "sinh"],
+                ["sqrt", "sqrt"],
+                ["tan", "tan"],
+                ["tanh", "tanh"],
+                ["latlong", "latlong"]
             ]
-        },
-        {
-			"type":"input_value",
-			"name":"value2"
-		}
+        }
 	],
     "colour": 300,
     "output":"Json",
-    "tooltip": "An binary expression",
+    "tooltip": "An unary expression",
     "helpUrl": "https://github.com/reality-two/reality2-documentation",
     "inputsInline": true
 }
@@ -63,17 +64,14 @@ const shape = {
 function process(block: any, generator: any): string | [string, number]
 {
     const raw_value1 = generator.valueToCode(block, "value1", 99);
-    const raw_value2 = generator.valueToCode(block, "value2", 99);
     const operator = block.getFieldValue('operator');
 
     const value1expr = (raw_value1 === "" ? null : R2.ToJSON(raw_value1));
-    const value2expr = (raw_value2 === "" ? null : R2.ToJSON(raw_value2));
 
     const value1 = R2.JSONPath(value1expr, "expr") ? R2.JSONPath(value1expr, "expr") : value1expr;
-    const value2 = R2.JSONPath(value2expr, "expr") ? R2.JSONPath(value2expr, "expr") : value2expr;
 
     let expr:any = {};
-    expr[operator] = [value1, value2];
+    expr[operator] = [value1];
     
     let action = {
         "expr": expr

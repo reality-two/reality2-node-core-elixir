@@ -7,6 +7,10 @@
 			"name":"Swarm",
             "expanded": "true",
 			"contents":[
+                {
+                    "kind": "label",
+                    "text": "A Swarm of Bees"
+                },
 				{
 					"kind":"block",
 					"type":"reality2_swarm"
@@ -25,6 +29,10 @@
                     "name":"Bee",
                     "contents":[
                         {
+                            "kind": "label",
+                            "text": "A Reality2 Bee"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_sentant"
                         }
@@ -36,8 +44,16 @@
                     "name":". . . Keys",
                     "contents":[
                         {
+                            "kind": "label",
+                            "text": "Encryption and Decryption Keys"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_encrypt_decrypt_keys"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "An Antenna API Key"
                         },
                         {
                             "kind":"block",
@@ -50,6 +66,10 @@
                     "colour": 50,
                     "name":". . . Data",
                     "contents":[
+                        {
+                            "kind": "label",
+                            "text": "Number, Boolean, String or JSON Data"
+                        },
                         {
                             "kind":"block",
                             "type":"reality2_data"
@@ -70,8 +90,16 @@
                     "name":"Antenna",
                     "contents":[
                         {
+                            "kind": "label",
+                            "text": "Simple Antenna"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_get_plugin"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "Complex Antenna"
                         },
                         {
                             "kind":"block",
@@ -85,6 +113,10 @@
                     "name":". . . Header",
                     "contents":[
                         {
+                            "kind": "label",
+                            "text": "Header Setting for use with Antenna"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_plugin_header"
                         }
@@ -95,6 +127,10 @@
                     "colour": 150,
                     "name":". . . Body",
                     "contents":[
+                        {
+                            "kind": "label",
+                            "text": "Body Setting for use with Antenna"
+                        },
                         {
                             "kind":"block",
                             "type":"reality2_plugin_body"
@@ -109,6 +145,10 @@
 			"name":"Behaviours",
             "expanded": "true",
 			"contents":[
+                {
+                    "kind": "label",
+                    "text": "A Bee Behaviour"
+                },
 				{
 					"kind":"block",
 					"type":"reality2_automation"
@@ -132,6 +172,10 @@
                     "expanded": "true",
                     "contents":[
                         {
+                            "kind": "label",
+                            "text": "Decision used once when Bee first starts"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_start_transition_no_params"
                         },
@@ -146,6 +190,10 @@
                     "colour": 250,
                     "name":"Instruction",
                     "contents":[
+                        {
+                            "kind": "label",
+                            "text": "An Instruction, where state-of-mind is irrelevant"
+                        },
                         {
                             "kind":"block",
                             "type":"reality2_simple_transition"
@@ -162,6 +210,10 @@
                     "name":"Event",
                     "contents":[
                         {
+                            "kind": "label",
+                            "text": "State-of-mind + Event ==> new State-of-mind"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_transition"
                         },
@@ -177,6 +229,10 @@
                     "name":"Monitor",
                     "contents":[
                         {
+                            "kind": "label",
+                            "text": "Monitor a Hive's internal activity"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_monitor"
                         }
@@ -187,6 +243,10 @@
                     "colour": 250,
                     "name":". . . Inputs",
                     "contents":[
+                        {
+                            "kind": "label",
+                            "text": "Additional Data to add to Flow with a Decision"
+                        },
                         {
                             "kind":"block",
                             "type":"reality2_parameter"
@@ -208,6 +268,10 @@
                     "expanded": "true",
                     "contents": [
                         {
+                            "kind": "label",
+                            "text": "Send Data Flow immediately"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_action_send_now"
                         },
@@ -216,12 +280,20 @@
                             "type":"reality2_action_send_now_no_params"
                         },
                         {
+                            "kind": "label",
+                            "text": "Send Data Flow a bit later"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_action_send"
                         },
                         {
                             "kind":"block",
                             "type":"reality2_action_send_no_params"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "Send Data Flow to an Antenna"
                         },
                         {
                             "kind":"block",
@@ -240,24 +312,60 @@
                     "expanded": "true",
                     "contents": [
                         {
+                            "kind": "label",
+                            "text": "Clear Data Flow Variable"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_action_set_clear"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "Set Data Flow Variable"
                         },
                         {
                             "kind":"block",
                             "type":"reality2_action_set"
                         },
                         {
-                            "kind":"block",
-                            "type":"reality2_action_set_jsonpath"
+                            "kind": "label",
+                            "text": "Pick Value from Sentant Data"
                         },
                         {
                             "kind":"block",
                             "type":"reality2_action_set_data"
                         },
                         {
+                            "kind": "label",
+                            "text": "Pick Value from within a JSON structure"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_jsonpath"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "Calculate"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_calc_unary"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_action_set_calc_binary"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "A Number, Boolean, String or JSON"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_value"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "A Variable"
                         },
                         {
                             "kind":"block",
@@ -271,6 +379,10 @@
                     "name":"Signal",
                     "expanded": "true",
                     "contents": [
+                        {
+                            "kind": "label",
+                            "text": "Signal Data Flow to watching devices"
+                        },
                         {
                             "kind":"block",
                             "type":"reality2_action_signal"
@@ -288,6 +400,10 @@
                     "expanded": "true",
                     "contents": [
                         {
+                            "kind": "label",
+                            "text": "Send event depending on result of Test"
+                        },
+                        {
                             "kind":"block",
                             "type":"reality2_action_test"
                         },
@@ -298,6 +414,34 @@
                         {
                             "kind":"block",
                             "type":"reality2_action_test_simple"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "Evaluate for Test"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_calc_unary"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_calc_binary"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "A Number, Boolean, String or JSON"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_value"
+                        },
+                        {
+                            "kind": "label",
+                            "text": "A Variable"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_set_value"
                         }
                     ]
                 },
@@ -307,6 +451,10 @@
                     "name":"Debug",
                     "expanded": "true",
                     "contents": [
+                        {
+                            "kind": "label",
+                            "text": "Signal Data Flow with a debug event"
+                        },
                         {
                             "kind":"block",
                             "type":"reality2_action_debug"
@@ -319,6 +467,10 @@
                     "name":". . . Parameters",
                     "expanded": "true",
                     "contents":[
+                        {
+                            "kind": "label",
+                            "text": "Additional Data to add to Flow for Tasks"
+                        },
                         {
                             "kind":"block",
                             "type":"reality2_action_parameter"
@@ -337,7 +489,7 @@
                     "contents":[
                         {
                             "kind": "label",
-                            "text": "Additional Features"
+                            "text": "Persistent Variables"
                         },
                         {
                             "kind":"block",
@@ -371,6 +523,10 @@
                     "name":"Geospatial",
                     "expanded": "true",
                     "contents":[
+                        {
+                            "kind": "label",
+                            "text": "Geospatial Capabilities"
+                        },
                         {
                             "kind":"block",
                             "type":"ai_reality2_geospatial_set"
@@ -407,6 +563,10 @@
                     "name":"Storage",
                     "expanded": "true",
                     "contents":[
+                        {
+                            "kind": "label",
+                            "text": "Data Flow Storage"
+                        },
                         {
                             "kind":"block",
                             "type":"ai_reality2_backup_save"

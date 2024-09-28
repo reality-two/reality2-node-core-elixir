@@ -4,7 +4,7 @@
 
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
-import reality2_action_parameter from "./reality2_action_parameter";
+import reality2_action_set_calc_binary from "./reality2_action_set_calc_binary";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -14,10 +14,8 @@ const shape = {
     "message0":"if %1 send %2",
 	"args0":[
         {
-			"type":"field_input",
-			"name":"if",
-			"check":"String",
-			"text":""
+			"type":"input_value",
+			"name":"if"
 		},
         {
 			"type":"field_input",
@@ -30,7 +28,8 @@ const shape = {
 	"nextStatement":null,
     "colour": 300,
     "tooltip": "Test the condition, and if true, send one event or send the other.",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation"
+    "helpUrl": "https://github.com/reality-two/reality2-documentation",
+    "inputsInline": true
 }
 // ----------------------------------------------------------------------------------------------------
 
@@ -43,7 +42,9 @@ function process(block: any, generator: any): string | [string, number] | null
 {
     var params = {};
 
-    const if_param = block.getFieldValue('if');
+    const raw_if_param = generator.valueToCode(block, 'if', 99);
+    const if_param = (raw_if_param === "" ? null : R2.JSONPath(R2.ToJSON(raw_if_param), "expr"));
+    
     const then_param = block.getFieldValue('then');
 
     const action:any  = {
@@ -73,8 +74,11 @@ function construct(action: any)
             "kind": "BLOCK",
             "type": "reality2_action_test_simple",
             "fields": {
-                "if": R2.JSONPath(action, "parameters.if"),
-                "then": R2.JSONPath(action, "parameters.then")
+                "then": R2.JSONPath(action, "parameters.then"),
+                "to": (to === "") ? "me" : to
+            },
+            "inputs": {
+                "if": {"block": reality2_action_set_calc_binary.construct(R2.JSONPath(action, "parameters.if"))}
             }
         }
 

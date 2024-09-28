@@ -255,7 +255,6 @@ export function interpret_actions(transition: any, block: any)
                         break;
                     case "send":
                         var delay = R2.ToSimple(R2.JSONPath(action, "parameters.delay"));
-                        console.log("DELAY", delay);
                         var parameters = R2.JSONPath(action, "parameters.parameters");
                         if (delay > 0) {
                             if (parameters && Object.keys(parameters).length > 0) {
