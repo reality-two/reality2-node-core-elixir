@@ -9,7 +9,7 @@ defmodule Reality2.Calculation do
   def calculate(op, vars) when is_binary(op) do
     case Map.fetch(vars, op) do
       {:ok, val} -> val
-      _ -> nil
+      _ -> op
     end
   end
 
