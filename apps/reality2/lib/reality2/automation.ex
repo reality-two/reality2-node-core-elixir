@@ -427,7 +427,11 @@ defmodule Reality2.Automation do
     else
       # If the value includes %{jsonpath: "the path"} then extract the element from the combined parameters rather than the facevalue"
       if (is_map(value) && R2Map.get(value, :jsonpath) != nil) do
-        case JsonPath.get_value(combined_parameters, R2Map.get(value, :jsonpath)) do
+
+        # Adjust the JSON path to bring in __variables__
+        %{"json_path" => jsonpath} = replace_variable_in_map(%{"json_path" => R2Map.get(value, :jsonpath)}, accumulated_parameters)
+
+        case JsonPath.get_value(combined_parameters, jsonpath) do
           {:ok, value2} ->
             accumulated_parameters
             |> interpret()
@@ -510,7 +514,7 @@ defmodule Reality2.Automation do
       _ -> R2Map.get(combined_parameters, :else, "event")
     end
 
-    # Get the 'to' parameter, if it exists.  If not, return an empty list.
+    # Get the 'to' parameter, if it exists.  If not, return the ID of this Sentant.
     to_field = R2Map.get(combined_parameters, :to, [id])
 
     # If the 'to' parameter was not a list, turn it into one with a single element.
@@ -519,7 +523,7 @@ defmodule Reality2.Automation do
       false -> [to_field]
     end
 
-    # Go through the list, sending the event to each one.
+    # Go through the list, sending the event to each Sentant.
     for to <- to_list do
 
       # Create a map with either the name or the ID of the Sentant to send the event to.
@@ -527,7 +531,7 @@ defmodule Reality2.Automation do
         nil ->
           %{id: to}  # Not a Name for a Sentant on this Node, so send to the Sentant with that ID.
         id ->
-          %{id: id}    # Must have been a name.
+          %{id: id}  # Must have been a name.
       end
 
       event_parameters = R2Map.get(action_parameters, :parameters, %{})
@@ -546,10 +550,10 @@ defmodule Reality2.Automation do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Replace variables, ie __variable__ with the value of the variable
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp interpret(parameter_map) do
+  def interpret(parameter_map) do
     replace_variable_in_map(parameter_map, parameter_map)
   end
-  defp replace_variable_in_map(data, variables) when is_map(data) do
+  def replace_variable_in_map(data, variables) when is_map(data) do
     Enum.map(data, fn {k, v} ->
       cond do
         is_binary(v) -> {k, replace_variables(v, variables)}
@@ -558,9 +562,9 @@ defmodule Reality2.Automation do
     end)
     |> Map.new
   end
-  defp replace_variable_in_map(data, variables) when is_list(data), do: Enum.map(data, fn x -> replace_variable_in_map(x, variables) end)
-  defp replace_variable_in_map(data, variables) when is_binary(data), do: to_number(replace_variables(data, variables))
-  defp replace_variable_in_map(data, _), do: data
+  def replace_variable_in_map(data, variables) when is_list(data), do: Enum.map(data, fn x -> replace_variable_in_map(x, variables) end)
+  def replace_variable_in_map(data, variables) when is_binary(data), do: to_number(replace_variables(data, variables))
+  def replace_variable_in_map(data, _), do: data
 
   defp replace_variables(data, variable_map) do
     pattern = ~r/__(.+?)__/  # Matches variables enclosed in double underscores
