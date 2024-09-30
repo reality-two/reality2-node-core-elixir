@@ -230,7 +230,7 @@ export function interpret_actions(transition: any, block: any)
                 switch (R2.JSONPath(action, "command")) {
                     case "set":
                         let value = R2.JSONPath(action, "parameters.value");
-                        if (value) {
+                        if (value != null) {
                             switch (value) {
                                 case "radius":
                                     action_block = ai_reality2_geospatial_set_radius.construct(action);
@@ -243,7 +243,7 @@ export function interpret_actions(transition: any, block: any)
                                     break;
                             }
                             if (action_block && acc) {
-                                action_block["next"] =  { "block": acc };
+                                action_block["next"] = { "block": acc };
                             }
                         }
                         else {
@@ -254,7 +254,7 @@ export function interpret_actions(transition: any, block: any)
                         }
                         break;
                     case "send":
-                        var delay = R2.JSONPath(action, "delay");
+                        var delay = R2.ToSimple(R2.JSONPath(action, "parameters.delay"));
                         var parameters = R2.JSONPath(action, "parameters.parameters");
                         if (delay > 0) {
                             if (parameters && Object.keys(parameters).length > 0) {

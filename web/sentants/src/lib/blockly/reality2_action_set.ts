@@ -7,7 +7,7 @@ import R2 from "../reality2";
 import reality2_action_set_data from "./reality2_action_set_data";
 import reality2_action_set_jsonpath from "./reality2_action_set_jsonpath";
 import reality2_action_set_value from "./reality2_action_set_value";
-import reality2_action_set_calculation from "./reality2_action_set_calculation";
+import reality2_action_set_calc_binary from "./reality2_action_set_calc_binary";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -47,13 +47,6 @@ function process(block: any, generator: any): string | [string, number] | null
     const key = block.getFieldValue('key');
     const raw_value = generator.valueToCode(block, 'value', 99);
 
-    // const action0 = {
-    //     "command": "get",
-    //     "plugin": "ai.reality2.vars",
-    //     "parameters": {
-    //         "key": key
-    //     }
-    // }
     const value = (raw_value === "" ? null : R2.ToJSON(raw_value));
     const action1 = {
         "command": "set",
@@ -62,16 +55,7 @@ function process(block: any, generator: any): string | [string, number] | null
             "value": value
         }
     }
-    // const action2 = {
-    //     "command": "set",
-    //     "plugin": "ai.reality2.vars",
-    //     "parameters": {
-    //         "key": key,
-    //         "value": "__"+key+"__"
-    //     }
-    // }
 
-    // return (JSON.stringify(action0) + JSON.stringify(action1) + JSON.stringify(action2));
     return (JSON.stringify(action1));
 }
 // ----------------------------------------------------------------------------------------------------
@@ -105,9 +89,9 @@ function construct(action: any)
             block["inputs"]["value"] = {"block": reality2_action_set_jsonpath.construct(R2.JSONPath(action, "parameters.value"))};
         }
         else if (R2.JSONPath(action, "parameters.value.expr"))
-            {
-                block["inputs"]["value"] = {"block": reality2_action_set_calculation.construct(R2.JSONPath(action, "parameters.value"))};
-            }
+        {
+            block["inputs"]["value"] = {"block": reality2_action_set_calc_binary.construct(R2.JSONPath(action, "parameters.value.expr"))};
+        }
         else
         {
             block["inputs"]["value"] = {"block": reality2_action_set_value.construct(R2.JSONPath(action, "parameters.value"))};

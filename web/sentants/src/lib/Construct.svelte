@@ -10,7 +10,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Form, Field, Dropdown, Table, Table_Body, Table_Head, Table_Col, Table_Row } from "svelte-fomantic-ui";
+    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Buttons, Field, Dropdown, Table, Table_Body, Table_Head, Table_Col, Table_Row } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -60,6 +60,8 @@ Construct Swarms and Bees / Sentants
     import reality2_action_set_jsonpath from "./blockly/reality2_action_set_jsonpath";
     import reality2_action_set_data from "./blockly/reality2_action_set_data";
     import reality2_action_set_calculation from "./blockly/reality2_action_set_calculation";
+    import reality2_action_set_calc_binary from "./blockly/reality2_action_set_calc_binary";
+    import reality2_action_set_calc_unary from "./blockly/reality2_action_set_calc_unary";
     import reality2_action_set_value from "./blockly/reality2_action_set_value";
     import reality2_action_send from "./blockly/reality2_action_send";
     import reality2_action_send_no_params from "./blockly/reality2_action_send_no_params";
@@ -161,6 +163,8 @@ Construct Swarms and Bees / Sentants
         reality2_action_set_jsonpath.shape,
         reality2_action_set_data.shape,
         reality2_action_set_calculation.shape,
+        reality2_action_set_calc_binary.shape,
+        reality2_action_set_calc_unary.shape,
         reality2_action_set_value.shape,
         reality2_action_send.shape,
         reality2_action_send_no_params.shape,
@@ -269,6 +273,7 @@ Construct Swarms and Bees / Sentants
         {
             toolbox: toolbox,
             theme: Theme,
+            renderer: 'thrasos',
             zoom: {
                 controls: true,
                 wheel: false,
@@ -392,6 +397,8 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_action_set_jsonpath'] = reality2_action_set_jsonpath.process;   
         javascriptGenerator.forBlock['reality2_action_set_data'] = reality2_action_set_data.process;   
         javascriptGenerator.forBlock['reality2_action_set_calculation'] = reality2_action_set_calculation.process;   
+        javascriptGenerator.forBlock['reality2_action_set_calc_binary'] = reality2_action_set_calc_binary.process;   
+        javascriptGenerator.forBlock['reality2_action_set_calc_unary'] = reality2_action_set_calc_unary.process;   
         javascriptGenerator.forBlock['reality2_action_set_value'] = reality2_action_set_value.process;   
         javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
         javascriptGenerator.forBlock['reality2_action_send_no_params'] = reality2_action_send_no_params.process;
@@ -436,6 +443,27 @@ Construct Swarms and Bees / Sentants
         }, 2);
         
     });
+    // ------------------------------------------------------------------------------------------------
+
+
+
+    // ------------------------------------------------------------------------------------------------
+    // Generate encryption (and decryption) keys for synchronous encryption / decryption.
+    // ------------------------------------------------------------------------------------------------
+    function generateEncryptionKey() {
+        // Generate 32 random bytes
+        const binaryKey = new Uint8Array(32);
+        window.crypto.getRandomValues(binaryKey);
+
+        // Convert to base64
+        const encryptionKey = btoa(String.fromCharCode(...binaryKey));
+
+        // Add to the variables
+        if (variables) {
+            variables["__encryption_key__"] = encryptionKey;
+            variables["__decryption_key__"] = encryptionKey;
+        }      
+    }
     // ------------------------------------------------------------------------------------------------
 
 
@@ -649,7 +677,7 @@ Construct Swarms and Bees / Sentants
         });
     }
     // ------------------------------------------------------------------------------------------------
-
+ 
 
 
     // ------------------------------------------------------------------------------------------------
@@ -683,7 +711,7 @@ Construct Swarms and Bees / Sentants
                 showMessage("Success", "Definition saved successfully", "green");
             } catch (err: any) {
                 if (err.name === 'AbortError') {
-                    showMessage("Status", "Cancelled loading", "blue");
+                    showMessage("Status", "Cancelled", "blue");
                 } else {
                     showMessage("Problem", "Could not save", "red");
                 }
@@ -710,7 +738,7 @@ Construct Swarms and Bees / Sentants
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            showMessage("Success", "Definition saved successfully", "green");
+            showMessage("Success", "Saved successfully", "green");
         }
     }
     // ------------------------------------------------------------------------------------------------
@@ -727,7 +755,6 @@ Construct Swarms and Bees / Sentants
         let num_sentants = 0;
 
         let codeOnPage: any = splitConcatenatedJSON(javascriptGenerator.workspaceToCode(workspace), false);
-        console.log("there", codeOnPage);
         // Check if there is a swarm block, with separated bees
         codeOnPage.forEach((element: any) => {
             if (element["swarm"]) {
@@ -842,6 +869,10 @@ Construct Swarms and Bees / Sentants
                 {/each}
             </Table_Body>
         </Table>
+        <Buttons ui fluid horizontal>
+            <Button ui inverted blue data-variation="wide" data-tooltip="Generate encryption keys.  Use the same keys between subsequent versions of a Bee to ensure access to saved data." on:click={generateEncryptionKey}>generate encryption and decryption keys</Button>
+            <Button ui inverted green on:click={() => {downloadDefinition(JSON.stringify(variables), "variables.json"); }}>Save Variables</Button>
+        </Buttons>
         <Divider ui inverted></Divider>
         <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
             <pre style="text-align: left;">
@@ -893,22 +924,22 @@ Construct Swarms and Bees / Sentants
     </Actions>
 </Modal>
 
-<Button ui icon popup large data-tooltip="Load keys to use with your Bees." data-position="top right" style="position: fixed; top: 200px; right: 45px; background-color: #494949" on:click={()=>{ variables_loader.click(); }}>
+<Button ui icon popup large data-tooltip="Load keys to use with your Bees." data-position="top right" style="position: fixed; top: 200px; right: 45px; background-color: #696969" on:click={()=>{ variables_loader.click(); }}>
     <Icon table></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Load Swarms, Bees, Antennae or Behaviours from a file." data-position="top right" style="position: fixed; top: 260px; right: 45px; background-color: #494949" on:click={() => { code_loader.click(); }}>
+<Button ui icon large popup data-tooltip="Load Swarms, Bees, Antennae or Behaviours from a file." data-position="top right" style="position: fixed; top: 260px; right: 45px; background-color: #696969" on:click={() => { code_loader.click(); }}>
     <Icon folder open outline></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #494949" on:click={saveSentantDefinition}>
+<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #696969" on:click={saveSentantDefinition}>
     <Icon share square></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #494949" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
+<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #696969" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
     <Icon code></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Run the Swarm on the Reality2 node." data-position="top right" style="position: fixed; top: 500px; right: 45px; background-color: #494949" on:click={loadToNode}>
+<Button ui icon large popup data-tooltip="Run the Swarm on the Reality2 node." data-position="top right" style="position: fixed; top: 500px; right: 45px; background-color: #696969" on:click={loadToNode}>
     <Icon running></Icon>
 </Button>
