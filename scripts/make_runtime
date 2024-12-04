@@ -5,7 +5,7 @@ cd ..
 RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)
 ARCH=$(uname -m)
 OS=$(uname -o | sed 's/\//_/g')
-BUILD_FOLDER=${ARCH}_${OS}
+BUILD_FOLDER=${ARCH}_${OS} 
 
 echo "********************************************************************"
 echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
@@ -46,7 +46,10 @@ mix release
 # echo "***** Copying the Reality2 Demos to the release directory..."
 cp "scripts/runtime_run" "_build/prod/rel/reality2/run"
 # cp -r demos/python "_build/prod/rel/reality2"
-# cp -r demos/SBC "_build/prod/rel/reality2"
+
+if [ "$ARCH" == "aarch64" ]; then
+    cp -r "../reality2-definitions/client-SBC" "_build/prod/rel/reality2/"
+fi
 
 echo "***** Adding some useful extras..."
 cp -r extras "_build/prod/rel/reality2"
