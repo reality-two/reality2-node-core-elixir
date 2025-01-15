@@ -70,3 +70,11 @@ rm -rf "${BUILD_FOLDER}"
 echo "********************************************************************"
 echo "Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} has been built."
 echo "********************************************************************"
+
+if [ $# -eq 0 ]; then
+    exit 1
+else
+    echo "***** Copying to $1"
+    scp "${BUILD_FOLDER}.zip" "root@$1:/root/"
+    ssh "root@$1" "(killall beam.smp || true) && rm -rf /root/${BUILD_FOLDER} && unzip /root/${BUILD_FOLDER}.zip && cd ${BUILD_FOLDER} && tar -zxvf reality2*.gz && cd reality2 && ./run"
+fi
