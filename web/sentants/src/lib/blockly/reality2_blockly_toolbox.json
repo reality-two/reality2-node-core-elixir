@@ -110,6 +110,21 @@
                 {
                     "kind":"category",
                     "colour": 150,
+                    "name":". . . Parameter",
+                    "contents":[
+                        {
+                            "kind": "label",
+                            "text": "Query Parameters for use with Antenna"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_plugin_parameter"
+                        }
+                    ]
+                },
+                {
+                    "kind":"category",
+                    "colour": 150,
                     "name":". . . Header",
                     "contents":[
                         {
@@ -302,6 +317,10 @@
                         {
                             "kind":"block",
                             "type":"reality2_action_send_plugin_no_params"
+                        },
+                        {
+                            "kind":"block",
+                            "type":"reality2_action_send_plugin_no_params_no_event"
                         }
                     ]
                 },

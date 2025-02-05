@@ -80,6 +80,16 @@ defmodule Reality2.Plugin do
           |> replace_variable_in_map(parameters)
           |> Map.to_list()
 
+          # Get the query parameters
+          query_string = plugin_map
+          |> R2Map.get("parameters", %{})
+          |> replace_variable_in_map(parameters)
+          |> URI.encode_query()
+
+          # IO.puts("-----------")
+          # IO.puts(inspect(plugin_map))
+          # IO.puts(query_string)
+
           # Get the body
           body = plugin_map
           |> R2Map.get("body", %{})
@@ -92,15 +102,23 @@ defmodule Reality2.Plugin do
           # Get the url
           case R2Map.get(plugin_map, "url") do
             nil -> {:reply, {:error, :url}, {name, id, plugin_map, state}}
-            url ->
+            base_url ->
+              url = base_url <> if query_string != "", do: "?" <> query_string, else: ""
+              IO.puts(inspect(url))
+
               case Finch.build(method, url, headers, body) |> Finch.request(Reality2.HTTPClient) do
                 {:error, reason} -> {:reply, {:error, reason}, {name, id, plugin_map, state}}
                 {:ok, result} ->
                   %Finch.Response{body: body} = result
+                  # IO.puts(inspect(body))
                   body_json = Jason.decode!(body)
+                  # IO.puts(inspect(body_json))
+
 
                   output = R2Map.get(plugin_map, "output", %{})
                   output_pattern = R2Map.get(output, "value", "")
+                  # IO.puts(output_pattern)
+                  # IO.puts("-----------")
 
                   case JsonPath.get_value(body_json, output_pattern) do
                     {:error, reason} -> {:reply, {:error, reason}, {name, id, plugin_map, state}}

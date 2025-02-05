@@ -18,22 +18,25 @@
    
     import { getQueryStringVal } from './lib/Querystring.svelte';
 
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
 
     let default_port = 4005;
     let use_default_url = false;
+    let watchId: any;
 
     // Set up the sentant loading
     var loadedData: any[] = [];
     $: sentantData = loadedData;
 
-
     // Set up the state
     var set_state = "loading";
     $: state = set_state;
 
+    // Set up the geolocation
+    var set_location = {};
+    $: location = set_location;
+
     // Saved state for constructor
-    var construct_command = "";
     let savedState = {};
 
 
@@ -61,14 +64,24 @@
 
     const setDimensions = () => { 
         windowWidth = window.innerWidth;
-        fullHeight = `${(window.innerHeight - 90)}px`;
+        fullHeight = `${(window.innerHeight - 64)}px`;
     };
+    // -------------------------------------------------------------------------------------------------
 
+
+
+    // -------------------------------------------------------------------------------------------------
     // GraphQL client setup 
+    // -------------------------------------------------------------------------------------------------
     let r2_node = new R2(use_default_url ? "localhost" : window.location.hostname, Number(use_default_url ? "4005" : window.location.port));
+    // -------------------------------------------------------------------------------------------------
 
+
+
+    // -------------------------------------------------------------------------------------------------
+    // On page load
+    // -------------------------------------------------------------------------------------------------
     onMount(() => {
-
         // Set the state depending on the query string
         if (id_query != null) set_state == "id"
         else if (name_query != null) set_state == "name"
@@ -93,15 +106,43 @@
             reader.onload = (readerEvent: any) => {
                 if (readerEvent !== null) {
                     variables = JSON.parse(readerEvent["target"]["result"]);  
-                    console.log(variables);                
                 }
             }
         }
+
+        // Geolocation
+        watchId = navigator.geolocation.watchPosition (
+            (position) => {
+                console.log(position.coords);
+                set_location = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    altitude: position.coords.altitude,
+                    accuracy: position.coords.accuracy,
+                    altitudeAccuracy: position.coords.altitudeAccuracy,
+                    heading: position.coords.heading,
+                    speed: position.coords.speed
+                }
+            },
+            (error) => {
+                console.error("Error getting location:", error.message);
+            }
+        );
 
         setDimensions();
         window.addEventListener('resize', setDimensions);
         return () => { window.removeEventListener('resize', setDimensions); }
     });
+    // -------------------------------------------------------------------------------------------------
+
+
+
+    // -------------------------------------------------------------------------------------------------
+    // Unload page
+    // -------------------------------------------------------------------------------------------------
+    onDestroy(() => {
+        if (watchId) navigator.geolocation.clearWatch(watchId);
+    })
     // -------------------------------------------------------------------------------------------------
 
 
@@ -117,19 +158,6 @@
     // -------------------------------------------------------------------------------------------------
     // Main functionality
     // -------------------------------------------------------------------------------------------------
-
-    function replaceVariables(str: string, variables: {}) {
-        // Iterate over each key in the variables object
-        for (const [key, value] of Object.entries(variables)) {
-            // Create a regular expression to match the key in the string
-            // The 'g' flag ensures that all occurrences are replaced
-            const regex = new RegExp(key, 'g');
-            // Replace all occurrences of the key with its corresponding value
-            str = str.replace(regex, value);
-        }
-        return str;
-    }
-
     // Set up the monitoring of the Reality2 Node
     if (id_query == null && name_query == null) {
         setTimeout(() => {
@@ -248,7 +276,6 @@
     // -------------------------------------------------------------------------------------------------
     // Functions used in the Layout
     // -------------------------------------------------------------------------------------------------
-
     function change_state(e: any) {
         let newstate = e.detail.value;
         if ((newstate == "view") || (newstate == "map")) {
@@ -324,7 +351,7 @@
 <!------------------------------------------------------------------------------------------------------
 Layout
 ------------------------------------------------------------------------------------------------------->
-<main>
+<main style={"padding: 0px;"}>
     {#if state == "login"}
         <Login></Login>
     {:else}
@@ -366,58 +393,6 @@ Layout
                             <Icon ui hammer/>
                             Construct
                         </Item>
-                        <!-- <Item value="mr" on:click={change_state}>
-                            &nbsp;&nbsp;
-                            <Icon ui box/>
-                            Mixed Reality
-                        </Item> -->
-                        <!-- {#if state == "construct"}
-                            <Divider ui fitted/>
-                            <Header ui>
-                            Construct
-                            </Header>
-                            <Item icon value="load_variables" on:click={()=>{ variables_loader.click(); }}>
-                                <Icon table/>
-                                Load Variables
-                                <Menu ui>
-                                    <Table ui>
-                                        <Table_Head>
-                                            <Table_Row>
-                                                <Table_Col head>key</Table_Col>
-                                                <Table_Col head>value</Table_Col>
-                                            </Table_Row>
-                                        </Table_Head>
-                                        <Table_Body>
-                                            {#each Object.keys(variables) as key}
-                                                <Table_Row>
-                                                    <Table_Col>{key}</Table_Col>
-                                                    <Table_Col>{variables[key]}</Table_Col>
-                                                </Table_Row>
-                                            {/each}
-                                        </Table_Body>
-                                    </Table>
-                                </Menu>
-                            </Item>
-                            <Divider ui horizontal tiny/>
-                            <Item icon value="load" on:click={()=>{ construct_command = "load"; }}>
-                                <Icon ui cloud upload/>
-                                Put in Backack
-                            </Item>
-                            <Item icon value="save" on:click={()=>{ construct_command = "save"; }}>
-                                <Icon ui cloud download/>
-                                Save to Disk
-                            </Item>
-                            <Divider ui horizontal tiny/>
-                            <Item icon value="code" on:click={()=>{ construct_command = "code"; }}>
-                                <Icon ui pencil/>
-                                Show Definition
-                            </Item>                            
-                            <Divider ui horizontal tiny/>
-                            <Link item value="run" on:click={()=>{ construct_command = "run"; }}>
-                                <Icon ui medium running/>
-                                <Text ui medium>Load Swarm or Bee to Node</Text>
-                            </Link>
-                        {/if} -->
                     </Menu>
                 </Dropdown>
             </Menu>
@@ -450,7 +425,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "construct"}
             <!--------------------------------------------------------------------------------------------->
-                <Construct bind:construct_command {r2_node} {sentantData} bind:savedState bind:variables/>
+                <Construct {r2_node} {sentantData} {location} bind:savedState bind:variables/>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "id"}
             <!--------------------------------------------------------------------------------------------->
@@ -466,7 +441,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "map"}
             <!--------------------------------------------------------------------------------------------->
-                <Map {r2_node} {sentantData} />
+                <Map {r2_node} {sentantData} {location}/>
             <!--------------------------------------------------------------------------------------------->
             {:else if none_or_monitor_only(sentantData)}
             <!--------------------------------------------------------------------------------------------->

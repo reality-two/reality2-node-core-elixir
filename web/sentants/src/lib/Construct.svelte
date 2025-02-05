@@ -10,7 +10,7 @@ Construct Swarms and Bees / Sentants
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import { behavior, Segment, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Buttons, Field, Dropdown, Table, Table_Body, Table_Head, Table_Col, Table_Row } from "svelte-fomantic-ui";
+    import { behavior, Segment, reload, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Buttons, Field, Dropdown, Table, Table_Body, Table_Head, Table_Col, Table_Row, update } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -45,6 +45,7 @@ Construct Swarms and Bees / Sentants
     import reality2_post_plugin from "./blockly/reality2_post_plugin";
     import reality2_plugin_header from "./blockly/reality2_plugin_header";
     import reality2_plugin_body from "./blockly/reality2_plugin_body";
+    import reality2_plugin_parameter from "./blockly/reality2_plugin_parameter";
     import reality2_automation from "./blockly/reality2_automation";
     import reality2_parameter from "./blockly/reality2_parameter";
     import reality2_transition from "./blockly/reality2_transition";
@@ -69,6 +70,7 @@ Construct Swarms and Bees / Sentants
     import reality2_action_send_now_no_params from "./blockly/reality2_action_send_now_no_params";
     import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
     import reality2_action_send_plugin_no_params from "./blockly/reality2_action_send_plugin_no_params";
+    import reality2_action_send_plugin_no_params_no_event from "./blockly/reality2_action_send_plugin_no_params_no_event";
     import reality2_action_debug from "./blockly/reality2_action_debug";
     import reality2_action_test from "./blockly/reality2_action_test";
     import reality2_action_test_no_params from "./blockly/reality2_action_test_no_params";
@@ -100,7 +102,6 @@ Construct Swarms and Bees / Sentants
     import { splitConcatenatedJSON } from "./blockly/blockly_common";
     
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
-    import { hasAnyDirectives } from "@apollo/client/utilities";
     // ------------------------------------------------------------------------------------------------
 
 
@@ -112,7 +113,7 @@ Construct Swarms and Bees / Sentants
     export let sentantData: any[]|any = [];
     export let variables: any = {};
     export let savedState: any;
-    export let construct_command: string = "";
+    export let location: any = {longitude: 0, latitude: 0};
     // ------------------------------------------------------------------------------------------------
 
 
@@ -129,7 +130,8 @@ Construct Swarms and Bees / Sentants
 
     let workspace: any;
     let backpack: any;
-    $: code = {};
+    let setcode: any = {};
+    $: code = setcode;
 
     let swarm_name: string = "";
     let swarm_description: string = "";
@@ -148,6 +150,7 @@ Construct Swarms and Bees / Sentants
         reality2_post_plugin.shape,
         reality2_plugin_header.shape,
         reality2_plugin_body.shape,
+        reality2_plugin_parameter.shape,
         reality2_automation.shape,
         reality2_parameter.shape,
         reality2_transition.shape,
@@ -172,6 +175,7 @@ Construct Swarms and Bees / Sentants
         reality2_action_send_now_no_params.shape,
         reality2_action_send_plugin.shape,
         reality2_action_send_plugin_no_params.shape,
+        reality2_action_send_plugin_no_params_no_event.shape,
         reality2_action_debug.shape,
         reality2_action_test.shape,
         reality2_action_test_no_params.shape,
@@ -207,30 +211,6 @@ Construct Swarms and Bees / Sentants
         "post_plugin": reality2_post_plugin.construct,
         "automation": reality2_automation.construct
     }
-
-    $: if (construct_command) {
-        switch (construct_command) {
-        case 'load':
-            code_loader.click();
-            break;
-        case 'save':
-            saveSentantDefinition();
-            break;
-        case 'run':
-            loadToNode()
-            break;
-        case 'code':
-            convertBlocks();
-            behavior('code_space', 'toggle');
-            break;
-        case '':
-            break;
-        default:
-            showMessage("Problem", "Unknown command", "red");
-        }
-        // Reset the command if necessary
-        construct_command = '';
-    }
     // ------------------------------------------------------------------------------------------------
 
 
@@ -239,7 +219,7 @@ Construct Swarms and Bees / Sentants
     // What to do when the window size is changed
     // ------------------------------------------------------------------------------------------------
     function updateHeight() {
-        const leftHeight = window.innerHeight - 90;
+        const leftHeight = window.innerHeight - 64;
         const leftDiv = document.getElementById('blocklyDiv');
         const rightDiv = document.getElementById('codeDiv');
 
@@ -339,8 +319,8 @@ Construct Swarms and Bees / Sentants
                                 putIntoBackpack(newCode);
                             }
                             else if (file.type.includes("yaml")) {
-                                var newCode = yaml.load(definition);
-                                putIntoBackpack(newCode);
+                                var newCode2 = yaml.load(definition);
+                                putIntoBackpack(newCode2);
                             }
                         }
                     }
@@ -380,6 +360,7 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_post_plugin'] = reality2_post_plugin.process;
         javascriptGenerator.forBlock['reality2_plugin_header'] = reality2_plugin_header.process;   
         javascriptGenerator.forBlock['reality2_plugin_body'] = reality2_plugin_body.process;   
+        javascriptGenerator.forBlock['reality2_plugin_parameter'] = reality2_plugin_parameter.process;   
         javascriptGenerator.forBlock['reality2_key_value'] = reality2_key_value.process;   
         javascriptGenerator.forBlock['reality2_data'] = reality2_data.process;   
         javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;
@@ -406,6 +387,7 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_action_send_now_no_params'] = reality2_action_send_now_no_params.process;
         javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
         javascriptGenerator.forBlock['reality2_action_send_plugin_no_params'] = reality2_action_send_plugin_no_params.process;
+        javascriptGenerator.forBlock['reality2_action_send_plugin_no_params_no_event'] = reality2_action_send_plugin_no_params_no_event.process;
         javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
         javascriptGenerator.forBlock['reality2_action_test'] = reality2_action_test.process;
         javascriptGenerator.forBlock['reality2_action_test_no_params'] = reality2_action_test_no_params.process;
@@ -437,8 +419,8 @@ Construct Swarms and Bees / Sentants
         // (re)load the blocks and backpack from variables, for when the mode changes.
         setTimeout(() => {
             if (typeof savedState === "object") {
-                if (savedState.hasOwnProperty("backpack")) loadBackpack(savedState["backpack"]);
-                if (savedState.hasOwnProperty("workspace")) loadWorkspace(savedState["workspace"]);
+                if ("backpack" in savedState) loadBackpack(savedState["backpack"]);
+                if ("workspace" in savedState) loadWorkspace(savedState["workspace"]);
             }
         }, 2);
         
@@ -479,7 +461,6 @@ Construct Swarms and Bees / Sentants
     }
     function saveBackpack() {
         const the_backpack: [any] = backpack.getContents();
-        console.log(the_backpack);
         return (the_backpack);
     }
     function loadBackpack(backpack_data: [any]) {
@@ -524,8 +505,9 @@ Construct Swarms and Bees / Sentants
     // Replace variables in the definition.
     // ------------------------------------------------------------------------------------------------
     function replaceVariables(str: string, variables: {}) {
+        const all_variables = {...variables, ...{"__latitude__": location.latitude, "__longitude__": location.longitude}}
         // Iterate over each key in the variables object
-        for (const [key, value] of Object.entries(variables)) {
+        for (const [key, value] of Object.entries(all_variables)) {
             // Create a regular expression to match the key in the string
             // The 'g' flag ensures that all occurrences are replaced
             const regex = new RegExp(key, 'g');
@@ -649,7 +631,7 @@ Construct Swarms and Bees / Sentants
             if (Object.keys(newCode).length !== 0)
             {
                 // Get the code in JSON format.
-                code = newCode;
+                setcode = newCode;
                 // Get filename
                 var filename = "definition";
                 if (R2.JSONPath(code, "swarm.name")) {
@@ -837,10 +819,35 @@ Construct Swarms and Bees / Sentants
 
 
     // ------------------------------------------------------------------------------------------------
+    // A work-around because the Flyout creates new versions of itself, which then means the data is
+    // not updated because there are more than one div with the same name.
+    // ------------------------------------------------------------------------------------------------
+    function removeAllButLastById(id:string) 
+    {
+        let elements = document.querySelectorAll(`[id='${id}']`);
+
+        if (elements.length > 1) {
+            // Remove all except the last occurrence
+            elements.forEach((el, index) => {
+                if (index !== elements.length - 1) {
+                el.remove();
+                }
+            });
+        }
+    }
+    // ------------------------------------------------------------------------------------------------
+
+
+
+    // ------------------------------------------------------------------------------------------------
     // Show the visible code.
     // ------------------------------------------------------------------------------------------------
     function convertBlocks() {
-        firstWorkspaceBlock((newcode) => code = newcode);
+        firstWorkspaceBlock((newcode) => {
+            removeAllButLastById("code_space");
+            setcode = newcode;
+            behavior('code_space', 'toggle');
+        });
     }
     // ------------------------------------------------------------------------------------------------
 
@@ -861,6 +868,14 @@ Construct Swarms and Bees / Sentants
                 </Table_Row>
             </Table_Head>
             <Table_Body>
+                <Table_Row>
+                    <Table_Col>__latitude__</Table_Col>
+                    <Table_Col>{location.latitude}</Table_Col>
+                </Table_Row>
+                <Table_Row>
+                    <Table_Col>__longitude__</Table_Col>
+                    <Table_Col>{location.longitude}</Table_Col>
+                </Table_Row>
                 {#each Object.keys(variables) as key}
                     <Table_Row>
                         <Table_Col>{key}</Table_Col>
@@ -875,21 +890,20 @@ Construct Swarms and Bees / Sentants
         </Buttons>
         <Divider ui inverted></Divider>
         <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
-            <pre style="text-align: left;">
-                {#if Object.keys(code).length !== 0}
-                    {#if showJSON[0] === "json"}
-                        {"\n"+JSON.stringify(code, null, 2)}
-                    {:else}
-                        {"\n"+yaml.dump(code)}
-                    {/if}
+            {#if Object.keys(code).length !== 0}
+                {#if showJSON[0] === "json"}
+                    <pre style="text-align: left;">{JSON.stringify(code, null, 2).trim()}</pre>
+                {:else}
+                    <pre style="text-align: left;">{yaml.dump(code).trim()}</pre>
                 {/if}
-            </pre>
+            {/if}
         </div>
     </Segment>
 </Flyout>
 
+
 <Pusher>
-    <div id="blocklyDiv" style="height: {fullHeight}; width: 100%;"/>
+    <div id="blocklyDiv" style="height: {fullHeight}; width: 100%;"></div>
 </Pusher>
 
 
@@ -936,7 +950,7 @@ Construct Swarms and Bees / Sentants
     <Icon share square></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #696969" on:click={() => { convertBlocks(); behavior('code_space', 'toggle'); }}>
+<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #696969" on:click={() => { convertBlocks(); }}>
     <Icon code></Icon>
 </Button>
 
