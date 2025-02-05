@@ -15,13 +15,11 @@
     import 'leaflet/dist/leaflet.css';
 
     import type { Sentant } from './reality2.js';
-    import SentantCard from './SentantCard.svelte';
 
     import R2 from "./reality2";
 
     export let r2_node: R2;
     export let sentantData: any[]|any = [];
-    export let variables = {};
     export let location: any = {longitude: 0, latitude: 0};
 
     let map: any;
@@ -70,27 +68,32 @@
                         markers[sentant.name].addTo(map);
                     }
 
-                    const sentantCard = document.createElement('div');
+                    markers[sentant.name].on("click", () => {
+                        const popupContent = document.createElement("div");
+                        popupContent.innerHTML = `
+                            <div class="card ui" style="width: 250px; padding: 0px;">
+                                <div class="image">
+                                    <img src="/images/bee_blue.png">
+                                </div>
+                                <div class="content" style="text-align: center;">
+                                    <div class="header">${sentant.name}</div>
+                                    <p><Text ui tiny blue>${sentant.id}</Text></p>
+                                    <p>${sentant.description}</p>
+                                </div>
+                            </div>
+                        `;
 
-                    const _card = new SentantCard({
-                        target: sentantCard,
-                        props: {
-                            sentant: sentant,
-                            r2_node: r2_node,
-                            mini: true,
-                            height: "300px",
-                            variables: encodeURI(JSON.stringify(variables))   
-                        }
+                        const popup = L.popup()
+                            .setLatLng(markers[sentant.name].getLatLng())
+                            .setContent(popupContent)
+                            .openOn(map);      
                     });
-
-                    markers[sentant.name].bindPopup(sentantCard);
 
                     markers[sentant.name].on('dragend', function(event:any) {
                         var marker = event.target;
                         var position = marker.getLatLng();
                         marker.setLatLng(new L.LatLng(position.lat, position.lng), {draggable:'true'});
-
-                        r2_node.sentantSend(sentant.id, "set_position", {"latitude": position.lat, "longitude": position.lng});
+                        var result = r2_node.sentantSend(sentant.id, "set_position", {"latitude": position.lat, "longitude": position.lng});
                     });
                 }
             });
