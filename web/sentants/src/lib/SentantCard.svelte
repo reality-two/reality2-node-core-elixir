@@ -8,7 +8,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     //@ts-ignore
-    import {Card, Content, Header, Image, Button, Text, Input, Link, Icon} from "svelte-fomantic-ui";
+    import {Card, Content, Header, Image, Button, Text, Input, Link, Icon, Title, Divider} from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
@@ -22,11 +22,11 @@
     type input_text_type = {[key:string]: any}
     type params_type = {[key:string]: string}
 
-    let messages = ["|", "|", "|", "|", "|", "|", "|", "|"];
+    let messages = ["|", "|", "|", "|", "|"];
     let input_text: input_text_type = {};
-    let max_messages = 8; //Object.keys(sentant.events).length > 0 ? 4 : 8;
+    let max_messages = 5;
 
-    async function copyCode(data: string) {
+    async function copyMessage(data: string) {
         try {
         await navigator.clipboard.writeText(data);
             console.log("Copied!");
@@ -108,17 +108,19 @@
             <p><Text ui small blue>{sentant.id}</Text></p>
             <p>{sentant.description}</p>
         </Content>
+        <Divider ui small horizontal center aligned header blue>messages</Divider>
         <Content extra style={mini?"text-align: center;":"height:200px; text-align: center;"}>
             {#each messages as message, i}
                 {#if message.split('|')[0] != ""}
-                    <Text ui popup small data-variation="multiline very wide" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text>
-                    <Button ui icon small basic popup style="box-shadow: 0 0 0 0;" data-tooltip={"copy to clipboard"} on:click={() => copyCode(JSON.stringify(try_convert(message.split('|')[1]), null, 4))}><Icon ui clipboard/></Button>
+                    <Text ui popup data-variation="multiline very wide" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text>
+                    <Button ui icon small basic popup style="box-shadow: 0 0 0 0;" data-tooltip={"copy to clipboard"} on:click={() => copyMessage(JSON.stringify(try_convert(message.split('|')[1]), null, 4))}><Icon ui clipboard/></Button>
                     <br/>
                 {/if}
             {/each}
         </Content>
         {#if !mini}
             {#if sentant.events.length > 0}
+                <Divider ui small horizontal center aligned header blue>actions</Divider>
                 <Content extra style="overflow-y:scroll; overflow-x: hidden; height:250px; text-align: center;">
                     {#each sentant.events as event}
                         {#each Object.keys(event.parameters) as key}
@@ -129,9 +131,11 @@
                         <Button ui teal fluid on:click={() => event_button_pressed(sentant.id, event.event)} style={"margin-bottom:20px;"}>
                             {event.event}
                         </Button>
+                        <Divider ui teal></Divider>
                     {/each}
                 </Content>
             {/if}
+            <Divider ui small horizontal center aligned header orange>danger zone</Divider>
             <Content extra>
                 <Button ui orange fluid basic on:click={unload_sentant}>
                     Unload
