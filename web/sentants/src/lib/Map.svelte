@@ -22,6 +22,7 @@
     export let r2_node: R2;
     export let sentantData: any[]|any = [];
     export let variables = {};
+    export let location: any = {longitude: 0, latitude: 0};
 
     let map: any;
     let mapHeight = "400px";
@@ -30,7 +31,7 @@
 
     onMount(() => {
 
-        map = L.map('map').setView([-36.86365, 174.76023], 13);
+        map = L.map('map').setView([location.latitude, location.longitude], 13);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png?access_token={token}', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -121,10 +122,10 @@
     }
 
     function updateMapHeight() {
-        mapHeight = `${window.innerHeight - 95}px`;
+        mapHeight = `${window.innerHeight - 64}px`;
         if(map) { map.invalidateSize() }
     }
 </script>
 
 
-<div id="map" style="width: 100%; height: {mapHeight};" />
+<div id="map" style="width: 100%; height: {mapHeight}; position: absolute"></div>

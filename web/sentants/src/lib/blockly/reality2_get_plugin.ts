@@ -5,6 +5,7 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_plugin_header from "./reality2_plugin_header";
+import reality2_plugin_parameter from "./reality2_plugin_parameter";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -40,15 +41,22 @@ const shape = {
 			"tooltip":"The full URL of the API"
 		}
 	],
-	"message3":" - headers %1",
+    "message3":" - parameters %1",
 	"args3":[
+		{
+			"type":"input_statement",
+			"name":"parameters"
+		}
+	], 
+	"message4":" - headers %1",
+	"args4":[
 		{
 			"type":"input_statement",
 			"name":"headers"
 		}
-	],
-	"message4":"OUTPUT %1 = %2 with event %3",
-	"args4":[
+	], 
+	"message5":"OUTPUT %1 = %2 with event %3",
+	"args5":[
 		{
 			"type":"field_input",
 			"name":"output_key",
@@ -95,6 +103,10 @@ function process(block: any, generator: any): string | [string, number] | null
     if (headers != "") {
         plugin["headers"] = splitConcatenatedJSON(headers);
     };
+    const parameters = generator.statementToCode(block, "parameters");
+    if (parameters != "") {
+        plugin["parameters"] = splitConcatenatedJSON(parameters);
+    };
 
     plugin["output"] = {
         "key": block.getFieldValue('output_key'),
@@ -130,13 +142,18 @@ function construct(plugin: any)
                 "output_event": R2.JSONPath(plugin, "output.event")
             },
             "inputs": {
-                "headers": {}
+                "headers": {},
+                "parameters": {}
             }
         }
 
         // Check if there are headers
         let headers = reality2_plugin_header.construct(R2.JSONPath(plugin, "headers"));
         if (headers) block["inputs"]["headers"] = { "block": headers }
+
+        // Check if there are query parameters
+        let parameters = reality2_plugin_parameter.construct(R2.JSONPath(plugin, "parameters"));
+        if (parameters) block["inputs"]["parameters"] = { "block": parameters }
 
         return (block);
     }

@@ -5,6 +5,7 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_plugin_header from "./reality2_plugin_header";
+import reality2_plugin_parameter from "./reality2_plugin_parameter";
 import reality2_plugin_body from "./reality2_plugin_body";
 
 
@@ -42,22 +43,29 @@ const shape = {
 			"tooltip":"The full URL of the API"
 		}
 	],
-	"message3":" - headers %1",
+	"message3":" - parameters %1",
 	"args3":[
+		{
+			"type":"input_statement",
+			"name":"parameters"
+		}
+	],    
+	"message4":" - headers %1",
+	"args4":[
 		{
 			"type":"input_statement",
 			"name":"headers"
 		}
 	],
-	"message4":" - body %1",
-	"args4":[
+	"message5":" - body %1",
+	"args5":[
 		{
 			"type":"input_statement",
 			"name":"body"
 		}
 	],
-    "message5":"OUTPUT %1 = %2 with event %3",
-	"args5":[
+    "message6":"OUTPUT %1 = %2 with event %3",
+	"args6":[
 		{
 			"type":"field_input",
 			"name":"output_key",
@@ -110,6 +118,11 @@ function process(block: any, generator: any): string | [string, number] | null
         plugin["body"] = splitConcatenatedJSON(body);
     };
 
+    const parameters = generator.statementToCode(block, "parameters");
+    if (parameters != "") {
+        plugin["parameters"] = splitConcatenatedJSON(parameters);
+    };
+
     plugin["output"] = {
         "key": block.getFieldValue('output_key'),
         "value": block.getFieldValue('output_value'),
@@ -145,13 +158,18 @@ function construct(plugin: any)
             },
             "inputs": {
                 "headers": {},
-                "body": {}
+                "body": {},
+                "parameters": {}
             }
         }
 
         // Check if there are headers
         let headers = reality2_plugin_header.construct(R2.JSONPath(plugin, "headers"));
         if (headers) block["inputs"]["headers"] = { "block": headers }
+
+        // Check if there are query parameters
+        let parameters = reality2_plugin_parameter.construct(R2.JSONPath(plugin, "parameters"));
+        if (parameters) block["inputs"]["parameters"] = { "block": parameters }
 
         // Check if there are body parameters
         let body = reality2_plugin_body.construct(R2.JSONPath(plugin, "body"));

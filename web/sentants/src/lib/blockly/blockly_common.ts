@@ -13,6 +13,7 @@ import reality2_action_send_now from "./reality2_action_send_now";
 import reality2_action_send_now_no_params from "./reality2_action_send_now_no_params";
 import reality2_action_send_plugin from "./reality2_action_send_plugin";
 import reality2_action_send_plugin_no_params from "./reality2_action_send_plugin_no_params";
+import reality2_action_send_plugin_no_params_no_event from "./reality2_action_send_plugin_no_params_no_event";
 import reality2_action_signal from "./reality2_action_signal";
 import reality2_action_signal_no_params from "./reality2_action_signal_no_params";
 import reality2_action_test from "./reality2_action_test";
@@ -219,9 +220,17 @@ export function interpret_actions(transition: any, block: any)
                         action_block["next"] =  { "block": acc };
                     }
                 } else {
-                    action_block = reality2_action_send_plugin_no_params.construct(action);
-                    if (action_block && acc) {
-                        action_block["next"] =  { "block": acc };
+                    if (R2.JSONPath(action, "command") === "send") {
+                        action_block = reality2_action_send_plugin_no_params_no_event.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        }
+                    }
+                    else {
+                        action_block = reality2_action_send_plugin_no_params.construct(action);
+                        if (action_block && acc) {
+                            action_block["next"] =  { "block": acc };
+                        }
                     }
                 }
             }

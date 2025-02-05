@@ -8,7 +8,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     //@ts-ignore
-    import {Card, Content, Header, Image, Button, Text, Input, Link, Popup} from "svelte-fomantic-ui";
+    import {Card, Content, Header, Image, Button, Text, Input, Link, Icon} from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
@@ -25,6 +25,15 @@
     let messages = ["|", "|", "|", "|", "|", "|", "|", "|"];
     let input_text: input_text_type = {};
     let max_messages = 8; //Object.keys(sentant.events).length > 0 ? 4 : 8;
+
+    async function copyCode(data: string) {
+        try {
+        await navigator.clipboard.writeText(data);
+            console.log("Copied!");
+        } catch (err) {
+            console.error("Failed to copy:", err);
+        }
+    }
 
     function try_convert(value: string): any {
         if ((value === "") || (value === null)) {
@@ -101,7 +110,11 @@
         </Content>
         <Content extra style={mini?"text-align: center;":"height:200px; text-align: center;"}>
             {#each messages as message, i}
-                <Text ui popup small data-variation="multiline wide" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text><br/>
+                {#if message.split('|')[0] != ""}
+                    <Text ui popup small data-variation="multiline very wide" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text>
+                    <Button ui icon small basic popup style="box-shadow: 0 0 0 0;" data-tooltip={"copy to clipboard"} on:click={() => copyCode(JSON.stringify(try_convert(message.split('|')[1]), null, 4))}><Icon ui clipboard/></Button>
+                    <br/>
+                {/if}
             {/each}
         </Content>
         {#if !mini}

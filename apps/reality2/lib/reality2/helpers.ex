@@ -195,6 +195,7 @@ defmodule Reality2.Helpers do
     # A set of functions to help extract data from a JSON structure using a simplified JSON path.
     # -----------------------------------------------------------------------------------------------------------------------------------------
     defmodule JsonPath do
+      def get_value(data, ""), do: {:ok, data}
       def get_value(data, path) do
         case get_values(data, String.split(path, ".")) do
           nil -> {:error, :not_found}
