@@ -13,7 +13,13 @@ defmodule Reality2.Calculation do
     end
   end
 
-  def calculate( %{"+" => [ op2, op3 ]}, vars ), do: binaryop(calculate(op2, vars), calculate(op3, vars), fn a, b -> a + b end)
+  def calculate( %{"+" => [ op2, op3 ]}, vars ), do: binaryop(calculate(op2, vars), calculate(op3, vars), fn a, b ->
+    if is_binary(a) and is_binary(b) do
+      a <> b
+    else
+      a + b
+    end
+  end)
   def calculate( %{"-" => [ op2, op3 ]}, vars ), do: binaryop(calculate(op2, vars), calculate(op3, vars), fn a, b -> a - b end)
   def calculate( %{"*" => [ op2, op3 ]}, vars ), do: binaryop(calculate(op2, vars), calculate(op3, vars), fn a, b -> a * b end)
   def calculate( %{"/" => [ _, 0 ]}, _ ), do: nil
