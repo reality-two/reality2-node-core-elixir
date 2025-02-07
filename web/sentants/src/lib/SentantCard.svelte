@@ -3,12 +3,13 @@
 
   Author: Dr. Roy C. Davies
   Created: Feb 2024
+  Updated: Feb 2025
   Contact: roycdavies.github.io
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, tick } from 'svelte';
     //@ts-ignore
-    import {Card, Content, Header, Image, Button, Text, Input, Link, Icon, Title, Divider} from "svelte-fomantic-ui";
+    import {Card, Content, Header, Image, Button, Text, Input, Link, Icon, Popup, Divider, reload, update} from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
@@ -78,6 +79,11 @@
         r2_node.sentantUnload(sentant.id)
     }
 
+    async function updatePopup(id: string) {
+        await tick();
+        reload(id);
+    }
+
     onMount(() => {
         if (sentant.name == "monitor") return;
         for (let i = 0; i < sentant.signals.length; i++)
@@ -90,8 +96,10 @@
                     if (messages.length > max_messages) {
                         messages.splice(0, messages.length - max_messages);
                     }
-                }
 
+                    // Reload svelte elements on the sentant so that the newly created popups are activated
+                    updatePopup(sentant.id);
+                }
             });
         }
     });
@@ -99,7 +107,7 @@
 <!----------------------------------------------------------------------------------------------------->
 
 {#if sentant.name != "monitor"}
-    <Card style="height: {height};">
+    <Card style="height: {height};" id={sentant.id}>
         <Link ui image href={"/?name=" + sentant.name + "&variables=" + encodeURIComponent(JSON.stringify(variables))}>
             <Image ui large src="/images/bee_blue.png" />
         </Link>
@@ -112,7 +120,14 @@
         <Content extra style={mini?"text-align: center;":"height:200px; text-align: center;"}>
             {#each messages as message, i}
                 {#if message.split('|')[0] != ""}
-                    <Text ui popup data-variation="multiline very wide" _={(i == messages.length-1 ? "teal" : "grey")} data-tooltip={JSON.stringify(try_convert(message.split('|')[1]), null, 4)}>{message.split('|')[0]}</Text>
+                    <Text ui popup={{ hoverable: true }}
+                        _={(i == messages.length-1 ? "teal" : "grey")}>
+ 
+                        {message.split('|')[0].split(", ")[1]}
+                    </Text>
+                    <Popup ui wide style="">
+                        <Text ui>{JSON.stringify(try_convert(message.split('|')[1]), null, 1)}</Text>
+                    </Popup>
                     <Button ui icon small basic popup style="box-shadow: 0 0 0 0;" data-tooltip={"copy to clipboard"} on:click={() => copyMessage(JSON.stringify(try_convert(message.split('|')[1]), null, 4))}><Icon ui clipboard/></Button>
                     <br/>
                 {/if}
@@ -121,7 +136,7 @@
         {#if !mini}
             {#if sentant.events.length > 0}
                 <Divider ui small horizontal center aligned header blue>actions</Divider>
-                <Content extra style="overflow-y:scroll; overflow-x: hidden; height:250px; text-align: center;">
+                <Content extra style="overflow-y:scroll; overflow-x: hidden; height:240px; text-align: center;">
                     {#each sentant.events as event}
                         {#each Object.keys(event.parameters) as key}
                             <Input ui labeled fluid style={"margin-bottom:5px;"}>    
@@ -136,7 +151,7 @@
                 </Content>
             {/if}
             <Divider ui small horizontal center aligned header orange>danger zone</Divider>
-            <Content extra>
+            <Content extra style="height:80px;">
                 <Button ui orange fluid basic on:click={unload_sentant}>
                     Unload
                 </Button>

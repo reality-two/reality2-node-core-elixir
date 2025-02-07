@@ -4,7 +4,7 @@ defmodule AiReality2Vars.MixProject do
   def project do
     [
       app: :ai_reality2_vars,
-      version: "0.1.11",
+      version: "0.1.12",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
