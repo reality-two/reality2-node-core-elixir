@@ -6,10 +6,9 @@
   Contact: roy.c.davies@ieee.org
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { Divider, Table, Table_Head, Table_Row, Table_Col, Table_Body, Message, Content, Cards, Menu, Label, Icon, Segment, Button, Buttons, Item, Link, Header, Text, Input, Dropdown } from "svelte-fomantic-ui";
+    import { Message, Content, Cards, Menu, Icon, Segment, Button, Buttons, Item, Header, Input, Dropdown } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
-    import type Sentant from './lib/reality2';
     import SentantCard from './lib/SentantCard.svelte';
     import SentantCards from './lib/SentantCards.svelte';
     import Login from './lib/Login.svelte';
@@ -20,7 +19,7 @@
 
     import { onMount, onDestroy } from 'svelte';
 
-    let default_port = 4005;
+    let default_port = "4005";
     let use_default_url = false;
     let watchId: any;
 
@@ -73,7 +72,7 @@
     // -------------------------------------------------------------------------------------------------
     // GraphQL client setup 
     // -------------------------------------------------------------------------------------------------
-    let r2_node = new R2(use_default_url ? "localhost" : window.location.hostname, Number(use_default_url ? "4005" : window.location.port));
+    let r2_node = new R2(use_default_url ? "localhost" : window.location.hostname, Number(use_default_url ? default_port : window.location.port));
     // -------------------------------------------------------------------------------------------------
 
 
@@ -321,6 +320,7 @@
         })
     }
 
+    // Get the keys pressed (so we can process them to determine the path)
     function on_key_down(event:any) {
         if (event.key === "Enter" && event.target.id === "path")
         {
@@ -375,7 +375,7 @@ Layout
                 </Input>
             </Item>
             <Menu right>
-                <Dropdown ui item style="position: relative; z-index:1000">
+                <Dropdown ui item style="position: relative; z-index:1010">
                     <Icon sidebar/>
                     <Menu vertical ui style="width: 350px;">
                         <Header ui>
@@ -401,7 +401,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {#if state == "start"}
             <!--------------------------------------------------------------------------------------------->
-                <Message ui centered blue massive>
+                <Message ui centered blue massive style="position: fixed; top: 100; left: 0; right: 0; z-index: 1000;">
                     <Content ui>
                         Loading ...
                     </Content>
@@ -409,7 +409,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "error"}
             <!--------------------------------------------------------------------------------------------->
-                <Message ui centered red massive>
+                <Message ui centered red massive style="position: fixed; top: 100; left: 0; right: 0; z-index: 1000;">
                     <Content ui>
                         Something bad happened
                     </Content>
@@ -417,7 +417,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "loading"}
             <!--------------------------------------------------------------------------------------------->
-                <Message ui centered blue massive>
+                <Message ui centered blue massive style="position: fixed; top: 100; left: 0; right: 0; z-index: 1000;">
                     <Content ui>
                         Loading ...
                     </Content>
@@ -445,7 +445,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if none_or_monitor_only(sentantData)}
             <!--------------------------------------------------------------------------------------------->
-                <Message ui centered green massive>
+                <Message ui centered green massive style="position: fixed; top: 100; left: 0; right: 0; z-index: 1000;">
                     <Content ui>
                         No Sentants
                     </Content>
@@ -457,7 +457,7 @@ Layout
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "mr"}
             <!--------------------------------------------------------------------------------------------->
-                <Message ui centered blue massive>
+                <Message ui centered blue massive style="position: fixed; top: 100; left: 0; right: 0; z-index: 1000;">
                     <Content ui>
                         Coming soon ...
                     </Content>

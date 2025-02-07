@@ -83,7 +83,7 @@
                             </div>
                         `;
 
-                        const popup = L.popup()
+                        const popup = L.popup({offset: [30, 20]})
                             .setLatLng(markers[sentant.name].getLatLng())
                             .setContent(popupContent)
                             .openOn(map);      
@@ -114,11 +114,10 @@
 
         var myIcon = L.icon({
             iconUrl: '/images/marker-icon.svg',
-            iconSize: [40, 40],
+            iconSize: [60, 60],
             iconAnchor: [0, 0],
-            popupAnchor: [20, 10],
             shadowUrl: '/images/marker-shadow.svg',
-            shadowSize: [40, 40],
+            shadowSize: [60, 60],
             shadowAnchor: [1, 1]
         });
         return myIcon;

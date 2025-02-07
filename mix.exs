@@ -17,7 +17,7 @@ defmodule Reality2.Umbrella.MixProject do
     [
       apps_path: "apps",
       apps: plugins,
-      version: "0.1.11",
+      version: "0.1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),

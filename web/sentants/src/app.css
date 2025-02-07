@@ -29,7 +29,7 @@ body {
   height: 100vh;
   place-items: center;
   /* height: 1920px; */
-  background-color: #222222;
+  background-color: #ffffff;
   width: 100%;
   min-width: 100%;
   min-height: 100vh;
@@ -90,6 +90,10 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+body.pushable {
+  background: #FFF;
 }
 
   /* Style for the tooltip */
