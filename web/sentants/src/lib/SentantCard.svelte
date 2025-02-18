@@ -9,10 +9,11 @@
 <script lang="ts">
     import { onMount, tick } from 'svelte';
     //@ts-ignore
-    import {Card, Content, Header, Image, Button, Text, Input, Link, Icon, Popup, Divider, reload, update} from "svelte-fomantic-ui";
+    import {Card, Div, Header, Image, Button, Text, Input, Link, Icon, Popup, Divider, reload, Checkbox} from "svelte-fomantic-ui";
 
     import type { Sentant } from './reality2.js';
     import R2 from "./reality2";
+    import { div } from 'three/tsl';
 
     export let sentant: Sentant = {name: "", id: "", description: "", events: [], signals: []};
     export let r2_node: R2;
@@ -26,6 +27,7 @@
     let messages = ["|", "|", "|", "|", "|"];
     let input_text: input_text_type = {};
     let max_messages = 5;
+    let wide_message = false;
 
     let show_message = false;
     let current_message = "";
@@ -112,34 +114,43 @@
 {#if sentant.name != "monitor"}
     {#if show_message}
         <Card style="height: {height};" id={sentant.id}>
-            <Content style={mini?"text-align: center;":"height:140px; text-align: center;"}>
-                <Header>{current_message.split('|')[0].split(", ")[1]}</Header>
-            </Content>
-            <Content style="overflow:auto;">
+            <Div style={mini?"text-align: center;":"height:150px; text-align: center; padding-top: 10px; padding-left: 10px; padding-right:10px;"}>
+                <Header ui>{sentant.name}</Header>
+                <p><Text ui small blue>{sentant.id}</Text></p>
+                <p><Text ui>{current_message.split('|')[0].split(", ")[1]}</Text></p>
+            </Div>
+            <Divider ui small horizontal center aligned header blue>message</Divider>
+            <Div style="text-align: center;">
+                <Text ui >narrow&nbsp;&nbsp;</Text><Checkbox ui toggle bind:checked={wide_message} label=" " grey/><Text ui>wide</Text>
+            </Div>
+            <Divider ui small horizontal center aligned header blue>message</Divider>
+            <Div style="overflow:auto; height: 620px; padding-left: 10px; padding-right:10px;">
                 <Text ui>
-                    <pre style="text-align: left; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; width: 80ch;">{JSON.stringify(try_convert(current_message.split('|')[1]), null, 4)}</pre>
+                    <pre style="text-align: left; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; width: {wide_message ? "100ch" : "30ch"};">{JSON.stringify(try_convert(current_message.split('|')[1]), null, 4)}</pre>
                 </Text>
-            </Content>
-            <Divider ui small horizontal center aligned header blue>actions</Divider>
-            <Content extra style="height:80px;">
-                <Button ui teal fluid on:click={() => show_message = false}>done</Button>
-            </Content>
+            </Div>
+            <Div style="height:80px; position: absolute; bottom: 0px; left: 0px; right: 0px;">
+                <Divider ui small horizontal center aligned header blue>actions</Divider>
+                <Div style="padding-left: 10px; padding-right:10px;">
+                    <Button ui teal fluid on:click={() => show_message = false}>done</Button>
+                </Div>
+            </Div>
         </Card>
     {:else}
         <Card style="height: {height};" id={sentant.id}>
             <Link ui image href={"/?name=" + sentant.name + "&variables=" + encodeURIComponent(JSON.stringify(variables))}>
                 <Image ui large src="/images/bee_blue.png" />
             </Link>
-            <Content style={mini?"text-align: center;":"height:140px; text-align: center;"}>
-                <Header>{sentant.name}</Header>
+            <Div style={mini?"text-align: center;":"height:130px; text-align: center; padding-top:10px; padding-left: 10px; padding-right:10px;"}>
+                <Header ui>{sentant.name}</Header>
                 <p><Text ui small blue>{sentant.id}</Text></p>
                 <p>{sentant.description}</p>
-            </Content>
+            </Div>
             <Divider ui small horizontal center aligned header blue>messages</Divider>
-            <Content extra style={mini?"text-align: center;":"height:200px; text-align: center;"}>
+            <Div style={mini?"text-align: center;":"height:150px; text-align: center; padding-left: 10px; padding-right:10px;"}>
                 {#each messages as message, i}
                     {#if message.split('|')[0] != ""}
-                        <Button ui icon small basic popup style="box-shadow: 0 0 0 0;" data-tooltip={"see message"} on:click={() => {
+                        <Button ui icon small basic popup style="box-shadow: 0 0 0 0;" data-tooltip={"click to see message"} on:click={() => {
                                 current_message = message;
                                 show_message = true;
                             }}>
@@ -151,12 +162,12 @@
                         <br/>
                     {/if}
                 {/each}
-            </Content>
+            </Div>
             {#if !mini}
+                <Divider ui small horizontal center aligned header blue>actions</Divider>
                 {#if sentant.events.length > 0}
-                    <Divider ui small horizontal center aligned header blue>actions</Divider>
-                    <Content extra style="overflow-y:scroll; overflow-x: hidden; height:240px; text-align: center;">
-                        {#each sentant.events as event}
+                    <Div style="overflow-y:auto; overflow-x: hidden; height:230px; text-align: center; padding-left: 10px; padding-right:10px;">
+                        {#each sentant.events as event, i}
                             {#each Object.keys(event.parameters) as key}
                                 <Input ui labeled fluid style={"margin-bottom:5px;"}>    
                                     <Input text large placeholder={key} bind:value={input_text[event.event+key]}/>
@@ -165,16 +176,20 @@
                             <Button ui teal fluid on:click={() => event_button_pressed(sentant.id, event.event)} style={"margin-bottom:20px;"}>
                                 {event.event}
                             </Button>
-                            <Divider ui teal></Divider>
+                            {#if i < (sentant.events.length - 1)}
+                                <Divider ui teal></Divider>
+                            {/if}
                         {/each}
-                    </Content>
+                    </Div>
                 {/if}
-                <Divider ui small horizontal center aligned header orange>danger zone</Divider>
-                <Content extra style="height:80px;">
-                    <Button ui orange fluid basic on:click={unload_sentant}>
-                        Unload
-                    </Button>
-                </Content>
+                <Div style="height:80px; position: absolute; bottom: 0px; left: 0px; right: 0px;">
+                    <Divider ui small horizontal center aligned header orange>danger zone</Divider>
+                    <Div style="padding-left: 10px; padding-right:10px;">
+                        <Button ui orange fluid basic on:click={unload_sentant}>
+                            Unload
+                        </Button>
+                    </Div>
+                </Div>
             {/if}
         </Card>
     {/if}
