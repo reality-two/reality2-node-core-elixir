@@ -572,7 +572,11 @@ defmodule Reality2.Automation do
     Regex.replace(pattern, data, fn match ->
       variable_name = String.trim(match, "__")
       # If the variable exists, replace it with the value, otherwise, just leave it as it is.
-      to_string(R2Map.get(variable_map, variable_name, "__" <> variable_name <> "__"))
+      data = R2Map.get(variable_map, variable_name, "__" <> variable_name <> "__")
+      cond do
+        is_map(data) -> Jason.encode!(data)
+        true -> to_string(data)
+      end
     end)
   end
 
