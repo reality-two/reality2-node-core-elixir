@@ -32,7 +32,8 @@
     $: state = set_state;
 
     // Set up the geolocation
-    var set_location = {};
+    var default_location = {longitude: 177.36667, latitude: -39.03333, altitude: 0};
+    var set_location = default_location;
     $: location = set_location;
 
     // Saved state for constructor
@@ -125,6 +126,7 @@
             },
             (error) => {
                 console.error("Error getting location:", error.message);
+                set_location = default_location;
             }
         );
 
