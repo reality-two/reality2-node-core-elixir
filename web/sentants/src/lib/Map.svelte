@@ -4,6 +4,8 @@
   Author: Dr. Roy C. Davies
   Created: Feb 2024
   Contact: roycdavies.github.io
+
+  Wairoa: -39.060257, 177.406370
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
 
@@ -20,7 +22,7 @@
 
     export let r2_node: R2;
     export let sentantData: any[]|any = [];
-    export let location: any = {longitude: 0, latitude: 0};
+    export let location: any = {};
 
     let map: any;
     let mapHeight = "400px";
@@ -29,11 +31,12 @@
 
     onMount(() => {
 
-        map = L.map('map').setView([location.latitude, location.longitude], 13);
+        console.log(location);
+        map = L.map('map').setView([location.latitude == undefined ? 0 : location.latitude, location.longitude == undefined ? 0 : location.longitude], location.latitude == undefined ? 5 : 13);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png?access_token={token}', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            token: 'pk.eyJ1Ijoicm95Y2RhdmllcyIsImEiOiJua2ZoY3JnIn0.2ybExrs-yDA5hLbt838zdg'
+            token: 'pk.eyJ1Ijoicm95LWMtZGF2aWVzIiwiYSI6ImNtYmJjM216cjB5MjMyanBvYW50YnJuYmkifQ.4ZIRqPo0xg1h0i68wfNcBw'
         }).addTo(map);
 
         // Set the initial map height
@@ -115,10 +118,10 @@
         var myIcon = L.icon({
             iconUrl: '/images/marker-icon.svg',
             iconSize: [60, 60],
-            iconAnchor: [0, 0],
+            iconAnchor: [30, 30],
             shadowUrl: '/images/marker-shadow.svg',
             shadowSize: [60, 60],
-            shadowAnchor: [1, 1]
+            shadowAnchor: [31, 31]
         });
         return myIcon;
     }
