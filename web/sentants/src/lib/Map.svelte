@@ -34,6 +34,7 @@
         console.log(location);
         map = L.map('map').setView([location.latitude == undefined ? 0 : location.latitude, location.longitude == undefined ? 0 : location.longitude], location.latitude == undefined ? 5 : 13);
 
+
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png?access_token={token}', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             token: 'pk.eyJ1Ijoicm95LWMtZGF2aWVzIiwiYSI6ImNtYmJjM216cjB5MjMyanBvYW50YnJuYmkifQ.4ZIRqPo0xg1h0i68wfNcBw'
