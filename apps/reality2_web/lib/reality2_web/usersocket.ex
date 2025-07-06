@@ -7,9 +7,9 @@ defmodule Reality2Web.UserSocket do
     case authorize_user(socket, query_params) do
       {:ok, user} ->
         {:ok, Absinthe.Phoenix.Socket.put_options(socket, context: %{current_user: user})}
-      {:error, _reason} ->
-        # Reject the connection
-        :error
+      # {:error, _reason} ->
+      #   # Reject the connection
+      #   :error
     end
   end
 

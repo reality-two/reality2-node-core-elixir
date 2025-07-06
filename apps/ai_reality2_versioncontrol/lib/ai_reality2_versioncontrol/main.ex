@@ -15,8 +15,8 @@ defmodule AiReality2Versioncontrol.Main do
     @doc false
     use GenServer, restart: :transient
     alias Reality2.Helpers.R2Map, as: R2Map
-    alias Reality2.Helpers.Crypto, as: Crypto
-    alias :mnesia, as: Mnesia
+    # alias Reality2.Helpers.Crypto, as: Crypto
+    # alias :mnesia, as: Mnesia
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
     # Supervisor Callbacks

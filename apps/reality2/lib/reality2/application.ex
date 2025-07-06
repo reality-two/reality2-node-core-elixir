@@ -15,6 +15,7 @@ defmodule Reality2.Application do
       %{id: Reality2.Helpers.R2Process, start: {Reality2.Helpers.R2Process, :start_link, [Reality2.Helpers.R2Process]}},
       %{id: :SentantNames, start: {Reality2.Metadata, :start_link, [:SentantNames]}},
       %{id: :SentantIDs, start: {Reality2.Metadata, :start_link, [:SentantIDs]}},
+      %{id: :Autostart, start: {Reality2.Autostart, :start_link, [Reality2.Autostart]}},
       {Finch, name: Reality2.HTTPClient, start: {Finch, :start_link, []}}
     ]
 
