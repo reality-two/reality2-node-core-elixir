@@ -2,13 +2,14 @@
 
 cd ..
 
-RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)
 ARCH=$(uname -m)
 OS=$(uname -o | sed 's/\//_/g')
 if [ $(git rev-parse --abbrev-ref HEAD) == "develop" ]; then
-  BUILD_FOLDER=${ARCH}_${OS}_dev
+    RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)_dev
+    BUILD_FOLDER=${ARCH}_${OS}_dev
 else
-  BUILD_FOLDER=${ARCH}_${OS}
+    RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)
+    BUILD_FOLDER=${ARCH}_${OS}
 fi
 
 
