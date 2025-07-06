@@ -1,0 +1,43 @@
+sentant:
+  name: Zen Quote
+  description: Get a quote for the day
+  plugins:
+    - name: io.zenquotes.api
+      url: https://zenquotes.io/api/random
+      method: GET
+      headers:
+        "Content-Type": "application/json"        
+      output:
+        key: answer
+        value: "0"
+        event: zenquote_response
+
+  automations:
+    - name: Zen Quote
+      description: Get quote
+      transitions:
+        - public: true
+          event: "Get Zenquote"
+          actions:
+            - plugin: io.zenquotes.api
+              command: send
+        - event: zenquote_response
+          actions:
+            - command: set
+              parameters:
+                key: quote
+                value:
+                  jsonpath: "answer.q"
+            - command: set
+              parameters:
+                key: author
+                value:
+                  jsonpath: "answer.a"
+            - command: set
+              parameters: 
+                key: answer
+            - command: signal
+              parameters:
+                public: true
+                event: "Zenquote Response"
+ 

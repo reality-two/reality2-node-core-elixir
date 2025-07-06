@@ -1,0 +1,56 @@
+{
+    "swarm": {
+      "name": "Light and Switch",
+      "description": "A Swarm showing how to send turn a light on and off via a client python script on a rasp pi.",
+      "sentants": [
+        {
+          "name": "Light Switch",
+          "automations": [
+            {
+              "name": "switch",
+              "transitions": [
+                {
+                  "public": true,
+                  "event": "Toggle Switch",
+                  "actions": [
+                    { "command": "send", "parameters": { "to": "Light Bulb", "event": "toggle" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Light Bulb",
+          "automations": [
+            {
+              "name": "bulb",
+              "transitions": [
+                { "from": "start", "event": "init", "to": "off",
+                  "actions": [
+                    { "command": "send", "parameters": { "to": ".raspberry_pi", "event": "setup", "parameters": { "pin": 14, "type": "LED" } } },
+                    { "command": "send", "parameters": { "to": ".raspberry_pi", "event": "setup", "parameters": { "pin": 4, "type": "Button", "send": "Toggle Switch", "name": "Light Switch" } } }
+                  ]
+                },
+                {
+                  "from": "off", "event": "toggle", "to": "on",
+                  "actions": [
+                    { "command": "send", "parameters": { "to": ".raspberry_pi", "event": "set_pin", "parameters": { "pin": 14, "state": "on" } } },
+                    { "command": "send", "parameters": { "to": "Light Switch", "event": "Toggle Switch", "delay": 5000}},
+                    { "command": "signal", "public": true, "parameters": { "event": "Light on" } }
+                  ]
+                },
+                {
+                  "from": "on", "event": "toggle", "to": "off",
+                  "actions": [
+                    { "command": "send", "parameters": { "to": ".raspberry_pi", "event": "set_pin", "parameters": { "pin": 14, "state": "off" } } },
+                    { "command": "signal", "public": true, "parameters": { "event": "Light off" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
