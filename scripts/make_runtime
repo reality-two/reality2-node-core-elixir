@@ -5,7 +5,12 @@ cd ..
 RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)
 ARCH=$(uname -m)
 OS=$(uname -o | sed 's/\//_/g')
-BUILD_FOLDER=${ARCH}_${OS} 
+if [ $(git rev-parse --abbrev-ref HEAD) == "develop" ]; then
+  BUILD_FOLDER=${ARCH}_${OS}_dev
+else
+  BUILD_FOLDER=${ARCH}_${OS}
+fi
+
 
 echo "********************************************************************"
 echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
