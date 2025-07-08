@@ -14,7 +14,7 @@ defmodule Reality2.Swarm do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @spec create(Types.swarm() | String.t()) ::
-    {:ok}
+    {:ok, map}
     | {:error, :definition}
   @doc """
   Create a new Swarm on the Node, returning {:ok} or an appropriate error.

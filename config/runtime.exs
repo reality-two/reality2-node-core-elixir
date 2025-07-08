@@ -48,6 +48,9 @@ if config_env() == :prod do
     secret_key_base: secret_key_base,
     server: true
 
+  config :reality2, :autostart_dir,
+    System.get_env("AUTOSTART_DIR") || Path.expand("../../autostart", __DIR__)
+
   # ## Using releases
   #
   # If you are doing OTP releases, you need to instruct Phoenix

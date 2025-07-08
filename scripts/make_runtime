@@ -2,10 +2,16 @@
 
 cd ..
 
-RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)
 ARCH=$(uname -m)
 OS=$(uname -o | sed 's/\//_/g')
-BUILD_FOLDER=${ARCH}_${OS} 
+if [ $(git rev-parse --abbrev-ref HEAD) == "develop" ]; then
+    RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)_dev
+    BUILD_FOLDER=${ARCH}_${OS}_dev
+else
+    RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)
+    BUILD_FOLDER=${ARCH}_${OS}
+fi
+
 
 echo "********************************************************************"
 echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
@@ -34,7 +40,7 @@ export PORT=4005
 export POOLSIZE=10
 export MIX_ENV=prod
 #export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo"
-export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet"
+export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet, ai.reality2.versioncontrol"
 
 # Get any new deps
 mix deps.get
@@ -53,6 +59,9 @@ fi
 
 echo "***** Adding some useful extras..."
 cp -r extras "_build/prod/rel/reality2"
+
+echo "***** Creating the autostart directory..."
+cp -r autostart "_build/prod/rel/reality2"
 
 echo "***** Creating the Reality2 Node tarball..."
 tar -zcf "_build/prod/rel/reality2_${RELEASE}.tar.gz" --directory=_build/prod/rel reality2
