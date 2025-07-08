@@ -49,12 +49,8 @@ alias Reality2.Helpers.R2Map, as: R2Map
   # Get all the Sentants on this Node.  TODO: Search criteria and privacy / ownership
   # -----------------------------------------------------------------------------------------------------------------------------------------
   def all_sentants(_, _, _) do
-    case Reality2.Sentants.read_all(:definition) do
-      {:ok, sentants} ->
-        {:ok, Enum.map(sentants, fn sentant -> sentant end)}
-      {:error, reason} ->
-        {:error, reason}
-    end
+    {:ok, sentants} = Reality2.Sentants.read_all(:definition)
+    {:ok, Enum.map(sentants, fn sentant -> sentant end)}
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -140,7 +136,6 @@ alias Reality2.Helpers.R2Map, as: R2Map
 
         # Create the Swarm
         case Reality2.Swarm.create(decoded) do
-          {:error, {error_code, reason}} -> {:error, Atom.to_string(error_code) <> ":" <> reason}
           {:error, reason} -> {:error, reason}
           {:ok, swarm} ->
             name = R2Map.get(swarm, "name", "")
@@ -247,6 +242,17 @@ alias Reality2.Helpers.R2Map, as: R2Map
         # Something went wrong
         false
     end
+  end
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Lock down a node so sentants or swarms can no longer be loaded.  Node starts unlocked, but may then be locked down for security reasons
+  # once the required Sentants or Swarms are loaded.
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  def node_lock(_root, _args, _info) do
+    true
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 

@@ -169,6 +169,13 @@ defmodule Reality2Web.Schema.Sentant do
       arg :passthrough, :json
       resolve(&SentantResolver.send_event/3)
     end
+
+    # ----------------------------------------------------------------------------------------------------
+    @desc "Lock down the node so that no more Sentants can be loaded or unloaded"
+    # ----------------------------------------------------------------------------------------------------
+    field :node_lock, :boolean do
+      resolve(&SentantResolver.node_lock/3)
+    end
   end
   # ------------------------------------------------------------------------------------------------------
 

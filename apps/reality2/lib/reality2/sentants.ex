@@ -66,7 +66,7 @@ defmodule Reality2.Sentants do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  @spec create((definition :: sentant_definition()) | (definition_map :: Types.sentant())) ::
+  @spec create((definition :: sentant_definition()) | (definition_map :: Types.sentant()) | String.t()) ::
     {:ok, String.t()}
     | {:error, :definition}
   @doc """
