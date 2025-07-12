@@ -13,9 +13,10 @@ defmodule Reality2.Swarm do
   alias Reality2.Helpers.R2Map, as: R2Map
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  @spec create(Types.swarm() | String.t()) ::
+  @spec create(Types.swarm() | String.t(), local :: boolean(), override :: boolean()) ::
     {:ok, map}
     | {:error, :definition}
+    | {:error, :locked}
   @doc """
   Create a new Swarm on the Node, returning {:ok} or an appropriate error.
 
@@ -25,7 +26,26 @@ defmodule Reality2.Swarm do
   - Parameters
     - `swarm_definition` - A map containing the definition of the Swarm, or a string containing the YAML definition of the Swarm.
   """
-  def create(swarm_definition) do
+  def create(swarm_definition, local \\ true, override \\ false) do
+    if override do
+      do_create(swarm_definition)
+    else
+      case String.downcase(System.get_env("LOCKED") || "") do
+        "remote" ->
+          if local do
+            do_create(swarm_definition)
+          else
+            {:error, :locked}
+          end
+        "" -> do_create(swarm_definition)
+        "false" -> do_create(swarm_definition)
+        "0" -> do_create(swarm_definition)
+        _ -> {:error, :locked }
+      end
+    end
+  end
+
+  defp do_create(swarm_definition) do
     case convert_input(swarm_definition) do
       {:ok, definition_map} ->
         swarm_map = remove_swarm_parent_from_definition_map(definition_map)

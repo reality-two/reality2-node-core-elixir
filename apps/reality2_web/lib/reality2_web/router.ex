@@ -24,6 +24,7 @@ defmodule Reality2Web.Router do
   end
 
   pipeline :reality2 do
+    plug Reality2Web.Plugs.SetLocalContext
     plug :accepts, ["json"]
     # plug Reality2Web.HeadersAndAdminContext
   end
@@ -32,19 +33,21 @@ defmodule Reality2Web.Router do
     pipe_through :reality2
 
     forward "/", Absinthe.Plug,
-    schema: Reality2Web.Schema,
-    socket: Reality2Web.UserSocket,
-    init_opts: [json_codec: Jason]
+      schema: Reality2Web.Schema,
+      socket: Reality2Web.UserSocket,
+      init_opts: [
+        json_codec: Jason
+      ]
   end
 
   if Mix.env == :dev do
     forward "/graphiql", Absinthe.Plug.GraphiQL,
-    schema: Reality2Web.Schema,
-    socket: Reality2Web.UserSocket,
-    # interface: :simple,
-    interface: :advanced,
-    # interface: :playground,
-    context: %{pubsub: Reality2Web.Endpoint}
+      schema: Reality2Web.Schema,
+      socket: Reality2Web.UserSocket,
+      # interface: :simple,
+      interface: :advanced,
+      # interface: :playground,
+      context: %{pubsub: Reality2Web.Endpoint}
   end
 
   # Enable LiveDashboard in development
