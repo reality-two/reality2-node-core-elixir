@@ -98,11 +98,11 @@ defmodule Reality2.Autostart do
 
     case File.read(full_path) do
       {:ok, content} ->
-        case Reality2.Swarm.create(content) do
+        case Reality2.Swarm.create(content, true, true) do
           {:ok, _} ->
             IO.puts("   Swarm file: " <> file_name <> " loaded")
           _ ->
-            case Reality2.Sentants.create(content) do
+            case Reality2.Sentants.create(content, true, true) do
               {:ok, _} ->
                 IO.puts("   Sentant file: " <> file_name <> " loaded")
               _ ->

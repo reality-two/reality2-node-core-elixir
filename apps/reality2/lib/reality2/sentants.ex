@@ -66,7 +66,7 @@ defmodule Reality2.Sentants do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  @spec create((definition :: sentant_definition()) | (definition_map :: Types.sentant()) | String.t()) ::
+  @spec create((definition :: sentant_definition()) | (definition_map :: Types.sentant()) | String.t(), local :: boolean(), override :: boolean()) ::
     {:ok, String.t()}
     | {:error, :definition}
   @doc """
@@ -79,9 +79,29 @@ defmodule Reality2.Sentants do
   **Returns**
   - `{:ok, id}` - The Sentant was created.
   - `{:error, :definition}` if the definition is invalid.
+  - `{:error, :locked}` if the node is locked
   """
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  def create(sentant_definition) do
+  def create(sentant_definition, local \\ true, override \\ false) do
+    if override do
+      do_create(sentant_definition)
+    else
+      case String.downcase(System.get_env("LOCKED") || "") do
+        "remote" ->
+          if local do
+            do_create(sentant_definition)
+          else
+            {:error, :locked}
+          end
+        "" -> do_create(sentant_definition)
+        "false" -> do_create(sentant_definition)
+        "0" -> do_create(sentant_definition)
+        _ -> {:error, :locked }
+      end
+    end
+  end
+
+  defp do_create(sentant_definition) do
     case convert_input(sentant_definition) do
       {:ok, definition_map} ->
         sentant_map = remove_sentant_parent_from_definition_map(definition_map)
@@ -275,7 +295,7 @@ defmodule Reality2.Sentants do
 
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  @spec delete(name_or_uuid :: sentant_name_or_uuid()) ::
+  @spec delete(name_or_uuid :: sentant_name_or_uuid(), local :: boolean(), override :: boolean()) ::
     {:ok, Types.uuid()}
     | {:error, :name}
     | {:error, :existance}
@@ -298,8 +318,30 @@ defmodule Reality2.Sentants do
   ```
   """
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  def delete(name_or_uuid)
-  def delete(%{:name => name}) do
+  def delete(name_or_uuid, local \\ true, override \\ false) do
+
+    IO.puts("DELETING #{inspect(name_or_uuid)} local:#{local} override:#{override}, locked:#{System.get_env("LOCKED")}")
+
+    if override do
+      do_delete(name_or_uuid)
+    else
+      case String.downcase(System.get_env("LOCKED") || "") do
+        "remote" ->
+          if local do
+            do_delete(name_or_uuid)
+          else
+            {:error, :locked}
+          end
+        "" -> do_delete(name_or_uuid)
+        "false" -> do_delete(name_or_uuid)
+        "0" -> do_delete(name_or_uuid)
+        _ -> {:error, :locked }
+      end
+    end
+  end
+
+  defp do_delete(name_or_uuid)
+  defp do_delete(%{:name => name}) do
     case Reality2.Metadata.get(:SentantIDs, name) do
       nil ->
         {:error, :name}
@@ -308,7 +350,7 @@ defmodule Reality2.Sentants do
     end
   end
 
-  def delete(%{:id => id}) do
+  defp do_delete(%{:id => id}) do
     case R2Process.whereis(id) do
       nil ->
         {:error, :id}
@@ -333,7 +375,7 @@ defmodule Reality2.Sentants do
       end
   end
 
-  def delete(_), do: {:error, :existance}
+  defp do_delete(_), do: {:error, :existance}
 
 
   defp remove_plugins_from_sentant(id) do

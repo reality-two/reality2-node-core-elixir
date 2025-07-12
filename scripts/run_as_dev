@@ -2,7 +2,17 @@
 export MIX_ENV=dev
 #export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo"
 export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet, ai.reality2.versioncontrol"
+
+# The autostart directory is assumed to be in the same folder as where Reality2-Node is run.  However, you can change that:
 # export AUTOSTART="~/Development/Reality2/reality2-node-core-elixir/autostart"
+
+# A Reality2 node is unlocked by default.  To lock it so that only the autostart swarms and bees may be loaded, set LOCKED to "true" or 1.
+# If you want to be able to load Sentants or Swarms after autostart, but only from the local IP address (eg 127.0.0.1), then set LOCKED="remote".
+# Locking remote access for create swarms and sentants, and for deleting sentants, effectively means only a UI running on the device
+# itself can create sentants and swarms.  Doesn't affect sending events.
+
+# export LOCKED="true"    # No Sentants or Swarms may created or deleted after autostart.
+export LOCKED="remote"  # Only API commands issued from the local node can create Swarms or Sentants.
 
 # If in the Scripts directory, move up one level
 if ! [ -d "scripts" ]; then

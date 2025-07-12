@@ -1,0 +1,27 @@
+{
+    "sentant": 
+    { 
+        "name": "monitor",
+        "description": "Converts internal events to signals, such as when a Sentant is added or deleted.  This is useful for active UI Apps and Webapps.",
+        "automations": [
+            { 
+                "name": "Monitor", 
+                "transitions": [ 
+                    { 
+                        "event": "__internal", 
+                        "actions": [ 
+                            { 
+                                "command": "signal", 
+                                "parameters": 
+                                { 
+                                    "public": true, 
+                                    "event": "internal" 
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
