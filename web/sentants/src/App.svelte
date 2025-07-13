@@ -64,6 +64,7 @@
 
     const setDimensions = () => { 
         windowWidth = window.innerWidth;
+        console.log(windowWidth);
         fullHeight = `${(window.innerHeight - 64)}px`;
     };
     // -------------------------------------------------------------------------------------------------
@@ -399,7 +400,7 @@ Layout
                 </Dropdown>
             </Menu>
         </Menu>
-        <Segment ui bottom attached grey compact style="height: {fullHeight}; width: 100%; padding: 0px;">
+        <Segment ui bottom attached grey compact style="height: {fullHeight}px; width:{windowWidth}px; padding: 0px;">
             <!--------------------------------------------------------------------------------------------->
             {#if state == "start"}
             <!--------------------------------------------------------------------------------------------->
