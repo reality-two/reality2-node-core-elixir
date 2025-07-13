@@ -318,6 +318,7 @@
         })
     }
 
+    // Check if the proposed url is reachable or not
     async function isServerReachable(url:string) {
         try {
             const response = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
@@ -327,8 +328,6 @@
             return false;
         }
     }
-
-
 
     // Get the keys pressed (so we can process them to determine the path)
     function on_key_down(event:any) {
