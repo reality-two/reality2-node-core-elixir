@@ -59,7 +59,11 @@ alias Reality2.Helpers.R2Map, as: R2Map
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Load a Sentant from the definition.
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  def load_sentant(_root, args, _info) do
+  def load_sentant(_root, args, %{context: context}) do
+
+    # Local or remote IP?
+    local = Map.get(context, :local?, false)
+
     case Map.get(args, :definition) do
       nil ->
         # There was no definition
@@ -69,7 +73,7 @@ alias Reality2.Helpers.R2Map, as: R2Map
         decoded = URI.decode(definition)
 
         # Create the Sentant (or update it if it already exists and the ID is given)
-        case Reality2.Sentants.create(decoded) do
+        case Reality2.Sentants.create(decoded, local) do
           # Success, so get the Sentant details to send back
           {:ok, sentantid} ->
             # Read the sentant detals from the Sentant
@@ -93,7 +97,10 @@ alias Reality2.Helpers.R2Map, as: R2Map
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Unload (delete) a Sentant by ID.
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  def unload_sentant(_root, args, _info) do
+  def unload_sentant(_root, args, %{context: context}) do
+
+    # Local or remote IP?
+    local = Map.get(context, :local?, false)
 
     # Delete a sentant
     case Map.get(args, :id) do
@@ -103,7 +110,7 @@ alias Reality2.Helpers.R2Map, as: R2Map
         # Get the details of the Sentant before it is deleted
         case Reality2.Sentants.read(%{id: sentantid}, :definition) do
           {:ok, sentant} ->
-            case Reality2.Sentants.delete(%{id: sentantid}) do
+            case Reality2.Sentants.delete(%{id: sentantid}, local) do
               {:ok, _} ->
                 # Send back the sentant details
                 {:ok, sentant}
@@ -125,7 +132,12 @@ alias Reality2.Helpers.R2Map, as: R2Map
   # Load a Swarm of Sentants from the definition.
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @spec load_swarm(any(), map(), any()) :: {:error, :definition}
-  def load_swarm(_root, args, _info) do
+
+  def load_swarm(_root, args, %{context: context}) do
+
+    # Local or remote IP?
+    local = Map.get(context, :local?, false)
+
     # Create a new swarm
     case Map.get(args, :definition) do
       nil ->
@@ -135,7 +147,7 @@ alias Reality2.Helpers.R2Map, as: R2Map
         decoded = URI.decode(definition)
 
         # Create the Swarm
-        case Reality2.Swarm.create(decoded) do
+        case Reality2.Swarm.create(decoded, local) do
           {:error, reason} -> {:error, reason}
           {:ok, swarm} ->
             name = R2Map.get(swarm, "name", "")
@@ -167,6 +179,7 @@ alias Reality2.Helpers.R2Map, as: R2Map
   @spec send_event(any(), map(), any()) ::
           {:error, :event | :existance | :id | :invalid_event | :name}
   def send_event(_root, args, _info) do
+
     # Get the Sentant ID
     case Map.get(args, :id) do
       nil ->
@@ -242,17 +255,6 @@ alias Reality2.Helpers.R2Map, as: R2Map
         # Something went wrong
         false
     end
-  end
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Lock down a node so sentants or swarms can no longer be loaded.  Node starts unlocked, but may then be locked down for security reasons
-  # once the required Sentants or Swarms are loaded.
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-  def node_lock(_root, _args, _info) do
-    true
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
 

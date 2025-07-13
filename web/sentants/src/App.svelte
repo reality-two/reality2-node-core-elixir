@@ -294,10 +294,6 @@
         else {
             set_state = newstate;
         }
-        // let hostname = use_default_url ? "localhost" : window.location.hostname;
-        
-        // window.location.href = "https://"+ window.location.hostname + ":" + window.location.port + "/?" + e.detail.value;
-        // window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?" + e.detail.value + "&variables=" + encodeURIComponent(JSON.stringify(variables))
     }
 
     // return true if there are no Sentants, or only the one called "monitor"
@@ -322,16 +318,44 @@
         })
     }
 
+    // Check if the proposed url is reachable or not
+    async function isServerReachable(url:string) {
+        try {
+            const response = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+            // Note: With 'no-cors', status is always 0, so we assume it might be reachable.
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
     // Get the keys pressed (so we can process them to determine the path)
     function on_key_down(event:any) {
+        let new_location = "";
         if (event.key === "Enter" && event.target.id === "path")
         {
             let elements = path.split("|");
-            if (elements.length > 1) {
-                window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?name=" + elements[1]  + "&variables=" + encodeURIComponent(JSON.stringify(variables));
-            }
-            else {
-                window.location.href = "https://"+ use_default_url ? "localhost" : window.location.hostname + ":" + use_default_url ? "4005" : window.location.port + "/?variables=" + encodeURIComponent(JSON.stringify(variables));
+            if (elements.length > 0) {
+                if (elements.length > 1) {
+                    new_location = "https://"+ ( use_default_url ? "localhost" : elements[0] ) + ":" + ( use_default_url ? "4005" : window.location.port ) + "/?name=" + elements[1]  + "&variables=" + encodeURIComponent(JSON.stringify(variables));
+                }
+                else {
+                    new_location = "https://"+ ( use_default_url ? "localhost" : elements[0] ) + ":" + ( use_default_url ? "4005" : window.location.port ) + "/?variables=" + encodeURIComponent(JSON.stringify(variables));
+                }
+
+                if ((elements[0] == "localhost") || (elements[0] == "127.0.0.1"))
+                {
+                    window.location.href = new_location;
+                }
+                else {
+                    isServerReachable(new_location).then(reachable => {
+                        if (reachable) {
+                            window.location.href = new_location;
+                        } else {
+                            alert("Reality2 server " + new_location + " is not reachable.");
+                        }
+                    });
+                }
             }
         }
     }
@@ -399,7 +423,7 @@ Layout
                 </Dropdown>
             </Menu>
         </Menu>
-        <Segment ui bottom attached grey compact style="height: {fullHeight}; width: 100%; padding: 0px;">
+        <Segment ui bottom attached grey compact style="height: {fullHeight}px; width:{windowWidth}px; padding: 0px;">
             <!--------------------------------------------------------------------------------------------->
             {#if state == "start"}
             <!--------------------------------------------------------------------------------------------->
