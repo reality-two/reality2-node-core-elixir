@@ -45,6 +45,7 @@ Construct Swarms and Bees / Sentants
     import reality2_post_plugin from "./blockly/reality2_post_plugin";
     import reality2_plugin_header from "./blockly/reality2_plugin_header";
     import reality2_plugin_body from "./blockly/reality2_plugin_body";
+    import reality2_plugin_body_string from "./blockly/reality2_plugin_body_string";
     import reality2_plugin_parameter from "./blockly/reality2_plugin_parameter";
     import reality2_automation from "./blockly/reality2_automation";
     import reality2_parameter from "./blockly/reality2_parameter";
@@ -150,6 +151,7 @@ Construct Swarms and Bees / Sentants
         reality2_post_plugin.shape,
         reality2_plugin_header.shape,
         reality2_plugin_body.shape,
+        reality2_plugin_body_string.shape,
         reality2_plugin_parameter.shape,
         reality2_automation.shape,
         reality2_parameter.shape,
@@ -360,6 +362,7 @@ Construct Swarms and Bees / Sentants
         javascriptGenerator.forBlock['reality2_post_plugin'] = reality2_post_plugin.process;
         javascriptGenerator.forBlock['reality2_plugin_header'] = reality2_plugin_header.process;   
         javascriptGenerator.forBlock['reality2_plugin_body'] = reality2_plugin_body.process;   
+        javascriptGenerator.forBlock['reality2_plugin_body_string'] = reality2_plugin_body_string.process;   
         javascriptGenerator.forBlock['reality2_plugin_parameter'] = reality2_plugin_parameter.process;   
         javascriptGenerator.forBlock['reality2_key_value'] = reality2_key_value.process;   
         javascriptGenerator.forBlock['reality2_data'] = reality2_data.process;   

@@ -33,7 +33,7 @@ defmodule Reality2Web.Schema.Sentant do
     field :version, :string,                    description: "Plugin version"
     field :url, non_null(:string),              description: "URL to plugin API"
     field :headers, :json,                      description: "Plugin headers"
-    field :body, :json,                         description: "Plugin body"
+    field :body, :string_or_json,               description: "Plugin body (string or json)"
     field :output, non_null(:plugin_output),    description: "Plugin output"
   end
 

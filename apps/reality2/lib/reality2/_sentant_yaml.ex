@@ -96,7 +96,7 @@ defmodule Reality2.Types do
     url: String.t,
     method: String.t,
     headers: map,
-    body: map,
+    body: map | String.t,
     output: map,
     version: String.t
   }

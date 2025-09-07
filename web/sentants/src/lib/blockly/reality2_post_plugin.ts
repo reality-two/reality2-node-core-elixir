@@ -7,6 +7,7 @@ import R2 from "../reality2";
 import reality2_plugin_header from "./reality2_plugin_header";
 import reality2_plugin_parameter from "./reality2_plugin_parameter";
 import reality2_plugin_body from "./reality2_plugin_body";
+import reality2_plugin_body_string from "./reality2_plugin_body_string";
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -111,11 +112,17 @@ function process(block: any, generator: any): string | [string, number] | null
     const headers = generator.statementToCode(block, "headers");
     if (headers != "") {
         plugin["headers"] = splitConcatenatedJSON(headers);
-    };
+    }
 
     const body = generator.statementToCode(block, "body");
     if (body != "") {
-        plugin["body"] = splitConcatenatedJSON(body);
+        const body_obj = splitConcatenatedJSON(body);
+
+        if (Object.keys(body_obj).length === 0) {
+            plugin["body"] = body.trim();
+        } else {
+            plugin["body"] = body_obj;
+        }
     };
 
     const parameters = generator.statementToCode(block, "parameters");
@@ -172,8 +179,29 @@ function construct(plugin: any)
         if (parameters) block["inputs"]["parameters"] = { "block": parameters }
 
         // Check if there are body parameters
-        let body = reality2_plugin_body.construct(R2.JSONPath(plugin, "body"));
-        if (body) block["inputs"]["body"] = { "block": body }
+        let body_data = R2.JSONPath(plugin, "body");
+        console.log(body_data);
+        if (typeof body_data == "string"){
+            let body = reality2_plugin_body_string.construct(body_data);
+            if (body) block["inputs"]["body"] = { "block": body }
+        } else {
+            let body = reality2_plugin_body.construct(body_data);
+            if (body) block["inputs"]["body"] = { "block": body }
+        }
+
+        // if (headers) {
+        //     if (Object.values(headers).includes("application/x-www-form-urlencoded")) {
+        //         let body = reality2_plugin_body_string.construct(R2.JSONPath(plugin, "body"));
+        //         if (body) block["inputs"]["body"] = { "block": body }
+        //     } else {
+        //         let body = reality2_plugin_body.construct(R2.JSONPath(plugin, "body"));
+        //         if (body) block["inputs"]["body"] = { "block": body }
+        //     }
+        // }
+        // else {
+        //     let body = reality2_plugin_body.construct(R2.JSONPath(plugin, "body"));
+        //     if (body) block["inputs"]["body"] = { "block": body }
+        // }
 
         return (block);
     }
