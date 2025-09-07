@@ -86,15 +86,17 @@ defmodule Reality2.Plugin do
           |> replace_variable_in_map(parameters)
           |> URI.encode_query()
 
-          # IO.puts("-----------")
-          # IO.puts(inspect(plugin_map))
-          # IO.puts(query_string)
-
           # Get the body
-          body = plugin_map
-          |> R2Map.get("body", %{})
-          |> replace_variable_in_map(parameters)
-          |> Jason.encode!
+          raw_body = R2Map.get(plugin_map, "body")
+          body = cond do
+            is_binary(raw_body) ->
+              replace_variable_in_map(raw_body, parameters)
+            is_map(raw_body) ->
+              replace_variable_in_map(raw_body, parameters)
+              |> Jason.encode!
+            is_nil(raw_body) -> %{}
+            true -> %{}
+          end
 
           # Get the method
           method = R2Map.get(plugin_map, "method", :post)
@@ -104,21 +106,15 @@ defmodule Reality2.Plugin do
             nil -> {:reply, {:error, :url}, {name, id, plugin_map, state}}
             base_url ->
               url = base_url <> if query_string != "", do: "?" <> query_string, else: ""
-              IO.puts(inspect(url))
 
               case Finch.build(method, url, headers, body) |> Finch.request(Reality2.HTTPClient) do
                 {:error, reason} -> {:reply, {:error, reason}, {name, id, plugin_map, state}}
                 {:ok, result} ->
                   %Finch.Response{body: body} = result
-                  # IO.puts(inspect(body))
                   body_json = Jason.decode!(body)
-                  # IO.puts(inspect(body_json))
-
 
                   output = R2Map.get(plugin_map, "output", %{})
                   output_pattern = R2Map.get(output, "value", "")
-                  # IO.puts(output_pattern)
-                  # IO.puts("-----------")
 
                   case JsonPath.get_value(body_json, output_pattern) do
                     {:error, reason} -> {:reply, {:error, reason}, {name, id, plugin_map, state}}
@@ -261,22 +257,62 @@ defmodule Reality2.Plugin do
     defp replace_variable_in_map(data, variables) when is_map(data) do
       Enum.map(data, fn {k, v} ->
         cond do
-          is_binary(v) -> {k, replace_string(variables, v)}
+          is_binary(v) -> {k, replace_variables(v, variables)}
           true -> {k, replace_variable_in_map(v, variables)}
         end
       end)
       |> Map.new
     end
     defp replace_variable_in_map(data, variables) when is_list(data), do: Enum.map(data, fn x -> replace_variable_in_map(x, variables) end)
-    defp replace_variable_in_map(data, variables) when is_binary(data), do: replace_string(variables, data)
+    defp replace_variable_in_map(data, variables) when is_binary(data), do: to_number(replace_variables(data, variables))
     defp replace_variable_in_map(data, _), do: data
 
-    defp replace_string(map, string) do
-      case Regex.named_captures(~r/^__(?<content>.+?)__$/, string) do
-        %{"content" => content} ->
-          R2Map.get(map, content, string)
-        _ -> string
+    defp replace_variables(data, variable_map) do
+      pattern = ~r/__(.+?)__/  # Matches variables enclosed in double underscores
+
+      Regex.replace(pattern, data, fn match ->
+        variable_name = String.trim(match, "__")
+        # If the variable exists, replace it with the value, otherwise, just leave it as it is.
+        data = R2Map.get(variable_map, variable_name, "__" <> variable_name <> "__")
+        cond do
+          is_map(data) -> Jason.encode!(data)
+          true -> to_string(data)
+        end
+      end)
+    end
+
+    defp to_number(value) when is_binary(value) do
+      case Integer.parse(value) do
+        {number, ""} -> number
+        _ ->
+          case Float.parse(value) do
+            {number, ""} -> number
+            _ -> value
+          end
       end
     end
+    defp to_number(value), do: value
+
+    # Find places where a string contains a variable (starts with __ and ends with __), and replace it with the value from the variables map
+    # defp replace_variable_in_map(data, variables) when is_map(data) do
+    #   Enum.map(data, fn {k, v} ->
+    #     cond do
+    #       is_binary(v) -> {k, replace_string(variables, v)}
+    #       true -> {k, replace_variable_in_map(v, variables)}
+    #     end
+    #   end)
+    #   |> Map.new
+    # end
+    # defp replace_variable_in_map(data, variables) when is_list(data), do: Enum.map(data, fn x -> replace_variable_in_map(x, variables) end)
+    # defp replace_variable_in_map(data, variables) when is_binary(data), do: replace_string(variables, data)
+    # defp replace_variable_in_map(data, _), do: data
+
+    # defp replace_string(map, string) do
+    #   case Regex.named_captures(~r/^__(?<content>.+?)__$/, string) do
+    #     %{"content" => content} ->
+    #       R2Map.get(map, content, string)
+    #     _ -> string
+    #   end
+    # end
     # -----------------------------------------------------------------------------------------------------------------------------------------
   end

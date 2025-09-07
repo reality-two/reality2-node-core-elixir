@@ -76,7 +76,7 @@ alias Reality2.Helpers.R2Map, as: R2Map
         case Reality2.Sentants.create(decoded, local) do
           # Success, so get the Sentant details to send back
           {:ok, sentantid} ->
-            # Read the sentant detals from the Sentant
+            # Read the sentant details from the Sentant
             case Reality2.Sentants.read(%{id: sentantid}, :definition) do
               {:ok, sentant} ->
                 # Send back the sentant details
