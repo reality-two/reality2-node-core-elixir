@@ -96,21 +96,25 @@ defmodule Reality2.Autostart do
   defp load_file(file_name) do
     full_path = Path.join(autostart_dir(), file_name)
 
-    case File.read(full_path) do
-      {:ok, content} ->
-        case Reality2.Swarm.create(content, true, true) do
-          {:ok, _} ->
-            IO.puts("   Swarm file: " <> file_name <> " loaded")
-          _ ->
-            case Reality2.Sentants.create(content, true, true) do
-              {:ok, _} ->
-                IO.puts("   Sentant file: " <> file_name <> " loaded")
-              _ ->
-                IO.puts("   Error loading " <> full_path)
-            end
-        end
-      {:error, reason} ->
-        IO.puts("   Error reading file: #{reason}")
+    if File.dir?(full_path) do
+      :ok
+    else
+      case File.read(full_path) do
+        {:ok, content} ->
+          case Reality2.Swarm.create(content, true, true) do
+            {:ok, _} ->
+              IO.puts("   Swarm file: " <> file_name <> " loaded")
+            _ ->
+              case Reality2.Sentants.create(content, true, true) do
+                {:ok, _} ->
+                  IO.puts("   Sentant file: " <> file_name <> " loaded")
+                _ ->
+                  IO.puts("   Error loading " <> full_path)
+              end
+          end
+        {:error, reason} ->
+          IO.puts("   Error reading file: #{reason}")
+      end
     end
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
