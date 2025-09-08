@@ -20,7 +20,7 @@ const shape = {
 			"text":""
 		}
 	],
-    "message1":"with %1",
+    "message1":"parameters %1",
     "args1":[
         {
             "type":"input_statement",
