@@ -17,6 +17,10 @@
 				}
 			]
 		},
+        {
+            "kind": "sep",
+            "gap": "8"
+        },
 		{
 			"kind":"category",
             "colour": 50,
@@ -78,6 +82,10 @@
                 }
 			]
 		},
+        {
+            "kind": "sep",
+            "gap": "8"
+        },
 		{
 			"kind":"category",
             "colour": 150,
@@ -158,6 +166,10 @@
                 }
 			]
 		},
+        {
+            "kind": "sep",
+            "gap": "8"
+        },
         {
 			"kind":"category",
             "colour": 200,
@@ -273,6 +285,10 @@
                     ]
                 }
             ]
+        },
+        {
+            "kind": "sep",
+            "gap": "40s"
         },
         {
             "kind":"category",
@@ -499,11 +515,19 @@
                             "type":"reality2_action_parameter"
                         }
                     ]
-                },
-                {
-                    "kind": "sep",
-                    "gap": "32"
-                },
+                }
+            ]
+        },
+        {
+            "kind": "sep",
+            "gap": "40s"
+        },
+        {
+            "kind":"category",
+            "colour": 300,
+            "name":"Plugins",
+            "expanded": "true",
+            "contents":[
                 {
                     "kind":"category",
                     "colour": 360,
