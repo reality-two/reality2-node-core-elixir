@@ -14,10 +14,10 @@ defmodule Reality2.Calculation do
   end
 
   def calculate( %{"+" => [ op2, op3 ]}, vars ), do: binaryop(calculate(op2, vars), calculate(op3, vars), fn a, b ->
-    if is_binary(a) and is_binary(b) do
-      a <> b
-    else
+    if is_number(a) and is_number(b) do
       a + b
+    else
+      to_string(a) <> to_string(b)
     end
   end)
   def calculate( %{"-" => [ op2, op3 ]}, vars ), do: binaryop(calculate(op2, vars), calculate(op3, vars), fn a, b -> a - b end)
