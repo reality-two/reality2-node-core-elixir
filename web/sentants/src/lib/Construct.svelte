@@ -587,6 +587,7 @@ Construct Swarms and Bees / Sentants
     function putIntoBackpack(code: any)
     {    
         if (R2.JSONPath(code, "swarm")) {
+            // addJsonBlockToBackpack(blockly_construct["swarm"](R2.JSONPath(code, "swarm")), backpack);
             backpack.addItem(JSON.stringify(blockly_construct["swarm"](R2.JSONPath(code, "swarm"))));
             backpack.open();
             showMessage("Success", "Swarm loaded into backpack", "green");
@@ -625,6 +626,32 @@ Construct Swarms and Bees / Sentants
 
 
 
+    function addJsonBlockToBackpack( jsonBlock: Blockly.serialization.blocks.State, backpack: any ): void 
+    {
+        // Create a temporary workspace to materialize the JSON block
+        const tempWs = new Blockly.Workspace();
+
+        try {
+            // Load the JSON block tree into the temp workspace
+            Blockly.serialization.blocks.append(jsonBlock, tempWs);
+
+            // Convert that workspace into XML
+            const xmlDom = Blockly.Xml.workspaceToDom(tempWs);
+
+            // Add each top-level block to the backpack
+            Array.from(xmlDom.children).forEach((blockDom) => {
+            if (blockDom.nodeName.toLowerCase() === "block") {
+                backpack.addItem(blockDom as Element); // backpack expects a DOM <block>
+            }
+            });
+        } finally {
+            // Always dispose of the temp workspace
+            tempWs.dispose();
+        }
+    }
+
+
+
     // ------------------------------------------------------------------------------------------------
     // Save the current definition to the local computer (as a downloaded file)
     // ------------------------------------------------------------------------------------------------
@@ -637,25 +664,25 @@ Construct Swarms and Bees / Sentants
                 setcode = newCode;
                 // Get filename
                 var filename = "definition";
-                if (R2.JSONPath(code, "swarm.name")) {
-                    filename = R2.JSONPath(code, "swarm.name") + ".swarm";
+                if (R2.JSONPath(newCode, "swarm.name")) {
+                    filename = R2.JSONPath(newCode, "swarm.name") + ".swarm";
                 }
-                else if (R2.JSONPath(code, "sentant.name")) {
-                    filename = R2.JSONPath(code, "sentant.name") + ".bee";
+                else if (R2.JSONPath(newCode, "sentant.name")) {
+                    filename = R2.JSONPath(newCode, "sentant.name") + ".bee";
                 }
-                else if (R2.JSONPath(code, "plugin.name")) {
-                    filename = R2.JSONPath(code, "plugin.name") + ".antenna";
+                else if (R2.JSONPath(newCode, "plugin.name")) {
+                    filename = R2.JSONPath(newCode, "plugin.name") + ".antenna";
                 }
-                else if (R2.JSONPath(code, "automation.name")) {
-                    filename = R2.JSONPath(code, "automation.name") + ".behaviour";
+                else if (R2.JSONPath(newCode, "automation.name")) {
+                    filename = R2.JSONPath(newCode, "automation.name") + ".behaviour";
                 }
 
                 // Save JSON or YAML
                 if (showJSON[0] === "json") {
-                    var jsonDefinition = JSON.stringify(code);
+                    var jsonDefinition = JSON.stringify(newCode);
                     downloadDefinition(jsonDefinition, filename + ".json"); 
                 } else {
-                    var yamlDefinition = yaml.dump(code);
+                    var yamlDefinition = yaml.dump(newCode);
                     downloadDefinition(yamlDefinition, filename + ".yaml");
                 }
             }
@@ -946,11 +973,11 @@ Construct Swarms and Bees / Sentants
 </Button>
 
 <Button ui icon large popup data-tooltip="Load Swarms, Bees, Antennae or Behaviours from a file." data-position="top right" style="position: fixed; top: 260px; right: 45px; background-color: #696969" on:click={() => { code_loader.click(); }}>
-    <Icon folder open outline></Icon>
+    <Icon file import></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #696969" on:click={saveSentantDefinition}>
-    <Icon share square></Icon>
+<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #696969" on:click={() => {saveSentantDefinition(); }}>
+    <Icon file export></Icon>
 </Button>
 
 <Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #696969" on:click={() => { convertBlocks(); }}>
