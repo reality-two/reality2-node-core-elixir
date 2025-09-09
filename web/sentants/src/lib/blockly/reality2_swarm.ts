@@ -5,6 +5,8 @@
 import { splitConcatenatedJSON } from "./blockly_common";
 import R2 from "../reality2";
 import reality2_sentant from "./reality2_sentant";
+import * as Blockly from "blockly";
+
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -31,8 +33,9 @@ const shape = {
 			"tooltip":"Swarm description"
 		}
 	],
-	"message2":"%1",
-	"args2":[
+    "message2":"BEES",
+	"message3":"%1",
+	"args3":[
 		{
 			"type":"input_statement",
 			"name":"sentants",
@@ -76,6 +79,7 @@ function construct(swarm: any)
     let block = {
         "kind": "BLOCK",
         "type": "reality2_swarm",
+        "id": Blockly.utils.idGenerator.genUid(),  // ✅ modern replacement
         "fields": {
             "name": R2.JSONPath(swarm, "name"),
             "description": R2.JSONPath(swarm, "description") ? R2.JSONPath(swarm, "description") : ""

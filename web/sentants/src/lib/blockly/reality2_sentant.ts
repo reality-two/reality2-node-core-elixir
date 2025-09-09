@@ -10,6 +10,7 @@ import reality2_data from "./reality2_data";
 import reality2_get_plugin from "./reality2_get_plugin";
 import reality2_post_plugin from "./reality2_post_plugin";
 import reality2_automation from "./reality2_automation";
+import * as Blockly from "blockly";
 
 // ----------------------------------------------------------------------------------------------------
 // Block Definition
@@ -126,6 +127,7 @@ function construct(sentant: any)
         let block = {
             "kind": "BLOCK",
             "type": "reality2_sentant",
+            "id": Blockly.utils.idGenerator.genUid(),
             "fields": {
                 "name": R2.JSONPath(sentant, "name"),
                 "description": description
