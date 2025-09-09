@@ -281,7 +281,7 @@ Construct Swarms and Bees / Sentants
             skipSerializerRegistration: true,
             contextMenu: {
                 emptyBackpack: true,
-                removeFromBackpack: true,
+                removeFromBackpack: false,
                 copyToBackpack: true,
                 copyAllToBackpack: true,
                 pasteAllToBackpack: true,
@@ -587,7 +587,6 @@ Construct Swarms and Bees / Sentants
     function putIntoBackpack(code: any)
     {    
         if (R2.JSONPath(code, "swarm")) {
-            // addJsonBlockToBackpack(blockly_construct["swarm"](R2.JSONPath(code, "swarm")), backpack);
             backpack.addItem(JSON.stringify(blockly_construct["swarm"](R2.JSONPath(code, "swarm"))));
             backpack.open();
             showMessage("Success", "Swarm loaded into backpack", "green");
@@ -623,32 +622,6 @@ Construct Swarms and Bees / Sentants
             showMessage("Problem", "Incorrect format", "red");
     }
     // ------------------------------------------------------------------------------------------------
-
-
-
-    function addJsonBlockToBackpack( jsonBlock: Blockly.serialization.blocks.State, backpack: any ): void 
-    {
-        // Create a temporary workspace to materialize the JSON block
-        const tempWs = new Blockly.Workspace();
-
-        try {
-            // Load the JSON block tree into the temp workspace
-            Blockly.serialization.blocks.append(jsonBlock, tempWs);
-
-            // Convert that workspace into XML
-            const xmlDom = Blockly.Xml.workspaceToDom(tempWs);
-
-            // Add each top-level block to the backpack
-            Array.from(xmlDom.children).forEach((blockDom) => {
-            if (blockDom.nodeName.toLowerCase() === "block") {
-                backpack.addItem(blockDom as Element); // backpack expects a DOM <block>
-            }
-            });
-        } finally {
-            // Always dispose of the temp workspace
-            tempWs.dispose();
-        }
-    }
 
 
 
@@ -767,6 +740,7 @@ Construct Swarms and Bees / Sentants
         let num_sentants = 0;
 
         let codeOnPage: any = splitConcatenatedJSON(javascriptGenerator.workspaceToCode(workspace), false);
+        
         // Check if there is a swarm block, with separated bees
         codeOnPage.forEach((element: any) => {
             if (element["swarm"]) {
