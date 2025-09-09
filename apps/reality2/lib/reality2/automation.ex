@@ -518,8 +518,12 @@ defmodule Reality2.Automation do
       _ -> R2Map.get(combined_parameters, :else, "event")
     end
 
-    # Get the 'to' parameter, if it exists.  If not, return the ID of this Sentant.
-    to_field = R2Map.get(combined_parameters, :to, [id])
+    # Get the 'to' parameter, if it exists.  If not, return a list with the id of this Sentant.
+    to_field = case R2Map.get(combined_parameters, :to) do
+      nil -> [id] # Self
+      "*" -> Map.values(Reality2.Metadata.all(:SentantIDs)) # All Sentants on this node
+      other -> other # List of Sentant IDs or names
+    end
 
     # If the 'to' parameter was not a list, turn it into one with a single element.
     to_list = case is_list(to_field) do
