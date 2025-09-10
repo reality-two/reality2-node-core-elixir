@@ -29,7 +29,7 @@ Construct Swarms and Bees / Sentants
     //@ts-ignore
     import yaml from 'js-yaml';
 
-    import {Backpack, backpackChange} from '@blockly/workspace-backpack';
+    import {Backpack} from '@blockly/workspace-backpack';
 
     import { onMount } from "svelte";
     import { onDestroy } from "svelte";
@@ -424,6 +424,10 @@ Construct Swarms and Bees / Sentants
             if (typeof savedState === "object") {
                 if ("backpack" in savedState) loadBackpack(savedState["backpack"]);
                 if ("workspace" in savedState) loadWorkspace(savedState["workspace"]);
+                if ("zoom" in savedState) {
+                    workspace.setScale(savedState["zoom"].scale);
+                    workspace.scroll(savedState["zoom"].x, savedState["zoom"].y);
+                }
             }
         }, 2);
         
@@ -479,7 +483,12 @@ Construct Swarms and Bees / Sentants
     onDestroy(() => { 
         savedState = {
             workspace: saveWorkspace(),
-            backpack: saveBackpack()
+            backpack: saveBackpack(),
+            zoom: {
+                scale: workspace.scale,
+                x: workspace.scrollX,
+                y: workspace.scrollY,
+            }
         };
         window.removeEventListener("resize", updateHeight); 
     });

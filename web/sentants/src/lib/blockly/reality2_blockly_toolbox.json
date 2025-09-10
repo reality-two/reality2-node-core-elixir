@@ -525,7 +525,7 @@
         {
             "kind":"category",
             "colour": 300,
-            "name":"Plugins",
+            "name":"Built In",
             "expanded": "true",
             "contents":[
                 {
