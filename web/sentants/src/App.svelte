@@ -13,6 +13,7 @@
     import SentantCards from './lib/SentantCards.svelte';
     import Login from './lib/Login.svelte';
     import Construct from './lib/Construct.svelte';
+    import Swarm from './lib/Swarm.svelte';
     import Map from './lib/Map.svelte';
    
     import { getQueryStringVal } from './lib/Querystring.svelte';
@@ -419,6 +420,10 @@ Layout
                             <Icon ui hammer/>
                             Construct
                         </Item>
+                        <Item icon value="swarm" on:click={change_state}>
+                            <Icon ui exclamation/>
+                            Swarm (WIP)
+                        </Item>
                     </Menu>
                 </Dropdown>
             </Menu>
@@ -452,6 +457,10 @@ Layout
             {:else if state == "construct"}
             <!--------------------------------------------------------------------------------------------->
                 <Construct {r2_node} {sentantData} {location} bind:savedState bind:variables/>
+            <!--------------------------------------------------------------------------------------------->
+            {:else if state == "swarm"}
+            <!--------------------------------------------------------------------------------------------->
+                <Swarm {r2_node} {sentantData} {location} bind:savedState bind:variables/>
             <!--------------------------------------------------------------------------------------------->
             {:else if state == "id"}
             <!--------------------------------------------------------------------------------------------->
