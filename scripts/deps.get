@@ -6,4 +6,5 @@ export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai
 
 echo "Getting dependencies for: " $PLUGINS
 
+mix deps.update --all
 mix deps.get
