@@ -1,4 +1,6 @@
 defmodule AiReality2Geospatial.Main do
+  @behaviour Reality2.Plugin.Main
+
   # *******************************************************************************************************************************************
   @moduledoc """
     Module for managing the main supervisor tree for the `AiReality2Geospatial` App.
