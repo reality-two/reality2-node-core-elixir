@@ -1,4 +1,6 @@
 defmodule AiReality2Backup.Main do
+  @behaviour Reality2.Plugin.Main
+
   # *******************************************************************************************************************************************
   @moduledoc """
     Module for managing the main supervisor tree for the `AiReality2Backup` App.
@@ -24,6 +26,7 @@ defmodule AiReality2Backup.Main do
     def start_link(name),                              do: GenServer.start_link(__MODULE__, %{}, name: name)
 
     @doc false
+    @impl true
     def init(state) do
       with :stopped <- Mnesia.stop(),
         :ok <- create_schema(),
@@ -64,10 +67,6 @@ defmodule AiReality2Backup.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec create(String.t()) ::
-      {:ok}
-      | {:error, :existance}
-
     @doc """
     Does nothing in this module as there are no child processes.
 
@@ -75,7 +74,8 @@ defmodule AiReality2Backup.Main do
       - `sentant_id` - ignored in this implementation.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    def create(_sentant_id) do
+    @impl true
+    def create(_sentant_id, _details \\ %{}) do
       {:ok}
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -83,10 +83,6 @@ defmodule AiReality2Backup.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec delete(String.t()) ::
-      {:ok}
-      | {:error, :existance}
-
     @doc """
     Does nothing in this module as there are no child processes.
 
@@ -94,6 +90,7 @@ defmodule AiReality2Backup.Main do
       - `sentant_id` - ignored in this implementation.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def delete(_sentant_id) do
       {:ok}
     end
@@ -102,7 +99,6 @@ defmodule AiReality2Backup.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec whereis(String.t() | pid()) :: pid() | String.t() | nil
     @doc """
     Return the process id that can be used for subsequent communications.
 
@@ -112,6 +108,7 @@ defmodule AiReality2Backup.Main do
       - `id` - The id of the Sentant for which process id is being returned.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def whereis(_sentant_id) do
       self()
     end
@@ -120,7 +117,6 @@ defmodule AiReality2Backup.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec sendto(String.t(), map()) :: :ok | {:error, :command} | {:ok, any()} | {:error, :key}
     @doc """
     Do things with the database.
 
@@ -132,6 +128,7 @@ defmodule AiReality2Backup.Main do
       - `{:ok}` - If the command was sent successfully.
       - `{:error, :unknown_command}` - If the command was not recognised.
     """
+    @impl true
     def sendto(_sentant_id, command_and_parameters) do
       sentant_name = R2Map.get(command_and_parameters, :name, "")
       keys = R2Map.get(command_and_parameters, :keys, %{})

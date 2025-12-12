@@ -12,6 +12,7 @@ defmodule AiReality2Transnet.MixProject do
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      description: "Reality2 Transient Networks Plugin",
 
       name: "Plugin: ai.reality2.transnet",
       source_url: "https://github.com/roycdavies/reality2",

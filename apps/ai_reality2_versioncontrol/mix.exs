@@ -11,7 +11,17 @@ defmodule AiReality2Versioncontrol.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      description: "Reality2 Version Control Plugin",
+
+      name: "Plugin: ai.reality2.versioncontrol",
+      source_url: "https://github.com/roycdavies/reality2",
+      homepage_url: "https://reality2.ai",
+      docs: [
+        main: "AiReality2Versioncontrol",
+        output: "../../docs/ai_reality2_versioncontrol",
+        format: :html,
+      ]
     ]
   end
 

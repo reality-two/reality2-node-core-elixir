@@ -46,10 +46,6 @@ defmodule AiReality2Geospatial.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec create(String.t(), %{}) ::
-      {:ok}
-      | {:error, :existance}
-
     @doc """
     Create a new Geospatial location for this Sentant, returning {:ok} or an appropriate error.
 
@@ -62,6 +58,7 @@ defmodule AiReality2Geospatial.Main do
                      or alternatively, a geohash string and an altitude for example %{"geohash" => "u4pruydqqvj", "altitude" => 0.0}
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def create(sentant_id, location \\ %{}) do
       case whereis(sentant_id) do
         nil->
@@ -86,10 +83,6 @@ defmodule AiReality2Geospatial.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec delete(String.t()) ::
-      {:ok}
-      | {:error, :existance}
-
     @doc """
     Delete a Geospatial Entry, returning {:ok} or an appropriate error.
 
@@ -97,6 +90,7 @@ defmodule AiReality2Geospatial.Main do
       - `id` - The id of the Sentant for which the Geospatial Entry is being deleted.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def delete(sentant_id) do
       case whereis(sentant_id) do
         nil->
@@ -117,7 +111,6 @@ defmodule AiReality2Geospatial.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec whereis(String.t() | pid()) :: pid() | String.t() | nil
     @doc """
     Return the process id that can be used for subsequent communications.
 
@@ -128,6 +121,7 @@ defmodule AiReality2Geospatial.Main do
       - `id` - The id of the Sentant for which process id is being returned.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def whereis(sentant_id) do
       R2Process.whereis(sentant_id, AiReality2Geospatial.Processes)
     end
@@ -136,7 +130,6 @@ defmodule AiReality2Geospatial.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec sendto(String.t(), map()) :: :ok | {:error, :command} | {:ok, any()} | {:error, :key}
     @doc """
     Send a command to the Geospatial Entry for the given Sentant id.
 
@@ -151,6 +144,7 @@ defmodule AiReality2Geospatial.Main do
       - `{:ok}` - If the command was sent successfully.
       - `{:error, :unknown_command}` - If the command was not recognised.
     """
+    @impl true
     def sendto(sentant_id, command_and_parameters) do
       case whereis(sentant_id) do
         nil ->
