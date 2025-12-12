@@ -49,11 +49,11 @@ defmodule Reality2.Swarm do
     case convert_input(swarm_definition) do
       {:ok, definition_map} ->
         swarm_map = remove_swarm_parent_from_definition_map(definition_map)
-        # case Reality2.Types.validate(swarm_map, Reality2.Types.swarm()) do
-        #   :ok ->
+        case Reality2.Types.validate(swarm_map, Reality2.Types.swarm()) do
+          :ok ->
             create_from_map(swarm_map)
-          # {:error, error} -> {:error, error}
-        # end
+          {:error, error} -> {:error, error}
+        end
       _ ->
         {:error, :definition}
     end

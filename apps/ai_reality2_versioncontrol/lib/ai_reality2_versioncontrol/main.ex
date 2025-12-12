@@ -1,4 +1,6 @@
 defmodule AiReality2Versioncontrol.Main do
+  @behaviour Reality2.Plugin.Main
+
   # *******************************************************************************************************************************************
   @moduledoc """
     Module for managing the main supervisor tree for the `AiReality2Versioncontrol` App.
@@ -25,6 +27,7 @@ defmodule AiReality2Versioncontrol.Main do
     def start_link(name),                              do: GenServer.start_link(__MODULE__, %{}, name: name)
 
     @doc false
+    @impl true
     def init(state) do
         IO.puts("[ai.reality2.versioncontrol] started successfully.")
         {:ok, state}
@@ -36,10 +39,6 @@ defmodule AiReality2Versioncontrol.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec create(String.t()) ::
-      {:ok}
-      | {:error, :existance}
-
     @doc """
     Does nothing in this module as there are no child processes.
 
@@ -47,7 +46,8 @@ defmodule AiReality2Versioncontrol.Main do
       - `sentant_id` - ignored in this implementation.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    def create(_sentant_id) do
+    @impl true
+    def create(_sentant_id, _details \\ %{}) do
       {:ok}
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -55,10 +55,6 @@ defmodule AiReality2Versioncontrol.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec delete(String.t()) ::
-      {:ok}
-      | {:error, :existance}
-
     @doc """
     Does nothing in this module as there are no child processes.
 
@@ -66,6 +62,7 @@ defmodule AiReality2Versioncontrol.Main do
       - `sentant_id` - ignored in this implementation.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def delete(_sentant_id) do
       {:ok}
     end
@@ -74,7 +71,6 @@ defmodule AiReality2Versioncontrol.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec whereis(String.t() | pid()) :: pid() | String.t() | nil
     @doc """
     Return the process id that can be used for subsequent communications.
 
@@ -84,6 +80,7 @@ defmodule AiReality2Versioncontrol.Main do
       - `id` - The id of the Sentant for which process id is being returned.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def whereis(_sentant_id) do
       self()
     end
@@ -92,7 +89,6 @@ defmodule AiReality2Versioncontrol.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec sendto(String.t(), map()) :: :ok | {:error, :command} | {:ok, any()} | {:error, :key}
     @doc """
     Allows sentants to query the state of version control.
 
@@ -104,6 +100,7 @@ defmodule AiReality2Versioncontrol.Main do
       - `{:ok}` - If the command was sent successfully.
       - `{:error, :command}` - If the command was not recognised.
     """
+    @impl true
     def sendto(_sentant_id, command_and_parameters) do
       # parameters = R2Map.get(command_and_parameters, :parameters, %{})
       # data = parameters |> R2Map.delete(:result)

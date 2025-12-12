@@ -1,4 +1,6 @@
 defmodule AiReality2Vars.Main do
+  @behaviour Reality2.Plugin.Main
+
   # *******************************************************************************************************************************************
   @moduledoc """
     Module for managing the main supervisor tree for the `AiReality2Vars` App.
@@ -39,10 +41,6 @@ defmodule AiReality2Vars.Main do
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec create(String.t()) ::
-      {:ok}
-      | {:error, :existance}
-
     @doc """
     Create a new Data store, returning {:ok} or an appropriate error.
 
@@ -52,7 +50,8 @@ defmodule AiReality2Vars.Main do
       - `id` - The id of the Sentant for which the Data store is being created.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    def create(sentant_id) do
+    @impl true
+    def create(sentant_id, _details \\ %{}) do
       case whereis(sentant_id) do
         nil->
           case DynamicSupervisor.start_child(__MODULE__, AiReality2Vars.Data.child_spec({})) do
@@ -73,10 +72,6 @@ defmodule AiReality2Vars.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec delete(String.t()) ::
-      {:ok}
-      | {:error, :existance}
-
     @doc """
     Delete a Data store, returning {:ok} or an appropriate error.
 
@@ -84,6 +79,7 @@ defmodule AiReality2Vars.Main do
       - `id` - The id of the Sentant for which the Data store is being deleted.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def delete(sentant_id) do
       case whereis(sentant_id) do
         nil->
@@ -100,7 +96,6 @@ defmodule AiReality2Vars.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec whereis(String.t() | pid()) :: pid() | String.t() | nil
     @doc """
     Return the process id that can be used for subsequent communications.
 
@@ -111,6 +106,7 @@ defmodule AiReality2Vars.Main do
       - `id` - The id of the Sentant for which process id is being returned.
     """
     # -----------------------------------------------------------------------------------------------------------------------------------------
+    @impl true
     def whereis(sentant_id) do
       R2Process.whereis(sentant_id, AiReality2Vars.Processes)
     end
@@ -119,7 +115,6 @@ defmodule AiReality2Vars.Main do
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
-    @spec sendto(String.t(), map()) :: {:ok} | {:error, :unknown_command}
     @doc """
     Send a command to the Data store for the given Sentant id.
 
@@ -134,6 +129,7 @@ defmodule AiReality2Vars.Main do
       - `{:ok}` - If the command was sent successfully.
       - `{:error, :unknown_command}` - If the command was not recognised.
     """
+    @impl true
     def sendto(sentant_id, command_and_parameters) do
       case whereis(sentant_id) do
         nil ->

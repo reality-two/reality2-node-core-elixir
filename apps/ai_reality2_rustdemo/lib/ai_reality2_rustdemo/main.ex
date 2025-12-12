@@ -24,6 +24,7 @@ defmodule AiReality2Rustdemo.Main do
   def start_link(name), do: GenServer.start_link(__MODULE__, %{}, name: name)
 
   @doc false
+  @impl true
   def init(state) do
     IO.puts("[ai.reality2.rustdemo] started successfully.")
     {:ok, state}
@@ -37,10 +38,6 @@ defmodule AiReality2Rustdemo.Main do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  @spec create(String.t(), map()) ::
-    {:ok}
-    | {:error, :existance}
-
   @doc """
   Does nothing in this module as there are no child processes.
 
@@ -48,7 +45,8 @@ defmodule AiReality2Rustdemo.Main do
     - `sentant_id` - ignored in this implementation.
   """
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  def create(_sentant_id, _details \\ {}) do
+  @impl true
+  def create(_sentant_id, _details \\ %{}) do
     {:ok}
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -56,10 +54,6 @@ defmodule AiReality2Rustdemo.Main do
 
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  @spec delete(String.t()) ::
-    {:ok}
-    | {:error, :existance}
-
   @doc """
   Does nothing in this module as there are no child processes.
 
@@ -67,6 +61,7 @@ defmodule AiReality2Rustdemo.Main do
     - `sentant_id` - ignored in this implementation.
   """
   # -----------------------------------------------------------------------------------------------------------------------------------------
+  @impl true
   def delete(_sentant_id) do
     {:ok}
   end
@@ -75,7 +70,6 @@ defmodule AiReality2Rustdemo.Main do
 
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  @spec whereis(String.t() | pid()) :: pid() | String.t() | nil
   @doc """
   Return the process id that can be used for subsequent communications.
 
@@ -85,6 +79,7 @@ defmodule AiReality2Rustdemo.Main do
     - `id` - The id of the Sentant for which process id is being returned.
   """
   # -----------------------------------------------------------------------------------------------------------------------------------------
+  @impl true
   def whereis(_sentant_id) do
     self()
   end
@@ -93,7 +88,6 @@ defmodule AiReality2Rustdemo.Main do
 
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  @spec sendto(String.t(), map()) :: :ok | {:error, :command} | {:ok, any()} | {:error, :key}
   @doc """
   Do things with the rust code.
 
@@ -105,6 +99,7 @@ defmodule AiReality2Rustdemo.Main do
     - `{:ok, %{/result map/}}` - If the command was sent successfully.
     - `{:error, :unknown_command}` - If the command was not recognised.
   """
+  @impl true
   def sendto(_sentant_id, command_and_parameters) do
     command = R2Map.get(command_and_parameters, :command)
     parameters = R2Map.get(command_and_parameters, :parameters)
@@ -117,7 +112,7 @@ defmodule AiReality2Rustdemo.Main do
       "subtract" ->
         {:ok, %{answer: AiReality2Rustdemo.Action.subtract(value1, value2)}}
       _ ->
-        {:error, :unknown_command}
+        {:error, :command}
     end
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------

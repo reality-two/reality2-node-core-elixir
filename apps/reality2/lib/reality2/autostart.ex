@@ -27,7 +27,7 @@ defmodule Reality2.Autostart do
     # Get the contents of the folder.
     # For each file, load the file either as a Swarm or Sentant.
 
-    Process.send_after(self(), :check_ready, 1000)
+    Process.send_after(self(), :check_ready, 5000)
     {:ok, state}
   end
   # -----------------------------------------------------------------------------------------------------------------------------------------

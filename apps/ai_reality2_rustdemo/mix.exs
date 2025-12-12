@@ -12,6 +12,7 @@ defmodule AiReality2Rustdemo.MixProject do
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      description: "Reality2 Rust Demo Plugin",
 
       name: "Plugin: ai.reality2.rustdemo",
       source_url: "https://github.com/roycdavies/reality2",
