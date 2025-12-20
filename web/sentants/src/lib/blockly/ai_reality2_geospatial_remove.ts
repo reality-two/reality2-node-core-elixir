@@ -8,57 +8,48 @@ import R2 from "../reality2";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"ai_reality2_geospatial_remove",
-    "message0": "remove location",
-	"previousStatement":null,
-	"nextStatement":null,
-    "colour": 360,
-    "tooltip": "Remove geospatial parameters from a Bee.",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation"
-}
+  type: "ai_reality2_geospatial_remove",
+  message0: "remove location",
+  previousStatement: null,
+  nextStatement: null,
+  colour: 360,
+  tooltip: "Remove geospatial parameters from a Bee.",
+  helpUrl: "https://github.com/reality-two/reality2-documentation",
+};
 // ----------------------------------------------------------------------------------------------------
-
-
 
 // ----------------------------------------------------------------------------------------------------
 // Process Block
 // ----------------------------------------------------------------------------------------------------
-function process(block: any, generator: any): string | [string, number] | null
-{
-    const action: any = {
-        "plugin": "ai.reality2.geospatial",
-        "command": "delete"
-    };
+function process(block: any, generator: any): string | [string, number] | null {
+  const action: any = {
+    plugin: "ai.reality2.geospatial",
+    command: "delete",
+  };
 
-    return (JSON.stringify(action));
+  return JSON.stringify(action);
 }
 // ----------------------------------------------------------------------------------------------------
-
-
 
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(action: any)
-{
-    if (action) {
-        // Set the initial structure
-        let block = {
-            "kind": "BLOCK",
-            "type": "ai_reality2_geospatial_remove"
-        }
-        return (block);
-    }
-    else {
-        return null;
-    }
+function construct(action: any) {
+  if (action) {
+    // Set the initial structure
+    let block = {
+      kind: "BLOCK",
+      type: "ai_reality2_geospatial_remove",
+    };
+    return block;
+  } else {
+    return null;
+  }
 }
 // ----------------------------------------------------------------------------------------------------
-
-
 
 // ----------------------------------------------------------------------------------------------------
 // Export defaults
 // ----------------------------------------------------------------------------------------------------
-export default {shape, process, construct};
+export default { shape, process, construct };
 // ----------------------------------------------------------------------------------------------------

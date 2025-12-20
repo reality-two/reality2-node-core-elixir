@@ -15,14 +15,13 @@ defmodule Reality2Web.MixProject do
       aliases: aliases(),
       deps: deps(),
       description: "Reality2 Web and GraphQL Application",
-
       name: "Reality2.Web",
       source_url: "https://github.com/roycdavies/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
         main: "Reality2Web",
         output: "../../docs/reality2_web",
-        format: :html,
+        format: :html
       ]
     ]
   end

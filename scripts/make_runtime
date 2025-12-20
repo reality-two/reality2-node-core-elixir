@@ -29,9 +29,9 @@ if [ ! -d "builds/${BUILD_FOLDER}" ]; then
 fi
 
 echo "***** Generating new Certificates..."
-cd apps/reality2_web
-mix phx.gen.cert
-cd ../..
+cd apps/reality2_web/priv/cert
+./generate_certificates
+cd ../../../..
 
 # Set the environment variables
 # export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
@@ -41,7 +41,7 @@ export POOLSIZE=10
 export MIX_ENV=prod
 # export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo"
 # export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet, ai.reality2.versioncontrol"
-export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo"
+export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet"
 export LOCKED="remote"
 
 # Get any new deps

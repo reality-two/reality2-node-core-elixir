@@ -1,8 +1,7 @@
 defmodule Reality2Web.Endpoint do
-@moduledoc false
-use Phoenix.Endpoint, otp_app: :reality2_web
-use Absinthe.Phoenix.Endpoint
-
+  @moduledoc false
+  use Phoenix.Endpoint, otp_app: :reality2_web
+  use Absinthe.Phoenix.Endpoint
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
@@ -11,12 +10,14 @@ use Absinthe.Phoenix.Endpoint
     store: :cookie,
     key: "_reality2_web_key",
     signing_salt: "H0tk9UUi",
-    same_site: "Lax",
+    same_site: "Lax"
   ]
 
-  if Mix.env == :dev do
-    socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]
+  if Mix.env() == :dev do
+    socket "/live", Phoenix.LiveView.Socket,
+      websocket: [connect_info: [session: @session_options]]
   end
+
   socket "/reality2", Reality2Web.UserSocket, websocket: true, longpoll: false
 
   # Serve at "/" the static files from "priv/static" directory.
@@ -25,9 +26,10 @@ use Absinthe.Phoenix.Endpoint
   # when deploying your static files in production.
   plug Plug.Static,
     at: "/",
-    from: { :reality2_web, "priv/static/sites" },
+    from: {:reality2_web, "priv/static/sites"},
     gzip: false
-    # only: Reality2Web.static_paths()
+
+  # only: Reality2Web.static_paths()
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.

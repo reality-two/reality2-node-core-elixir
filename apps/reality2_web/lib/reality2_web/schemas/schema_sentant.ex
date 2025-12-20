@@ -1,13 +1,13 @@
 defmodule Reality2Web.Schema.Sentant do
-@moduledoc """
-  Sentant Schema
+  @moduledoc """
+    Sentant Schema
 
-  Type definitions for the Sentant GraphQL schema are at: [Reality2.Types](../reality2/Reality2.Types.html)
+    Type definitions for the Sentant GraphQL schema are at: [Reality2.Types](../reality2/Reality2.Types.html)
 
-  **Author**
-  - Dr. Roy C. Davies
-  - [roycdavies.github.io](https://roycdavies.github.io/)
-"""
+    **Author**
+    - Dr. Roy C. Davies
+    - [roycdavies.github.io](https://roycdavies.github.io/)
+  """
   use Absinthe.Schema.Notation
 
   require Reality2Web.Schema.Enums
@@ -15,51 +15,59 @@ defmodule Reality2Web.Schema.Sentant do
   alias Reality2Web.SentantResolver
 
   object :signal_output do
-    field :sentant, non_null(:sentant),         description: "Sentant"
-    field :event, non_null(:string),            description: "Signal event"
-    field :parameters, :json,                   description: "Signal parameters"
-    field :passthrough, :json,                  description: "Passed through parameters"
+    field(:sentant, non_null(:sentant), description: "Sentant")
+    field(:event, non_null(:string), description: "Signal event")
+    field(:parameters, :json, description: "Signal parameters")
+    field(:passthrough, :json, description: "Passed through parameters")
   end
 
   object :plugin_output do
-    field :key, :string,                        description: "Plugin output key"
-    field :value, :string,                      description: "Plugin output json path to interpret response, eg choices.0.message.content"
-    field :event, :string,                      description: "Plugin output event sent when response received"
+    field(:key, :string, description: "Plugin output key")
+
+    field(:value, :string,
+      description: "Plugin output json path to interpret response, eg choices.0.message.content"
+    )
+
+    field(:event, :string, description: "Plugin output event sent when response received")
   end
 
   object :plugin do
-    field :name, non_null(:string),             description: "Plugin name"
-    field :description, :string,                description: "Plugin description"
-    field :version, :string,                    description: "Plugin version"
-    field :url, non_null(:string),              description: "URL to plugin API"
-    field :headers, :json,                      description: "Plugin headers"
-    field :body, :string_or_json,               description: "Plugin body (string or json)"
-    field :output, non_null(:plugin_output),    description: "Plugin output"
+    field(:name, non_null(:string), description: "Plugin name")
+    field(:description, :string, description: "Plugin description")
+    field(:version, :string, description: "Plugin version")
+    field(:url, non_null(:string), description: "URL to plugin API")
+    field(:headers, :json, description: "Plugin headers")
+    field(:body, :string_or_json, description: "Plugin body (string or json)")
+    field(:output, non_null(:plugin_output), description: "Plugin output")
   end
 
   object :action do
-    field :plugin, :string,                     description: "Action plugin"
-    field :command, non_null(:string),          description: "Action command"
-    field :parameters, :json,                   description: "Action parameters"
+    field(:plugin, :string, description: "Action plugin")
+    field(:command, non_null(:string), description: "Action command")
+    field(:parameters, :json, description: "Action parameters")
   end
 
   object :transition do
-    field :from, non_null(:string),             description: "Transition from"
-    field :event, non_null(:string),            description: "Transition event"
-    field :to, non_null(:string),               description: "Transition to"
-    field :actions, list_of(:action),           description: "Transition actions"
-    field :public, :boolean,                    description: "Whether the event for this transition is publically advertised (false by default)"
+    field(:from, non_null(:string), description: "Transition from")
+    field(:event, non_null(:string), description: "Transition event")
+    field(:to, non_null(:string), description: "Transition to")
+    field(:actions, list_of(:action), description: "Transition actions")
+
+    field(:public, :boolean,
+      description:
+        "Whether the event for this transition is publically advertised (false by default)"
+    )
   end
 
   object :automation do
-    field :name, non_null(:string),             description: "Automation name"
-    field :description, :string,                description: "Automation description"
-    field :transitions, list_of(:transition),   description: "Automation transitions"
+    field(:name, non_null(:string), description: "Automation name")
+    field(:description, :string, description: "Automation description")
+    field(:transitions, list_of(:transition), description: "Automation transitions")
   end
 
   object :sentant_event do
-    field :event, non_null(:string),            description: "Event name"
-    field :parameters, :json,                   description: "Event parameters"
+    field(:event, non_null(:string), description: "Event name")
+    field(:parameters, :json, description: "Event parameters")
   end
 
   # ------------------------------------------------------------------------------------------------------
@@ -82,30 +90,28 @@ defmodule Reality2Web.Schema.Sentant do
   ```
   """
   def sentant do
-
   end
+
   object :sentant do
-    field :id, non_null(:uuid4),                description: "Sentant ID"
-    field :name, non_null(:string),             description: "Sentant name"
-    field :description, :string,                description: "Sentant description"
-    field :events, list_of(:sentant_event),     description: "Public events"
-    field :signals, list_of(:string),           description: "Public signals"
+    field(:id, non_null(:uuid4), description: "Sentant ID")
+    field(:name, non_null(:string), description: "Sentant name")
+    field(:description, :string, description: "Sentant description")
+    field(:events, list_of(:sentant_event), description: "Public events")
+    field(:signals, list_of(:string), description: "Public signals")
   end
+
   # ------------------------------------------------------------------------------------------------------
-
-
 
   # ------------------------------------------------------------------------------------------------------
   # A Swarm of Sentants
   # ------------------------------------------------------------------------------------------------------
   object :swarm do
-    field :name, non_null(:string),             description: "Swarm name"
-    field :description, :string,                description: "Swarm description"
-    field :sentants, list_of(:sentant),         description: "Swarm sentants"
+    field(:name, non_null(:string), description: "Swarm name")
+    field(:description, :string, description: "Swarm description")
+    field(:sentants, list_of(:sentant), description: "Swarm sentants")
   end
+
   # ------------------------------------------------------------------------------------------------------
-
-
 
   # ------------------------------------------------------------------------------------------------------
   # Queries
@@ -115,8 +121,8 @@ defmodule Reality2Web.Schema.Sentant do
     @desc "Get a sentant details by name or id"
     # ----------------------------------------------------------------------------------------------------
     field :sentant_get, :sentant do
-      arg :name, :string
-      arg :id, :uuid4
+      arg(:name, :string)
+      arg(:id, :uuid4)
       resolve(&SentantResolver.get_sentant/3)
     end
 
@@ -127,9 +133,8 @@ defmodule Reality2Web.Schema.Sentant do
       resolve(&SentantResolver.all_sentants/3)
     end
   end
+
   # ------------------------------------------------------------------------------------------------------
-
-
 
   # ------------------------------------------------------------------------------------------------------
   # Mutations
@@ -139,7 +144,7 @@ defmodule Reality2Web.Schema.Sentant do
     @desc "Load a sentant"
     # ----------------------------------------------------------------------------------------------------
     field :sentant_load, non_null(:sentant) do
-      arg :definition, non_null(:string)
+      arg(:definition, non_null(:string))
       resolve(&SentantResolver.load_sentant/3)
     end
 
@@ -147,7 +152,7 @@ defmodule Reality2Web.Schema.Sentant do
     @desc "Delete a sentant"
     # ----------------------------------------------------------------------------------------------------
     field :sentant_unload, non_null(:sentant) do
-      arg :id, non_null(:uuid4)
+      arg(:id, non_null(:uuid4))
       resolve(&SentantResolver.unload_sentant/3)
     end
 
@@ -155,7 +160,7 @@ defmodule Reality2Web.Schema.Sentant do
     @desc "Load a swarm of sentants"
     # ----------------------------------------------------------------------------------------------------
     field :swarm_load, non_null(:swarm) do
-      arg :definition, non_null(:string)
+      arg(:definition, non_null(:string))
       resolve(&SentantResolver.load_swarm/3)
     end
 
@@ -163,38 +168,36 @@ defmodule Reality2Web.Schema.Sentant do
     @desc "Send a amessage event and parameters to a sentant"
     # ----------------------------------------------------------------------------------------------------
     field :sentant_send, non_null(:sentant) do
-      arg :id, non_null(:uuid4)
-      arg :event, non_null(:string)
-      arg :parameters, :json
-      arg :passthrough, :json
+      arg(:id, non_null(:uuid4))
+      arg(:event, non_null(:string))
+      arg(:parameters, :json)
+      arg(:passthrough, :json)
       resolve(&SentantResolver.send_event/3)
     end
   end
+
   # ------------------------------------------------------------------------------------------------------
-
-
 
   # ------------------------------------------------------------------------------------------------------
   # Subscriptions
   # ------------------------------------------------------------------------------------------------------
   object :sentant_subscriptions do
-
     # ----------------------------------------------------------------------------------------------------
     @desc "Subscribe to sentant signal events"
     # ----------------------------------------------------------------------------------------------------
     field :await_signal, :signal_output do
-      arg :id, non_null(:uuid4)
-      arg :signal, non_null(:string)
+      arg(:id, non_null(:uuid4))
+      arg(:signal, non_null(:string))
 
-      config fn %{id: sentantid, signal: signal}, _ ->
+      config(fn %{id: sentantid, signal: signal}, _ ->
         if Reality2Web.SentantResolver.check_subscribe_allowed(sentantid, signal) do
           {:ok, topic: sentantid <> "|" <> signal}
         else
           {:error, :invalid_signal}
         end
-      end
+      end)
     end
-
   end
+
   # ------------------------------------------------------------------------------------------------------
 end

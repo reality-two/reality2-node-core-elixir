@@ -13,14 +13,13 @@ defmodule AiReality2Rustdemo.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Reality2 Rust Demo Plugin",
-
       name: "Plugin: ai.reality2.rustdemo",
       source_url: "https://github.com/roycdavies/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
         main: "AiReality2Rustdemo",
         output: "../../docs/ai_reality2_rustdemo",
-        format: :html,
+        format: :html
       ]
     ]
   end

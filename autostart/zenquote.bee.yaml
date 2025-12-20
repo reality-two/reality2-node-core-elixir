@@ -6,7 +6,7 @@ sentant:
       url: https://zenquotes.io/api/random
       method: GET
       headers:
-        "Content-Type": "application/json"        
+        "Content-Type": "application/json"
       output:
         key: answer
         value: "0"
@@ -34,10 +34,9 @@ sentant:
                 value:
                   jsonpath: "answer.a"
             - command: set
-              parameters: 
+              parameters:
                 key: answer
             - command: signal
               parameters:
                 public: true
                 event: "Zenquote Response"
- 

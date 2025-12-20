@@ -1,5 +1,5 @@
 defmodule Reality2Web.Router do
-@moduledoc false
+  @moduledoc false
 
   use Reality2Web, :router
 
@@ -13,12 +13,14 @@ defmodule Reality2Web.Router do
   end
 
   scope "/", Reality2Web do
-    web_routes = Path.wildcard("priv/static/sites/*")
-    |> Enum.map(fn(path) -> String.replace(path, "priv/static/sites/", "") end)
+    web_routes =
+      Path.wildcard("priv/static/sites/*")
+      |> Enum.map(fn path -> String.replace(path, "priv/static/sites/", "") end)
 
     pipe_through :browser
     get "/", Reality2Controller, :index
-    Enum.each(web_routes, fn(name) ->
+
+    Enum.each(web_routes, fn name ->
       get "/" <> name, Reality2Controller, :index
     end)
   end
@@ -40,7 +42,7 @@ defmodule Reality2Web.Router do
       ]
   end
 
-  if Mix.env == :dev do
+  if Mix.env() == :dev do
     forward "/graphiql", Absinthe.Plug.GraphiQL,
       schema: Reality2Web.Schema,
       socket: Reality2Web.UserSocket,
@@ -52,7 +54,7 @@ defmodule Reality2Web.Router do
 
   # Enable LiveDashboard in development
   # if Application.compile_env(:reality2_web, :dev_routes) do
-  if Mix.env == :dev || Mix.env == :test do
+  if Mix.env() == :dev || Mix.env() == :test do
     # If you want to use the LiveDashboard in production, you should put
     # it behind authentication and allow only admins to access it.
     # If your application does not have an admins-only section yet,

@@ -13,14 +13,13 @@ defmodule AiReality2Geospatial.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Reality2 Geospatial Plugin",
-
       name: "Plugin: ai.reality2.geospatial",
       source_url: "https://github.com/roycdavies/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
         main: "AiReality2Geospatial",
         output: "../../docs/ai_reality2_geospatial",
-        format: :html,
+        format: :html
       ]
     ]
   end
