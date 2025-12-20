@@ -1,606 +1,606 @@
 {
-	"kind":"categoryToolbox",
-	"contents":[
+  "kind": "categoryToolbox",
+  "contents": [
+    {
+      "kind": "category",
+      "colour": 20,
+      "name": "Swarm",
+      "expanded": "true",
+      "contents": [
         {
-			"kind":"category",
-            "colour": 20,
-			"name":"Swarm",
-            "expanded": "true",
-			"contents":[
-                {
-                    "kind": "label",
-                    "text": "A Swarm of Bees"
-                },
-				{
-					"kind":"block",
-					"type":"reality2_swarm"
-				}
-			]
-		},
-		{
-			"kind":"category",
-            "colour": 50,
-			"name":"Bees",
-            "expanded": "true",
-			"contents":[
-                {
-                    "kind":"category",
-                    "colour": 50,
-                    "name":"Bee",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "A Reality2 Bee"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_sentant"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 50,
-                    "name":". . . Keys",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Encryption and Decryption Keys"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_encrypt_decrypt_keys"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "An Antenna API Key"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_key_value"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 50,
-                    "name":". . . Data",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Number, Boolean, String or JSON Data"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_data"
-                        }
-                    ]
-                }
-			]
-		},
-		{
-			"kind":"category",
-            "colour": 150,
-			"name":"Antennae",
-            "expanded": "true",
-			"contents":[
-                {
-                    "kind":"category",
-                    "colour": 150,
-                    "name":"Antenna",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Simple Antenna"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_get_plugin"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "Complex Antenna"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_post_plugin"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 150,
-                    "name":". . . Parameter",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Query Parameters for use with Antenna"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_plugin_parameter"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 150,
-                    "name":". . . Header",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Header Setting for use with Antenna"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_plugin_header"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 150,
-                    "name":". . . Body",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Body Setting for use with Antenna"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_plugin_body"
-                        }
-                    ]
-                }
-			]
-		},
-        {
-			"kind":"category",
-            "colour": 200,
-			"name":"Behaviours",
-            "expanded": "true",
-			"contents":[
-                {
-                    "kind": "label",
-                    "text": "A Bee Behaviour"
-                },
-				{
-					"kind":"block",
-					"type":"reality2_automation"
-				}
-			]            
+          "kind": "label",
+          "text": "A Swarm of Bees"
         },
         {
-            "kind": "sep",
-            "gap": "8"
-        },
-        {
-            "kind":"category",
-            "colour": 250,
-            "name":"Decisions",
-            "expanded": "true",
-            "contents":[
-                {
-                    "kind":"category",
-                    "colour": 250,
-                    "name":"Start",
-                    "expanded": "true",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Decision used once when Bee first starts"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_start_transition_no_params"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_start_transition_simple"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 250,
-                    "name":"Instruction",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "An Instruction, where state-of-mind is irrelevant"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_simple_transition"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_simple_transition_no_params"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 250,
-                    "name":"Event",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "State-of-mind + Event ==> new State-of-mind"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_transition"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_transition_no_params"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 250,
-                    "name":"Monitor",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Monitor a Hive's internal activity"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_monitor"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 250,
-                    "name":". . . Inputs",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Additional Data to add to Flow with a Decision"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_parameter"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "kind":"category",
-            "colour": 300,
-            "name":"Tasks",
-            "expanded": "true",
-            "contents":[
-                {
-                    "kind":"category",
-                    "colour": 300,
-                    "name":"Send",
-                    "expanded": "true",
-                    "contents": [
-                        {
-                            "kind": "label",
-                            "text": "Send Data Flow immediately"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_send_now"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_send_now_no_params"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "Send Data Flow a bit later"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_send"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_send_no_params"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "Send Data Flow to an Antenna"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_send_plugin"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_send_plugin_no_params"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_send_plugin_no_params_no_event"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 300,
-                    "name":"Set",
-                    "expanded": "true",
-                    "contents": [
-                        {
-                            "kind": "label",
-                            "text": "Clear Data Flow Variable"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_clear"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "Set Data Flow Variable"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "Pick Value from Sentant Data"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_data"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "Pick Value from within a JSON structure"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_jsonpath"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "Calculate"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_calc_unary"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_calc_binary"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "A Number, Boolean, String or JSON"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_value"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "A Variable"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_value"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 300,
-                    "name":"Signal",
-                    "expanded": "true",
-                    "contents": [
-                        {
-                            "kind": "label",
-                            "text": "Signal Data Flow to watching devices"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_signal"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_signal_no_params"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 300,
-                    "name":"Test",
-                    "expanded": "true",
-                    "contents": [
-                        {
-                            "kind": "label",
-                            "text": "Send event depending on result of Test"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_test"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_test_no_params"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_test_simple"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "Evaluate for Test"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_calc_unary"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_calc_binary"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "A Number, Boolean, String or JSON"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_value"
-                        },
-                        {
-                            "kind": "label",
-                            "text": "A Variable"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_set_value"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 300,
-                    "name":"Debug",
-                    "expanded": "true",
-                    "contents": [
-                        {
-                            "kind": "label",
-                            "text": "Signal Data Flow with a debug event"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_debug"
-                        }
-                    ]
-                },
-                {
-                    "kind":"category",
-                    "colour": 300,
-                    "name":". . . Parameters",
-                    "expanded": "true",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Additional Data to add to Flow for Tasks"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"reality2_action_parameter"
-                        }
-                    ]
-                },
-                {
-                    "kind": "sep",
-                    "gap": "32"
-                },
-                {
-                    "kind":"category",
-                    "colour": 360,
-                    "name":"Variables",
-                    "expanded": "true",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Persistent Variables"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_vars_set"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_vars_set_no_value"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_vars_get"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_vars_all"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_vars_delete"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_vars_clear"
-                        }
-                    ]            
-                },
-                {
-                    "kind":"category",
-                    "colour": 360,
-                    "name":"Geospatial",
-                    "expanded": "true",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Geospatial Capabilities"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_geospatial_set"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_geospatial_set_geohash"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_geospatial_set_radius"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_geospatial_set_simple"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_geospatial_get"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_geospatial_search"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_geospatial_remove"
-                        }
-                    ]            
-                },
-                {
-                    "kind":"category",
-                    "colour": 360,
-                    "name":"Storage",
-                    "expanded": "true",
-                    "contents":[
-                        {
-                            "kind": "label",
-                            "text": "Data Flow Storage"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_backup_save"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_backup_load"
-                        },
-                        {
-                            "kind":"block",
-                            "type":"ai_reality2_backup_delete"
-                        }
-                    ]
-                }
-            ]
+          "kind": "block",
+          "type": "reality2_swarm"
         }
-	]
+      ]
+    },
+    {
+      "kind": "category",
+      "colour": 50,
+      "name": "Bees",
+      "expanded": "true",
+      "contents": [
+        {
+          "kind": "category",
+          "colour": 50,
+          "name": "Bee",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "A Reality2 Bee"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_sentant"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 50,
+          "name": ". . . Keys",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Encryption and Decryption Keys"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_encrypt_decrypt_keys"
+            },
+            {
+              "kind": "label",
+              "text": "An Antenna API Key"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_key_value"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 50,
+          "name": ". . . Data",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Number, Boolean, String or JSON Data"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_data"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "category",
+      "colour": 150,
+      "name": "Antennae",
+      "expanded": "true",
+      "contents": [
+        {
+          "kind": "category",
+          "colour": 150,
+          "name": "Antenna",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Simple Antenna"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_get_plugin"
+            },
+            {
+              "kind": "label",
+              "text": "Complex Antenna"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_post_plugin"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 150,
+          "name": ". . . Parameter",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Query Parameters for use with Antenna"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_plugin_parameter"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 150,
+          "name": ". . . Header",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Header Setting for use with Antenna"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_plugin_header"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 150,
+          "name": ". . . Body",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Body Setting for use with Antenna"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_plugin_body"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "category",
+      "colour": 200,
+      "name": "Behaviours",
+      "expanded": "true",
+      "contents": [
+        {
+          "kind": "label",
+          "text": "A Bee Behaviour"
+        },
+        {
+          "kind": "block",
+          "type": "reality2_automation"
+        }
+      ]
+    },
+    {
+      "kind": "sep",
+      "gap": "8"
+    },
+    {
+      "kind": "category",
+      "colour": 250,
+      "name": "Decisions",
+      "expanded": "true",
+      "contents": [
+        {
+          "kind": "category",
+          "colour": 250,
+          "name": "Start",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Decision used once when Bee first starts"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_start_transition_no_params"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_start_transition_simple"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 250,
+          "name": "Instruction",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "An Instruction, where state-of-mind is irrelevant"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_simple_transition"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_simple_transition_no_params"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 250,
+          "name": "Event",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "State-of-mind + Event ==> new State-of-mind"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_transition"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_transition_no_params"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 250,
+          "name": "Monitor",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Monitor a Hive's internal activity"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_monitor"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 250,
+          "name": ". . . Inputs",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Additional Data to add to Flow with a Decision"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_parameter"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "category",
+      "colour": 300,
+      "name": "Tasks",
+      "expanded": "true",
+      "contents": [
+        {
+          "kind": "category",
+          "colour": 300,
+          "name": "Send",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Send Data Flow immediately"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_send_now"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_send_now_no_params"
+            },
+            {
+              "kind": "label",
+              "text": "Send Data Flow a bit later"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_send"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_send_no_params"
+            },
+            {
+              "kind": "label",
+              "text": "Send Data Flow to an Antenna"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_send_plugin"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_send_plugin_no_params"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_send_plugin_no_params_no_event"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 300,
+          "name": "Set",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Clear Data Flow Variable"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_clear"
+            },
+            {
+              "kind": "label",
+              "text": "Set Data Flow Variable"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set"
+            },
+            {
+              "kind": "label",
+              "text": "Pick Value from Sentant Data"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_data"
+            },
+            {
+              "kind": "label",
+              "text": "Pick Value from within a JSON structure"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_jsonpath"
+            },
+            {
+              "kind": "label",
+              "text": "Calculate"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_calc_unary"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_calc_binary"
+            },
+            {
+              "kind": "label",
+              "text": "A Number, Boolean, String or JSON"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_value"
+            },
+            {
+              "kind": "label",
+              "text": "A Variable"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_value"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 300,
+          "name": "Signal",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Signal Data Flow to watching devices"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_signal"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_signal_no_params"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 300,
+          "name": "Test",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Send event depending on result of Test"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_test"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_test_no_params"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_test_simple"
+            },
+            {
+              "kind": "label",
+              "text": "Evaluate for Test"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_calc_unary"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_calc_binary"
+            },
+            {
+              "kind": "label",
+              "text": "A Number, Boolean, String or JSON"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_value"
+            },
+            {
+              "kind": "label",
+              "text": "A Variable"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_set_value"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 300,
+          "name": "Debug",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Signal Data Flow with a debug event"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_debug"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 300,
+          "name": ". . . Parameters",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Additional Data to add to Flow for Tasks"
+            },
+            {
+              "kind": "block",
+              "type": "reality2_action_parameter"
+            }
+          ]
+        },
+        {
+          "kind": "sep",
+          "gap": "32"
+        },
+        {
+          "kind": "category",
+          "colour": 360,
+          "name": "Variables",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Persistent Variables"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_vars_set"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_vars_set_no_value"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_vars_get"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_vars_all"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_vars_delete"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_vars_clear"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 360,
+          "name": "Geospatial",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Geospatial Capabilities"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_geospatial_set"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_geospatial_set_geohash"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_geospatial_set_radius"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_geospatial_set_simple"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_geospatial_get"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_geospatial_search"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_geospatial_remove"
+            }
+          ]
+        },
+        {
+          "kind": "category",
+          "colour": 360,
+          "name": "Storage",
+          "expanded": "true",
+          "contents": [
+            {
+              "kind": "label",
+              "text": "Data Flow Storage"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_backup_save"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_backup_load"
+            },
+            {
+              "kind": "block",
+              "type": "ai_reality2_backup_delete"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
