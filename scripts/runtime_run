@@ -9,7 +9,7 @@ export MIX_ENV=prod
 export VERSION=$(bin/reality2 version)
 #export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.auth, ai.reality2.backup, ai.reality2.rustdemo"
 # export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet, ai.reality2.versioncontrol"
-export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo"
+export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet"
 
 # The autostart directory is assumed to be in the same folder as where Reality2-Node is run.  However, you can change that:
 # export AUTOSTART="~/Development/Reality2/reality2-node-core-elixir/autostart"

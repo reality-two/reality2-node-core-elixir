@@ -26,5 +26,5 @@ fi
 
 mv ca.crt ca.key client.crt client.csr client.key server.csr ca.srl private
 CERT_ZIP="certs_$(date -Ihours).tar.gz"
-tar -zcf $CERT_ZIP private
+tar --force-local -zcf "$CERT_ZIP" private
 rm -rf private

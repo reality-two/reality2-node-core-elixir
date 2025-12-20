@@ -13,14 +13,13 @@ defmodule AiReality2Backup.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Reality2 Sentant Backup Plugin",
-
       name: "Plugin: ai.reality2.backup",
       source_url: "https://github.com/roycdavies/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
         main: "AiReality2Backup",
         output: "../../docs/ai_reality2_backup",
-        format: :html,
+        format: :html
       ]
     ]
   end

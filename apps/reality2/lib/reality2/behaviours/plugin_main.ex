@@ -36,7 +36,7 @@ defmodule Reality2.Plugin.Main do
               | nil
 
   @doc """
-  Commands can be sent to then plugin for the named Sentant.  The command is a map consisting of two fields; command and parameters
+  Commands can be sent to the plugin for the named Sentant.  The command is a map consisting of two fields; command and parameters
   eg %{command: "add", parameters: %{param1: 3, param2: 5}}
   """
   @callback sendto(sentant_id, command) ::

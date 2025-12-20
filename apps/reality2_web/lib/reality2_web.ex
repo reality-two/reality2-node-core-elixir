@@ -1,22 +1,21 @@
 defmodule Reality2Web do
-@moduledoc false
+  @moduledoc false
 
-# The entrypoint for defining your web interface, such
-# as controllers, components, channels, and so on.
+  # The entrypoint for defining your web interface, such
+  # as controllers, components, channels, and so on.
 
-# This can be used in your application as:
+  # This can be used in your application as:
 
-#     use Reality2Web, :controller
-#     use Reality2Web, :html
+  #     use Reality2Web, :controller
+  #     use Reality2Web, :html
 
-# The definitions below will be executed for every controller,
-# component, etc, so keep them short and clean, focused
-# on imports, uses and aliases.
+  # The definitions below will be executed for every controller,
+  # component, etc, so keep them short and clean, focused
+  # on imports, uses and aliases.
 
-# Do NOT define functions inside the quoted expressions
-# below. Instead, define additional modules and import
-# those modules here.
-
+  # Do NOT define functions inside the quoted expressions
+  # below. Instead, define additional modules and import
+  # those modules here.
 
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
@@ -53,7 +52,8 @@ defmodule Reality2Web do
       use Phoenix.VerifiedRoutes,
         endpoint: Reality2Web.Endpoint,
         router: Reality2Web.Router
-        # statics: Reality2Web.static_paths()
+
+      # statics: Reality2Web.static_paths()
     end
   end
 

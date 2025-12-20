@@ -1,44 +1,59 @@
-defmodule AiReality2Transnet.Data do
+defmodule AiReality2Transnet.Bluetooth do
   # *******************************************************************************************************************************************
   @moduledoc """
-
+  A Bluetooth module for Transient Networks - acts as the
   """
 
   # *******************************************************************************************************************************************
 
   @doc false
   use GenServer, restart: :transient
-  alias Reality2.Helpers.R2Map, as: R2Map
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
   # GenServer callbacks
   # -------------------------------------------------------------------------------------------------------------------------------------------
   @doc false
-  def start_link(_, _), do: GenServer.start_link(__MODULE__, %{})
+  def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
 
   @doc false
-  def init(state), do: {:ok, state}
+  def init(state) do
+  {:ok, state}
+  end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
-
-  # -------------------------------------------------------------------------------------------------------------------------------------------
-  # Public Functions
   # -------------------------------------------------------------------------------------------------------------------------------------------
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
   # GenServer callbacks
+  # start_scan/1, stop_scan/1, list_connected/0
+  # start_advertising/2, stop_advertising/1
   # -------------------------------------------------------------------------------------------------------------------------------------------
   @doc false
-  def handle_call(_, _from, state), do: {:reply, {:error, :unknown_command}, state}
+  def handle_call(%{command: "start_scan"}, _from, state) do
+    {:reply, scan(state), state}
+  end
 
-  @doc false
-  def handle_cast(_, state), do: {:noreply, state}
+  # def handle_call(%{command: "store", location: location, sentantid: sentantid}, _from, state) do
+  #   {:reply, nil, store(state, location, sentantid)}
+  # end
+
+  # def handle_call(%{command: "delete", sentantid: sentantid}, _from, state) do
+  #   {:reply, nil, remove(state, sentantid)}
+  # end
+
+  def handle_call(_request, _from, state) do
+    IO.puts("Unknown Command #{inspect(state, pretty: true)}")
+    {:reply, {:error, :unknown_command}, state}
+  end
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
   # Private Functions
   # -------------------------------------------------------------------------------------------------------------------------------------------
+
+  def scan(_state) do
+    IO.puts("Scanning BLE")
+  end
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
 end

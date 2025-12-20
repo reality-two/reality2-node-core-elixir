@@ -13,14 +13,13 @@ defmodule AiReality2Transnet.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Reality2 Transient Networks Plugin",
-
       name: "Plugin: ai.reality2.transnet",
       source_url: "https://github.com/roycdavies/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
         main: "AiReality2Transnet",
         output: "../../docs/ai_reality2_transnet",
-        format: :html,
+        format: :html
       ]
     ]
   end
@@ -37,6 +36,7 @@ defmodule AiReality2Transnet.MixProject do
   defp deps do
     [
       {:reality2, in_umbrella: true},
+      {:dbus, "~> 0.8.0"},
       {:rustler, "~> 0.34.0"}
     ]
   end

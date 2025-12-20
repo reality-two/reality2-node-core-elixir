@@ -1,12 +1,9 @@
 #!/bin/bash
-
-echo "***** Building $1 WebApp"
-cd ..
-
-if [ ! -d "./web/$1" ]; then
+if [ ! -d "../web/$1" ]; then
     echo "WebApp source code web/$1 does not exist"
 else
-    cd ./web/$1
+    echo "***** Building $1 WebApp"
+    cd ../web/$1
     yarn
     yarn build
 

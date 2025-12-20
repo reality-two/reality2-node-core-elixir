@@ -15,12 +15,13 @@ defmodule Reality2.MixProject do
       aliases: aliases(),
       deps: deps(),
       description: "Reality2 Sentient Agent (Sentant) Platform",
-
       name: "Reality2.AI",
       source_url: "https://github.com/roycdavies/reality2/tree/main/apps/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
-        main: "Reality2.AI", output: "../../docs/reality2", format: :html,
+        main: "Reality2.AI",
+        output: "../../docs/reality2",
+        format: :html,
         extras: ["README.md"]
       ]
     ]
@@ -32,7 +33,8 @@ defmodule Reality2.MixProject do
   def application do
     [
       mod: {Reality2.Application, []},
-      extra_applications: [:logger, :runtime_tools, :os_mon, :geohash, :mnesia, :crypto] #, :gun]
+      # , :gun]
+      extra_applications: [:logger, :runtime_tools, :os_mon, :geohash, :mnesia, :crypto]
     ]
   end
 

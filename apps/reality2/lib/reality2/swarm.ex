@@ -1,22 +1,23 @@
 defmodule Reality2.Swarm do
-# *******************************************************************************************************************************************
-@moduledoc """
-  Module for creating and managing Swarms on a Node.  A Swarm is a collection of Sentants that are managed together.
+  # *********************************************************************************************************************************************
+  @moduledoc """
+    Module for creating and managing Swarms on a Node.  A Swarm is a collection of Sentants that are managed together.
 
-  **Author**
-  - Dr. Roy C. Davies
-  - [roycdavies.github.io](https://roycdavies.github.io/)
-"""
-# *******************************************************************************************************************************************
+    **Author**
+    - Dr. Roy C. Davies
+    - [roycdavies.github.io](https://roycdavies.github.io/)
+  """
+
+  # *********************************************************************************************************************************************
 
   alias Reality2.Types
   alias Reality2.Helpers.R2Map, as: R2Map
 
-  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------------------------------------------------------------------------
   @spec create(Types.swarm() | String.t(), local :: boolean(), override :: boolean()) ::
-    {:ok, map}
-    | {:error, :definition}
-    | {:error, :locked}
+          {:ok, map}
+          | {:error, :definition}
+          | {:error, :locked}
   @doc """
   Create a new Swarm on the Node, returning {:ok} or an appropriate error.
 
@@ -37,10 +38,18 @@ defmodule Reality2.Swarm do
           else
             {:error, :locked}
           end
-        "" -> do_create(swarm_definition)
-        "false" -> do_create(swarm_definition)
-        "0" -> do_create(swarm_definition)
-        _ -> {:error, :locked }
+
+        "" ->
+          do_create(swarm_definition)
+
+        "false" ->
+          do_create(swarm_definition)
+
+        "0" ->
+          do_create(swarm_definition)
+
+        _ ->
+          {:error, :locked}
       end
     end
   end
@@ -49,65 +58,89 @@ defmodule Reality2.Swarm do
     case convert_input(swarm_definition) do
       {:ok, definition_map} ->
         swarm_map = remove_swarm_parent_from_definition_map(definition_map)
+
         case Reality2.Types.validate(swarm_map, Reality2.Types.swarm()) do
           :ok ->
             create_from_map(swarm_map)
-          {:error, error} -> {:error, error}
+
+          {:error, error} ->
+            {:error, error}
         end
+
       _ ->
         {:error, :definition}
     end
   end
-  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------------------------------------------------------------------------
   defp create_from_map(definition_map) do
     name = R2Map.get(definition_map, "name", "")
     description = R2Map.get(definition_map, "description", "")
+
     case R2Map.get(definition_map, "sentants") do
       nil ->
         {:ok, %{name: name, description: description, sentants: []}}
+
       sentants ->
         case is_list(sentants) do
           true ->
-            sentant_ids = Enum.map(sentants, fn sentant_map ->
-              case Reality2.Sentants.create(sentant_map) do
-                {:ok, id} ->
-                  id
-                {:error, reason} ->
-                  {:error, reason}
-              end
-            end)
-            |> Enum.filter(fn x ->
-              case x do
-                {:error, _reason} -> false
-                _ -> true
-              end
-            end)
+            sentant_ids =
+              Enum.map(sentants, fn sentant_map ->
+                case Reality2.Sentants.create(sentant_map) do
+                  {:ok, id} ->
+                    id
+
+                  {:error, reason} ->
+                    {:error, reason}
+                end
+              end)
+              |> Enum.filter(fn x ->
+                case x do
+                  {:error, _reason} -> false
+                  _ -> true
+                end
+              end)
+
             {:ok, %{name: name, description: description, sentants: sentant_ids}}
-          false -> {:ok, %{name: name, description: description, sentants: []}}
+
+          false ->
+            {:ok, %{name: name, description: description, sentants: []}}
         end
     end
   end
-  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------------------------------------------------------------------------
   # Convert an input String in either JSON, TOML or YAML format to a map.
   defp convert_input(definition) when is_map(definition), do: {:ok, definition}
+
   defp convert_input(definition) when is_binary(definition) do
     case Jason.decode(definition) do
       {:ok, definition_map} ->
         {:ok, definition_map}
+
       _ ->
         case YamlElixir.read_from_string(definition) do
           {:ok, definition_map} ->
             {:ok, definition_map}
-          _ -> case Toml.decode(definition) do
-            {:ok, definition_map} ->
-              {:ok, definition_map}
-            _ -> {:error, :definition}
-          end
+
+          _ ->
+            case Toml.decode(definition) do
+              {:ok, definition_map} ->
+                {:ok, definition_map}
+
+              _ ->
+                {:error, :definition}
+            end
         end
     end
   end
+
   defp convert_input(_), do: {:error, :definition}
-  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------------------------------------------------------------------------
+
+  defp remove_swarm_parent_from_definition_map([swarm_map | _]),
+    do: remove_swarm_parent_from_definition_map(swarm_map)
 
   defp remove_swarm_parent_from_definition_map(%{"swarm" => swarm_map}), do: swarm_map
   defp remove_swarm_parent_from_definition_map(%{swarm: swarm_map}), do: swarm_map

@@ -15,14 +15,13 @@ defmodule AiReality2Vars.MixProject do
       aliases: aliases(),
       deps: deps(),
       description: "Reality2 Vars Plugin",
-
       name: "Plugin: ai.reality2.vars",
       source_url: "https://github.com/roycdavies/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
         main: "AiReality2Vars",
         output: "../../docs/ai_reality2_vars",
-        format: :html,
+        format: :html
       ]
     ]
   end

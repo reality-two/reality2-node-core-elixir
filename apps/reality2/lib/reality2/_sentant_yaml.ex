@@ -32,10 +32,10 @@ defmodule Reality2.Types do
   ```
   """
   @type author :: %{
-    id: String.t,
-    name: String.t,
-    email: String.t
-  }
+          id: String.t(),
+          name: String.t(),
+          email: String.t()
+        }
 
   def author() do
     %{
@@ -44,8 +44,6 @@ defmodule Reality2.Types do
       "email" => [nullable: true, required: true, type: :string]
     }
   end
-
-
 
   @typedoc """
   An event definition sent to a Sentant.
@@ -61,10 +59,10 @@ defmodule Reality2.Types do
   ```
   """
   @type input_event :: %{
-    event: String.t,
-    parameters: map,
-    passthrough: map
-  }
+          event: String.t(),
+          parameters: map,
+          passthrough: map
+        }
   def input_event() do
     %{
       "event" => [nullable: true, required: true, type: :string],
@@ -72,8 +70,6 @@ defmodule Reality2.Types do
       "passthrough" => [nullable: true, required: false, type: :map]
     }
   end
-
-
 
   @typedoc """
   Plugins are used to add functionality to Sentants beyond the built-in actions.
@@ -89,34 +85,64 @@ defmodule Reality2.Types do
 
     # The version of the plugin, eg: "0.1.0"
     version: !str
+
+    # The plugin type
+    type: str
+
+    # The URL the plugin API
+    url: !str
+
+    # The method (GET or POST usually)
+    method: str
+
+    # Headers to be sent along with the call
+    headers: map
+
+    # The body if required (for POST)
+    body: string | map
+
+    # What to do when the API call returns.  Sends an event with the specified key and value interpreted from the API output.
+    output: !map
+      key: string
+      value: jsonpath
+      event: string
+
   ```
   """
   @type plugin :: %{
-    name: String.t,
-    url: String.t,
-    method: String.t,
-    headers: map,
-    body: map | String.t,
-    output: map,
-    version: String.t
-  }
+          name: String.t(),
+          url: String.t(),
+          method: String.t(),
+          headers: map,
+          body: map | String.t(),
+          output: map,
+          version: String.t()
+        }
   def plugin() do
     %{
       "name" => [nullable: true, required: true, type: :string],
       "url" => [nullable: true, required: true, type: :string],
       "method" => [nullable: true, required: false, type: :string],
       "headers" => [nullable: true, required: false, type: :map],
-      "body" => [nullable: true, required: false, type: :map],
+      "body" => [nullable: true, required: false, type: :any],
       "output" => [nullable: true, required: true, type: :map],
       "version" => [nullable: true, required: false, type: :string],
       "type" => [nullable: true, required: false, type: :string]
     }
   end
+
   def plugin_defaults() do
-    %{"name" => "", "url" => "", "method" => "POST", "headers" => %{}, "body" => %{}, "output" => %{}, "version" => "", "type" => ""}
+    %{
+      "name" => "",
+      "url" => "",
+      "method" => "POST",
+      "headers" => %{},
+      "body" => %{},
+      "output" => %{},
+      "version" => "",
+      "type" => ""
+    }
   end
-
-
 
   @typedoc """
   The action definition of an automation.
@@ -135,10 +161,10 @@ defmodule Reality2.Types do
   ```
   """
   @type action :: %{
-    plugin: plugin,
-    command: String.t,
-    parameters: map
-  }
+          plugin: plugin,
+          command: String.t(),
+          parameters: map
+        }
   def action() do
     %{
       "plugin" => [nullable: true, required: false, type: :string],
@@ -146,8 +172,6 @@ defmodule Reality2.Types do
       "parameters" => [nullable: true, required: false, type: :map]
     }
   end
-
-
 
   @typedoc """
   An automation transition action definition.
@@ -192,21 +216,24 @@ defmodule Reality2.Types do
   ```
   """
   @type transition :: %{
-    from: String.t,
-    event: String.t,
-    to: String.t,
-    actions: [action]
-  }
+          from: String.t(),
+          event: String.t(),
+          to: String.t(),
+          actions: [action]
+        }
   def transition() do
     %{
       "from" => [nullable: true, required: true, type: :string],
       "event" => [nullable: true, required: true, type: :string],
       "to" => [nullable: true, required: true, type: :string],
-      "actions" => [nullable: true, required: false, type: :list, list: [nullable: true, required: false, type: :map, map: action()]]
+      "actions" => [
+        nullable: true,
+        required: false,
+        type: :list,
+        list: [nullable: true, required: false, type: :map, map: action()]
+      ]
     }
   end
-
-
 
   @typedoc """
   A sentant automation definition.
@@ -228,19 +255,21 @@ defmodule Reality2.Types do
   ```
   """
   @type automation :: %{
-    name: String.t,
-    description: String.t,
-    transitions: [transition]
-  }
+          name: String.t(),
+          description: String.t(),
+          transitions: [transition]
+        }
   def automation() do
     %{
       "name" => [nullable: true, required: true, type: :string],
       "description" => [nullable: true, required: false, type: :string],
-      "transitions" => [required: true, type: :list, list: [required: false, type: :map, map: transition()]]
+      "transitions" => [
+        required: true,
+        type: :list,
+        list: [required: false, type: :map, map: transition()]
+      ]
     }
   end
-
-
 
   @typedoc """
   A stored state of an Automation.
@@ -256,17 +285,15 @@ defmodule Reality2.Types do
   ```
   """
   @type stored_state :: %{
-    name: String.t,
-    state: String.t
-  }
+          name: String.t(),
+          state: String.t()
+        }
   def stored_state() do
     %{
       "name" => [nullable: true, required: true, type: :string],
       "state" => [nullable: true, required: true, type: :string]
     }
   end
-
-
 
   @typedoc """
   The current status of this Sentant on this node.
@@ -276,7 +303,7 @@ defmodule Reality2.Types do
   "active" | "shadow" | "inactive" | "unchecked" | "unknown"
   ```
   """
-  @type status :: String.t
+  @type status :: String.t()
   def status, do: :string
 
   @typedoc """
@@ -337,21 +364,21 @@ defmodule Reality2.Types do
   ```
   """
   @type sentant :: %{
-    id: uuid,
-    name: String.t,
-    version: String.t,
-    class: String.t,
-    data: map,
-    binary: map,
-    tags: [String.t],
-    keywords: [String.t],
-    description: String.t,
-    author: author,
-    plugins: [plugin],
-    automations: [automation],
-    states: [stored_state],
-    status: status
-  }
+          id: uuid,
+          name: String.t(),
+          version: String.t(),
+          class: String.t(),
+          data: map,
+          binary: map,
+          tags: [String.t()],
+          keywords: [String.t()],
+          description: String.t(),
+          author: author,
+          plugins: [plugin],
+          automations: [automation],
+          states: [stored_state],
+          status: status
+        }
   def sentant() do
     %{
       "id" => [nullable: true, required: false, type: :string],
@@ -360,18 +387,41 @@ defmodule Reality2.Types do
       "class" => [nullable: true, required: false, type: :string],
       "data" => [nullable: true, required: false, type: :map],
       "binary" => [nullable: true, required: false, type: :map],
-      "tags" => [nullable: true, required: false, type: :list, list: [nullable: true, required: false, type: :string]],
-      "keywords" => [nullable: true, required: false, type: :list, list: [nullable: true, required: false, type: :string]],
+      "tags" => [
+        nullable: true,
+        required: false,
+        type: :list,
+        list: [nullable: true, required: false, type: :string]
+      ],
+      "keywords" => [
+        nullable: true,
+        required: false,
+        type: :list,
+        list: [nullable: true, required: false, type: :string]
+      ],
       "description" => [nullable: true, required: false, type: :string],
       "author" => [nullable: true, required: false, type: :map, map: author()],
-      "plugins" => [nullable: true, required: false, type: :list, list: [nullable: true, required: false, type: :map, map: plugin()]],
-      "automations" => [nullable: true, required: false, type: :list, list: [nullable: true, required: false, type: :map, map: automation()]],
-      "states" => [nullable: true, required: false, type: :list, list: [nullable: true, required: false, type: :map, map: stored_state()]],
+      "plugins" => [
+        nullable: true,
+        required: false,
+        type: :list,
+        list: [nullable: true, required: false, type: :map, map: plugin()]
+      ],
+      "automations" => [
+        nullable: true,
+        required: false,
+        type: :list,
+        list: [nullable: true, required: false, type: :map, map: automation()]
+      ],
+      "states" => [
+        nullable: true,
+        required: false,
+        type: :list,
+        list: [nullable: true, required: false, type: :map, map: stored_state()]
+      ],
       "status" => [nullable: true, required: false, type: :string]
     }
   end
-
-
 
   @typedoc """
   A group of Sentant Templates that work together to achieve a common goal.
@@ -399,13 +449,13 @@ defmodule Reality2.Types do
   ```
   """
   @type swarm :: %{
-    name: String.t,
-    class: String.t,
-    description: String.t,
-    author: author,
-    version: String.t,
-    sentants: [sentant]
-  }
+          name: String.t(),
+          class: String.t(),
+          description: String.t(),
+          author: author,
+          version: String.t(),
+          sentants: [sentant]
+        }
   def swarm() do
     %{
       "name" => [nullable: true, required: false, type: :string],
@@ -413,10 +463,13 @@ defmodule Reality2.Types do
       "description" => [nullable: true, required: false, type: :string],
       "author" => [nullable: true, required: false, type: :map, map: author()],
       "version" => [nullable: true, required: false, type: :string],
-      "sentants" => [required: true, type: :list, list: [required: true, type: :map, map: sentant()]]
+      "sentants" => [
+        required: true,
+        type: :list,
+        list: [required: true, type: :map, map: sentant()]
+      ]
     }
   end
-
 
   @doc """
   Validates the data against the given type definition.
@@ -428,111 +481,9 @@ defmodule Reality2.Types do
     end  ```
   """
   def validate(data, typedef) do
-   case Validate.validate(data, typedef) do
+    case Validate.validate(data, typedef) do
       {:ok, _} -> :ok
       {:error, errors} -> {:error, Validate.Util.errors_to_map(errors)}
     end
   end
-end
-
-
-
-defmodule YAML.Sentant_example do
-@moduledoc """
-Reality2 Swarm Definition representing a light and switch.
-
-### YAML
-```yaml
-swarm:
-  # -----------------------------------------------------------------------------------------------
-  # An example swarm depicting a light and switch comprising two Sentants.
-  # -----------------------------------------------------------------------------------------------
-  name: A Light and Switch demo
-  class: ai.reality2.swarm.light_and_switch
-  version: 1.0.0
-  description: |
-    This swarm is an example of a light and a switch.
-    It is used in the Reality2 demo.
-  author:
-    - name: Reality2 Developer
-      email: dev@reality2.ai
-
-  # -----------------------------------------------------------------------------------------------
-  # The Sentants
-  # -----------------------------------------------------------------------------------------------
-  sentants:
-    # ---------------------------------------------------------------------------------------------
-    # A Switch that can either be on or off, and responds to events switch_on and switch_off.
-    # ---------------------------------------------------------------------------------------------
-    - name: Switch
-      description: This sentant represents a switch.
-      class: ai.reality2.default
-      version: 1.0.0
-      automations:
-        - name: Switch
-          transitions:
-            - from: start
-              to: "off"
-              event: init
-              actions:
-                - command: set
-                  parameters: { description: "off" }
-
-            - from: "off"
-              to: "on"
-              event: switch_on
-              actions:
-                - command: send
-                  parameters: { event: light_on, sentant: Light }
-                - command: set
-                  parameters: { description: "on" }
-
-            - from: "on"
-              to: "off"
-              event: switch_off
-              actions:
-                - command: send
-                  parameters: { event: light_off, sentant: Light }
-                - command: set
-                  parameters: { description: "off" }
-    # ---------------------------------------------------------------------------------------------
-
-    # ---------------------------------------------------------------------------------------------
-    # A Light that can either be on or off, and responds to events light_on and light_off.
-    # ---------------------------------------------------------------------------------------------
-    - name: Light
-      description: This sentant represents a light.
-      class: ai.reality2.default
-      version: 1.0.0
-      automations:
-        - name: Light
-          transitions:
-            - from: start
-              to: "off"
-              event: init
-              actions:
-                - command: set
-                  parameters: { description: "off" }
-
-            - from: "off"
-              to: "on"
-              event: light_on
-              actions:
-                - command: set
-                  parameters: { description: "on" }
-                - command: trigger
-                  parameters: { event: light_on }
-
-            - from: "on"
-              to: "off"
-              event: light_off
-              actions:
-                - command: set
-                  parameters: { description: "off" }
-                - command: trigger
-                  parameters: { event: light_off }
-    # ---------------------------------------------------------------------------------------------
-```
-"""
-def __example, do: :ok
 end

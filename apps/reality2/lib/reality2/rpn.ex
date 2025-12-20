@@ -1,5 +1,4 @@
 defmodule RPN do
-
   alias Reality2.Helpers.R2Map, as: R2Map
 
   @binary_ops ~w(+ - / * ^ atan2 fmod pow geohash && || == != > < >= <=)
@@ -16,10 +15,10 @@ defmodule RPN do
 
   defp convert_rpn(op, [a, b | tail], _context) when op in @binary_ops do
     case op do
-      "+" -> [b+a | tail]
-      "-" -> [b-a | tail]
-      "*" -> [b*a | tail]
-      "/" -> [b/a | tail]
+      "+" -> [b + a | tail]
+      "-" -> [b - a | tail]
+      "*" -> [b * a | tail]
+      "/" -> [b / a | tail]
       "^" -> [:math.pow(b, a) | tail]
       "atan2" -> [:math.atan2(b, a) | tail]
       "fmod" -> [:math.fmod(b, a) | tail]
@@ -38,8 +37,8 @@ defmodule RPN do
 
   defp convert_rpn(op, [a | tail], _context) when op in @unary_ops do
     case op do
-      "+"    -> [a | tail]
-      "-"    -> [-a | tail]
+      "+" -> [a | tail]
+      "-" -> [-a | tail]
       "acos" -> [:math.acos(a) | tail]
       "acosh" -> [:math.acosh(a) | tail]
       "asin" -> [:math.asin(a) | tail]
@@ -51,7 +50,7 @@ defmodule RPN do
       "cosh" -> [:math.cosh(a) | tail]
       "exp" -> [:math.exp(a) | tail]
       "floor" -> [:math.floor(a) | tail]
-      "log"   -> [:math.log(a) | tail]
+      "log" -> [:math.log(a) | tail]
       "log10" -> [:math.log10(a) | tail]
       "log2" -> [:math.log2(a) | tail]
       "sin" -> [:math.sin(a) | tail]
@@ -59,9 +58,7 @@ defmodule RPN do
       "sqrt" -> [:math.sqrt(a) | tail]
       "tan" -> [:math.tan(a) | tail]
       "tanh" -> [:math.tanh(a) | tail]
-
       "!" -> [!a | tail]
-
       "latlong" -> [Geohash.decode(a) | tail]
     end
   end
@@ -71,38 +68,49 @@ defmodule RPN do
   end
 
   defp convert_rpn(num_str, acc, context) do
+    number =
+      case safe_convert(num_str) do
+        {:ok, num} ->
+          num
 
-    number = case safe_convert(num_str) do
-      {:ok, num} -> num
-      {:str, _} ->
-        case R2Map.get(context, num_str) do
-          nil -> %{error: "unknown variable #{num_str}"}
-          num2 ->
-            case safe_convert(num2) do
-              {:ok, num3} -> num3
-              _ -> %{error: "invalid value for variable #{num_str}"}
-            end
-        end
+        {:str, _} ->
+          case R2Map.get(context, num_str) do
+            nil ->
+              %{error: "unknown variable #{num_str}"}
+
+            num2 ->
+              case safe_convert(num2) do
+                {:ok, num3} -> num3
+                _ -> %{error: "invalid value for variable #{num_str}"}
+              end
+          end
       end
+
     [number | acc]
   end
 
   defp safe_convert(num_str) do
     try do
       case Float.parse(num_str) do
-        {num, _} -> {:ok, num} # Was a number in a string, so all good.
+        # Was a number in a string, so all good.
+        {num, _} ->
+          {:ok, num}
+
         _ ->
           case num_str do
-            "pi" -> {:ok, :math.pi} # Special case for pi
-            "e" -> {:ok, 2.7182818284590452353602874713527} # Special case for e
-            "true" -> {:ok, :true}
-            "false" -> {:ok, :false}
-            _ -> {:str, num_str} # Probably a variable naame or something else.
+            # Special case for pi
+            "pi" -> {:ok, :math.pi()}
+            # Special case for e
+            "e" -> {:ok, 2.7182818284590452353602874713527}
+            "true" -> {:ok, true}
+            "false" -> {:ok, false}
+            # Probably a variable naame or something else.
+            _ -> {:str, num_str}
           end
       end
     rescue
-      _ -> {:ok, num_str} # Is not a string, perhaps a number, so return that
+      # Is not a string, perhaps a number, so return that
+      _ -> {:ok, num_str}
     end
   end
-
 end

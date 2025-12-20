@@ -8,15 +8,15 @@
 <script lang="ts">
     //@ts-ignore
     import { Cards } from "svelte-fomantic-ui";
-    import SentantCard from './SentantCard.svelte';
+    import SentantCard from "./SentantCard.svelte";
 
-    import { onMount } from 'svelte';
-    import { onDestroy } from 'svelte';
+    import { onMount } from "svelte";
+    import { onDestroy } from "svelte";
 
     import R2 from "./reality2";
 
     export let r2_node: R2;
-    export let sentantData: any[]|any = [];
+    export let sentantData: any[] | any = [];
     export let variables = {};
 
     let height = "400px";
@@ -25,11 +25,11 @@
         updateHeight();
 
         // Add resize event listener
-        window.addEventListener('resize', updateHeight);
+        window.addEventListener("resize", updateHeight);
     });
 
-    onDestroy(() => { 
-        window.removeEventListener('resize', updateHeight); 
+    onDestroy(() => {
+        window.removeEventListener("resize", updateHeight);
     });
 
     function updateHeight() {
@@ -37,10 +37,14 @@
     }
 </script>
 
-<Cards ui centered style="width: 100%; height: {height}; overflow-y:scroll; margin-top: 10px;">
+<Cards
+    ui
+    centered
+    style="width: 100%; height: {height}; overflow-y:scroll; margin-top: 10px;"
+>
     {#each sentantData as sentant}
-        {#if ((sentant.name !== "monitor") && (sentant.name !== ".deleted") && (sentant.name !== "view"))}
-            <SentantCard {sentant} {r2_node} {variables}/>
+        {#if sentant.name !== "monitor" && sentant.name !== ".deleted" && sentant.name !== "view"}
+            <SentantCard {sentant} {r2_node} {variables} />
         {/if}
     {/each}
 </Cards>

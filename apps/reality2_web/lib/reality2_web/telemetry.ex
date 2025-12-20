@@ -1,5 +1,5 @@
 defmodule Reality2Web.Telemetry do
-@moduledoc false
+  @moduledoc false
 
   use Supervisor
   import Telemetry.Metrics
