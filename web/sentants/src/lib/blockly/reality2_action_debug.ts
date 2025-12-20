@@ -9,56 +9,47 @@ import R2 from "../reality2";
 // Block Definition
 // ----------------------------------------------------------------------------------------------------
 const shape = {
-	"type":"reality2_action_debug",
-    "message0":"debug",
-	"previousStatement":null,
-	"nextStatement":null,
-    "colour": 300,
-    "tooltip": "A Debug Task that shows the current data flow.",
-    "helpUrl": "https://github.com/reality-two/reality2-documentation"
-}
+  type: "reality2_action_debug",
+  message0: "debug",
+  previousStatement: null,
+  nextStatement: null,
+  colour: 300,
+  tooltip: "A Debug Task that shows the current data flow.",
+  helpUrl: "https://github.com/reality-two/reality2-documentation",
+};
 // ----------------------------------------------------------------------------------------------------
-
-
 
 // ----------------------------------------------------------------------------------------------------
 // Process Block
 // ----------------------------------------------------------------------------------------------------
-function process(block: any, generator: any): string | [string, number] | null
-{
-    const action = {
-        "command": "debug"
-    }
+function process(block: any, generator: any): string | [string, number] | null {
+  const action = {
+    command: "debug",
+  };
 
-    return (JSON.stringify(action));
+  return JSON.stringify(action);
 }
 // ----------------------------------------------------------------------------------------------------
-
-
 
 // ----------------------------------------------------------------------------------------------------
 // Create a blockly block object from the JSON
 // ----------------------------------------------------------------------------------------------------
-function construct(action: any)
-{    
-    if (action) {
-        // Set the initial structure
-        let block = {
-            "kind": "BLOCK",
-            "type": "reality2_action_debug"
-        }
-        return (block);
-    }
-    else {
-        return null;
-    }
+function construct(action: any) {
+  if (action) {
+    // Set the initial structure
+    let block = {
+      kind: "BLOCK",
+      type: "reality2_action_debug",
+    };
+    return block;
+  } else {
+    return null;
+  }
 }
 // ----------------------------------------------------------------------------------------------------
-
-
 
 // ----------------------------------------------------------------------------------------------------
 // Export defaults
 // ----------------------------------------------------------------------------------------------------
-export default {shape, process, construct};
+export default { shape, process, construct };
 // ----------------------------------------------------------------------------------------------------

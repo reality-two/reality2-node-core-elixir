@@ -23,17 +23,17 @@ a:hover {
 } */
 
 body {
-  margin: 0;
-  /* display: flex; */
-  /* flex-flow: column; */
-  height: 100vh;
-  place-items: center;
-  /* height: 1920px; */
-  background-color: #222222;
-  width: 100%;
-  min-width: 100%;
-  min-height: 100vh;
-} 
+    margin: 0;
+    /* display: flex; */
+    /* flex-flow: column; */
+    height: 100vh;
+    place-items: center;
+    /* height: 1920px; */
+    background-color: #222222;
+    width: 100%;
+    min-width: 100%;
+    min-height: 100vh;
+}
 
 #app {
     /* max-width: 1920px;
@@ -42,7 +42,7 @@ body {
     margin: 0 auto;
     padding: 1rem;
     text-align: center;
-  }
+}
 
 /* h1 {
   font-size: 3.2em;
@@ -52,8 +52,6 @@ body {
 .card {
   padding: 1em;
 } */
-
-
 
 /* button {
   border-radius: 8px;
@@ -75,41 +73,41 @@ button:focus-visible {
 } */
 
 @media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+    :root {
+        color: #213547;
+        background-color: #ffffff;
+    }
+    a:hover {
+        color: #747bff;
+    }
+    button {
+        background-color: #f9f9f9;
+    }
 }
 
-  /* Style for the tooltip */
-  .tooltip {
-      position: relative;
-      display: inline-block;
-      cursor: pointer;
-  }
+/* Style for the tooltip */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
 
-  /* Tooltip text */
-  .tooltip::after {
-      content: attr(data-tooltip);
-      visibility: hidden;
-      white-space: normal;
-      width: 512px;
-      border-radius: 6px;
-      padding: 5px;
-      position: absolute;
-      z-index: 1;
-      bottom: 125%;
-      left: 50%;
-      margin-left: -60px;
-  }
+/* Tooltip text */
+.tooltip::after {
+    content: attr(data-tooltip);
+    visibility: hidden;
+    white-space: normal;
+    width: 512px;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -60px;
+}
 
-  /* Show the tooltip text when hovering */
-  .tooltip:hover::after {
-      visibility: visible;
-  }
+/* Show the tooltip text when hovering */
+.tooltip:hover::after {
+    visibility: visible;
+}

@@ -2,15 +2,17 @@ defmodule Reality2.Umbrella.MixProject do
   use Mix.Project
 
   def project do
+    env_plugins =
+      case System.get_env("PLUGINS") do
+        nil ->
+          []
 
-    env_plugins = case System.get_env("PLUGINS") do
-      nil -> []
-      value ->
-        String.split(value, ",")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&String.replace(&1, ".", "_"))
-        |> Enum.map(&String.to_atom/1)
-    end
+        value ->
+          String.split(value, ",")
+          |> Enum.map(&String.trim/1)
+          |> Enum.map(&String.replace(&1, ".", "_"))
+          |> Enum.map(&String.to_atom/1)
+      end
 
     plugins = [:reality2, :reality2_web] ++ env_plugins
 
@@ -24,7 +26,6 @@ defmodule Reality2.Umbrella.MixProject do
       releases: releases(plugins)
     ]
   end
-
 
   def application do
     [
@@ -41,12 +42,11 @@ defmodule Reality2.Umbrella.MixProject do
   #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
   #
   # Type "mix help deps" for more examples and options.
-  #ssss
+  # ssss
   # Dependencies listed here are available only for this project
   # and cannot be accessed from applications inside the apps/ folder.
   defp deps do
-    [
-    ]
+    []
   end
 
   # Aliases are shortcuts or tasks specific to the current project.

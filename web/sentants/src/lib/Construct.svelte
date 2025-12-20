@@ -6,11 +6,35 @@ Construct Swarms and Bees / Sentants
   Contact: roycdavies.github.io
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-
     // ------------------------------------------------------------------------------------------------
     // Imports
     // ------------------------------------------------------------------------------------------------
-    import { behavior, Segment, reload, Flyout, Pusher, Text, Divider, Checkbox, Modal, Icon, Header, Content, Input, Actions, Button, Buttons, Field, Dropdown, Table, Table_Body, Table_Head, Table_Col, Table_Row, update } from "svelte-fomantic-ui";
+    import {
+        behavior,
+        Segment,
+        reload,
+        Flyout,
+        Pusher,
+        Text,
+        Divider,
+        Checkbox,
+        Modal,
+        Icon,
+        Header,
+        Content,
+        Input,
+        Actions,
+        Button,
+        Buttons,
+        Field,
+        Dropdown,
+        Table,
+        Table_Body,
+        Table_Head,
+        Table_Col,
+        Table_Row,
+        update,
+    } from "svelte-fomantic-ui";
 
     //@ts-ignore
 
@@ -19,17 +43,17 @@ Construct Swarms and Bees / Sentants
     // Import the default blocks.
     import * as libraryBlocks from "blockly/blocks";
     // Import a generator.
-    import {javascriptGenerator, Order} from "blockly/javascript";
+    import { javascriptGenerator, Order } from "blockly/javascript";
     // Import a message file.
     import * as En from "blockly/msg/en";
 
     //@ts-ignore
-    import Theme from '@blockly/theme-dark';
+    import Theme from "@blockly/theme-dark";
 
     //@ts-ignore
-    import yaml from 'js-yaml';
+    import yaml from "js-yaml";
 
-    import {Backpack, backpackChange} from '@blockly/workspace-backpack';
+    import { Backpack, backpackChange } from "@blockly/workspace-backpack";
 
     import { onMount } from "svelte";
     import { onDestroy } from "svelte";
@@ -98,25 +122,20 @@ Construct Swarms and Bees / Sentants
     import ai_reality2_backup_load from "./blockly/ai_reality2_backup_load";
     import ai_reality2_backup_delete from "./blockly/ai_reality2_backup_delete";
 
-
     import { splitConcatenatedJSON } from "./blockly/blockly_common";
-    
+
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Exported parameters
     // ------------------------------------------------------------------------------------------------
     export let r2_node: R2;
-    export let sentantData: any[]|any = [];
+    export let sentantData: any[] | any = [];
     export let variables: any = {};
     export let savedState: any;
-    export let location: any = {longitude: 0, latitude: 0};
+    export let location: any = { longitude: 0, latitude: 0 };
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Variables
@@ -127,7 +146,6 @@ Construct Swarms and Bees / Sentants
     let code_loader: any;
     let variables_loader: any;
 
-
     let workspace: any;
     let backpack: any;
     let setcode: any = {};
@@ -137,8 +155,8 @@ Construct Swarms and Bees / Sentants
     let swarm_description: string = "";
     let swarm_name_dialog = {
         callback: {},
-        codeOnPage: {}
-    }
+        codeOnPage: {},
+    };
 
     let blockly_definition = [
         reality2_swarm.shape,
@@ -201,27 +219,25 @@ Construct Swarms and Bees / Sentants
 
         ai_reality2_backup_save.shape,
         ai_reality2_backup_load.shape,
-        ai_reality2_backup_delete.shape
+        ai_reality2_backup_delete.shape,
     ];
 
     let blockly_construct = {
-        "sentant": reality2_sentant.construct,
-        "swarm": reality2_swarm.construct,
-        "get_plugin": reality2_get_plugin.construct,
-        "post_plugin": reality2_post_plugin.construct,
-        "automation": reality2_automation.construct
-    }
+        sentant: reality2_sentant.construct,
+        swarm: reality2_swarm.construct,
+        get_plugin: reality2_get_plugin.construct,
+        post_plugin: reality2_post_plugin.construct,
+        automation: reality2_automation.construct,
+    };
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // What to do when the window size is changed
     // ------------------------------------------------------------------------------------------------
     function updateHeight() {
         const leftHeight = window.innerHeight - 64;
-        const leftDiv = document.getElementById('blocklyDiv');
-        const rightDiv = document.getElementById('codeDiv');
+        const leftDiv = document.getElementById("blocklyDiv");
+        const rightDiv = document.getElementById("codeDiv");
 
         if (leftDiv && rightDiv) {
             // Get the top Y position of the right div
@@ -239,8 +255,6 @@ Construct Swarms and Bees / Sentants
     }
     // ------------------------------------------------------------------------------------------------
 
-
-
     // ------------------------------------------------------------------------------------------------
     // What to do whe the page is loaded
     // ------------------------------------------------------------------------------------------------
@@ -249,11 +263,10 @@ Construct Swarms and Bees / Sentants
         Blockly.defineBlocksWithJsonArray(blockly_definition);
 
         // Passes the injection div.
-        workspace = Blockly.inject( "blocklyDiv", 
-        {
+        workspace = Blockly.inject("blocklyDiv", {
             toolbox: toolbox,
             theme: Theme,
-            renderer: 'thrasos',
+            renderer: "thrasos",
             zoom: {
                 controls: true,
                 wheel: false,
@@ -261,15 +274,15 @@ Construct Swarms and Bees / Sentants
                 maxScale: 3,
                 minScale: 0.3,
                 scaleSpeed: 1.2,
-                pinch: true
+                pinch: true,
             },
             grid: {
                 spacing: 20,
                 length: 3,
-                colour: '#333',
-                snap: true
+                colour: "#333",
+                snap: true,
             },
-            trashcan: true
+            trashcan: true,
         });
 
         // The Blockly backpack
@@ -295,21 +308,21 @@ Construct Swarms and Bees / Sentants
         updateHeight();
 
         // Set up the item loader
-        code_loader = document.createElement('input');
-        code_loader.type = 'file';
-        code_loader.accept=".json, .yaml";
+        code_loader = document.createElement("input");
+        code_loader.type = "file";
+        code_loader.accept = ".json, .yaml";
 
-        code_loader.onchange = (e:any) => { 
+        code_loader.onchange = (e: any) => {
             // getting a hold of the file reference
             const file = e.target.files[0];
 
             // setting up the reader
             var reader = new FileReader();
-            reader.readAsText(file,'UTF-8');
+            reader.readAsText(file, "UTF-8");
 
             // here we tell the reader what to do when it's done reading...
             reader.onload = (readerEvent: any) => {
-                setTimeout(() => { 
+                setTimeout(() => {
                     if (readerEvent !== null) {
                         var definition: any = readerEvent["target"]["result"];
 
@@ -317,117 +330,177 @@ Construct Swarms and Bees / Sentants
                             if (file.type.includes("json")) {
                                 var newCode = JSON.parse(definition);
                                 putIntoBackpack(newCode);
-                            }
-                            else if (file.type.includes("yaml")) {
+                            } else if (file.type.includes("yaml")) {
                                 var newCode2 = yaml.load(definition);
                                 putIntoBackpack(newCode2);
                             }
                         }
                     }
                 }, 50);
-            }
-        }
+            };
+        };
 
         // Set up the variables loader
-        variables_loader = document.createElement('input');
-        variables_loader.type = 'file';
+        variables_loader = document.createElement("input");
+        variables_loader.type = "file";
 
-        variables_loader.onchange = (e:any) => { 
+        variables_loader.onchange = (e: any) => {
             // getting a hold of the file reference
-            var file = e.target.files[0]; 
+            var file = e.target.files[0];
 
             // setting up the reader
             var reader = new FileReader();
-            reader.readAsText(file,'UTF-8');
+            reader.readAsText(file, "UTF-8");
 
             // here we tell the reader what to do when it's done reading...
             reader.onload = (readerEvent: any) => {
                 if (readerEvent !== null) {
                     variables = JSON.parse(readerEvent["target"]["result"]);
-                    showMessage("Success", "Variables loaded successfully", "green");
+                    showMessage(
+                        "Success",
+                        "Variables loaded successfully",
+                        "green",
+                    );
                 }
-            }
-        }
+            };
+        };
 
         // Update the Blockly workspace
-        setTimeout(() => { Blockly.svgResize(workspace); }, 0);
+        setTimeout(() => {
+            Blockly.svgResize(workspace);
+        }, 0);
 
         // Set up the blocks
-        javascriptGenerator.forBlock['reality2_swarm'] = reality2_swarm.process;
-        javascriptGenerator.forBlock['reality2_sentant'] = reality2_sentant.process;
-        javascriptGenerator.forBlock['reality2_encrypt_decrypt_keys'] = reality2_encrypt_decrypt_keys.process;
-        javascriptGenerator.forBlock['reality2_get_plugin'] = reality2_get_plugin.process;
-        javascriptGenerator.forBlock['reality2_post_plugin'] = reality2_post_plugin.process;
-        javascriptGenerator.forBlock['reality2_plugin_header'] = reality2_plugin_header.process;   
-        javascriptGenerator.forBlock['reality2_plugin_body'] = reality2_plugin_body.process;   
-        javascriptGenerator.forBlock['reality2_plugin_parameter'] = reality2_plugin_parameter.process;   
-        javascriptGenerator.forBlock['reality2_key_value'] = reality2_key_value.process;   
-        javascriptGenerator.forBlock['reality2_data'] = reality2_data.process;   
-        javascriptGenerator.forBlock['reality2_automation'] = reality2_automation.process;
-        javascriptGenerator.forBlock['reality2_parameter'] = reality2_parameter.process;   
-        javascriptGenerator.forBlock['reality2_transition'] = reality2_transition.process;   
-        javascriptGenerator.forBlock['reality2_transition_no_params'] = reality2_transition_no_params.process;   
-        javascriptGenerator.forBlock['reality2_start_transition'] = reality2_start_transition.process;   
-        javascriptGenerator.forBlock['reality2_start_transition_no_params'] = reality2_start_transition_no_params.process;   
-        javascriptGenerator.forBlock['reality2_start_transition_simple'] = reality2_start_transition_simple.process;   
-        javascriptGenerator.forBlock['reality2_simple_transition'] = reality2_simple_transition.process;   
-        javascriptGenerator.forBlock['reality2_simple_transition_no_params'] = reality2_simple_transition_no_params.process;   
-        javascriptGenerator.forBlock['reality2_monitor'] = reality2_monitor.process;   
-        javascriptGenerator.forBlock['reality2_action_set'] = reality2_action_set.process;   
-        javascriptGenerator.forBlock['reality2_action_set_clear'] = reality2_action_set_clear.process;   
-        javascriptGenerator.forBlock['reality2_action_set_jsonpath'] = reality2_action_set_jsonpath.process;   
-        javascriptGenerator.forBlock['reality2_action_set_data'] = reality2_action_set_data.process;   
-        javascriptGenerator.forBlock['reality2_action_set_calculation'] = reality2_action_set_calculation.process;   
-        javascriptGenerator.forBlock['reality2_action_set_calc_binary'] = reality2_action_set_calc_binary.process;   
-        javascriptGenerator.forBlock['reality2_action_set_calc_unary'] = reality2_action_set_calc_unary.process;   
-        javascriptGenerator.forBlock['reality2_action_set_value'] = reality2_action_set_value.process;   
-        javascriptGenerator.forBlock['reality2_action_send'] = reality2_action_send.process;
-        javascriptGenerator.forBlock['reality2_action_send_no_params'] = reality2_action_send_no_params.process;
-        javascriptGenerator.forBlock['reality2_action_send_now'] = reality2_action_send_now.process;
-        javascriptGenerator.forBlock['reality2_action_send_now_no_params'] = reality2_action_send_now_no_params.process;
-        javascriptGenerator.forBlock['reality2_action_send_plugin'] = reality2_action_send_plugin.process;
-        javascriptGenerator.forBlock['reality2_action_send_plugin_no_params'] = reality2_action_send_plugin_no_params.process;
-        javascriptGenerator.forBlock['reality2_action_send_plugin_no_params_no_event'] = reality2_action_send_plugin_no_params_no_event.process;
-        javascriptGenerator.forBlock['reality2_action_debug'] = reality2_action_debug.process;
-        javascriptGenerator.forBlock['reality2_action_test'] = reality2_action_test.process;
-        javascriptGenerator.forBlock['reality2_action_test_no_params'] = reality2_action_test_no_params.process;
-        javascriptGenerator.forBlock['reality2_action_test_simple'] = reality2_action_test_simple.process;
-        javascriptGenerator.forBlock['reality2_action_signal'] = reality2_action_signal.process;
-        javascriptGenerator.forBlock['reality2_action_signal_no_params'] = reality2_action_signal_no_params.process;
-        javascriptGenerator.forBlock['reality2_action_parameter'] = reality2_action_parameter.process;
+        javascriptGenerator.forBlock["reality2_swarm"] = reality2_swarm.process;
+        javascriptGenerator.forBlock["reality2_sentant"] =
+            reality2_sentant.process;
+        javascriptGenerator.forBlock["reality2_encrypt_decrypt_keys"] =
+            reality2_encrypt_decrypt_keys.process;
+        javascriptGenerator.forBlock["reality2_get_plugin"] =
+            reality2_get_plugin.process;
+        javascriptGenerator.forBlock["reality2_post_plugin"] =
+            reality2_post_plugin.process;
+        javascriptGenerator.forBlock["reality2_plugin_header"] =
+            reality2_plugin_header.process;
+        javascriptGenerator.forBlock["reality2_plugin_body"] =
+            reality2_plugin_body.process;
+        javascriptGenerator.forBlock["reality2_plugin_parameter"] =
+            reality2_plugin_parameter.process;
+        javascriptGenerator.forBlock["reality2_key_value"] =
+            reality2_key_value.process;
+        javascriptGenerator.forBlock["reality2_data"] = reality2_data.process;
+        javascriptGenerator.forBlock["reality2_automation"] =
+            reality2_automation.process;
+        javascriptGenerator.forBlock["reality2_parameter"] =
+            reality2_parameter.process;
+        javascriptGenerator.forBlock["reality2_transition"] =
+            reality2_transition.process;
+        javascriptGenerator.forBlock["reality2_transition_no_params"] =
+            reality2_transition_no_params.process;
+        javascriptGenerator.forBlock["reality2_start_transition"] =
+            reality2_start_transition.process;
+        javascriptGenerator.forBlock["reality2_start_transition_no_params"] =
+            reality2_start_transition_no_params.process;
+        javascriptGenerator.forBlock["reality2_start_transition_simple"] =
+            reality2_start_transition_simple.process;
+        javascriptGenerator.forBlock["reality2_simple_transition"] =
+            reality2_simple_transition.process;
+        javascriptGenerator.forBlock["reality2_simple_transition_no_params"] =
+            reality2_simple_transition_no_params.process;
+        javascriptGenerator.forBlock["reality2_monitor"] =
+            reality2_monitor.process;
+        javascriptGenerator.forBlock["reality2_action_set"] =
+            reality2_action_set.process;
+        javascriptGenerator.forBlock["reality2_action_set_clear"] =
+            reality2_action_set_clear.process;
+        javascriptGenerator.forBlock["reality2_action_set_jsonpath"] =
+            reality2_action_set_jsonpath.process;
+        javascriptGenerator.forBlock["reality2_action_set_data"] =
+            reality2_action_set_data.process;
+        javascriptGenerator.forBlock["reality2_action_set_calculation"] =
+            reality2_action_set_calculation.process;
+        javascriptGenerator.forBlock["reality2_action_set_calc_binary"] =
+            reality2_action_set_calc_binary.process;
+        javascriptGenerator.forBlock["reality2_action_set_calc_unary"] =
+            reality2_action_set_calc_unary.process;
+        javascriptGenerator.forBlock["reality2_action_set_value"] =
+            reality2_action_set_value.process;
+        javascriptGenerator.forBlock["reality2_action_send"] =
+            reality2_action_send.process;
+        javascriptGenerator.forBlock["reality2_action_send_no_params"] =
+            reality2_action_send_no_params.process;
+        javascriptGenerator.forBlock["reality2_action_send_now"] =
+            reality2_action_send_now.process;
+        javascriptGenerator.forBlock["reality2_action_send_now_no_params"] =
+            reality2_action_send_now_no_params.process;
+        javascriptGenerator.forBlock["reality2_action_send_plugin"] =
+            reality2_action_send_plugin.process;
+        javascriptGenerator.forBlock["reality2_action_send_plugin_no_params"] =
+            reality2_action_send_plugin_no_params.process;
+        javascriptGenerator.forBlock[
+            "reality2_action_send_plugin_no_params_no_event"
+        ] = reality2_action_send_plugin_no_params_no_event.process;
+        javascriptGenerator.forBlock["reality2_action_debug"] =
+            reality2_action_debug.process;
+        javascriptGenerator.forBlock["reality2_action_test"] =
+            reality2_action_test.process;
+        javascriptGenerator.forBlock["reality2_action_test_no_params"] =
+            reality2_action_test_no_params.process;
+        javascriptGenerator.forBlock["reality2_action_test_simple"] =
+            reality2_action_test_simple.process;
+        javascriptGenerator.forBlock["reality2_action_signal"] =
+            reality2_action_signal.process;
+        javascriptGenerator.forBlock["reality2_action_signal_no_params"] =
+            reality2_action_signal_no_params.process;
+        javascriptGenerator.forBlock["reality2_action_parameter"] =
+            reality2_action_parameter.process;
 
-        javascriptGenerator.forBlock['ai_reality2_vars_set'] = ai_reality2_vars_set.process;
-        javascriptGenerator.forBlock['ai_reality2_vars_set_no_value'] = ai_reality2_vars_set_no_value.process;
-        javascriptGenerator.forBlock['ai_reality2_vars_get'] = ai_reality2_vars_get.process;
-        javascriptGenerator.forBlock['ai_reality2_vars_all'] = ai_reality2_vars_all.process;
-        javascriptGenerator.forBlock['ai_reality2_vars_delete'] = ai_reality2_vars_delete.process;
-        javascriptGenerator.forBlock['ai_reality2_vars_clear'] = ai_reality2_vars_clear.process;
+        javascriptGenerator.forBlock["ai_reality2_vars_set"] =
+            ai_reality2_vars_set.process;
+        javascriptGenerator.forBlock["ai_reality2_vars_set_no_value"] =
+            ai_reality2_vars_set_no_value.process;
+        javascriptGenerator.forBlock["ai_reality2_vars_get"] =
+            ai_reality2_vars_get.process;
+        javascriptGenerator.forBlock["ai_reality2_vars_all"] =
+            ai_reality2_vars_all.process;
+        javascriptGenerator.forBlock["ai_reality2_vars_delete"] =
+            ai_reality2_vars_delete.process;
+        javascriptGenerator.forBlock["ai_reality2_vars_clear"] =
+            ai_reality2_vars_clear.process;
 
-        javascriptGenerator.forBlock['ai_reality2_geospatial_set'] = ai_reality2_geospatial_set.process;
-        javascriptGenerator.forBlock['ai_reality2_geospatial_set_simple'] = ai_reality2_geospatial_set_simple.process;
-        javascriptGenerator.forBlock['ai_reality2_geospatial_set_geohash'] = ai_reality2_geospatial_set_geohash.process;
-        javascriptGenerator.forBlock['ai_reality2_geospatial_set_radius'] = ai_reality2_geospatial_set_radius.process;
-        javascriptGenerator.forBlock['ai_reality2_geospatial_get'] = ai_reality2_geospatial_get.process;
-        javascriptGenerator.forBlock['ai_reality2_geospatial_search'] = ai_reality2_geospatial_search.process;
-        javascriptGenerator.forBlock['ai_reality2_geospatial_remove'] = ai_reality2_geospatial_remove.process;
+        javascriptGenerator.forBlock["ai_reality2_geospatial_set"] =
+            ai_reality2_geospatial_set.process;
+        javascriptGenerator.forBlock["ai_reality2_geospatial_set_simple"] =
+            ai_reality2_geospatial_set_simple.process;
+        javascriptGenerator.forBlock["ai_reality2_geospatial_set_geohash"] =
+            ai_reality2_geospatial_set_geohash.process;
+        javascriptGenerator.forBlock["ai_reality2_geospatial_set_radius"] =
+            ai_reality2_geospatial_set_radius.process;
+        javascriptGenerator.forBlock["ai_reality2_geospatial_get"] =
+            ai_reality2_geospatial_get.process;
+        javascriptGenerator.forBlock["ai_reality2_geospatial_search"] =
+            ai_reality2_geospatial_search.process;
+        javascriptGenerator.forBlock["ai_reality2_geospatial_remove"] =
+            ai_reality2_geospatial_remove.process;
 
-        javascriptGenerator.forBlock['ai_reality2_backup_save'] = ai_reality2_backup_save.process;
-        javascriptGenerator.forBlock['ai_reality2_backup_load'] = ai_reality2_backup_load.process;
-        javascriptGenerator.forBlock['ai_reality2_backup_delete'] = ai_reality2_backup_delete.process;
-
+        javascriptGenerator.forBlock["ai_reality2_backup_save"] =
+            ai_reality2_backup_save.process;
+        javascriptGenerator.forBlock["ai_reality2_backup_load"] =
+            ai_reality2_backup_load.process;
+        javascriptGenerator.forBlock["ai_reality2_backup_delete"] =
+            ai_reality2_backup_delete.process;
 
         // (re)load the blocks and backpack from variables, for when the mode changes.
         setTimeout(() => {
             if (typeof savedState === "object") {
-                if ("backpack" in savedState) loadBackpack(savedState["backpack"]);
-                if ("workspace" in savedState) loadWorkspace(savedState["workspace"]);
+                if ("backpack" in savedState)
+                    loadBackpack(savedState["backpack"]);
+                if ("workspace" in savedState)
+                    loadWorkspace(savedState["workspace"]);
             }
         }, 2);
-        
     });
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Generate encryption (and decryption) keys for synchronous encryption / decryption.
@@ -444,11 +517,9 @@ Construct Swarms and Bees / Sentants
         if (variables) {
             variables["__encryption_key__"] = encryptionKey;
             variables["__decryption_key__"] = encryptionKey;
-        }      
+        }
     }
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Load and Save workspace and backpack
@@ -461,56 +532,60 @@ Construct Swarms and Bees / Sentants
     }
     function saveBackpack() {
         const the_backpack: [any] = backpack.getContents();
-        return (the_backpack);
+        return the_backpack;
     }
     function loadBackpack(backpack_data: [any]) {
         backpack.setContents(backpack_data);
     }
     // ------------------------------------------------------------------------------------------------
 
-
-
     // ------------------------------------------------------------------------------------------------
     // What to do when the page is removed
     // ------------------------------------------------------------------------------------------------
-    onDestroy(() => { 
+    onDestroy(() => {
         savedState = {
             workspace: saveWorkspace(),
-            backpack: saveBackpack()
+            backpack: saveBackpack(),
         };
-        window.removeEventListener("resize", updateHeight); 
+        window.removeEventListener("resize", updateHeight);
     });
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Briefly show a message
     // ------------------------------------------------------------------------------------------------
     function showMessage(title: String, message: String, color: String) {
-        behavior({type:"toast", settings:{
-            title: title,
-            message: message,
-            position: 'top attached',
-            class: 'center aligned huge ' + color,
-            className: {
-                toast: 'ui message'
-        }}});
+        behavior({
+            type: "toast",
+            settings: {
+                title: title,
+                message: message,
+                position: "top attached",
+                class: "center aligned huge " + color,
+                className: {
+                    toast: "ui message",
+                },
+            },
+        });
     }
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Replace variables in the definition.
     // ------------------------------------------------------------------------------------------------
     function replaceVariables(str: string, variables: {}) {
-        const all_variables = {...variables, ...{"__latitude__": location.latitude, "__longitude__": location.longitude}}
+        const all_variables = {
+            ...variables,
+            ...{
+                __latitude__: location.latitude,
+                __longitude__: location.longitude,
+            },
+        };
         // Iterate over each key in the variables object
         for (const [key, value] of Object.entries(all_variables)) {
             // Create a regular expression to match the key in the string
             // The 'g' flag ensures that all occurrences are replaced
-            const regex = new RegExp(key, 'g');
+            const regex = new RegExp(key, "g");
             // Replace all occurrences of the key with its corresponding value
             //@ts-ignore
             str = str.replace(regex, value);
@@ -519,108 +594,151 @@ Construct Swarms and Bees / Sentants
     }
     // ------------------------------------------------------------------------------------------------
 
-
-
     // ------------------------------------------------------------------------------------------------
     // Load the current definition as a swarm or sentant
     // ------------------------------------------------------------------------------------------------
     function loadToNode() {
         firstWorkspaceBlock((definitionJSON: any) => {
             if (Object.keys(definitionJSON).length !== 0) {
-                var definition = replaceVariables(JSON.stringify(definitionJSON), variables);
+                var definition = replaceVariables(
+                    JSON.stringify(definitionJSON),
+                    variables,
+                );
                 var isSentant = definitionJSON.hasOwnProperty("sentant");
                 var isSwarm = definitionJSON.hasOwnProperty("swarm");
 
                 if (isSentant) {
                     var new_name = definitionJSON["sentant"]["name"];
                     if (new_name) {
-                        r2_node.sentantGetByName(new_name)
-                        .then((result: any) => {
-                            r2_node.sentantUnload(R2.JSONPath(result, "sentantGet.id"))
-                            .then((_) => {
-                                r2_node.sentantLoad(definition)
-                                .then((_) => {
-                                    showMessage("Success", "Bee Loaded", "green");
-                                })
-                                .catch((error) => {
-                                    showMessage("Problem", "Error Loading", "red");
-                                })
+                        r2_node
+                            .sentantGetByName(new_name)
+                            .then((result: any) => {
+                                r2_node
+                                    .sentantUnload(
+                                        R2.JSONPath(result, "sentantGet.id"),
+                                    )
+                                    .then((_) => {
+                                        r2_node
+                                            .sentantLoad(definition)
+                                            .then((_) => {
+                                                showMessage(
+                                                    "Success",
+                                                    "Bee Loaded",
+                                                    "green",
+                                                );
+                                            })
+                                            .catch((error) => {
+                                                showMessage(
+                                                    "Problem",
+                                                    "Error Loading",
+                                                    "red",
+                                                );
+                                            });
+                                    })
+                                    .catch((error) => {
+                                        showMessage(
+                                            "Problem",
+                                            "Error Unloading",
+                                            "red",
+                                        );
+                                    });
                             })
                             .catch((error) => {
-                                showMessage("Problem", "Error Unloading", "red");
-                            })
+                                r2_node.sentantLoad(definition).then((_) => {
+                                    showMessage(
+                                        "Success",
+                                        "Bee Loaded",
+                                        "green",
+                                    );
+                                });
+                            });
+                    }
+                } else if (isSwarm) {
+                    r2_node
+                        .swarmLoad(definition)
+                        .then((_) => {
+                            showMessage("Success", "Swarm Loaded", "green");
                         })
                         .catch((error) => {
-                            r2_node.sentantLoad(definition)
-                            .then((_) => {
-                                showMessage("Success", "Bee Loaded", "green");
-                            })
-                        })
-                    }
+                            showMessage("Problem", "Error Loading", "red");
+                        });
                 }
-                else if(isSwarm) {
-                    r2_node.swarmLoad(definition)
-                    .then((_) => {
-                        showMessage("Success", "Swarm Loaded", "green");
-                    })
-                    .catch((error) => {
-                        showMessage("Problem", "Error Loading", "red");
-                    })
-                }
-            }
-            else {
+            } else {
                 showMessage("Status", "Nothing to load", "blue");
             }
-        })
+        });
     }
     // ------------------------------------------------------------------------------------------------
-
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Put the given definition into the backpack
     // ------------------------------------------------------------------------------------------------
-    function putIntoBackpack(code: any)
-    {    
+    function putIntoBackpack(code: any) {
         if (R2.JSONPath(code, "swarm")) {
-            backpack.addItem(JSON.stringify(blockly_construct["swarm"](R2.JSONPath(code, "swarm"))));
+            backpack.addItem(
+                JSON.stringify(
+                    blockly_construct["swarm"](R2.JSONPath(code, "swarm")),
+                ),
+            );
             backpack.open();
             showMessage("Success", "Swarm loaded into backpack", "green");
-        }
-        else if (R2.JSONPath(code, "sentant")) {
-            backpack.addItem(JSON.stringify(blockly_construct["sentant"](R2.JSONPath(code, "sentant"))));
+        } else if (R2.JSONPath(code, "sentant")) {
+            backpack.addItem(
+                JSON.stringify(
+                    blockly_construct["sentant"](R2.JSONPath(code, "sentant")),
+                ),
+            );
             backpack.open();
             showMessage("Success", "Bee loaded into backpack", "green");
-        }
-        else if (R2.JSONPath(code, "plugin")) {
+        } else if (R2.JSONPath(code, "plugin")) {
             const method = R2.JSONPath(code, "plugin.method");
-            switch(method) {
-                case "GET": 
-                    backpack.addItem(JSON.stringify(blockly_construct["get_plugin"](R2.JSONPath(code, "plugin"))));
+            switch (method) {
+                case "GET":
+                    backpack.addItem(
+                        JSON.stringify(
+                            blockly_construct["get_plugin"](
+                                R2.JSONPath(code, "plugin"),
+                            ),
+                        ),
+                    );
                     backpack.open();
-                    showMessage("Success", "Antenna loaded into backpack", "green");
+                    showMessage(
+                        "Success",
+                        "Antenna loaded into backpack",
+                        "green",
+                    );
                     break;
                 case "POST":
-                    backpack.addItem(JSON.stringify(blockly_construct["post_plugin"](R2.JSONPath(code, "plugin"))));
+                    backpack.addItem(
+                        JSON.stringify(
+                            blockly_construct["post_plugin"](
+                                R2.JSONPath(code, "plugin"),
+                            ),
+                        ),
+                    );
                     backpack.open();
-                    showMessage("Success", "Antenna loaded into backpack", "green");
+                    showMessage(
+                        "Success",
+                        "Antenna loaded into backpack",
+                        "green",
+                    );
                     break;
                 default:
                     showMessage("Problem", "Incorrect format", "red");
-            }          
-        }
-        else if (R2.JSONPath(code, "automation")) {
-            backpack.addItem(JSON.stringify(blockly_construct["automation"](R2.JSONPath(code, "automation"))));
+            }
+        } else if (R2.JSONPath(code, "automation")) {
+            backpack.addItem(
+                JSON.stringify(
+                    blockly_construct["automation"](
+                        R2.JSONPath(code, "automation"),
+                    ),
+                ),
+            );
             backpack.open();
             showMessage("Success", "Behaviour loaded into backpack", "green");
-        }
-        else
-            showMessage("Problem", "Incorrect format", "red");
+        } else showMessage("Problem", "Incorrect format", "red");
     }
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Save the current definition to the local computer (as a downloaded file)
@@ -628,29 +746,26 @@ Construct Swarms and Bees / Sentants
     function saveSentantDefinition() {
         // Compile the code
         firstWorkspaceBlock((newCode: any) => {
-            if (Object.keys(newCode).length !== 0)
-            {
+            if (Object.keys(newCode).length !== 0) {
                 // Get the code in JSON format.
                 setcode = newCode;
                 // Get filename
                 var filename = "definition";
                 if (R2.JSONPath(code, "swarm.name")) {
                     filename = R2.JSONPath(code, "swarm.name") + ".swarm";
-                }
-                else if (R2.JSONPath(code, "sentant.name")) {
+                } else if (R2.JSONPath(code, "sentant.name")) {
                     filename = R2.JSONPath(code, "sentant.name") + ".bee";
-                }
-                else if (R2.JSONPath(code, "plugin.name")) {
+                } else if (R2.JSONPath(code, "plugin.name")) {
                     filename = R2.JSONPath(code, "plugin.name") + ".antenna";
-                }
-                else if (R2.JSONPath(code, "automation.name")) {
-                    filename = R2.JSONPath(code, "automation.name") + ".behaviour";
+                } else if (R2.JSONPath(code, "automation.name")) {
+                    filename =
+                        R2.JSONPath(code, "automation.name") + ".behaviour";
                 }
 
                 // Save JSON or YAML
                 if (showJSON[0] === "json") {
                     var jsonDefinition = JSON.stringify(code);
-                    downloadDefinition(jsonDefinition, filename + ".json"); 
+                    downloadDefinition(jsonDefinition, filename + ".json");
                 } else {
                     var yamlDefinition = yaml.dump(code);
                     downloadDefinition(yamlDefinition, filename + ".yaml");
@@ -659,14 +774,11 @@ Construct Swarms and Bees / Sentants
         });
     }
     // ------------------------------------------------------------------------------------------------
- 
-
 
     // ------------------------------------------------------------------------------------------------
     // Do the actual download
     // ------------------------------------------------------------------------------------------------
     async function downloadDefinition(definition: string, name: string) {
-
         // If there is a show file picker, then give the user an option of where to save the definition
         if (window.showSaveFilePicker) {
             try {
@@ -675,10 +787,12 @@ Construct Swarms and Bees / Sentants
                     suggestedName: name,
                     types: [
                         {
-                            description: 'Reality2 Files',
-                            accept: { 'text/plain': ['.json', '.yaml', '.toml'] }
-                        }
-                    ]
+                            description: "Reality2 Files",
+                            accept: {
+                                "text/plain": [".json", ".yaml", ".toml"],
+                            },
+                        },
+                    ],
                 });
 
                 // Create a writable stream
@@ -690,9 +804,13 @@ Construct Swarms and Bees / Sentants
                 // Close the writable stream
                 await writable.close();
 
-                showMessage("Success", "Definition saved successfully", "green");
+                showMessage(
+                    "Success",
+                    "Definition saved successfully",
+                    "green",
+                );
             } catch (err: any) {
-                if (err.name === 'AbortError') {
+                if (err.name === "AbortError") {
                     showMessage("Status", "Cancelled", "blue");
                 } else {
                     showMessage("Problem", "Could not save", "red");
@@ -702,13 +820,13 @@ Construct Swarms and Bees / Sentants
             // Otherwise, just download it to the downloads folder
 
             // Create a Blob with the content
-            const blob = new Blob([definition], { type: 'text/plain' });
+            const blob = new Blob([definition], { type: "text/plain" });
 
             // Create an object URL from the Blob
             const url = URL.createObjectURL(blob);
 
             // Create an invisible <a> element with the download attribute
-            const a = document.createElement('a');
+            const a = document.createElement("a");
             a.href = url;
             a.download = name;
             document.body.appendChild(a);
@@ -725,8 +843,6 @@ Construct Swarms and Bees / Sentants
     }
     // ------------------------------------------------------------------------------------------------
 
-
-
     // ------------------------------------------------------------------------------------------------
     // Convert the first block to JSON.
     // ------------------------------------------------------------------------------------------------
@@ -736,7 +852,10 @@ Construct Swarms and Bees / Sentants
         let there_is_a_swarm = false;
         let num_sentants = 0;
 
-        let codeOnPage: any = splitConcatenatedJSON(javascriptGenerator.workspaceToCode(workspace), false);
+        let codeOnPage: any = splitConcatenatedJSON(
+            javascriptGenerator.workspaceToCode(workspace),
+            false,
+        );
         // Check if there is a swarm block, with separated bees
         codeOnPage.forEach((element: any) => {
             if (element["swarm"]) {
@@ -748,19 +867,17 @@ Construct Swarms and Bees / Sentants
         });
 
         // If there was no swarm, but there are more than one bees, create a swarm
-        if ((! there_is_a_swarm) && (num_sentants > 1)) {
-
+        if (!there_is_a_swarm && num_sentants > 1) {
             // Save the state for when the user presses ok or cancel.
             swarm_name_dialog.callback = callback;
             swarm_name_dialog.codeOnPage = codeOnPage;
 
             // Get a name and description for the swarm from the user.
             behavior("swarm_name", "show");
-        }
-        else
-        {
+        } else {
             // If there was a swarm with no sentants, add the sentants array
-            if (there_is_a_swarm && num_sentants > 0) newCode["swarm"]["sentants"] = [];
+            if (there_is_a_swarm && num_sentants > 0)
+                newCode["swarm"]["sentants"] = [];
 
             // Now see if there any stray sentants to add
             if (there_is_a_swarm) {
@@ -777,9 +894,7 @@ Construct Swarms and Bees / Sentants
                     const objType = Object.keys(newCode)[0];
                     theCode[objType] = newCode[objType];
                     callback(theCode);
-                }
-                else
-                {
+                } else {
                     callback({});
                 }
             }
@@ -792,13 +907,13 @@ Construct Swarms and Bees / Sentants
             let codeOnPage: any = swarm_name_dialog.codeOnPage;
 
             let newCode: any = {
-                "swarm": {
-                    "name": swarm_name,
-                    "description": swarm_description,
-                    "sentants": []
-                }
+                swarm: {
+                    name: swarm_name,
+                    description: swarm_description,
+                    sentants: [],
+                },
             };
-            
+
             newCode["swarm"]["sentants"] = [];
 
             codeOnPage.forEach((element: any) => {
@@ -808,36 +923,30 @@ Construct Swarms and Bees / Sentants
             });
 
             callback(newCode);
-        }
-        else {
+        } else {
             // Do nothing
             callback({});
         }
     }
     // ------------------------------------------------------------------------------------------------
 
-
-
     // ------------------------------------------------------------------------------------------------
     // A work-around because the Flyout creates new versions of itself, which then means the data is
     // not updated because there are more than one div with the same name.
     // ------------------------------------------------------------------------------------------------
-    function removeAllButLastById(id:string) 
-    {
+    function removeAllButLastById(id: string) {
         let elements = document.querySelectorAll(`[id='${id}']`);
 
         if (elements.length > 1) {
             // Remove all except the last occurrence
             elements.forEach((el, index) => {
                 if (index !== elements.length - 1) {
-                el.remove();
+                    el.remove();
                 }
             });
         }
     }
     // ------------------------------------------------------------------------------------------------
-
-
 
     // ------------------------------------------------------------------------------------------------
     // Show the visible code.
@@ -846,18 +955,30 @@ Construct Swarms and Bees / Sentants
         firstWorkspaceBlock((newcode) => {
             removeAllButLastById("code_space");
             setcode = newcode;
-            behavior('code_space', 'toggle');
+            behavior("code_space", "toggle");
         });
     }
     // ------------------------------------------------------------------------------------------------
-
 </script>
 
-
-<Flyout ui very wide id = "code_space">
-    <Segment ui attached inverted style={'text-align: left; background-color: #444444; height:100%'}>
+<Flyout ui very wide id="code_space">
+    <Segment
+        ui
+        attached
+        inverted
+        style={"text-align: left; background-color: #444444; height:100%"}
+    >
         <div style="text-align: center;">
-            <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox ui toggle large inverted bind:group={showJSON} value="json" label=" " grey/><Text ui large>JSON</Text>
+            <Text ui large>YAML&nbsp;&nbsp;</Text><Checkbox
+                ui
+                toggle
+                large
+                inverted
+                bind:group={showJSON}
+                value="json"
+                label=" "
+                grey
+            /><Text ui large>JSON</Text>
         </div>
         <Divider ui inverted></Divider>
         <Table ui inverted>
@@ -885,47 +1006,79 @@ Construct Swarms and Bees / Sentants
             </Table_Body>
         </Table>
         <Buttons ui fluid horizontal>
-            <Button ui inverted blue data-variation="wide" data-tooltip="Generate encryption keys.  Use the same keys between subsequent versions of a Bee to ensure access to saved data." on:click={generateEncryptionKey}>generate encryption and decryption keys</Button>
-            <Button ui inverted green on:click={() => {downloadDefinition(JSON.stringify(variables), "variables.json"); }}>Save Variables</Button>
+            <Button
+                ui
+                inverted
+                blue
+                data-variation="wide"
+                data-tooltip="Generate encryption keys.  Use the same keys between subsequent versions of a Bee to ensure access to saved data."
+                on:click={generateEncryptionKey}
+                >generate encryption and decryption keys</Button
+            >
+            <Button
+                ui
+                inverted
+                green
+                on:click={() => {
+                    downloadDefinition(
+                        JSON.stringify(variables),
+                        "variables.json",
+                    );
+                }}>Save Variables</Button
+            >
         </Buttons>
         <Divider ui inverted></Divider>
-        <div class="ui scrollable" id="codeDiv" style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;">
+        <div
+            class="ui scrollable"
+            id="codeDiv"
+            style="text-align: left; height:{codeHeight}; overflow-y: auto; word-wrap: break-word;"
+        >
             {#if Object.keys(code).length !== 0}
                 {#if showJSON[0] === "json"}
-                    <pre style="text-align: left;">{JSON.stringify(code, null, 2).trim()}</pre>
+                    <pre style="text-align: left;">{JSON.stringify(
+                            code,
+                            null,
+                            2,
+                        ).trim()}</pre>
                 {:else}
-                    <pre style="text-align: left;">{yaml.dump(code).trim()}</pre>
+                    <pre style="text-align: left;">{yaml
+                            .dump(code)
+                            .trim()}</pre>
                 {/if}
             {/if}
         </div>
     </Segment>
 </Flyout>
 
-
 <Pusher>
     <div id="blocklyDiv" style="height: {fullHeight}; width: 100%;"></div>
 </Pusher>
 
-
 <Modal ui small id="swarm_name">
-    <Icon close/>
-    <Header>
-        Name your Swarm
-    </Header>
+    <Icon close />
+    <Header>Name your Swarm</Header>
     <Content>
         <Table ui>
             <Table_Body>
                 <Table_Row>
                     <Table_Col>
                         <Input ui fluid>
-                            <Input text placeholder="Swarm name..." bind:value={swarm_name} />
+                            <Input
+                                text
+                                placeholder="Swarm name..."
+                                bind:value={swarm_name}
+                            />
                         </Input>
                     </Table_Col>
                 </Table_Row>
                 <Table_Row>
                     <Table_Col>
                         <Input ui fluid>
-                            <Input text placeholder="Optional Description" bind:value={swarm_description} />
+                            <Input
+                                text
+                                placeholder="Optional Description"
+                                bind:value={swarm_description}
+                            />
                         </Input>
                     </Table_Col>
                 </Table_Row>
@@ -933,27 +1086,92 @@ Construct Swarms and Bees / Sentants
         </Table>
     </Content>
     <Actions>
-        <Button ui red on:click={()=>{behavior("swarm_name", "hide"); close_swarm_name_dialog(false);}}>Cancel</Button>
-        <Button ui green on:click={()=>{behavior({id: "swarm_name", commands: ["hide"]}); close_swarm_name_dialog(true);}}>OK</Button>
+        <Button
+            ui
+            red
+            on:click={() => {
+                behavior("swarm_name", "hide");
+                close_swarm_name_dialog(false);
+            }}>Cancel</Button
+        >
+        <Button
+            ui
+            green
+            on:click={() => {
+                behavior({ id: "swarm_name", commands: ["hide"] });
+                close_swarm_name_dialog(true);
+            }}>OK</Button
+        >
     </Actions>
 </Modal>
 
-<Button ui icon popup large data-tooltip="Load keys to use with your Bees." data-position="top right" style="position: fixed; top: 200px; right: 45px; background-color: #696969" on:click={()=>{ variables_loader.click(); }}>
+<Button
+    ui
+    icon
+    popup
+    large
+    data-tooltip="Load keys to use with your Bees."
+    data-position="top right"
+    style="position: fixed; top: 200px; right: 45px; background-color: #696969"
+    on:click={() => {
+        variables_loader.click();
+    }}
+>
     <Icon table></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Load Swarms, Bees, Antennae or Behaviours from a file." data-position="top right" style="position: fixed; top: 260px; right: 45px; background-color: #696969" on:click={() => { code_loader.click(); }}>
+<Button
+    ui
+    icon
+    large
+    popup
+    data-tooltip="Load Swarms, Bees, Antennae or Behaviours from a file."
+    data-position="top right"
+    style="position: fixed; top: 260px; right: 45px; background-color: #696969"
+    on:click={() => {
+        code_loader.click();
+    }}
+>
     <Icon folder open outline></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file." data-position="top right" style="position: fixed; top: 320px; right: 45px; background-color: #696969" on:click={saveSentantDefinition}>
+<Button
+    ui
+    icon
+    large
+    popup
+    data-tooltip="Save Swarms, Bees, Antennae or Behaviours to a file."
+    data-position="top right"
+    style="position: fixed; top: 320px; right: 45px; background-color: #696969"
+    on:click={saveSentantDefinition}
+>
     <Icon share square></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Convert to JSON or YAML and show." data-position="top right" style="position: fixed; top: 440px; right: 45px; background-color: #696969" on:click={() => { convertBlocks(); }}>
+<Button
+    ui
+    icon
+    large
+    popup
+    data-tooltip="Convert to JSON or YAML and show."
+    data-position="top right"
+    style="position: fixed; top: 440px; right: 45px; background-color: #696969"
+    on:click={() => {
+        convertBlocks();
+    }}
+>
     <Icon code></Icon>
 </Button>
 
-<Button ui icon large popup data-tooltip="Run the Swarm on the Reality2 node." data-position="top right" style="position: fixed; top: 500px; right: 45px; background-color: #696969" on:click={loadToNode}>
+<Button
+    ui
+    icon
+    large
+    popup
+    data-tooltip="Run the Swarm on the Reality2 node."
+    data-position="top right"
+    style="position: fixed; top: 500px; right: 45px; background-color: #696969"
+    on:click={loadToNode}
+>
     <Icon running></Icon>
 </Button>
