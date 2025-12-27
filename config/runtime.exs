@@ -39,7 +39,7 @@ if config_env() == :prod do
   config :reality2_web, Reality2Web.Endpoint,
     https: [
       ip: {0, 0, 0, 0},
-      port: String.to_integer(System.get_env("PORT") || "4000"),
+      port: String.to_integer(System.get_env("PORT") || "4005"),
       cipher_suite: :strong,
       certfile: "priv/cert/selfsigned.pem",
       keyfile: "priv/cert/selfsigned_key.pem"
@@ -48,8 +48,9 @@ if config_env() == :prod do
     secret_key_base: secret_key_base,
     server: true
 
-  config :reality2, :autostart_dir,
-    System.get_env("AUTOSTART_DIR") || Path.expand("../../autostart", __DIR__)
+  config :reality2,
+         :autostart_dir,
+         System.get_env("AUTOSTART_DIR") || Path.expand("../../autostart", __DIR__)
 
   # ## Using releases
   #

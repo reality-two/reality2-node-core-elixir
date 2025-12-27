@@ -1,0 +1,16 @@
+[package]
+name = "aireality2transnet"
+version = "0.1.12"
+authors = []
+edition = "2021"
+
+[lib]
+name = "aireality2transnet"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+futures = "0.3.31"
+rustler = "0.34.0"
+simplersble = "0.10.3"
+tokio = "1.48.0"
