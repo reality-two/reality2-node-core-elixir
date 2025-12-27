@@ -31,6 +31,13 @@ config :reality2_web, Reality2Web.Endpoint,
   live_view: [signing_salt: "/es9VuWV"],
   server: true
 
+# config :blue_heron,
+#   transport: [
+#     device: "/dev/ttyS1",      # change to your HCI UART
+#     speed: 115_200,
+#     flow_control: :hardware    # or :none depending on hardware
+#   ]
+
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",

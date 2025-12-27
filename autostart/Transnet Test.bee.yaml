@@ -1,0 +1,54 @@
+sentant:
+  name: Transnet Test
+  data:
+    timeout: 5000
+  automations:
+    - name: List Adapters
+      description: List Bluetooth Adapters
+      transitions:
+        - public: true
+          event: List Adapters
+          actions:
+            - command: list_adapters
+              plugin: ai.reality2.transnet
+    - name: Scan Devices
+      description: List Bluetooth Adapters
+      transitions:
+        - public: true
+          event: Scan Devices
+          parameters:
+            delay: number
+          actions:
+            - command: test
+              parameters:
+                if:
+                  <=:
+                    - delay
+                    - 100
+                then: scan_default
+                else: scan_delay
+        - event: scan_default
+          actions:
+            - command: set
+              parameters:
+                key: timeout
+                value:
+                  data: timeout
+            - command: scan_devices
+              plugin: ai.reality2.transnet
+        - event: scan_delay
+          actions:
+            - command: set
+              parameters:
+                key: timeout
+                value: __delay__
+            - command: scan_devices
+              plugin: ai.reality2.transnet
+    - name: Result
+      transitions:
+        - event: __internal
+          actions:
+            - command: signal
+              parameters:
+                event: result
+                public: true

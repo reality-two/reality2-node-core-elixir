@@ -3,7 +3,7 @@ defmodule AiReality2Transnet.Main do
 
   # *******************************************************************************************************************************************
   @moduledoc """
-    Implementation of Transient Networks for Reality2 Nodes.
+  Transient Networking for Reality2 Nodes
 
     **Author**
     - Dr. Roy C. Davies
@@ -11,148 +11,90 @@ defmodule AiReality2Transnet.Main do
   """
   # *******************************************************************************************************************************************
   @doc false
-  use DynamicSupervisor, restart: :transient
-  alias Reality2.Helpers.R2Process, as: R2Process
+  use GenServer, restart: :transient
   alias Reality2.Helpers.R2Map, as: R2Map
+  # alias Reality2.Helpers.Convert, as: Convert
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc false
-  def start_link(init_arg) do
-    DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
-  end
+  def start_link(name), do: GenServer.start_link(__MODULE__, %{}, name: name)
 
+  @doc false
   @impl true
-  def init(init_arg) do
+  def init(state) do
     IO.puts("[ai.reality2.transnet] started successfully.")
-    DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [init_arg])
+    {:ok, state}
   end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   # Public Functions
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Create a process for each Sentant.  It is through these processes, set up as a plugin with return events, that network events are
-  received.  In this way, only Sentants that really need to know about networking have these processes - more efficient.
+  Does nothing in this module as there are no child processes.
 
   - Parameters
-    - `sentant_id` - the Sentant ID.
-    - `details` - other parameters required during set up.
+    - `sentant_id` - ignored in this implementation.
   """
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   @impl true
-  def create(sentant_id, _details \\ %{}) do
-    case whereis(sentant_id) do
-      nil ->
-        case DynamicSupervisor.start_child(__MODULE__, AiReality2Transnet.Data.child_spec({})) do
-          {:ok, pid} ->
-            R2Process.register(sentant_id, pid, AiReality2Transnet.Processes)
-            {:ok}
-
-          error ->
-            error
-        end
-
-      pid ->
-        # Clear the data store so there is no old data that hackers might be able to access in the case this was a reused ID
-        R2Process.register(sentant_id, pid, AiReality2Transnet.Processes)
-        GenServer.call(pid, %{command: "clear"})
-        {:ok}
-    end
+  def create(_sentant_id, _details \\ %{}) do
+    {:ok}
   end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Deletes the Sentant TransNet process.
+  Does nothing in this module as there are no child processes.
 
   - Parameters
-    - `sentant_id` - the Sentant IDss.
+    - `sentant_id` - ignored in this implementation.
   """
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   @impl true
-  def delete(sentant_id) do
-    case whereis(sentant_id) do
-      nil ->
-        # It is not an error if the child does not exist
-        {:ok}
-
-      pid ->
-        DynamicSupervisor.terminate_child(__MODULE__, pid)
-        R2Process.deregister(sentant_id, AiReality2Transnet.Processes)
-        {:ok}
-    end
+  def delete(_sentant_id) do
+    {:ok}
   end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
   Return the process id that can be used for subsequent communications.
+
+  In this implementation, this just refers to this module.
 
   - Parameters
     - `id` - The id of the Sentant for which process id is being returned.
   """
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   @impl true
-  def whereis(sentant_id) do
-    R2Process.whereis(sentant_id, AiReality2Transnet.Processes)
+  def whereis(_sentant_id) do
+    self()
   end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Send commands to the plugin, and set up callbacks.
+  Do things.
 
   - Parameters
-    - `id` - The id of the Sentant for which the command is being sent.
+    - `id` - The id of the Sentant for which the command is being sent (ignored here)
     - `command` - A map containing the command and parameters to be sent.
-
-  - Returns
-    - `{:ok, %{/result map/}}` - If the command was sent successfully.
-    - `{:error, :unknown_command}` - If the command was not recognised.
   """
   @impl true
-  def sendto(sentant_id, command_and_parameters) do
-    case whereis(sentant_id) do
-      nil ->
-        {:error, :existence}
-
-      pid ->
-        case R2Map.get(command_and_parameters, :command) do
-          "set" ->
-            GenServer.cast(pid, command_and_parameters)
-
-          "delete" ->
-            GenServer.cast(pid, command_and_parameters)
-
-          "get" ->
-            case GenServer.call(pid, command_and_parameters) do
-              nil ->
-                {:error, :key}
-
-              result ->
-                result
-            end
-
-          "all" ->
-            GenServer.call(pid, command_and_parameters)
-
-          "clear" ->
-            GenServer.cast(pid, command_and_parameters)
-
-          _ ->
-            {:error, :command}
-        end
-    end
+  def sendto(_sentant_id, command_and_parameters) do
+    command = R2Map.get(command_and_parameters, :command)
+    parameters = R2Map.get(command_and_parameters, :parameters)
+    GenServer.cast(AiReality2Transnet.Bluetooth, %{command: command, parameters: parameters})
   end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 end
