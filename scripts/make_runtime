@@ -19,7 +19,7 @@ echo "********************************************************************"
 
 echo "***** Cleaning up the previous build..."
 rm -rf "_build/prod"
-rm -rf "builds"
+rm -rf "builds/${BUILD_FOLDER}.zip"
 
 if [ ! -d "builds" ]; then
     mkdir "builds"

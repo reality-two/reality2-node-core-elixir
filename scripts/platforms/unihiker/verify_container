@@ -1,0 +1,3 @@
+podman run --rm --platform linux/arm64 elixir-buster-rust-cmake:latest \
+  bash -lc 'uname -m; cmake --version; pkg-config --modversion dbus-1; rustc -V; elixir -v'
+
