@@ -1,0 +1,4 @@
+podman build --no-cache --platform linux/arm64 \
+  -t elixir-buster-rust-cmake:latest \
+  -f Containerfile .
+
