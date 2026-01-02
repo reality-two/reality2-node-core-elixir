@@ -36,7 +36,6 @@ defmodule AiReality2Transnet.MixProject do
   defp deps do
     [
       {:reality2, in_umbrella: true},
-      {:dbus, "~> 0.8.0"},
       {:rustler, "~> 0.34.0"}
     ]
   end

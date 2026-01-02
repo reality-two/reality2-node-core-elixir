@@ -25,6 +25,7 @@ defmodule AiReality2Transnet.Main do
   @impl true
   def init(state) do
     IO.puts("[ai.reality2.transnet] started successfully.")
+
     {:ok, state}
   end
 

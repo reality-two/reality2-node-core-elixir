@@ -22,11 +22,11 @@ sentant:
             - command: test
               parameters:
                 if:
-                  <=:
+                  ">=":
                     - delay
                     - 100
-                then: scan_default
-                else: scan_delay
+                then: scan_delay
+                else: scan_default
         - event: scan_default
           actions:
             - command: set
@@ -43,6 +43,22 @@ sentant:
                 key: timeout
                 value: __delay__
             - command: scan_devices
+              plugin: ai.reality2.transnet
+    - name: Start Beacon
+      description: Start R2 Beacon
+      transitions:
+        - public: true
+          event: Start Beacon
+          actions:
+            - command: start_altbeacon
+              plugin: ai.reality2.transnet
+    - name: Stop Beacon
+      description: Stop R2 Beacon
+      transitions:
+        - public: true
+          event: Stop Beacon
+          actions:
+            - command: stop_altbeacon
               plugin: ai.reality2.transnet
     - name: Result
       transitions:

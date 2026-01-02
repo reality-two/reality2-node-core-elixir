@@ -27,6 +27,13 @@ defmodule AiReality2Transnet.Bluetooth do
       [adapter | _] ->
         {:ok, Map.put(state, :adapter, adapter)}
     end
+
+    # {:ok, state}
+
+    case start_beacon(state, "hci0") do
+      {:ok, state} -> {:ok, state}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
@@ -45,10 +52,20 @@ defmodule AiReality2Transnet.Bluetooth do
     {:reply, scan_devices(state, parameters), state}
   end
 
+  def handle_call(%{command: "start_beacon", parameters: parameters}, _from, state) do
+    {:reply, start_beacon(state, parameters), state}
+  end
+
+  def handle_call(%{command: "stop_beacon", parameters: parameters}, _from, state) do
+    {:reply, stop_beacon(state, parameters), state}
+  end
+
   def handle_call(_request, _from, state) do
     IO.puts("Unknown Command #{inspect(state, pretty: true)}")
     {:reply, {:error, :unknown_command}, state}
   end
+
+  # -------------------------------------------------------------------------------------------------------------------------------------------
 
   @doc false
   def handle_cast(%{command: "list_adapters"}, state) do
@@ -56,14 +73,24 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
-  @doc false
   def handle_cast(%{command: "scan_devices", parameters: parameters}, state) do
     scan_devices(state, parameters)
     {:noreply, state}
   end
 
-  @doc false
+  def handle_cast(%{command: "start_beacon", parameters: parameters}, state) do
+    start_beacon(state, parameters)
+    {:noreply, state}
+  end
+
+  def handle_cast(%{command: "stop_beacon", parameters: parameters}, state) do
+    stop_beacon(state, parameters)
+    {:noreply, state}
+  end
+
   def handle_cast(_, state), do: {:noreply, state}
+
+  # -------------------------------------------------------------------------------------------------------------------------------------------
 
   @doc false
   def handle_info({:ok, devices}, state) do
@@ -75,7 +102,6 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, Map.put(state, :last_scan, devices)}
   end
 
-  @doc false
   def handle_info(msg, state) do
     IO.warn("Unexpected message received: #{inspect(msg)}")
     {:noreply, state}
@@ -102,6 +128,27 @@ defmodule AiReality2Transnet.Bluetooth do
     timeout = R2Map.get(parameters, :timeout, 10000)
 
     AiReality2Transnet.Action.scan_devices(self(), timeout)
+
+    {:ok, state}
+  end
+
+  def start_beacon(state, _parameters) do
+    {:ok, h} =
+      AiReality2Transnet.Action.start_altbeacon(
+        0xFFFF,
+        "123e4567-e89b-12d3-a456-426614174000",
+        1,
+        2,
+        -59,
+        "hci0"
+      )
+
+    {:ok, Map.put(state, :altbeacon, h)}
+  end
+
+  def stop_beacon(state, _parameters) do
+    h = state.altbeacon
+    AiReality2Transnet.Action.stop_altbeacon(h)
 
     {:ok, state}
   end

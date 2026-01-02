@@ -4,4 +4,10 @@ defmodule AiReality2Transnet.Action do
   # When the NIF is loaded, it will override these functions.
   def list_adapters(), do: :erlang.nif_error(:nif_not_loaded)
   def scan_devices(_pid, _timeout), do: :erlang.nif_error(:nif_not_loaded)
+
+  def start_altbeacon(_company_id, _uuid, _major, _minor, _rssi_at_1m, _adapter_name \\ nil),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def stop_altbeacon(_handle),
+    do: :erlang.nif_error(:nif_not_loaded)
 end
