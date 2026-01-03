@@ -8,9 +8,7 @@ defmodule Reality2.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # Reality2.Repo,
-      # {DNSCluster, query: Application.get_env(:reality2, :dns_cluster_query) || :ignore},
-      # {Phoenix.PubSub, name: Reality2.PubSub},
+      %{id: :Bootstrap, start: {Reality2.Bootstrap, :start_link, [Reality2.Bootstrap]}},
       {PartitionSupervisor, child_spec: DynamicSupervisor, name: Reality2.Sentants},
       %{
         id: Reality2.Helpers.R2Process,
@@ -18,8 +16,8 @@ defmodule Reality2.Application do
       },
       %{id: :SentantNames, start: {Reality2.Metadata, :start_link, [:SentantNames]}},
       %{id: :SentantIDs, start: {Reality2.Metadata, :start_link, [:SentantIDs]}},
-      %{id: :Autostart, start: {Reality2.Autostart, :start_link, [Reality2.Autostart]}},
-      {Finch, name: Reality2.HTTPClient, start: {Finch, :start_link, []}}
+      {Finch, name: Reality2.HTTPClient, start: {Finch, :start_link, []}},
+      %{id: :Autostart, start: {Reality2.Autostart, :start_link, [Reality2.Autostart]}}
     ]
 
     IO.puts("[ai.reality2] started successfully.")

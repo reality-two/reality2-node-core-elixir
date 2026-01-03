@@ -28,12 +28,7 @@ defmodule AiReality2Transnet.Bluetooth do
         {:ok, Map.put(state, :adapter, adapter)}
     end
 
-    # {:ok, state}
-
-    case start_beacon(state, "hci0") do
-      {:ok, state} -> {:ok, state}
-      {:error, reason} -> {:error, reason}
-    end
+    start_beacon(state, "hci0")
   end
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
@@ -75,16 +70,6 @@ defmodule AiReality2Transnet.Bluetooth do
 
   def handle_cast(%{command: "scan_devices", parameters: parameters}, state) do
     scan_devices(state, parameters)
-    {:noreply, state}
-  end
-
-  def handle_cast(%{command: "start_beacon", parameters: parameters}, state) do
-    start_beacon(state, parameters)
-    {:noreply, state}
-  end
-
-  def handle_cast(%{command: "stop_beacon", parameters: parameters}, state) do
-    stop_beacon(state, parameters)
     {:noreply, state}
   end
 
@@ -133,15 +118,19 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   def start_beacon(state, _parameters) do
+    node_id = Reality2.Bootstrap.get(:node_id)
+
     {:ok, h} =
       AiReality2Transnet.Action.start_altbeacon(
         0xFFFF,
-        "123e4567-e89b-12d3-a456-426614174000",
+        node_id,
         1,
         2,
         -59,
         "hci0"
       )
+
+    IO.puts("  Node ID: #{node_id} beacon started")
 
     {:ok, Map.put(state, :altbeacon, h)}
   end

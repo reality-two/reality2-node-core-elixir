@@ -81,6 +81,20 @@ pub struct Device {
     pub rssi: i16,
 }
 
+const R2_COMPANY_ID: u16 = 0xFFFF; // change when you have a real company id
+
+fn extract_altbeacon_uuid(mfg_value: &[u8]) -> Option<Uuid> {
+    // mfg_value layout (your payload):
+    // [0..2]=0xBEAC, [2..18]=UUID(16), [18..20]=major, [20..22]=minor, [22]=rssi, [23]=reserved
+    if mfg_value.len() < 24 {
+        return None;
+    }
+    if mfg_value[0] != 0xBE || mfg_value[1] != 0xAC {
+        return None;
+    }
+    Uuid::from_slice(&mfg_value[2..18]).ok()
+}
+
 #[rustler::nif]
 fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
     let _ = std::thread::spawn(move || {
@@ -96,7 +110,6 @@ fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
                 .await
                 .map_err(|e| format!("session_new_failed: {e}"))?;
 
-            // Prefer hci0 if present; otherwise first adapter.
             let names = session
                 .adapter_names()
                 .await
@@ -119,55 +132,86 @@ fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
                 .map_err(|e| format!("set_powered_failed: {e}"))?;
 
             let timeout_ms = timeout_ms.max(0) as u64;
+
+            // Keyed by node GUID (string)
             let mut seen: HashMap<String, Device> = HashMap::new();
+            // Map BLE addr -> node GUID so we can handle DeviceRemoved cleanly
+            let mut ble_to_node: HashMap<String, String> = HashMap::new();
 
-            // Use "with_changes" so you get follow-up DeviceAdded events when properties (like RSSI/name) update.
-            // This is helpful because BlueZ may not have resolved properties at the instant the device is first seen.
-            {
-                let discover = adapter
-                    .discover_devices_with_changes()
-                    .await
-                    .map_err(|e| format!("discover_devices_failed: {e}"))?;
-                futures::pin_mut!(discover);
+            let discover = adapter
+                .discover_devices_with_changes()
+                .await
+                .map_err(|e| format!("discover_devices_failed: {e}"))?;
+            futures::pin_mut!(discover);
 
-                let deadline = tokio::time::sleep(Duration::from_millis(timeout_ms));
-                tokio::pin!(deadline);
+            let deadline = tokio::time::sleep(Duration::from_millis(timeout_ms));
+            tokio::pin!(deadline);
 
-                loop {
-                    tokio::select! {
-                        _ = &mut deadline => break,
-                        evt = discover.next() => {
-                            match evt {
-                                Some(AdapterEvent::DeviceAdded(addr)) => {
-                                    let device = adapter
-                                        .device(addr)
-                                        .map_err(|e| format!("device_open_failed({addr}): {e}"))?;
+            loop {
+                tokio::select! {
+                    _ = &mut deadline => break,
+                    evt = discover.next() => {
+                        match evt {
+                            Some(AdapterEvent::DeviceAdded(addr)) => {
+                                let ble_addr = addr.to_string();
 
-                                    let name = device
-                                        .name()
-                                        .await
-                                        .map_err(|e| format!("device_name_failed({addr}): {e}"))?
-                                        .unwrap_or_else(|| "Unknown".to_string());
+                                let device = adapter
+                                    .device(addr)
+                                    .map_err(|e| format!("device_open_failed({ble_addr}): {e}"))?;
 
-                                    let rssi = device
-                                        .rssi()
-                                        .await
-                                        .map_err(|e| format!("device_rssi_failed({addr}): {e}"))?
-                                        .unwrap_or(0);
+                                // Manufacturer data is what we use to detect AltBeacon + extract Node GUID.
+                                let mfg = device
+                                    .manufacturer_data()
+                                    .await
+                                    .map_err(|e| format!("device_manufacturer_data_failed({ble_addr}): {e}"))?;
 
-                                    let address = addr.to_string();
-                                    seen.insert(address.clone(), Device { name, address, rssi });
-                                }
-                                Some(AdapterEvent::DeviceRemoved(addr)) => {
-                                    seen.remove(&addr.to_string());
-                                }
-                                Some(_) => {}
-                                None => break,
+                                let Some(mfg) = mfg else {
+                                    continue;
+                                };
+
+                                let Some(value) = mfg.get(&R2_COMPANY_ID) else {
+                                    continue; // not our beacon (or different company id)
+                                };
+
+                                let Some(node_uuid) = extract_altbeacon_uuid(value) else {
+                                    continue; // not AltBeacon (or malformed)
+                                };
+
+                                let node_id = node_uuid.to_string();
+
+                                let name = device
+                                    .name()
+                                    .await
+                                    .map_err(|e| format!("device_name_failed({ble_addr}): {e}"))?
+                                    .unwrap_or_else(|| "R2 Node".to_string());
+
+                                let rssi = device
+                                    .rssi()
+                                    .await
+                                    .map_err(|e| format!("device_rssi_failed({ble_addr}): {e}"))?
+                                    .unwrap_or(0);
+
+                                seen.insert(node_id.clone(), Device {
+                                    name,
+                                    address: node_id.clone(), // <-- Node GUID in your struct
+                                    rssi,
+                                });
+
+                                ble_to_node.insert(ble_addr, node_id);
                             }
+
+                            Some(AdapterEvent::DeviceRemoved(addr)) => {
+                                let ble_addr = addr.to_string();
+                                if let Some(node_id) = ble_to_node.remove(&ble_addr) {
+                                    seen.remove(&node_id);
+                                }
+                            }
+
+                            Some(_) => {}
+                            None => break,
                         }
                     }
                 }
-                // Dropping `discover` ends the discovery session.
             }
 
             Ok(seen.into_values().collect())
@@ -181,6 +225,107 @@ fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
 
     rustler::types::atom::ok().encode(env)
 }
+
+// #[rustler::nif]
+// fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
+//     let _ = std::thread::spawn(move || {
+//         let mut owned_env = OwnedEnv::new();
+
+//         let rt = tokio::runtime::Builder::new_current_thread()
+//             .enable_all()
+//             .build()
+//             .expect("tokio runtime build failed");
+
+//         let result: Result<Vec<Device>, String> = rt.block_on(async move {
+//             let session = Session::new()
+//                 .await
+//                 .map_err(|e| format!("session_new_failed: {e}"))?;
+
+//             // Prefer hci0 if present; otherwise first adapter.
+//             let names = session
+//                 .adapter_names()
+//                 .await
+//                 .map_err(|e| format!("adapter_names_failed: {e}"))?;
+
+//             let chosen = names
+//                 .iter()
+//                 .find(|n| n.as_str() == "hci0")
+//                 .cloned()
+//                 .or_else(|| names.first().cloned())
+//                 .ok_or_else(|| "No adapters found".to_string())?;
+
+//             let adapter = session
+//                 .adapter(&chosen)
+//                 .map_err(|e| format!("adapter_open_failed({chosen}): {e}"))?;
+
+//             adapter
+//                 .set_powered(true)
+//                 .await
+//                 .map_err(|e| format!("set_powered_failed: {e}"))?;
+
+//             let timeout_ms = timeout_ms.max(0) as u64;
+//             let mut seen: HashMap<String, Device> = HashMap::new();
+
+//             // Use "with_changes" so you get follow-up DeviceAdded events when properties (like RSSI/name) update.
+//             // This is helpful because BlueZ may not have resolved properties at the instant the device is first seen.
+//             {
+//                 let discover = adapter
+//                     .discover_devices_with_changes()
+//                     .await
+//                     .map_err(|e| format!("discover_devices_failed: {e}"))?;
+//                 futures::pin_mut!(discover);
+
+//                 let deadline = tokio::time::sleep(Duration::from_millis(timeout_ms));
+//                 tokio::pin!(deadline);
+
+//                 loop {
+//                     tokio::select! {
+//                         _ = &mut deadline => break,
+//                         evt = discover.next() => {
+//                             match evt {
+//                                 Some(AdapterEvent::DeviceAdded(addr)) => {
+//                                     let device = adapter
+//                                         .device(addr)
+//                                         .map_err(|e| format!("device_open_failed({addr}): {e}"))?;
+
+//                                     let name = device
+//                                         .name()
+//                                         .await
+//                                         .map_err(|e| format!("device_name_failed({addr}): {e}"))?
+//                                         .unwrap_or_else(|| "Unknown".to_string());
+
+//                                     let rssi = device
+//                                         .rssi()
+//                                         .await
+//                                         .map_err(|e| format!("device_rssi_failed({addr}): {e}"))?
+//                                         .unwrap_or(0);
+
+//                                     let address = addr.to_string();
+//                                     seen.insert(address.clone(), Device { name, address, rssi });
+//                                 }
+//                                 Some(AdapterEvent::DeviceRemoved(addr)) => {
+//                                     seen.remove(&addr.to_string());
+//                                 }
+//                                 Some(_) => {}
+//                                 None => break,
+//                             }
+//                         }
+//                     }
+//                 }
+//                 // Dropping `discover` ends the discovery session.
+//             }
+
+//             Ok(seen.into_values().collect())
+//         });
+
+//         let _ = owned_env.send_and_clear(&pid, |env| match result {
+//             Ok(devices) => (rustler::types::atom::ok(), devices).encode(env),
+//             Err(err) => (rustler::types::atom::error(), err).encode(env),
+//         });
+//     });
+
+//     rustler::types::atom::ok().encode(env)
+// }
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------------------------------------------------------------------
