@@ -573,7 +573,7 @@ defmodule Reality2.Sentants do
   end
 
   # No ID given, so assume a new Sentant is to be created with a new ID.
-  defp sentant_id(_), do: {:ok, :main, UUID.uuid1()}
+  defp sentant_id(_), do: {:ok, :main, UUID.uuid4()}
 
   # Get the name of the Sentant from the definition map.
   # Can accept either a string or an atom as the name, and either with the 'sentant' key or not.

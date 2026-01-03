@@ -62,10 +62,10 @@ defmodule Reality2.Autostart do
   defp autostart_dir do
     case System.get_env("AUTOSTART") do
       nil ->
-        File.cwd!() <> "/autostart/"
+        Path.join(File.cwd!(), "/autostart/")
 
       autostart ->
-        autostart <> "/autostart/"
+        Path.join(autostart, "/autostart/")
     end
   end
 

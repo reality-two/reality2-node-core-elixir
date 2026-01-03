@@ -15,7 +15,7 @@ sentant:
       description: List Bluetooth Adapters
       transitions:
         - public: true
-          event: Scan Devices
+          event: Scan for R2 Nodes
           parameters:
             delay: number
           actions:
@@ -43,22 +43,6 @@ sentant:
                 key: timeout
                 value: __delay__
             - command: scan_devices
-              plugin: ai.reality2.transnet
-    - name: Start Beacon
-      description: Start R2 Beacon
-      transitions:
-        - public: true
-          event: Start Beacon
-          actions:
-            - command: start_altbeacon
-              plugin: ai.reality2.transnet
-    - name: Stop Beacon
-      description: Stop R2 Beacon
-      transitions:
-        - public: true
-          event: Stop Beacon
-          actions:
-            - command: stop_altbeacon
               plugin: ai.reality2.transnet
     - name: Result
       transitions:
