@@ -4,7 +4,7 @@ defmodule AiReality2Versioncontrol.MixProject do
   def project do
     [
       app: :ai_reality2_versioncontrol,
-      version: "0.1.0",
+      version: "0.1.13",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -13,14 +13,13 @@ defmodule AiReality2Versioncontrol.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Reality2 Version Control Plugin",
-
       name: "Plugin: ai.reality2.versioncontrol",
       source_url: "https://github.com/roycdavies/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
         main: "AiReality2Versioncontrol",
         output: "../../docs/ai_reality2_versioncontrol",
-        format: :html,
+        format: :html
       ]
     ]
   end

@@ -4,7 +4,7 @@ defmodule AiReality2Transnet.MixProject do
   def project do
     [
       app: :ai_reality2_transnet,
-      version: "0.1.0",
+      version: "0.1.13",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",

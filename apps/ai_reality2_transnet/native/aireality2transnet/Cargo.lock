@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "aireality2transnet"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "bluer",
  "futures",

@@ -1,2 +1,3 @@
 cd ../../../..
 podman run --rm -it --platform linux/arm64   -v "$PWD":/aarch64 -w /aarch64   elixir-buster-rust-cmake:latest   bash
+cd reality2-node-core-elixir/scripts

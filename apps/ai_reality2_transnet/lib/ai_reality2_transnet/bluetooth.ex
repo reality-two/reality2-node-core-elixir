@@ -2,43 +2,70 @@ defmodule AiReality2Transnet.Bluetooth do
   alias Reality2.Sentants, as: Sentants
   alias Reality2.Helpers.R2Map, as: R2Map
 
-  # *******************************************************************************************************************************************
   @moduledoc """
-  A Bluetooth module for Transient Networks - acts as the
+  A Bluetooth module for Transient Networks.
   """
 
-  # *******************************************************************************************************************************************
-
-  @doc false
   use GenServer, restart: :transient
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   # GenServer callbacks
-  # -------------------------------------------------------------------------------------------------------------------------------------------
-  @doc false
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
   def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
 
-  @doc false
+  @impl true
   def init(state) do
-    case AiReality2Transnet.Action.list_adapters() do
-      [] ->
-        {:ok, Map.put(state, :adapter, nil)}
+    adapter =
+      case AiReality2Transnet.Action.list_adapters() do
+        [] -> nil
+        [a | _] -> a
+      end
 
-      [adapter | _] ->
-        {:ok, Map.put(state, :adapter, adapter)}
-    end
+    state = Map.put(state, :adapter, adapter)
 
-    start_beacon(state, "hci0")
+    adapter_name =
+      case adapter do
+        %{id: id} when is_binary(id) -> id
+        _ -> "hci0"
+      end
+
+    state =
+      case start_watch(state, %{adapter: adapter_name}) do
+        {:ok, s} ->
+          s
+
+        {:error, reason} ->
+          IO.puts("start_watch failed: #{inspect(reason)}")
+          state
+      end
+
+    state =
+      case start_beacon(state, %{adapter: adapter_name}) do
+        {:ok, s} ->
+          s
+
+        {:error, reason} ->
+          IO.puts("start_beacon failed: #{inspect(reason)}")
+          state
+      end
+
+    {:ok, state}
   end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  @impl true
+  def terminate(_reason, state) do
+    # Stop watcher + beacon using the keys you actually store.
+    if h = state[:r2_watch], do: AiReality2Transnet.Action.stop_r2_watch(h)
+    if h = state[:altbeacon], do: AiReality2Transnet.Action.stop_altbeacon(h)
+    :ok
+  end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
-  # GenServer callbacks
-  # start_scan/1, stop_scan/1, list_connected/0
-  # start_advertising/2, stop_advertising/1
-  # -------------------------------------------------------------------------------------------------------------------------------------------
-  @doc false
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # handle_call
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @impl true
   def handle_call(%{command: "list_adapters"}, _from, state) do
     {:reply, list_adapters(state), state}
   end
@@ -48,11 +75,27 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   def handle_call(%{command: "start_beacon", parameters: parameters}, _from, state) do
-    {:reply, start_beacon(state, parameters), state}
+    case start_beacon(state, parameters) do
+      {:ok, new_state} -> {:reply, :ok, new_state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
   end
 
   def handle_call(%{command: "stop_beacon", parameters: parameters}, _from, state) do
-    {:reply, stop_beacon(state, parameters), state}
+    {:ok, new_state} = stop_beacon(state, parameters)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call(%{command: "start_watch", parameters: parameters}, _from, state) do
+    case start_watch(state, parameters) do
+      {:ok, new_state} -> {:reply, :ok, new_state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call(%{command: "stop_watch", parameters: parameters}, _from, state) do
+    {:ok, new_state} = stop_watch(state, parameters)
+    {:reply, :ok, new_state}
   end
 
   def handle_call(_request, _from, state) do
@@ -60,9 +103,11 @@ defmodule AiReality2Transnet.Bluetooth do
     {:reply, {:error, :unknown_command}, state}
   end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # handle_cast
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  @doc false
+  @impl true
   def handle_cast(%{command: "list_adapters"}, state) do
     list_adapters(state)
     {:noreply, state}
@@ -75,9 +120,39 @@ defmodule AiReality2Transnet.Bluetooth do
 
   def handle_cast(_, state), do: {:noreply, state}
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # handle_info
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  @doc false
+  @impl true
+  def handle_info({:r2_ble_found, node_id, info}, state) do
+    IO.puts("Node found: #{node_id}")
+
+    Sentants.sendto_all(%{
+      event: "__internal",
+      parameters: %{
+        transport: :bluetooth,
+        activity: "r2_node_found",
+        node_id: node_id,
+        info: info
+      }
+    })
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:r2_ble_lost, node_id}, state) do
+    IO.puts("Node lost: #{node_id}")
+
+    Sentants.sendto_all(%{
+      event: "__internal",
+      parameters: %{transport: :bluetooth, activity: "r2_node_lost", node_id: node_id}
+    })
+
+    {:noreply, state}
+  end
+
   def handle_info({:ok, devices}, state) do
     Sentants.sendto_all(%{
       event: "__internal",
@@ -92,11 +167,9 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
-  # -------------------------------------------------------------------------------------------------------------------------------------------
-
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   # Private Functions
-  # -------------------------------------------------------------------------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
   def list_adapters(state) do
     adapters = AiReality2Transnet.Action.list_adapters()
@@ -109,38 +182,69 @@ defmodule AiReality2Transnet.Bluetooth do
     {:ok, state}
   end
 
+  def start_beacon(state, params) do
+    node_id = Reality2.Bootstrap.get(:node_id)
+    adapter = Map.get(params, :adapter, "hci0")
+
+    case AiReality2Transnet.Action.start_altbeacon(
+           0xFFFF,
+           node_id,
+           1,
+           2,
+           -59,
+           adapter
+         ) do
+      {:ok, h} ->
+        IO.puts("|-- Node ID: #{node_id} beacon started on #{adapter}")
+        {:ok, Map.put(state, :altbeacon, h)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def stop_beacon(state, _params) do
+    case Map.get(state, :altbeacon) do
+      nil ->
+        {:ok, state}
+
+      h ->
+        AiReality2Transnet.Action.stop_altbeacon(h)
+        {:ok, Map.put(state, :altbeacon, nil)}
+    end
+  end
+
+  def start_watch(state, params) do
+    adapter = Map.get(params, :adapter, "hci0")
+    company_id = 0xFFFF
+    lost_after_ms = 10_000
+
+    case AiReality2Transnet.Action.start_r2_watch(self(), company_id, adapter, lost_after_ms) do
+      {:ok, h} ->
+        IO.puts("|-- R2 watch started on #{adapter}")
+        {:ok, Map.put(state, :r2_watch, h)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def stop_watch(state, _params) do
+    case Map.get(state, :r2_watch) do
+      nil ->
+        {:ok, state}
+
+      h ->
+        AiReality2Transnet.Action.stop_r2_watch(h)
+        {:ok, Map.put(state, :r2_watch, nil)}
+    end
+  end
+
   def scan_devices(state, parameters) do
-    timeout = R2Map.get(parameters, :timeout, 10000)
+    timeout = R2Map.get(parameters, :timeout, 30000)
 
     AiReality2Transnet.Action.scan_devices(self(), timeout)
 
     {:ok, state}
   end
-
-  def start_beacon(state, _parameters) do
-    node_id = Reality2.Bootstrap.get(:node_id)
-
-    {:ok, h} =
-      AiReality2Transnet.Action.start_altbeacon(
-        0xFFFF,
-        node_id,
-        1,
-        2,
-        -59,
-        "hci0"
-      )
-
-    IO.puts("  Node ID: #{node_id} beacon started")
-
-    {:ok, Map.put(state, :altbeacon, h)}
-  end
-
-  def stop_beacon(state, _parameters) do
-    h = state.altbeacon
-    AiReality2Transnet.Action.stop_altbeacon(h)
-
-    {:ok, state}
-  end
-
-  # -------------------------------------------------------------------------------------------------------------------------------------------
 end

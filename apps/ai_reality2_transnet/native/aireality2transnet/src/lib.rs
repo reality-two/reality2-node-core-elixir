@@ -1,23 +1,53 @@
-// needs cmake, pkg-config, libdbus-1-dev and rust installed
+use bluer::{adv, AdapterEvent, DiscoveryFilter, DiscoveryTransport, Session};
 
-use bluer::{adv, AdapterEvent, Session};
 use futures::StreamExt;
 use rustler::{Atom, Encoder, Env, LocalPid, NifResult, OwnedEnv, ResourceArc, Term};
-use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Mutex;
 use tokio::sync::oneshot;
-use tokio::time::Duration;
+use tokio::time::{self, Duration, Instant};
 use uuid::Uuid;
 
 rustler::atoms! {
     ok,
-    error
+    error,
+    r2_ble_found,
+    r2_ble_lost,
+    name,
+    rssi,
+    ble_addr
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------------
-// List the bluetooth adapters
+// WatchHandle (continuous discovery watcher)
 // -----------------------------------------------------------------------------------------------------------------------------------------
+
+struct WatchHandle {
+    shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
+}
+
+impl WatchHandle {
+    fn stop(&self) {
+        if let Some(tx) = self.shutdown_tx.lock().unwrap().take() {
+            let _ = tx.send(());
+        }
+    }
+}
+
+impl Drop for WatchHandle {
+    fn drop(&mut self) {
+        if let Ok(mut guard) = self.shutdown_tx.lock() {
+            if let Some(tx) = guard.take() {
+                let _ = tx.send(());
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+// Adapter listing (bluer)
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(rustler::NifMap)]
 pub struct Adapters {
     pub id: String,
@@ -39,18 +69,18 @@ fn list_adapters() -> Vec<Adapters> {
         let names = session
             .adapter_names()
             .await
-            .map_err(|e| format!("adapter_names_failed: {e}"))?; // lists e.g. ["hci0", ...] :contentReference[oaicite:3]{index=3}
+            .map_err(|e| format!("adapter_names_failed: {e}"))?;
 
         let mut out = Vec::with_capacity(names.len());
         for name in names {
             let adapter = session
                 .adapter(&name)
-                .map_err(|e| format!("adapter_open_failed({name}): {e}"))?; // non-async :contentReference[oaicite:4]{index=4}
+                .map_err(|e| format!("adapter_open_failed({name}): {e}"))?;
 
             let addr = adapter
                 .address()
                 .await
-                .map_err(|e| format!("adapter_address_failed({name}): {e}"))?; // async :contentReference[oaicite:5]{index=5}
+                .map_err(|e| format!("adapter_address_failed({name}): {e}"))?;
 
             out.push(Adapters {
                 id: name,
@@ -82,18 +112,6 @@ pub struct Device {
 }
 
 const R2_COMPANY_ID: u16 = 0xFFFF; // change when you have a real company id
-
-fn extract_altbeacon_uuid(mfg_value: &[u8]) -> Option<Uuid> {
-    // mfg_value layout (your payload):
-    // [0..2]=0xBEAC, [2..18]=UUID(16), [18..20]=major, [20..22]=minor, [22]=rssi, [23]=reserved
-    if mfg_value.len() < 24 {
-        return None;
-    }
-    if mfg_value[0] != 0xBE || mfg_value[1] != 0xAC {
-        return None;
-    }
-    Uuid::from_slice(&mfg_value[2..18]).ok()
-}
 
 #[rustler::nif]
 fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
@@ -225,116 +243,248 @@ fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
 
     rustler::types::atom::ok().encode(env)
 }
-
-// #[rustler::nif]
-// fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
-//     let _ = std::thread::spawn(move || {
-//         let mut owned_env = OwnedEnv::new();
-
-//         let rt = tokio::runtime::Builder::new_current_thread()
-//             .enable_all()
-//             .build()
-//             .expect("tokio runtime build failed");
-
-//         let result: Result<Vec<Device>, String> = rt.block_on(async move {
-//             let session = Session::new()
-//                 .await
-//                 .map_err(|e| format!("session_new_failed: {e}"))?;
-
-//             // Prefer hci0 if present; otherwise first adapter.
-//             let names = session
-//                 .adapter_names()
-//                 .await
-//                 .map_err(|e| format!("adapter_names_failed: {e}"))?;
-
-//             let chosen = names
-//                 .iter()
-//                 .find(|n| n.as_str() == "hci0")
-//                 .cloned()
-//                 .or_else(|| names.first().cloned())
-//                 .ok_or_else(|| "No adapters found".to_string())?;
-
-//             let adapter = session
-//                 .adapter(&chosen)
-//                 .map_err(|e| format!("adapter_open_failed({chosen}): {e}"))?;
-
-//             adapter
-//                 .set_powered(true)
-//                 .await
-//                 .map_err(|e| format!("set_powered_failed: {e}"))?;
-
-//             let timeout_ms = timeout_ms.max(0) as u64;
-//             let mut seen: HashMap<String, Device> = HashMap::new();
-
-//             // Use "with_changes" so you get follow-up DeviceAdded events when properties (like RSSI/name) update.
-//             // This is helpful because BlueZ may not have resolved properties at the instant the device is first seen.
-//             {
-//                 let discover = adapter
-//                     .discover_devices_with_changes()
-//                     .await
-//                     .map_err(|e| format!("discover_devices_failed: {e}"))?;
-//                 futures::pin_mut!(discover);
-
-//                 let deadline = tokio::time::sleep(Duration::from_millis(timeout_ms));
-//                 tokio::pin!(deadline);
-
-//                 loop {
-//                     tokio::select! {
-//                         _ = &mut deadline => break,
-//                         evt = discover.next() => {
-//                             match evt {
-//                                 Some(AdapterEvent::DeviceAdded(addr)) => {
-//                                     let device = adapter
-//                                         .device(addr)
-//                                         .map_err(|e| format!("device_open_failed({addr}): {e}"))?;
-
-//                                     let name = device
-//                                         .name()
-//                                         .await
-//                                         .map_err(|e| format!("device_name_failed({addr}): {e}"))?
-//                                         .unwrap_or_else(|| "Unknown".to_string());
-
-//                                     let rssi = device
-//                                         .rssi()
-//                                         .await
-//                                         .map_err(|e| format!("device_rssi_failed({addr}): {e}"))?
-//                                         .unwrap_or(0);
-
-//                                     let address = addr.to_string();
-//                                     seen.insert(address.clone(), Device { name, address, rssi });
-//                                 }
-//                                 Some(AdapterEvent::DeviceRemoved(addr)) => {
-//                                     seen.remove(&addr.to_string());
-//                                 }
-//                                 Some(_) => {}
-//                                 None => break,
-//                             }
-//                         }
-//                     }
-//                 }
-//                 // Dropping `discover` ends the discovery session.
-//             }
-
-//             Ok(seen.into_values().collect())
-//         });
-
-//         let _ = owned_env.send_and_clear(&pid, |env| match result {
-//             Ok(devices) => (rustler::types::atom::ok(), devices).encode(env),
-//             Err(err) => (rustler::types::atom::error(), err).encode(env),
-//         });
-//     });
-
-//     rustler::types::atom::ok().encode(env)
-// }
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------------------------------------------------------------------
-// AltBeacon advertising via BlueZ D-Bus (bluer)
+// Common helpers (AltBeacon parsing + Rust->Elixir message send)
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+// AltBeacon manufacturer payload layout (value part):
+// [0..2]=0xBEAC, [2..18]=UUID(16), [18..20]=major, [20..22]=minor, [22]=rssi@1m, [23]=reserved
+fn extract_altbeacon_uuid(mfg_value: &[u8]) -> Option<Uuid> {
+    if mfg_value.len() < 24 {
+        return None;
+    }
+    if mfg_value[0] != 0xBE || mfg_value[1] != 0xAC {
+        return None;
+    }
+    Uuid::from_slice(&mfg_value[2..18]).ok()
+}
+
+fn send_msg(pid: &LocalPid, term_builder: impl FnOnce(Env) -> Term) {
+    let mut oenv = OwnedEnv::new();
+    let _ = oenv.send_and_clear(pid, |env| term_builder(env));
+}
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------------------------------------------------------------------
-// Beacon Handle
+// Continuous watcher: emits {:r2_ble_found, node_id, info_map} / {:r2_ble_lost, node_id}
 // -----------------------------------------------------------------------------------------------------------------------------------------
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn start_r2_watch<'a>(
+    env: Env<'a>,
+    pid: LocalPid,
+    company_id: u16,
+    adapter_name: Option<String>,
+    lost_after_ms: u64,
+) -> NifResult<Term<'a>> {
+    let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
+
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
+
+    std::thread::spawn(move || {
+        let rt = match tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+        {
+            Ok(rt) => rt,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("tokio_runtime_build_failed: {e}")));
+                return;
+            }
+        };
+
+        let ready_tx_err = ready_tx.clone();
+
+        let res: Result<(), String> = rt.block_on(async move {
+            let session = Session::new()
+                .await
+                .map_err(|e| format!("session_new_failed: {e}"))?;
+
+            let adapter = if let Some(name) = adapter_name.as_deref() {
+                session
+                    .adapter(name)
+                    .map_err(|e| format!("adapter_open_failed({name}): {e}"))?
+            } else {
+                session
+                    .default_adapter()
+                    .await
+                    .map_err(|e| format!("default_adapter_failed: {e}"))?
+            };
+
+            adapter
+                .set_powered(true)
+                .await
+                .map_err(|e| format!("set_powered_failed: {e}"))?;
+
+            // Key trick: set an RSSI discovery filter so BlueZ emits RSSI updates for existing devices
+            // and disables the default RSSI delta-threshold. This makes `discover_devices_with_changes`
+            // generate repeated DeviceAdded events as RSSI updates come in. :contentReference[oaicite:2]{index=2}
+            let mut filter = DiscoveryFilter::default();
+            filter.transport = DiscoveryTransport::Le;
+            filter.rssi = Some(-127); // accept everything, but forces RSSI updates
+            // duplicate_data is already true by default per docs, but leaving default is fine. :contentReference[oaicite:3]{index=3}
+
+            if let Err(e) = adapter.set_discovery_filter(filter).await {
+                // Don’t fail the watch if another client has discovery running; just log.
+                eprintln!("set_discovery_filter failed (continuing): {e}");
+            }
+
+            let lost_after = Duration::from_millis(lost_after_ms.max(30_000));
+            let lost_grace = Duration::from_millis(5_000); // hysteresis to prevent single-gap flaps
+            let mut tick = time::interval(Duration::from_millis(500));
+
+            // Present keyed by node UUID string
+            let mut present: HashSet<String> = HashSet::new();
+            let mut last_seen: HashMap<String, Instant> = HashMap::new();
+            let mut suspect_since: HashMap<String, Instant> = HashMap::new();
+
+            // Optional: keep last BLE addr for info/debug
+            let mut node_to_ble: HashMap<String, String> = HashMap::new();
+
+            let _ = ready_tx.send(Ok(()));
+
+            loop {
+                let discover = adapter
+                    .discover_devices_with_changes()
+                    .await
+                    .map_err(|e| format!("discover_devices_failed: {e}"))?;
+                futures::pin_mut!(discover);
+
+                loop {
+                    tokio::select! {
+                        _ = &mut shutdown_rx => return Ok(()),
+
+                        _ = tick.tick() => {
+                            let now = Instant::now();
+
+                            // Mark suspects; only emit lost after both lost_after AND lost_grace.
+                            let mut to_lost = Vec::new();
+                            for node_id in present.iter() {
+                                let Some(ts) = last_seen.get(node_id) else { continue; };
+                                let overdue = now.duration_since(*ts) > lost_after;
+                                if !overdue {
+                                    suspect_since.remove(node_id);
+                                    continue;
+                                }
+
+                                match suspect_since.get(node_id) {
+                                    None => { suspect_since.insert(node_id.clone(), now); }
+                                    Some(since) => {
+                                        if now.duration_since(*since) > lost_grace {
+                                            to_lost.push(node_id.clone());
+                                        }
+                                    }
+                                }
+                            }
+
+                            for node_id in to_lost {
+                                present.remove(&node_id);
+                                last_seen.remove(&node_id);
+                                suspect_since.remove(&node_id);
+                                node_to_ble.remove(&node_id);
+                                send_msg(&pid, |env| (r2_ble_lost(), node_id).encode(env));
+                            }
+                        }
+
+                        evt = discover.next() => {
+                            match evt {
+                                Some(AdapterEvent::DeviceAdded(addr)) => {
+                                    let ble_addr_str = addr.to_string();
+
+                                    let dev = adapter
+                                        .device(addr)
+                                        .map_err(|e| format!("device_open_failed({ble_addr_str}): {e}"))?;
+
+                                    let mfg = dev
+                                        .manufacturer_data()
+                                        .await
+                                        .map_err(|e| format!("manufacturer_data_failed({ble_addr_str}): {e}"))?;
+
+                                    let Some(mfg) = mfg else { continue; };
+                                    let Some(value) = mfg.get(&company_id) else { continue; };
+
+                                    let Some(node_uuid) = extract_altbeacon_uuid(value) else { continue; };
+                                    let node_id = node_uuid.to_string();
+
+                                    // Guard against cached devices: RSSI indicates "currently present". :contentReference[oaicite:4]{index=4}
+                                    let rssi_now = match dev.rssi().await
+                                        .map_err(|e| format!("rssi_failed({ble_addr_str}): {e}"))?
+                                    {
+                                        Some(r) => r,
+                                        None => continue,
+                                    };
+
+                                    let dev_name = dev
+                                        .name()
+                                        .await
+                                        .map_err(|e| format!("name_failed({ble_addr_str}): {e}"))?
+                                        .unwrap_or_else(|| "R2 Node".to_string());
+
+                                    // Refresh liveness on *every* matching event, not just first sighting
+                                    last_seen.insert(node_id.clone(), Instant::now());
+                                    suspect_since.remove(&node_id);
+                                    node_to_ble.insert(node_id.clone(), ble_addr_str.clone());
+
+                                    if present.insert(node_id.clone()) {
+                                        send_msg(&pid, |env| {
+                                            let info =
+                                                rustler::types::map::map_new(env)
+                                                    .map_put(name().encode(env), dev_name.encode(env)).unwrap()
+                                                    .map_put(rssi().encode(env), (rssi_now as i32).encode(env)).unwrap()
+                                                    .map_put(ble_addr().encode(env), ble_addr_str.encode(env)).unwrap();
+
+                                            (r2_ble_found(), node_id, info).encode(env)
+                                        });
+                                    }
+                                }
+
+                                Some(AdapterEvent::DeviceRemoved(_addr)) => {
+                                    // Do NOT treat this as “lost” for proximity; rely on last_seen + timeout.
+                                    // BlueZ can remove device objects for reasons unrelated to RF presence.
+                                }
+
+                                Some(AdapterEvent::PropertyChanged(_)) => { /* ignore */ }
+
+                                None => break, // stream ended; restart
+                            }
+                        }
+                    }
+                }
+
+                time::sleep(Duration::from_millis(200)).await;
+            }
+        });
+
+        if let Err(e) = res {
+            let _ = ready_tx_err.send(Err(e));
+        }
+    });
+
+    match ready_rx.recv_timeout(std::time::Duration::from_secs(2)) {
+        Ok(Ok(())) => {
+            let handle = ResourceArc::new(WatchHandle {
+                shutdown_tx: Mutex::new(Some(shutdown_tx)),
+            });
+            Ok((ok(), handle).encode(env))
+        }
+        Ok(Err(reason)) => Ok((error(), reason).encode(env)),
+        Err(_) => Ok((error(), "timeout_waiting_for_watch_start".to_string()).encode(env)),
+    }
+}
+
+#[rustler::nif]
+fn stop_r2_watch(handle: ResourceArc<WatchHandle>) -> Atom {
+    handle.stop();
+    ok()
+}
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------------------------------------------------------------------
+// AltBeacon advertising (bluer)
+// -----------------------------------------------------------------------------------------------------------------------------------------
+
 struct BeaconHandle {
     shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
 }
@@ -356,11 +506,8 @@ impl Drop for BeaconHandle {
         }
     }
 }
-// -----------------------------------------------------------------------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------------------------------------------------------------------
-// Build the BLE Beacon Payload (AltBeacon format)
-// -----------------------------------------------------------------------------------------------------------------------------------------
+// AltBeacon manufacturer payload (value part) = 0xBEAC + UUID(16) + major(2) + minor(2) + rssi + reserved
 fn build_altbeacon_payload(
     uuid: Uuid,
     major: u16,
@@ -377,11 +524,7 @@ fn build_altbeacon_payload(
     v.push(reserved);
     v
 }
-// -----------------------------------------------------------------------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------------------------------------------------------------------
-// Start the BLE Beacon
-// -----------------------------------------------------------------------------------------------------------------------------------------
 #[rustler::nif(schedule = "DirtyIo")]
 fn start_altbeacon<'a>(
     env: Env<'a>,
@@ -439,6 +582,10 @@ fn start_altbeacon<'a>(
                 .await
                 .map_err(|e| format!("set_powered_failed: {e}"))?;
 
+            // NOTE:
+            // - AltBeacon is usually broadcast/non-connectable, but you can choose Peripheral if you
+            //   intend to accept GATT connections. Keeping a local_name may push payload into extended
+            //   advertising depending on controller capabilities.
             let ad = adv::Advertisement {
                 advertisement_type: adv::Type::Peripheral,
                 discoverable: Some(true),
@@ -479,11 +626,6 @@ fn start_altbeacon<'a>(
             .encode(env)),
     }
 }
-// -----------------------------------------------------------------------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------------------------------------------------------------------
-// Stop the BLE beacon
-// -----------------------------------------------------------------------------------------------------------------------------------------
 
 #[rustler::nif]
 fn stop_altbeacon(handle: ResourceArc<BeaconHandle>) -> Atom {
@@ -498,7 +640,9 @@ fn stop_altbeacon(handle: ResourceArc<BeaconHandle>) -> Atom {
 
 #[allow(non_local_definitions)]
 fn load(env: Env, _info: Term) -> bool {
-    rustler::resource!(BeaconHandle, env)
+    let _ = rustler::resource!(WatchHandle, env);
+    let _ = rustler::resource!(BeaconHandle, env);
+    true
 }
 
 rustler::init!("Elixir.AiReality2Transnet.Action", load = load);

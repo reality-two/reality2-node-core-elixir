@@ -4,7 +4,7 @@ defmodule AiReality2Auth.MixProject do
   def project do
     [
       app: :ai_reality2_auth,
-      version: "0.1.12",
+      version: "0.1.13",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -13,14 +13,13 @@ defmodule AiReality2Auth.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Reality2 Authentication Plugin",
-
       name: "Plugin: ai.reality2.auth",
       source_url: "https://github.com/roycdavies/reality2",
       homepage_url: "https://reality2.ai",
       docs: [
         main: "AiReality2Auth",
         output: "../../docs/ai_reality2_auth",
-        format: :html,
+        format: :html
       ]
     ]
   end
