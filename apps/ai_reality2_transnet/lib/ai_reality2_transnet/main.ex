@@ -9,7 +9,9 @@ defmodule AiReality2Transnet.Main do
     - Dr. Roy C. Davies
     - [roycdavies.github.io](https://roycdavies.github.io/)
   """
+
   # *******************************************************************************************************************************************
+
   @doc false
   use GenServer, restart: :transient
   alias Reality2.Helpers.R2Map, as: R2Map
@@ -84,7 +86,7 @@ defmodule AiReality2Transnet.Main do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Do things.
+  Send the command and parametrs directly through from the Automation.
 
   - Parameters
     - `id` - The id of the Sentant for which the command is being sent (ignored here)

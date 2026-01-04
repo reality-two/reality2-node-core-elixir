@@ -1,11 +1,17 @@
 defmodule AiReality2Transnet.Bluetooth do
-  alias Reality2.Sentants, as: Sentants
-  alias Reality2.Helpers.R2Map, as: R2Map
-
+  # *******************************************************************************************************************************************
   @moduledoc """
-  A Bluetooth module for Transient Networks.
+  Bluetooth module for Transient Networks.  Calls into the Rust NIFs detailed in AiReality2Transnet.Action.
+
+    **Author**
+    - Dr. Roy C. Davies
+    - [roycdavies.github.io](https://roycdavies.github.io/)
   """
 
+  # *******************************************************************************************************************************************
+
+  alias Reality2.Sentants, as: Sentants
+  alias Reality2.Helpers.R2Map, as: R2Map
   use GenServer, restart: :transient
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -16,6 +22,7 @@ defmodule AiReality2Transnet.Bluetooth do
 
   @impl true
   def init(state) do
+    # Find the bluetooth adapter
     adapter =
       case AiReality2Transnet.Action.list_adapters() do
         [] -> nil
@@ -24,22 +31,14 @@ defmodule AiReality2Transnet.Bluetooth do
 
     state = Map.put(state, :adapter, adapter)
 
+    # Find the bluetooth adapter name, defaulting to hci0
     adapter_name =
       case adapter do
         %{id: id} when is_binary(id) -> id
         _ -> "hci0"
       end
 
-    state =
-      case start_watch(state, %{adapter: adapter_name}) do
-        {:ok, s} ->
-          s
-
-        {:error, reason} ->
-          IO.puts("start_watch failed: #{inspect(reason)}")
-          state
-      end
-
+    # Start the AltBeacon
     state =
       case start_beacon(state, %{adapter: adapter_name}) do
         {:ok, s} ->
@@ -47,6 +46,17 @@ defmodule AiReality2Transnet.Bluetooth do
 
         {:error, reason} ->
           IO.puts("start_beacon failed: #{inspect(reason)}")
+          state
+      end
+
+    # Start watching for Reality2 Device AltBeacons
+    state =
+      case start_watch(state, %{adapter: adapter_name}) do
+        {:ok, s} ->
+          s
+
+        {:error, reason} ->
+          IO.puts("start_watch failed: #{inspect(reason)}")
           state
       end
 
@@ -141,7 +151,6 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
-  @impl true
   def handle_info({:r2_ble_lost, node_id}, state) do
     IO.puts("Node lost: #{node_id}")
 
@@ -153,7 +162,7 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
-  def handle_info({:ok, devices}, state) do
+  def handle_info({:r2_nodes, devices}, state) do
     Sentants.sendto_all(%{
       event: "__internal",
       parameters: %{transport: :bluetooth, devices: devices}
@@ -217,7 +226,7 @@ defmodule AiReality2Transnet.Bluetooth do
   def start_watch(state, params) do
     adapter = Map.get(params, :adapter, "hci0")
     company_id = 0xFFFF
-    lost_after_ms = 10_000
+    lost_after_ms = 30_000
 
     case AiReality2Transnet.Action.start_r2_watch(self(), company_id, adapter, lost_after_ms) do
       {:ok, h} ->

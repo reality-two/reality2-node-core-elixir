@@ -1,7 +1,14 @@
 defmodule AiReality2Transnet.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
-  @moduledoc false
+  # *******************************************************************************************************************************************
+  @moduledoc """
+  Main supervisor for Transient Networking App
+
+    **Author**
+    - Dr. Roy C. Davies
+    - [roycdavies.github.io](https://roycdavies.github.io/)
+  """
+
+  # *******************************************************************************************************************************************
 
   use Application
 

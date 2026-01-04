@@ -15,7 +15,8 @@ rustler::atoms! {
     r2_ble_lost,
     name,
     rssi,
-    ble_addr
+    ble_addr,
+    r2_nodes
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------------
@@ -235,8 +236,10 @@ fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
             Ok(seen.into_values().collect())
         });
 
+        // send_msg(&pid, |env| (r2_nodes(), devices).encode(env));
+
         let _ = owned_env.send_and_clear(&pid, |env| match result {
-            Ok(devices) => (rustler::types::atom::ok(), devices).encode(env),
+            Ok(devices) => (r2_nodes(), devices).encode(env),
             Err(err) => (rustler::types::atom::error(), err).encode(env),
         });
     });
