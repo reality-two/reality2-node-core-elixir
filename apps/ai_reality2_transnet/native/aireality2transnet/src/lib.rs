@@ -19,8 +19,9 @@ pub mod atoms {
         r2_ble_lost,
         name,
         rssi,
-        ble_addr,
-        r2_nodes
+        address,
+        r2_nodes,
+        adapters,
     }
 }
 

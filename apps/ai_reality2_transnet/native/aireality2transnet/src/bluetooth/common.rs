@@ -8,8 +8,8 @@ use crate::bluetooth::types::Device;
 // Shared constants
 // -------------------------------------------------------------------------------------------
 
-/// Default Company ID for your R2 manufacturer data.
-/// TODO: Replace with your assigned company ID.
+/// Default Company ID for R2 manufacturer data.
+/// TODO: Replace with an assigned company ID.
 pub const R2_COMPANY_ID: u16 = 0xFFFF;
 
 /// Default device name when none is advertised.
@@ -25,6 +25,7 @@ pub const ALTBEACON_MIN_LENGTH: usize = 24;
 // Shared helper functions
 // -------------------------------------------------------------------------------------------
 
+/// Gets the default Bluetooth adapter, or sets it to default hci0 if none exists (or returns an error)
 pub async fn get_or_default_adapter(
     session: &Session,
     adapter_name: Option<String>,
@@ -64,6 +65,7 @@ pub async fn configure_rssi_discovery_filter(adapter: &bluer::Adapter) {
     }
 }
 
+/// Checks whether the device is a Reality2 device.
 pub async fn process_discovered_device(
     adapter: &bluer::Adapter,
     addr: bluer::Address,
@@ -112,12 +114,13 @@ pub async fn process_discovered_device(
         node_id.clone(),
         Device {
             name: device_name,
-            address: node_id,
+            id: node_id,
             rssi,
         },
     )))
 }
 
+/// Get the Reality2 Node UUID from an AltBeacon payload.
 pub fn extract_altbeacon_uuid(payload: &[u8]) -> Option<Uuid> {
     if payload.len() < ALTBEACON_MIN_LENGTH {
         return None;

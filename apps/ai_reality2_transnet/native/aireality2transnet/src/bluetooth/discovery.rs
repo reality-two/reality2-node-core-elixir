@@ -28,8 +28,9 @@ const STARTUP_TIMEOUT_SECS: u64 = 2;
 // Adapter Management
 // -------------------------------------------------------------------------------------------
 
+// Lists the available Bluetooth adapters, waiting for the response and returning the list of adapters.
 #[rustler::nif(schedule = "DirtyIo")]
-pub fn list_adapters() -> Vec<Adapters> {
+pub fn list_adapters_seq() -> Vec<Adapters> {
     let rt = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -64,7 +65,7 @@ pub fn list_adapters() -> Vec<Adapters> {
                 .map_err(|e| format!("adapter_address_failed({name}): {e}"))?;
 
             adapters.push(Adapters {
-                id: name,
+                name: name,
                 address: address.to_string(),
             });
         }
@@ -79,6 +80,65 @@ pub fn list_adapters() -> Vec<Adapters> {
             vec![]
         }
     }
+}
+
+/// Lists the Bluetooth adapters available on the system, sends a response back when ready.
+#[rustler::nif]
+pub fn list_adapters(env: Env, pid: LocalPid) -> Term {
+    std::thread::spawn(move || {
+        let mut owned_env = OwnedEnv::new();
+
+        let rt = match tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        {
+            Ok(rt) => rt,
+            Err(e) => {
+                let error_msg = format!("tokio_runtime_build_failed: {e}");
+                let _ =
+                    owned_env.send_and_clear(&pid, |env| (atoms::error(), error_msg).encode(env));
+                return;
+            }
+        };
+
+        let result: Result<Vec<Adapters>, String> = rt.block_on(async {
+            let session = Session::new()
+                .await
+                .map_err(|e| format!("session_new_failed: {e}"))?;
+
+            let adapter_names = session
+                .adapter_names()
+                .await
+                .map_err(|e| format!("adapter_names_failed: {e}"))?;
+
+            let mut adapters = Vec::with_capacity(adapter_names.len());
+
+            for name in adapter_names {
+                let adapter = session
+                    .adapter(&name)
+                    .map_err(|e| format!("adapter_open_failed({name}): {e}"))?;
+
+                let address = adapter
+                    .address()
+                    .await
+                    .map_err(|e| format!("adapter_address_failed({name}): {e}"))?;
+
+                adapters.push(Adapters {
+                    name: name,
+                    address: address.to_string(),
+                });
+            }
+
+            Ok(adapters)
+        });
+
+        let _ = owned_env.send_and_clear(&pid, |env| match result {
+            Ok(adapters) => (atoms::adapters(), adapters).encode(env),
+            Err(err) => (atoms::error(), err).encode(env),
+        });
+    });
+
+    atoms::ok().encode(env)
 }
 
 // -------------------------------------------------------------------------------------------
@@ -182,7 +242,7 @@ async fn scan_for_duration(
 // -------------------------------------------------------------------------------------------
 
 #[rustler::nif(schedule = "DirtyIo")]
-pub fn start_r2_watch<'a>(
+pub fn start_watching<'a>(
     env: Env<'a>,
     pid: LocalPid,
     company_id: u16,
@@ -301,7 +361,7 @@ async fn run_continuous_watch(
 }
 
 #[rustler::nif]
-pub fn stop_r2_watch(handle: ResourceArc<WatchHandle>) -> rustler::Atom {
+pub fn stop_watching(handle: ResourceArc<WatchHandle>) -> rustler::Atom {
     handle.stop();
     atoms::ok()
 }
@@ -421,7 +481,7 @@ async fn handle_device_added(
                 )
                 .unwrap()
                 .map_put(
-                    crate::atoms::ble_addr().encode(env),
+                    crate::atoms::address().encode(env),
                     ble_address_str.encode(env),
                 )
                 .unwrap();

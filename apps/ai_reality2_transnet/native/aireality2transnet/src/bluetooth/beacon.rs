@@ -20,7 +20,7 @@ const STARTUP_TIMEOUT_SECS: u64 = 2;
 // -------------------------------------------------------------------------------------------
 
 #[rustler::nif(schedule = "DirtyIo")]
-pub fn start_altbeacon<'a>(
+pub fn start_broadcast<'a>(
     env: Env<'a>,
     company_id: u16,
     uuid_str: String,
@@ -87,7 +87,7 @@ pub fn start_altbeacon<'a>(
 }
 
 #[rustler::nif]
-pub fn stop_altbeacon(handle: ResourceArc<BeaconHandle>) -> rustler::Atom {
+pub fn stop_broadcast(handle: ResourceArc<BeaconHandle>) -> rustler::Atom {
     handle.stop();
     atoms::ok()
 }

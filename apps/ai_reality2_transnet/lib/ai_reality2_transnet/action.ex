@@ -19,24 +19,27 @@ defmodule AiReality2Transnet.Action do
     crate: "aireality2transnet"
 
   # List the adapters this device has.  We assume hci0 in general.  TODO: allow other adapters through an environment variable
-  def list_adapters(), do: :erlang.nif_error(:nif_not_loaded)
+  def list_adapters(_pid), do: :erlang.nif_error(:nif_not_loaded)
+
+  # Internal sequential function to list adapters
+  def list_adapters_seq(), do: :erlang.nif_error(:nif_not_loaded)
 
   # Scan for Reality2 nodes but timeout after a specified duration
   def scan_devices(_pid, _timeout), do: :erlang.nif_error(:nif_not_loaded)
 
   # Start watching for Reality2 nodes on a specified adapter
-  def start_r2_watch(_pid, _company_id, _adapter_name, _lost_after_ms),
+  def start_watching(_pid, _company_id, _adapter_name, _lost_after_ms),
     do: :erlang.nif_error(:nif_not_loaded)
 
   # Stop watching for Reality2 nodes on a specified adapter
-  def stop_r2_watch(_handle),
+  def stop_watching(_handle),
     do: :erlang.nif_error(:nif_not_loaded)
 
   # Start the Reality2 AltBEacon
-  def start_altbeacon(_company_id, _uuid_str, _major, _minor, _rssi_at_1m, _adapter_name \\ nil),
+  def start_broadcast(_company_id, _uuid_str, _major, _minor, _rssi_at_1m, _adapter_name \\ nil),
     do: :erlang.nif_error(:nif_not_loaded)
 
   # Stop the Reality2 AltBEacon
-  def stop_altbeacon(_handle),
+  def stop_broadcast(_handle),
     do: :erlang.nif_error(:nif_not_loaded)
 end
