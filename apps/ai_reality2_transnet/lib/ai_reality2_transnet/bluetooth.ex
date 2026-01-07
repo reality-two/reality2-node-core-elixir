@@ -59,6 +59,45 @@ defmodule AiReality2Transnet.Bluetooth do
     GenServer.call(__MODULE__, :get_state)
   end
 
+  @doc """
+  Send a mutation to a peer node's Sentant.
+
+  ## Parameters
+  - `peer_node_id` - The Reality2 node ID of the peer
+  - `sentant_id` - The UUID of the Sentant on the peer node
+  - `event` - The event name to trigger
+  - `parameters` - Optional parameters map
+  - `passthrough` - Optional passthrough data
+
+  ## Returns
+  - `{:ok, response}` - Success with response data
+  - `{:error, reason}` - Error reason
+  """
+  def send_to_peer_sentant(peer_node_id, sentant_id, event, parameters \\ %{}, passthrough \\ nil) do
+    GenServer.call(__MODULE__, {:send_to_peer, peer_node_id, sentant_id, event, parameters, passthrough})
+  end
+
+  @doc """
+  Get list of connected peer nodes.
+
+  ## Returns
+  - `%{node_id => %{address, sentants, connected_at}}`
+  """
+  def get_connected_peers do
+    GenServer.call(__MODULE__, :get_connected_peers)
+  end
+
+  @doc """
+  Get a specific peer's information.
+
+  ## Returns
+  - `{:ok, peer_info}` - Peer found
+  - `{:error, :not_found}` - Peer not connected
+  """
+  def get_peer(peer_node_id) do
+    GenServer.call(__MODULE__, {:get_peer, peer_node_id})
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # GenServer callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -73,6 +112,7 @@ defmodule AiReality2Transnet.Bluetooth do
     |> start_beacon()
     |> start_gatt_server()
     |> start_watch()
+    |> subscribe_to_pubsub()
   end
 
   @impl true
@@ -92,6 +132,46 @@ defmodule AiReality2Transnet.Bluetooth do
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call(:get_connected_peers, _from, state) do
+    {:reply, Map.get(state, :connected_peers, %{}), state}
+  end
+
+  @impl true
+  def handle_call({:get_peer, peer_id}, _from, state) do
+    case Map.get(state.connected_peers, peer_id) do
+      nil -> {:reply, {:error, :not_found}, state}
+      peer_info -> {:reply, {:ok, peer_info}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:send_to_peer, peer_id, sentant_id, event, params, passthrough}, _from, state) do
+    case Map.get(state.connected_peers, peer_id) do
+      nil ->
+        {:reply, {:error, :peer_not_connected}, state}
+
+      peer_info ->
+        mutation = %{
+          id: sentant_id,
+          event: event,
+          parameters: params,
+          passthrough: passthrough
+        }
+
+        mutation_json = Jason.encode!(mutation)
+        data_uuid = "00002a58-0000-1000-8000-00805f9b34fb"
+
+        result = AiReality2Transnet.Action.gatt_write_to_device(
+          peer_info.address,
+          data_uuid,
+          mutation_json
+        )
+
+        {:reply, result, state}
+    end
   end
 
   def handle_call(_request, _from, state), do: {:reply, {:error, :unknown_command}, state}
@@ -186,8 +266,12 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # The details of a Reality2 node that has been found nearby.
   def handle_info({:r2node_found, id, info}, state) do
-    # TODO: notify the pathing Plugin.
+    Logger.info("R2 Node discovered: #{id}")
 
+    # Extract BLE address from info
+    address = Map.get(info, :address)
+
+    # Notify all Sentants about the discovery
     Sentants.sendto_all(%{
       event: "__internal",
       parameters: %{
@@ -197,19 +281,45 @@ defmodule AiReality2Transnet.Bluetooth do
       }
     })
 
-    {:noreply, state}
+    # Automatically connect as GATT client and read peer's sentants
+    case connect_to_peer(address, id) do
+      {:ok, peer_info} ->
+        Logger.info("Successfully connected to peer #{id}, discovered #{length(peer_info.sentants)} sentants")
+
+        # Notify Sentants about peer's sentants
+        Sentants.sendto_all(%{
+          event: "__internal",
+          parameters: %{
+            activity: "peer_sentants_discovered",
+            peer_id: id,
+            peer_address: address,
+            sentants: peer_info.sentants
+          }
+        })
+
+        # Add to connected peers
+        new_peers = Map.put(state.connected_peers, id, peer_info)
+        {:noreply, %{state | connected_peers: new_peers}}
+
+      {:error, reason} ->
+        Logger.warning("Failed to connect to peer #{id}: #{inspect(reason)}")
+        {:noreply, state}
+    end
   end
 
   # Notice that a Reality2 node is now out of range.
   def handle_info({:r2node_lost, id}, state) do
-    # TODO: notify the pathing Plugin.
+    Logger.info("R2 Node lost: #{id}")
 
+    # Notify all Sentants about the loss
     Sentants.sendto_all(%{
       event: "__internal",
       parameters: %{activity: "r2_node_lost", id: id}
     })
 
-    {:noreply, state}
+    # Remove from connected peers
+    new_peers = Map.delete(state.connected_peers, id)
+    {:noreply, %{state | connected_peers: new_peers}}
   end
 
   # List of nodes found during a scan.
@@ -240,6 +350,17 @@ defmodule AiReality2Transnet.Bluetooth do
   # GATT errors
   def handle_info({:error, reason}, state) do
     Logger.error("GATT error: #{reason}")
+    {:noreply, state}
+  end
+
+  # PubSub message: Sentant signal received (mirrors GraphQL awaitSignal subscription)
+  def handle_info({:sentant_signal, signal_data}, state) do
+    %{id: id, event: event, parameters: parameters, passthrough: passthrough} = signal_data
+    Logger.debug("Sentant signal received: #{id} - #{event}")
+
+    # Broadcast to GATT clients via notification characteristic
+    broadcast_signal(id, event, event, parameters, passthrough)
+
     {:noreply, state}
   end
 
@@ -318,7 +439,8 @@ defmodule AiReality2Transnet.Bluetooth do
            gatt_handle: handle,
            events_sent: 0,
            signals_broadcast: 0,
-           queries_processed: 0
+           queries_processed: 0,
+           connected_peers: %{}
          })}
 
       {:error, reason} ->
@@ -347,6 +469,16 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   defp start_watch({:error, reason}), do: {:error, reason}
+
+  # Subscribe to PubSub for Sentant signals
+  defp subscribe_to_pubsub({:ok, state}) do
+    # Subscribe to sentant signals from Reality2.PubSub (shared across all apps)
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "sentant:signals")
+    IO.puts("|-- Subscribed to sentant:signals PubSub topic")
+    {:ok, state}
+  end
+
+  defp subscribe_to_pubsub({:error, reason}), do: {:error, reason}
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Beacon and Watch Functions
@@ -433,32 +565,76 @@ defmodule AiReality2Transnet.Bluetooth do
        ) do
     Logger.info("Processing sentantSend: id=#{id}, event=#{event}")
 
-    # TODO: Call your actual Sentant event sending function
-    # case YourSentantModule.send_event(id, event, parameters, passthrough) do
-    #   {:ok, sentant} -> # send success response
-    #   {:error, reason} -> # send error response
-    # end
+    # Mirror GraphQL resolver pattern: validate Sentant exists and event is allowed
+    case Reality2.Sentants.read(%{id: id}, :definition) do
+      {:ok, sentant} ->
+        # Validate event is allowed (same as GraphQL does)
+        events = get_event_list(Map.get(sentant, :events, []))
 
-    # Mock response for now
-    response = %{
-      type: "mutation_response",
-      mutation: "sentantSend",
-      success: true,
-      version: @protocol_version,
-      timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
-      data: %{
-        id: id,
-        event: event,
-        parameters: parameters,
-        passthrough: passthrough,
-        sent: true
-      }
-    }
+        if Enum.member?(events, event) do
+          # Send the event to the Sentant
+          case Reality2.Sentants.sendto(%{id: id}, %{
+                 event: event,
+                 parameters: parameters,
+                 passthrough: passthrough
+               }) do
+            {:ok, _pid} ->
+              # Success response
+              response = %{
+                type: "mutation_response",
+                mutation: "sentantSend",
+                success: true,
+                version: @protocol_version,
+                timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+                data: sentant
+              }
 
-    encode_and_notify(handle, response)
+              encode_and_notify(handle, response)
+              {:noreply, %{state | events_sent: state.events_sent + 1}}
 
-    new_state = %{state | events_sent: state.events_sent + 1}
-    {:noreply, new_state}
+            {:error, reason} ->
+              # Error sending event
+              error_response = %{
+                type: "mutation_response",
+                mutation: "sentantSend",
+                success: false,
+                error: to_string(reason),
+                version: @protocol_version,
+                timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+              }
+
+              encode_and_notify(handle, error_response)
+              {:noreply, state}
+          end
+        else
+          # Event not allowed
+          error_response = %{
+            type: "mutation_response",
+            mutation: "sentantSend",
+            success: false,
+            error: "invalid_event",
+            version: @protocol_version,
+            timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+          }
+
+          encode_and_notify(handle, error_response)
+          {:noreply, state}
+        end
+
+      {:error, reason} ->
+        # Sentant not found
+        error_response = %{
+          type: "mutation_response",
+          mutation: "sentantSend",
+          success: false,
+          error: to_string(reason),
+          version: @protocol_version,
+          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+        }
+
+        encode_and_notify(handle, error_response)
+        {:noreply, state}
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -481,6 +657,13 @@ defmodule AiReality2Transnet.Bluetooth do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # GATT Server - Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Extract event names from event list (mirrors GraphQL resolver pattern)
+  defp get_event_list(events) when is_list(events) do
+    Enum.map(events, &Map.get(&1, :name))
+  end
+
+  defp get_event_list(_), do: []
 
   defp update_query_characteristic(handle) do
     sentants = fetch_all_sentants()
@@ -541,4 +724,61 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   defp truncate_if_needed(json, _max_size), do: json
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Peer Connection Helpers
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Connect to a peer node as a GATT client and read its sentants
+  defp connect_to_peer(address, node_id) do
+    with {:ok, _services} <- AiReality2Transnet.Action.gatt_connect(address),
+         {:ok, sentants_data} <- read_peer_sentants(address),
+         {:ok, sentants_response} <- Jason.decode(sentants_data) do
+
+      # Extract sentants array from response
+      sentants = Map.get(sentants_response, "data", [])
+
+      # Build peer info structure
+      peer_info = %{
+        address: address,
+        node_id: node_id,
+        sentants: sentants,
+        sentant_count: length(sentants),
+        connected_at: DateTime.utc_now()
+      }
+
+      {:ok, peer_info}
+    else
+      {:error, reason} = error ->
+        Logger.debug("Peer connection failed at some step: #{inspect(reason)}")
+        error
+
+      other ->
+        Logger.debug("Unexpected peer connection result: #{inspect(other)}")
+        {:error, :connection_failed}
+    end
+  end
+
+  # Read the query characteristic (sentantAll) from a peer node
+  defp read_peer_sentants(address) do
+    query_uuid = "00002a57-0000-1000-8000-00805f9b34fb"
+
+    case AiReality2Transnet.Action.gatt_read_characteristic(address, query_uuid) do
+      {:ok, data} when is_list(data) ->
+        # Convert list of bytes to string
+        binary_data = :binary.list_to_bin(data)
+        {:ok, binary_data}
+
+      {:ok, data} when is_binary(data) ->
+        {:ok, data}
+
+      {:error, reason} = error ->
+        Logger.debug("Failed to read peer sentants: #{inspect(reason)}")
+        error
+
+      other ->
+        Logger.debug("Unexpected read result: #{inspect(other)}")
+        {:error, :read_failed}
+    end
+  end
 end

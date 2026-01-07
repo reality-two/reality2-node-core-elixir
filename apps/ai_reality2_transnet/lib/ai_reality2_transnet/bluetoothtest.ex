@@ -238,4 +238,155 @@ defmodule AiReality2Transnet.BluetoothTest do
         monitor_loop(remaining - 100)
     end
   end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Peer Connection Tests
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @doc """
+  Lists all connected peer nodes and their sentants.
+  """
+  def list_connected_peers do
+    peers = AiReality2Transnet.Bluetooth.get_connected_peers()
+
+    Logger.info("""
+    Connected Peers:
+    ================
+    Total peers: #{map_size(peers)}
+    """)
+
+    Enum.each(peers, fn {node_id, peer_info} ->
+      Logger.info("""
+
+      Peer Node: #{node_id}
+      Address: #{peer_info.address}
+      Connected: #{peer_info.connected_at}
+      Sentants: #{peer_info.sentant_count}
+      """)
+
+      # List peer's sentants
+      Enum.each(peer_info.sentants, fn sentant ->
+        name = Map.get(sentant, "name", "unnamed")
+        id = Map.get(sentant, "id", "no-id")
+        Logger.info("  - #{name} (#{id})")
+      end)
+    end)
+
+    {:ok, peers}
+  end
+
+  @doc """
+  Send a test mutation to a peer's sentant.
+
+  ## Parameters
+  - `peer_node_id` - The peer node UUID
+  - `sentant_id` - The sentant UUID on the peer node
+  - `event` - Event name (default: "ping")
+  - `parameters` - Optional parameters map
+  """
+  def send_to_peer(peer_node_id, sentant_id, event \\ "ping", parameters \\ %{test: "value"}) do
+    Logger.info("Sending '#{event}' to peer #{peer_node_id}, sentant #{sentant_id}...")
+
+    case AiReality2Transnet.Bluetooth.send_to_peer_sentant(peer_node_id, sentant_id, event, parameters) do
+      :ok ->
+        Logger.info("✓ Mutation sent successfully")
+        {:ok, :sent}
+
+      {:error, reason} ->
+        Logger.error("✗ Failed to send mutation: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Get detailed info about a specific connected peer.
+  """
+  def get_peer_info(peer_node_id) do
+    case AiReality2Transnet.Bluetooth.get_peer(peer_node_id) do
+      {:ok, peer_info} ->
+        Logger.info("""
+        Peer Information:
+        =================
+        Node ID: #{peer_node_id}
+        BLE Address: #{peer_info.address}
+        Connected At: #{peer_info.connected_at}
+        Sentant Count: #{peer_info.sentant_count}
+
+        Sentants:
+        """)
+
+        Enum.each(peer_info.sentants, fn sentant ->
+          name = Map.get(sentant, "name", "unnamed")
+          id = Map.get(sentant, "id", "no-id")
+          events = Map.get(sentant, "events", [])
+          event_names = Enum.map(events, fn e -> Map.get(e, "name", "") end)
+
+          Logger.info("""
+            Name: #{name}
+            ID: #{id}
+            Events: #{inspect(event_names)}
+          """)
+        end)
+
+        {:ok, peer_info}
+
+      {:error, :not_found} ->
+        Logger.warning("Peer #{peer_node_id} not connected")
+        {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Full peer-to-peer test:
+  1. Discover nodes
+  2. Wait for auto-connection
+  3. List connected peers
+  4. Send a test mutation to first peer's first sentant (if available)
+  """
+  def test_peer_to_peer do
+    Logger.info("=== Starting Peer-to-Peer Test ===")
+
+    # Step 1: Discover nodes
+    Logger.info("\n1. Discovering nearby R2 nodes...")
+    test_node_discovery()
+
+    # Step 2: Wait for auto-connection
+    Logger.info("\n2. Waiting 5 seconds for auto-connection...")
+    wait(5000)
+
+    # Step 3: List connected peers
+    Logger.info("\n3. Checking connected peers...")
+    {:ok, peers} = list_connected_peers()
+
+    # Step 4: Try to send a mutation to first peer
+    case Enum.at(Map.to_list(peers), 0) do
+      {peer_id, peer_info} ->
+        Logger.info("\n4. Attempting to send mutation to first peer...")
+
+        case Enum.at(peer_info.sentants, 0) do
+          nil ->
+            Logger.warning("Peer has no sentants")
+            {:ok, :no_sentants}
+
+          sentant ->
+            sentant_id = Map.get(sentant, "id")
+            events = Map.get(sentant, "events", [])
+
+            case Enum.at(events, 0) do
+              nil ->
+                Logger.warning("Sentant has no events")
+                {:ok, :no_events}
+
+              event ->
+                event_name = Map.get(event, "name")
+                Logger.info("Sending '#{event_name}' event...")
+                send_to_peer(peer_id, sentant_id, event_name)
+            end
+        end
+
+      nil ->
+        Logger.warning("No peers connected")
+        {:error, :no_peers}
+    end
+  end
 end

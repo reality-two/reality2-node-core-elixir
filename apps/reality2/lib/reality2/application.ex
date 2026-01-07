@@ -9,6 +9,8 @@ defmodule Reality2.Application do
   def start(_type, _args) do
     children = [
       %{id: :Bootstrap, start: {Reality2.Bootstrap, :start_link, [Reality2.Bootstrap]}},
+      # Shared PubSub for all Reality2 apps (web, transnet, etc.)
+      {Phoenix.PubSub, name: Reality2.PubSub},
       {PartitionSupervisor, child_spec: DynamicSupervisor, name: Reality2.Sentants},
       %{
         id: Reality2.Helpers.R2Process,

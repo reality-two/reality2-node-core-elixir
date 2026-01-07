@@ -265,17 +265,19 @@ defmodule Reality2Web.SentantResolver do
   def send_signal(id, event, parameters, passthrough) do
     case Reality2.Sentants.read(%{id: id}, :definition) do
       {:ok, sentant} ->
-        the_sentant = sentant
-
-        subscription_data = %{
-          sentant: the_sentant,
+        signal_data = %{
+          id: id,
+          sentant: sentant,
           event: event,
           parameters: parameters,
           passthrough: passthrough
         }
 
-        Absinthe.Subscription.publish(Reality2Web.Endpoint, subscription_data,
-          await_signal: id <> "|" <> event
+        # Publish to PubSub for all subscribers (GraphQL, GATT, etc.)
+        Phoenix.PubSub.broadcast(
+          Reality2.PubSub,
+          "sentant:signals",
+          {:sentant_signal, signal_data}
         )
 
       {:error, _reason} ->

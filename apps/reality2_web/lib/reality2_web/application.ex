@@ -12,9 +12,11 @@ defmodule Reality2Web.Application do
       # Start a worker by calling: Reality2Web.Worker.start_link(arg)
       # {Reality2Web.Worker, arg},
       # Start to serve requests, typically the last entry
-      {Phoenix.PubSub, name: Reality2Web.PubSub},
+      # Note: PubSub is now in Reality2 app (Reality2.PubSub) for sharing across apps
       Reality2Web.Endpoint,
-      {Absinthe.Subscription, Reality2Web.Endpoint}
+      {Absinthe.Subscription, Reality2Web.Endpoint},
+      # Subscribe to PubSub and republish to GraphQL subscriptions
+      Reality2Web.PubSubSubscriber
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
