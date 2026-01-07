@@ -11,7 +11,7 @@ use crate::bluetooth::common::{
     configure_rssi_discovery_filter, get_or_default_adapter, process_discovered_device, send_msg,
     R2_COMPANY_ID,
 };
-use crate::bluetooth::resources::WatchHandle;
+use crate::bluetooth::resources::{ResetCommand, WatchHandle};
 use crate::bluetooth::types::{Adapters, Device};
 
 // -------------------------------------------------------------------------------------------
@@ -65,6 +65,7 @@ pub fn list_adapters_seq() -> Vec<Adapters> {
                 .map_err(|e| format!("adapter_address_failed({name}): {e}"))?;
 
             adapters.push(Adapters {
+                transport: String::from("bluetooth"),
                 name: name,
                 address: address.to_string(),
             });
@@ -124,6 +125,7 @@ pub fn list_adapters(env: Env, pid: LocalPid) -> Term {
                     .map_err(|e| format!("adapter_address_failed({name}): {e}"))?;
 
                 adapters.push(Adapters {
+                    transport: String::from("bluetooth"),
                     name: name,
                     address: address.to_string(),
                 });
@@ -141,12 +143,23 @@ pub fn list_adapters(env: Env, pid: LocalPid) -> Term {
     atoms::ok().encode(env)
 }
 
+#[rustler::nif]
+pub fn reset_nodes(handle: ResourceArc<WatchHandle>) -> rustler::Atom {
+    let lock = handle.reset_tx.lock().unwrap();
+    if let Some(tx) = lock.as_ref() {
+        let _ = tx.send(ResetCommand::ClearAll);
+        atoms::ok()
+    } else {
+        atoms::error()
+    }
+}
+
 // -------------------------------------------------------------------------------------------
 // Device Scanning (time-limited)
 // -------------------------------------------------------------------------------------------
 
 #[rustler::nif]
-pub fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
+pub fn scan_nodes(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
     std::thread::spawn(move || {
         let mut owned_env = OwnedEnv::new();
 
@@ -180,7 +193,7 @@ pub fn scan_devices(env: Env, pid: LocalPid, timeout_ms: i32) -> Term {
         });
 
         let _ = owned_env.send_and_clear(&pid, |env| match result {
-            Ok(devices) => (atoms::r2_nodes(), devices).encode(env),
+            Ok(devices) => (atoms::r2nodes(), devices).encode(env),
             Err(err) => (atoms::error(), err).encode(env),
         });
     });
@@ -250,6 +263,7 @@ pub fn start_watching<'a>(
     lost_after_ms: u64,
 ) -> NifResult<Term<'a>> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+    let (reset_tx, reset_rx) = tokio::sync::mpsc::unbounded_channel::<ResetCommand>();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
 
     std::thread::spawn(move || {
@@ -273,6 +287,7 @@ pub fn start_watching<'a>(
                 adapter_name,
                 lost_after_ms,
                 shutdown_rx,
+                reset_rx,
                 ready_tx,
             )
             .await
@@ -287,6 +302,7 @@ pub fn start_watching<'a>(
         Ok(Ok(())) => {
             let handle = ResourceArc::new(WatchHandle {
                 shutdown_tx: Mutex::new(Some(shutdown_tx)),
+                reset_tx: Mutex::new(Some(reset_tx)),
             });
             Ok((atoms::ok(), handle).encode(env))
         }
@@ -299,12 +315,14 @@ pub fn start_watching<'a>(
     }
 }
 
+/// The continuous watch task.
 async fn run_continuous_watch(
     pid: LocalPid,
     company_id: u16,
     adapter_name: Option<String>,
     lost_after_ms: u64,
     mut shutdown_rx: oneshot::Receiver<()>,
+    mut reset_rx: tokio::sync::mpsc::UnboundedReceiver<ResetCommand>,
     ready_tx: std::sync::mpsc::Sender<Result<(), String>>,
 ) -> Result<(), String> {
     let session = Session::new()
@@ -338,6 +356,15 @@ async fn run_continuous_watch(
         loop {
             tokio::select! {
                 _ = &mut shutdown_rx => return Ok(()),
+
+                Some(cmd) = reset_rx.recv() => {
+                    match cmd {
+                        ResetCommand::ClearAll => {
+                            presence_tracker.clear_all();
+                            send_msg(&pid, |env| atoms::devices_cleared().encode(env));
+                        }
+                    }
+                }
 
                 _ = tick_interval.tick() => {
                     handle_presence_timeout(&mut presence_tracker, &pid, lost_after, lost_grace);
@@ -385,6 +412,13 @@ impl PresenceTracker {
             suspect_since: HashMap::new(),
             node_to_ble: HashMap::new(),
         }
+    }
+
+    fn clear_all(&mut self) {
+        self.present.clear();
+        self.last_seen.clear();
+        self.suspect_since.clear();
+        self.node_to_ble.clear();
     }
 
     fn record_sighting(&mut self, node_id: String, ble_addr: String) {
@@ -447,7 +481,7 @@ fn handle_presence_timeout(
 
     for node_id in timed_out {
         tracker.mark_lost(&node_id);
-        send_msg(pid, |env| (atoms::r2_ble_lost(), node_id).encode(env));
+        send_msg(pid, |env| (atoms::r2node_lost(), node_id).encode(env));
     }
 }
 
@@ -486,7 +520,7 @@ async fn handle_device_added(
                 )
                 .unwrap();
 
-            (crate::atoms::r2_ble_found(), node_id, info).encode(env)
+            (crate::atoms::r2node_found(), node_id, info).encode(env)
         });
     }
 

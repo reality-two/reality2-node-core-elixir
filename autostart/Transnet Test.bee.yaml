@@ -7,42 +7,27 @@ sentant:
       description: List Bluetooth Adapters
       transitions:
         - public: true
-          event: List Adapters
+          event: BLE Adapters
           actions:
             - command: list_adapters
               plugin: ai.reality2.transnet
-    - name: Scan Devices
-      description: List Bluetooth Adapters
+    - name: Rescan
+      description: Rescan for R2 nodes nearby
       transitions:
         - public: true
-          event: Scan for R2 Nodes
-          parameters:
-            delay: number
+          event: Rescan
           actions:
-            - command: test
-              parameters:
-                if:
-                  ">=":
-                    - delay
-                    - 100
-                then: scan_delay
-                else: scan_default
-        - event: scan_default
-          actions:
-            - command: set
-              parameters:
-                key: timeout
-                value:
-                  data: timeout
-            - command: scan_devices
+            - command: reset_nodes
               plugin: ai.reality2.transnet
-        - event: scan_delay
+    - name: Scan
+      description: Scan for a set period of time to find R2 nodes nearby
+      transitions:
+        - public: true
+          event: Timed Scan
+          parameters:
+            timeout: number
           actions:
-            - command: set
-              parameters:
-                key: timeout
-                value: __delay__
-            - command: scan_devices
+            - command: scan_nodes
               plugin: ai.reality2.transnet
     - name: Result
       transitions:

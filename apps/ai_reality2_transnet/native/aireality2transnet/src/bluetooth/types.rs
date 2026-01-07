@@ -1,6 +1,8 @@
 /// Information about a Bluetooth adapter.
 #[derive(rustler::NifMap)]
 pub struct Adapters {
+    /// Transport type (e.g., "bluetooth").
+    pub transport: String,
     /// Adapter identifier (e.g., "hci0").
     pub name: String,
     /// Bluetooth MAC address of the adapter.
@@ -10,6 +12,8 @@ pub struct Adapters {
 /// Information about a discovered BLE device.
 #[derive(rustler::NifMap)]
 pub struct Device {
+    /// Transport type (e.g., "bluetooth").
+    pub transport: String,
     /// Device name (or default if not advertised).
     pub name: String,
     /// Device identifier (node UUID for AltBeacon devices).

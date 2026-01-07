@@ -113,6 +113,7 @@ pub async fn process_discovered_device(
     Ok(Some((
         node_id.clone(),
         Device {
+            transport: String::from("bluetooth"),
             name: device_name,
             id: node_id,
             rssi,
