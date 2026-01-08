@@ -1,3 +1,15 @@
+//! Common Utilities for Bluetooth Operations
+//!
+//! This module contains shared constants, helper functions, and utilities used across
+//! the beacon, discovery, and GATT modules.
+//!
+//! ## Key Functions
+//!
+//! - **Adapter Management** - Select appropriate Bluetooth adapter (hci0, hci1, etc.)
+//! - **AltBeacon Parsing** - Extract Reality2 node UUID from beacon payloads
+//! - **Device Processing** - Convert BLE advertisement data into Reality2 device info
+//! - **IPC Helpers** - Send messages from Rust threads to Elixir processes
+
 use bluer::{DiscoveryFilter, DiscoveryTransport, Session};
 use rustler::{Env, LocalPid, OwnedEnv, Term};
 use uuid::Uuid;
@@ -5,27 +17,76 @@ use uuid::Uuid;
 use crate::bluetooth::types::Device;
 
 // -------------------------------------------------------------------------------------------
-// Shared constants
+// Shared Constants
 // -------------------------------------------------------------------------------------------
 
-/// Default Company ID for R2 manufacturer data.
-/// TODO: Replace with an assigned company ID.
+/// Company ID for Reality2 manufacturer data in BLE advertisements
+///
+/// Currently using 0xFFFF (reserved for internal/testing use).
+/// **TODO:** Replace with an officially assigned Bluetooth SIG company ID for production.
+///
+/// Company IDs are registered at: https://www.bluetooth.com/specifications/assigned-numbers/
 pub const R2_COMPANY_ID: u16 = 0xFFFF;
 
-/// Default device name when none is advertised.
+/// Default human-readable device name shown in BLE scans
+///
+/// Used when a device doesn't advertise a custom local name.
 pub const DEFAULT_DEVICE_NAME: &str = "R2 Node";
 
-/// AltBeacon identifier bytes (first two bytes of manufacturer data).
+/// AltBeacon protocol identifier (first 2 bytes of manufacturer data)
+///
+/// AltBeacon spec: https://github.com/AltBeacon/spec
+/// Value: 0xBEAC identifies this as an AltBeacon packet
 pub const ALTBEACON_CODE: [u8; 2] = [0xBE, 0xAC];
 
-/// Expected minimum length for AltBeacon manufacturer data payload.
+/// Minimum length of a valid AltBeacon manufacturer data payload
+///
+/// AltBeacon format (24 bytes):
+/// ```text
+/// [0-1]   Beacon code (0xBEAC)
+/// [2-17]  UUID (16 bytes)
+/// [18-19] Major (2 bytes)
+/// [20-21] Minor (2 bytes)
+/// [22]    RSSI @ 1m (1 byte)
+/// [23]    Reserved (1 byte)
+/// ```
 pub const ALTBEACON_MIN_LENGTH: usize = 24;
 
 // -------------------------------------------------------------------------------------------
-// Shared helper functions
+// Bluetooth Adapter Management
 // -------------------------------------------------------------------------------------------
 
-/// Gets the default Bluetooth adapter, or sets it to default hci0 if none exists (or returns an error)
+/// Gets a Bluetooth adapter by name, or selects a default adapter
+///
+/// This function provides intelligent adapter selection:
+/// 1. If `adapter_name` is provided (e.g., "hci0"), use that specific adapter
+/// 2. Otherwise, prefer "hci0" if it exists (most common default)
+/// 3. Fall back to system default adapter
+///
+/// ## Parameters
+///
+/// - `session` - BlueZ DBus session
+/// - `adapter_name` - Optional adapter name (e.g., "hci0", "hci1")
+///
+/// ## Returns
+///
+/// - `Ok(Adapter)` - Successfully opened Bluetooth adapter
+/// - `Err(String)` - Failed to open adapter (not found, permission denied, etc.)
+///
+/// ## Examples
+///
+/// ```rust
+/// // Use specific adapter
+/// let adapter = get_or_default_adapter(&session, Some("hci1".to_string())).await?;
+///
+/// // Use default (prefers hci0)
+/// let adapter = get_or_default_adapter(&session, None).await?;
+/// ```
+///
+/// ## Common Errors
+///
+/// - "adapter_open_failed(hci0): No such adapter" - Bluetooth hardware not available
+/// - "adapter_open_failed(hci1): Permission denied" - Need root or bluetooth group
 pub async fn get_or_default_adapter(
     session: &Session,
     adapter_name: Option<String>,
@@ -54,18 +115,72 @@ pub async fn get_or_default_adapter(
     }
 }
 
-/// Configure discovery filter to receive continuous RSSI updates.
+// -------------------------------------------------------------------------------------------
+// BLE Discovery Configuration
+// -------------------------------------------------------------------------------------------
+
+/// Configures discovery filter to receive continuous RSSI updates
+///
+/// By default, BlueZ only reports device discovery events once. This filter configures
+/// the adapter to continuously report RSSI (signal strength) updates, which is essential
+/// for:
+/// - Proximity detection (closer devices have higher RSSI)
+/// - Presence tracking (device moved away = lower RSSI, then lost)
+/// - Signal quality monitoring
+///
+/// ## Parameters
+///
+/// - `adapter` - Bluetooth adapter to configure
+///
+/// ## Filter Configuration
+///
+/// - **Transport:** LE (Low Energy) only - ignore BR/EDR (Classic Bluetooth)
+/// - **RSSI:** -127 dBm minimum - accept all signal strengths (maximum range)
+///
+/// ## Error Handling
+///
+/// Errors are logged but not propagated, as discovery can work without this filter
+/// (just won't get continuous RSSI updates).
 pub async fn configure_rssi_discovery_filter(adapter: &bluer::Adapter) {
     let mut filter = DiscoveryFilter::default();
-    filter.transport = DiscoveryTransport::Le;
-    filter.rssi = Some(-127);
+    filter.transport = DiscoveryTransport::Le; // BLE only, ignore Classic Bluetooth
+    filter.rssi = Some(-127); // Accept all signal strengths (-127 = minimum)
 
     if let Err(e) = adapter.set_discovery_filter(filter).await {
         eprintln!("set_discovery_filter failed (continuing): {e}");
     }
 }
 
-/// Checks whether the device is a Reality2 device.
+// -------------------------------------------------------------------------------------------
+// Device Processing
+// -------------------------------------------------------------------------------------------
+
+/// Processes a discovered BLE device to check if it's a Reality2 node
+///
+/// This function:
+/// 1. Reads manufacturer data from the device
+/// 2. Checks if it contains our company ID
+/// 3. Validates AltBeacon format
+/// 4. Extracts node UUID and device information
+///
+/// ## Parameters
+///
+/// - `adapter` - Bluetooth adapter
+/// - `addr` - BLE device address (MAC address)
+/// - `company_id` - Reality2 company ID to filter for
+///
+/// ## Returns
+///
+/// - `Ok(Some((node_id, Device)))` - This is a Reality2 device, here's its info
+/// - `Ok(None)` - Not a Reality2 device (wrong format, no manufacturer data, etc.)
+/// - `Err(String)` - Failed to query device (permission issue, device disappeared, etc.)
+///
+/// ## Device Info Extracted
+///
+/// - **Node ID** - UUID from AltBeacon payload (unique node identifier)
+/// - **Device Name** - Advertised local name, or "R2 Node" if not set
+/// - **RSSI** - Signal strength (for proximity detection)
+/// - **Transport** - Always "bluetooth" for BLE-discovered devices
 pub async fn process_discovered_device(
     adapter: &bluer::Adapter,
     addr: bluer::Address,
@@ -121,18 +236,89 @@ pub async fn process_discovered_device(
     )))
 }
 
-/// Get the Reality2 Node UUID from an AltBeacon payload.
+// -------------------------------------------------------------------------------------------
+// AltBeacon Parsing
+// -------------------------------------------------------------------------------------------
+
+/// Extracts the Reality2 node UUID from an AltBeacon manufacturer data payload
+///
+/// Validates and parses AltBeacon format to extract the 16-byte UUID that identifies
+/// the Reality2 node. This UUID is bytes 2-17 of the payload.
+///
+/// ## Parameters
+///
+/// - `payload` - Manufacturer data bytes from BLE advertisement
+///
+/// ## Returns
+///
+/// - `Some(Uuid)` - Valid AltBeacon payload, here's the node UUID
+/// - `None` - Invalid payload (too short, wrong beacon code, malformed UUID)
+///
+/// ## Validation
+///
+/// 1. Check length >= 24 bytes (minimum AltBeacon size)
+/// 2. Check bytes 0-1 == 0xBEAC (AltBeacon identifier)
+/// 3. Parse bytes 2-17 as UUID (16 bytes)
+///
+/// ## Example
+///
+/// ```rust
+/// let payload = vec![
+///     0xBE, 0xAC,                           // Beacon code
+///     // UUID bytes here (16 bytes)
+///     // ... major, minor, rssi, reserved
+/// ];
+/// if let Some(uuid) = extract_altbeacon_uuid(&payload) {
+///     println!("Found Reality2 node: {}", uuid);
+/// }
+/// ```
 pub fn extract_altbeacon_uuid(payload: &[u8]) -> Option<Uuid> {
+    // Check minimum length
     if payload.len() < ALTBEACON_MIN_LENGTH {
         return None;
     }
+
+    // Validate AltBeacon identifier (0xBEAC)
     if payload[0] != ALTBEACON_CODE[0] || payload[1] != ALTBEACON_CODE[1] {
         return None;
     }
+
+    // Extract UUID from bytes 2-17 (16 bytes)
     Uuid::from_slice(&payload[2..18]).ok()
 }
 
-/// Send a message to an Elixir process using an OwnedEnv (thread-safe).
+// -------------------------------------------------------------------------------------------
+// Elixir IPC
+// -------------------------------------------------------------------------------------------
+
+/// Sends a message from a Rust thread to an Elixir process
+///
+/// This function provides thread-safe communication from Rust async tasks back to Elixir.
+/// Uses `OwnedEnv` which allows sending terms across thread boundaries.
+///
+/// ## Parameters
+///
+/// - `pid` - Elixir process ID (LocalPid) to send message to
+/// - `term_builder` - Closure that builds the term to send (receives an Env)
+///
+/// ## Usage Pattern
+///
+/// ```rust
+/// // From async Rust task, send tuple {:r2node_found, node_id} to Elixir
+/// send_msg(&pid, |env| {
+///     (atoms::r2node_found(), node_id.clone()).encode(env)
+/// });
+/// ```
+///
+/// ## Thread Safety
+///
+/// `OwnedEnv` creates a new environment that can be sent across threads, allowing
+/// Rust async tasks running on Tokio thread pool to communicate with BEAM processes.
+///
+/// ## Error Handling
+///
+/// Errors (e.g., process died) are silently ignored. This is appropriate for event
+/// notifications where we don't want to crash the Rust task if Elixir process exits.
 pub fn send_msg(pid: &LocalPid, term_builder: impl FnOnce(Env) -> Term) {
     let mut owned_env = OwnedEnv::new();
     let _ = owned_env.send_and_clear(pid, term_builder);

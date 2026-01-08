@@ -1,28 +1,54 @@
-export type Event = {
-  event: string;
-  parameters: { [key: string]: any };
-};
+import type {
+  Event,
+  Sentant,
+  GraphQLResponse,
+  SignalData,
+  WebSocketMessage,
+  SocketState,
+} from "./types";
+import {
+  DEFAULT_PORT,
+  WEBSOCKET_HEARTBEAT_INTERVAL_MS,
+  WEBSOCKET_INIT_DELAY_MS,
+  RESERVED_SENTANT_NAMES,
+} from "./constants";
 
-export type Sentant = {
-  id: string;
-  name: string;
-  description: string;
-  events: Event[];
-  signals: string[];
-};
+export type { Event, Sentant };
 
+/**
+ * Reality2 GraphQL Client
+ *
+ * Provides a client interface for interacting with Reality2 Sentants via GraphQL.
+ * Supports queries, mutations, and WebSocket subscriptions for real-time updates.
+ *
+ * @example
+ * ```typescript
+ * const r2 = new R2("localhost", 4005, true);
+ * const result = await r2.sentantAll({}, "id name description");
+ * ```
+ */
 export default class R2 {
   _secure: boolean = false;
-  _graphql_http_url: string = "https://localhost:4005/reality2";
-  _graphql_webs_url: string = "wss://localhost:4005/reality2/websocket";
+  _graphql_http_url: string = `https://localhost:${DEFAULT_PORT}/reality2`;
+  _graphql_webs_url: string = `wss://localhost:${DEFAULT_PORT}/reality2/websocket`;
 
   _sockets: {
-    [index: string]: { ws: WebSocket; connected: boolean; timer: any };
+    [index: string]: SocketState;
   } = {};
 
-  // ----------------------------------------------------------------------------------------------------
-  // Constructor
-  // ----------------------------------------------------------------------------------------------------
+  /**
+   * Creates a new Reality2 client instance
+   *
+   * @param domain_name - The hostname or IP address of the Reality2 server
+   * @param port - The port number the Reality2 server is listening on
+   * @param ssl - Whether to use SSL/TLS for connections (default: true)
+   *
+   * @example
+   * ```typescript
+   * const r2 = new R2("localhost", 4005);  // HTTPS/WSS
+   * const r2_insecure = new R2("192.168.1.100", 4005, false);  // HTTP/WS
+   * ```
+   */
   constructor(domain_name: String, port: number, ssl = true) {
     this._secure = ssl;
     if (ssl) {
@@ -42,18 +68,47 @@ export default class R2 {
   // ----------------------------------------------------------------------------------------------------
   // Public API
   // ----------------------------------------------------------------------------------------------------
+
+  /**
+   * Retrieve all sentants from the Reality2 server
+   *
+   * @param passthrough - Additional data to merge into the response
+   * @param details - GraphQL fields to retrieve (default: "id name")
+   * @returns Promise resolving to GraphQL response merged with passthrough data
+   *
+   * @example
+   * ```typescript
+   * const result = await r2.sentantAll({}, "id name description events { event }");
+   * const sentants = result.data.sentantAll;
+   * ```
+   */
   sentantAll(passthrough = {}, details: string = "id name"): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._sentantAll(details), {}).then(
-        (data: any) => {
+        (data: GraphQLResponse) => {
           resolve({ ...passthrough, ...data });
         },
-        (error: any) => {
+        (error: Error) => {
           reject(error);
         },
       );
     });
   }
+
+  /**
+   * Retrieve a specific sentant by ID
+   *
+   * @param id - The unique identifier of the sentant
+   * @param passthrough - Additional data to merge into the response
+   * @param details - GraphQL fields to retrieve (default: "id name")
+   * @returns Promise resolving to GraphQL response merged with passthrough data
+   *
+   * @example
+   * ```typescript
+   * const result = await r2.sentantGet("abc123", {}, "id name description signals");
+   * const sentant = result.data.sentantGet;
+   * ```
+   */
   sentantGet(
     id: string,
     passthrough = {},
@@ -61,10 +116,10 @@ export default class R2 {
   ): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._sentantGet(details), { id: id }).then(
-        (data: any) => {
+        (data: GraphQLResponse) => {
           resolve({ ...passthrough, ...data });
         },
-        (error: any) => {
+        (error: Error) => {
           reject(error);
         },
       );
@@ -77,10 +132,10 @@ export default class R2 {
   ): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._sentantGetByName(details), { name: name }).then(
-        (data: any) => {
+        (data: GraphQLResponse) => {
           resolve({ ...passthrough, ...data });
         },
-        (error: any) => {
+        (error: Error) => {
           reject(error);
         },
       );
@@ -95,10 +150,10 @@ export default class R2 {
       this._graphql_post(this._sentantLoad(details), {
         definition: definition,
       }).then(
-        (data: any) => {
+        (data: GraphQLResponse) => {
           resolve({ ...passthrough, ...data });
         },
-        (error: any) => {
+        (error: Error) => {
           reject(error);
         },
       );
@@ -111,10 +166,10 @@ export default class R2 {
   ): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._sentantUnload(details), { id: id }).then(
-        (data: any) => {
+        (data: GraphQLResponse) => {
           resolve({ ...passthrough, ...data });
         },
-        (error: any) => {
+        (error: Error) => {
           reject(error);
         },
       );
@@ -129,10 +184,10 @@ export default class R2 {
       this._graphql_post(this._swarmLoad(details), {
         definition: definition,
       }).then(
-        (data: any) => {
+        (data: GraphQLResponse) => {
           resolve({ ...passthrough, ...data });
         },
-        (error: any) => {
+        (error: Error) => {
           reject(error);
         },
       );
@@ -152,15 +207,65 @@ export default class R2 {
       passthrough: JSON.stringify(passthrough),
     });
   }
-  awaitSignal(id: string, signal: string, callback: Function = () => {}): void {
+
+  /**
+   * Subscribe to signals from a sentant via WebSocket
+   *
+   * Creates a persistent WebSocket connection to listen for signals from a specific sentant.
+   * The callback will be invoked each time the sentant emits the specified signal.
+   *
+   * @param id - The unique identifier of the sentant to listen to
+   * @param signal - The name of the signal to await
+   * @param callback - Function to call when signal is received
+   *
+   * @example
+   * ```typescript
+   * r2.awaitSignal("abc123", "position_update", (data) => {
+   *   console.log("Position:", data.parameters);
+   * });
+   * ```
+   */
+  awaitSignal(id: string, signal: string, callback: (data: SignalData) => void = () => {}): void {
     this._subscribe(id, signal, callback);
   }
-  monitor(callback: Function = () => {}): void {
+
+  /**
+   * Monitor the Reality2 node for sentant lifecycle events
+   *
+   * Sets up monitoring for sentant creation/deletion events at the node level.
+   * Useful for keeping UI in sync with server-side changes.
+   *
+   * @param callback - Function to call when sentants are created/deleted
+   *
+   * @example
+   * ```typescript
+   * r2.monitor((data) => {
+   *   if (data.parameters?.activity === "created") {
+   *     console.log("New sentant:", data.parameters.name);
+   *   }
+   * });
+   * ```
+   */
+  monitor(callback: (data: GraphQLResponse) => void = () => {}): void {
     this._set_up_node_monitoring(callback);
   }
 
-  public static JSONPath(data: object, path: string): any {
+  /**
+   * Navigate a JSON object using dot notation path
+   *
+   * @param data - The object to navigate
+   * @param path - Dot-separated path (e.g., "data.sentantGet.name")
+   * @returns The value at the path, or null if not found
+   *
+   * @example
+   * ```typescript
+   * const obj = { data: { sentantGet: { name: "test" } } };
+   * R2.JSONPath(obj, "data.sentantGet.name");  // Returns: "test"
+   * ```
+   */
+  public static JSONPath(data: object, path: string): unknown {
     let parts = path.split(".");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let result: any = data;
     for (let i = 0; i < parts.length; i++) {
       let index = parseInt(parts[i]);
@@ -181,14 +286,14 @@ export default class R2 {
     return result;
   }
 
-  public static ToSimple(variable: any) {
+  public static ToSimple(variable: unknown): unknown {
     return this.convert(variable, true);
   }
-  public static ToJSON(variable: any) {
+  public static ToJSON(variable: unknown): unknown {
     return this.convert(variable, false);
   }
 
-  public static convert(variable: any, no_json = true): any {
+  public static convert(variable: unknown, no_json = true): unknown {
     if (variable == null) return null;
 
     if (typeof variable === "number") {
@@ -251,7 +356,7 @@ export default class R2 {
   // ----------------------------------------------------------------------------------------------------
   // Monitoring Sentant
   // ----------------------------------------------------------------------------------------------------
-  _set_up_node_monitoring(callback: Function = () => {}): void {
+  _set_up_node_monitoring(callback: (data: GraphQLResponse) => void = () => {}): void {
     let details = {
       sentant: {
         name: "monitor",
@@ -274,20 +379,22 @@ export default class R2 {
       },
     };
 
-    this.sentantGetByName("monitor").then((data1: any) => {
-      if (data1.data.sentantGet == null) {
-        this.sentantLoad(JSON.stringify(details)).then((data2: any) => {
+    this.sentantGetByName("monitor").then((data1: GraphQLResponse) => {
+      const sentantGet = R2.JSONPath(data1, "data.sentantGet") as Sentant | null;
+      if (sentantGet == null) {
+        this.sentantLoad(JSON.stringify(details)).then((data2: GraphQLResponse) => {
+          const sentantLoad = R2.JSONPath(data2, "data.sentantLoad") as Sentant;
           this.awaitSignal(
-            data2.data.sentantLoad.id,
+            sentantLoad.id,
             "internal",
-            (data3: any) => {
+            (data3: SignalData) => {
               callback(data3);
             },
           );
           console.log("Monitor Sentant Loaded");
         });
       } else {
-        this.awaitSignal(data1.data.sentantGet.id, "internal", (data4: any) => {
+        this.awaitSignal(sentantGet.id, "internal", (data4: SignalData) => {
           callback(data4);
         });
         console.log("Monitor Sentant Loaded");
@@ -325,7 +432,7 @@ export default class R2 {
   // ----------------------------------------------------------------------------------------------------
   // Websocket Subscription
   // ----------------------------------------------------------------------------------------------------
-  _subscribe(id: string, signal: string, callback: Function): void {
+  _subscribe(id: string, signal: string, callback: (data: SignalData) => void): void {
     let join_message = {
       topic: "__absinthe__:control",
       event: "phx_join",
@@ -362,10 +469,10 @@ export default class R2 {
     this._sockets[id + "|" + signal].ws.onopen = () => {
       setTimeout(() => {
         this._sockets[id + "|" + signal].ws.send(JSON.stringify(join_message));
-      }, 100);
+      }, WEBSOCKET_INIT_DELAY_MS);
     };
 
-    this._sockets[id + "|" + signal].ws.onmessage = (event: any) => {
+    this._sockets[id + "|" + signal].ws.onmessage = (event: MessageEvent) => {
       let data = JSON.parse(event.data);
       let payload = data.payload;
 
@@ -386,10 +493,28 @@ export default class R2 {
           this._sockets[id + "|" + signal].timer = setInterval(() => {
             console.log("heartbeat");
             this._sockets[id + "|" + signal].ws.send(JSON.stringify(heartbeat));
-          }, 30000);
+          }, WEBSOCKET_HEARTBEAT_INTERVAL_MS);
 
           callback({ status: "connected" });
         }
+      }
+    };
+
+    // Clean up timer when websocket closes
+    this._sockets[id + "|" + signal].ws.onclose = () => {
+      console.log("Websocket closed");
+      if (this._sockets[id + "|" + signal]?.timer) {
+        clearInterval(this._sockets[id + "|" + signal].timer);
+        this._sockets[id + "|" + signal].timer = null;
+      }
+    };
+
+    // Clean up timer on websocket error
+    this._sockets[id + "|" + signal].ws.onerror = (error: Event) => {
+      console.error("Websocket error:", error);
+      if (this._sockets[id + "|" + signal]?.timer) {
+        clearInterval(this._sockets[id + "|" + signal].timer);
+        this._sockets[id + "|" + signal].timer = null;
       }
     };
   }

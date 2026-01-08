@@ -8,7 +8,7 @@
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    //@ts-ignore
+    // @ts-ignore - svelte-fomantic-ui@0.3.9 doesn't provide TypeScript type definitions
     import {
         Card,
         Div,
@@ -26,6 +26,7 @@
     } from "svelte-fomantic-ui";
 
     import type { Sentant } from "./reality2.js";
+    import { MESSAGE_BUFFER_SIZE } from "./constants";
     import R2 from "./reality2";
     import { div } from "three/tsl";
 
@@ -44,9 +45,9 @@
     type input_text_type = { [key: string]: any };
     type params_type = { [key: string]: string };
 
-    let messages = ["|", "|", "|", "|", "|"];
+    let messages = Array(MESSAGE_BUFFER_SIZE).fill("|");
     let input_text: input_text_type = {};
-    let max_messages = 5;
+    let max_messages = MESSAGE_BUFFER_SIZE;
     let wide_message = false;
 
     let show_message = false;

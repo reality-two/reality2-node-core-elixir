@@ -30,7 +30,8 @@ defmodule AiReality2Transnet.Bluetooth do
   # Default Company ID for R2 manufacturer data.
   # TODO: Replace with an assigned company ID.
   @r2_company_id 0xFFFF
-  @max_characteristic_size 512
+  # Increased to support larger sentant data
+  @max_characteristic_size 4096
   @protocol_version "1.0"
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -74,28 +75,43 @@ defmodule AiReality2Transnet.Bluetooth do
   - `{:error, reason}` - Error reason
   """
   def send_to_peer_sentant(peer_node_id, sentant_id, event, parameters \\ %{}, passthrough \\ nil) do
-    GenServer.call(__MODULE__, {:send_to_peer, peer_node_id, sentant_id, event, parameters, passthrough})
+    GenServer.call(
+      __MODULE__,
+      {:send_to_peer, peer_node_id, sentant_id, event, parameters, passthrough}
+    )
   end
 
   @doc """
   Get list of connected peer nodes.
 
+  DEPRECATED: Use AiReality2Transnet.PeerManager.get_all_peers() instead.
+
   ## Returns
   - `%{node_id => %{address, sentants, connected_at}}`
   """
   def get_connected_peers do
-    GenServer.call(__MODULE__, :get_connected_peers)
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      AiReality2Transnet.PeerManager.get_all_peers()
+    else
+      %{}
+    end
   end
 
   @doc """
   Get a specific peer's information.
+
+  DEPRECATED: Use AiReality2Transnet.PeerManager.get_peer(peer_id) instead.
 
   ## Returns
   - `{:ok, peer_info}` - Peer found
   - `{:error, :not_found}` - Peer not connected
   """
   def get_peer(peer_node_id) do
-    GenServer.call(__MODULE__, {:get_peer, peer_node_id})
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      AiReality2Transnet.PeerManager.get_peer(peer_node_id)
+    else
+      {:error, :not_found}
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -135,25 +151,20 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   @impl true
-  def handle_call(:get_connected_peers, _from, state) do
-    {:reply, Map.get(state, :connected_peers, %{}), state}
-  end
-
-  @impl true
-  def handle_call({:get_peer, peer_id}, _from, state) do
-    case Map.get(state.connected_peers, peer_id) do
-      nil -> {:reply, {:error, :not_found}, state}
-      peer_info -> {:reply, {:ok, peer_info}, state}
-    end
-  end
-
-  @impl true
   def handle_call({:send_to_peer, peer_id, sentant_id, event, params, passthrough}, _from, state) do
-    case Map.get(state.connected_peers, peer_id) do
-      nil ->
+    # Use PeerManager to get peer info
+    peer_result =
+      if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+        AiReality2Transnet.PeerManager.get_peer(peer_id)
+      else
+        {:error, :not_found}
+      end
+
+    case peer_result do
+      {:error, :not_found} ->
         {:reply, {:error, :peer_not_connected}, state}
 
-      peer_info ->
+      {:ok, peer_info} ->
         mutation = %{
           id: sentant_id,
           event: event,
@@ -163,12 +174,16 @@ defmodule AiReality2Transnet.Bluetooth do
 
         mutation_json = Jason.encode!(mutation)
         data_uuid = "00002a58-0000-1000-8000-00805f9b34fb"
+        adapter_name = Map.get(state, :adapter_name, "hci0")
 
-        result = AiReality2Transnet.Action.gatt_write_to_device(
-          peer_info.address,
-          data_uuid,
-          mutation_json
-        )
+        result =
+          AiReality2Transnet.Action.gatt_write_to_device(
+            self(),
+            peer_info.address,
+            data_uuid,
+            mutation_json,
+            adapter_name
+          )
 
         {:reply, result, state}
     end
@@ -277,34 +292,19 @@ defmodule AiReality2Transnet.Bluetooth do
       parameters: %{
         activity: "r2_node_found",
         id: id,
-        info: info
+        info: info,
+        address: address
       }
     })
 
-    # Automatically connect as GATT client and read peer's sentants
-    case connect_to_peer(address, id) do
-      {:ok, peer_info} ->
-        Logger.info("Successfully connected to peer #{id}, discovered #{length(peer_info.sentants)} sentants")
-
-        # Notify Sentants about peer's sentants
-        Sentants.sendto_all(%{
-          event: "__internal",
-          parameters: %{
-            activity: "peer_sentants_discovered",
-            peer_id: id,
-            peer_address: address,
-            sentants: peer_info.sentants
-          }
-        })
-
-        # Add to connected peers
-        new_peers = Map.put(state.connected_peers, id, peer_info)
-        {:noreply, %{state | connected_peers: new_peers}}
-
-      {:error, reason} ->
-        Logger.warning("Failed to connect to peer #{id}: #{inspect(reason)}")
-        {:noreply, state}
+    # Register peer with PeerManager (BLE discovery only - no GATT sentant reading)
+    # Sentant queries will happen via WiFi mesh HTTP after upgrade
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      AiReality2Transnet.PeerManager.register_peer(id, info)
+      Logger.info("Peer #{String.slice(id, 0..7)}... registered with PeerManager")
     end
+
+    {:noreply, state}
   end
 
   # Notice that a Reality2 node is now out of range.
@@ -317,9 +317,12 @@ defmodule AiReality2Transnet.Bluetooth do
       parameters: %{activity: "r2_node_lost", id: id}
     })
 
-    # Remove from connected peers
-    new_peers = Map.delete(state.connected_peers, id)
-    {:noreply, %{state | connected_peers: new_peers}}
+    # Remove from PeerManager
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      AiReality2Transnet.PeerManager.remove_peer(id)
+    end
+
+    {:noreply, state}
   end
 
   # List of nodes found during a scan.
@@ -430,6 +433,9 @@ defmodule AiReality2Transnet.Bluetooth do
 
         # Initialize the Query characteristic with current Sentants
         update_query_characteristic(handle)
+
+        # Initialize the Mesh Info characteristic with WiFi mesh connection details
+        update_mesh_info_characteristic(handle)
 
         # TODO: Subscribe to Sentant signals via PubSub
         # Phoenix.PubSub.subscribe(YourPubSub, "sentant:signals")
@@ -668,12 +674,27 @@ defmodule AiReality2Transnet.Bluetooth do
   defp update_query_characteristic(handle) do
     sentants = fetch_all_sentants()
 
+    # Create compact version with only essential fields for BLE transmission
+    # Remove parameters to reduce size - they're just type hints for the UI
+    compact_sentants =
+      Enum.map(sentants, fn sentant ->
+        %{
+          id: Map.get(sentant, :id),
+          name: Map.get(sentant, :name),
+          events:
+            Map.get(sentant, :events, [])
+            |> Enum.map(fn event ->
+              %{event: Map.get(event, :event)}
+            end),
+          signals: Map.get(sentant, :signals, [])
+        }
+      end)
+
     message = %{
       type: "sentant_all_response",
       version: @protocol_version,
-      timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
-      count: length(sentants),
-      data: sentants
+      count: length(compact_sentants),
+      data: compact_sentants
     }
 
     case Jason.encode(message) do
@@ -681,14 +702,66 @@ defmodule AiReality2Transnet.Bluetooth do
         json = truncate_if_needed(json, @max_characteristic_size)
         binary_data = :binary.bin_to_list(json)
 
-        AiReality2Transnet.Action.gatt_write_characteristic(
-          handle,
-          "00002a57-0000-1000-8000-00805f9b34fb",
-          binary_data
-        )
+        Logger.debug("Writing #{byte_size(json)} bytes to query characteristic")
+
+        result =
+          AiReality2Transnet.Action.gatt_write_characteristic(
+            handle,
+            "00002a57-0000-1000-8000-00805f9b34fb",
+            binary_data
+          )
+
+        case result do
+          :ok ->
+            Logger.debug("Successfully wrote query characteristic data")
+            :ok
+
+          :error ->
+            Logger.error(
+              "Failed to write query characteristic - gatt_write_characteristic returned :error"
+            )
+
+            :error
+
+          other ->
+            Logger.error(
+              "Unexpected return value from gatt_write_characteristic: #{inspect(other)}"
+            )
+
+            :error
+        end
 
       {:error, reason} ->
         Logger.error("Failed to encode Sentants data: #{inspect(reason)}")
+        :error
+    end
+  end
+
+  defp update_mesh_info_characteristic(handle) do
+    # Use GattProtocol to encode mesh connection details
+    json = AiReality2Transnet.GattProtocol.encode_mesh_details()
+    binary_data = :binary.bin_to_list(json)
+
+    Logger.info("Writing #{byte_size(json)} bytes to mesh info characteristic")
+
+    result =
+      AiReality2Transnet.Action.gatt_write_characteristic(
+        handle,
+        "00001235-0000-1000-8000-00805f9b34fb",
+        binary_data
+      )
+
+    case result do
+      :ok ->
+        Logger.info("Successfully wrote mesh info characteristic data")
+        :ok
+
+      :error ->
+        Logger.error("Failed to write mesh info characteristic")
+        :error
+
+      other ->
+        Logger.error("Unexpected return from gatt_write_characteristic: #{inspect(other)}")
         :error
     end
   end
@@ -726,59 +799,19 @@ defmodule AiReality2Transnet.Bluetooth do
   defp truncate_if_needed(json, _max_size), do: json
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Peer Connection Helpers
+  # Peer Connection Helpers (DEPRECATED - Use WiFi Mesh HTTP)
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # Connect to a peer node as a GATT client and read its sentants
-  defp connect_to_peer(address, node_id) do
-    with {:ok, _services} <- AiReality2Transnet.Action.gatt_connect(address),
-         {:ok, sentants_data} <- read_peer_sentants(address),
-         {:ok, sentants_response} <- Jason.decode(sentants_data) do
-
-      # Extract sentants array from response
-      sentants = Map.get(sentants_response, "data", [])
-
-      # Build peer info structure
-      peer_info = %{
-        address: address,
-        node_id: node_id,
-        sentants: sentants,
-        sentant_count: length(sentants),
-        connected_at: DateTime.utc_now()
-      }
-
-      {:ok, peer_info}
-    else
-      {:error, reason} = error ->
-        Logger.debug("Peer connection failed at some step: #{inspect(reason)}")
-        error
-
-      other ->
-        Logger.debug("Unexpected peer connection result: #{inspect(other)}")
-        {:error, :connection_failed}
-    end
-  end
-
-  # Read the query characteristic (sentantAll) from a peer node
-  defp read_peer_sentants(address) do
-    query_uuid = "00002a57-0000-1000-8000-00805f9b34fb"
-
-    case AiReality2Transnet.Action.gatt_read_characteristic(address, query_uuid) do
-      {:ok, data} when is_list(data) ->
-        # Convert list of bytes to string
-        binary_data = :binary.list_to_bin(data)
-        {:ok, binary_data}
-
-      {:ok, data} when is_binary(data) ->
-        {:ok, data}
-
-      {:error, reason} = error ->
-        Logger.debug("Failed to read peer sentants: #{inspect(reason)}")
-        error
-
-      other ->
-        Logger.debug("Unexpected read result: #{inspect(other)}")
-        {:error, :read_failed}
-    end
-  end
+  # NOTE: These functions are deprecated. BLE is now for discovery only.
+  # For Sentant queries, use WiFi Mesh HTTP via WifiServer module.
+  #
+  # Old flow (removed):
+  #   BLE Beacon → GATT Connect → Read Sentants (512 byte limit!)
+  #
+  # New flow (current):
+  #   BLE Beacon → Register with PeerManager → Upgrade to WiFi Mesh → HTTP Query
+  #
+  # To query remote sentants:
+  #   {:ok, peer} = AiReality2Transnet.PeerManager.get_peer(node_id)
+  #   {:ok, sentants} = AiReality2Transnet.WifiServer.query_peer_sentants(peer.ipv6_link_local)
 end

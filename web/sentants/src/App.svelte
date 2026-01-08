@@ -22,6 +22,14 @@
     } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
+    import type { Sentant, Location, GraphQLResponse, LoadState, LoadResult } from "./lib/types";
+    import {
+        DEFAULT_PORT,
+        DEFAULT_LOCATION,
+        MONITOR_INIT_DELAY_MS,
+        HEADER_HEIGHT_PX,
+        RESERVED_SENTANT_NAMES,
+    } from "./lib/constants";
     import SentantCard from "./lib/SentantCard.svelte";
     import SentantCards from "./lib/SentantCards.svelte";
     import Login from "./lib/Login.svelte";
@@ -33,29 +41,28 @@
 
     import { onMount, onDestroy } from "svelte";
 
-    let default_port = "4005";
+    let default_port = DEFAULT_PORT;
     let use_default_url = false;
-    let watchId: any;
+    let watchId: number | undefined;
+    let monitorTimeoutId: number | undefined;
 
     // Set up the sentant loading
-    var loadedData: any[] = [];
+    var loadedData: Sentant[] = [];
     $: sentantData = loadedData;
 
     // Set up the state
-    var set_state = "loading";
+    var set_state: LoadState = "loading";
     $: state = set_state;
 
     // Set up the geolocation
-    var default_location = {
-        longitude: 177.36667,
-        latitude: -39.03333,
-        altitude: 0,
-    };
-    var set_location = default_location;
+    var set_location: Location = DEFAULT_LOCATION;
     $: location = set_location;
 
     // Saved state for constructor
-    let savedState = {};
+    let savedState: Record<string, unknown> = {};
+
+    // Error state
+    let errorMessage: string = "";
 
     // -------------------------------------------------------------------------------------------------
     // Query Strings
@@ -73,15 +80,15 @@
     // Window width
     // -------------------------------------------------------------------------------------------------
     let windowWidth: number = 0;
-    let fullHeight: String = "400px";
-    let variables_loader: any;
+    let fullHeight: string = "400px";
+    let variables_loader: HTMLInputElement;
     $: variables = variables_query
         ? JSON.parse(decodeURIComponent(variables_query))
         : {};
 
     const setDimensions = () => {
         windowWidth = window.innerWidth;
-        fullHeight = `${window.innerHeight - 64}px`;
+        fullHeight = `${window.innerHeight - HEADER_HEIGHT_PX}px`;
     };
     // -------------------------------------------------------------------------------------------------
 
@@ -99,8 +106,8 @@
     // -------------------------------------------------------------------------------------------------
     onMount(() => {
         // Set the state depending on the query string
-        if (id_query != null) set_state == "id";
-        else if (name_query != null) set_state == "name";
+        if (id_query != null) set_state = "id";
+        else if (name_query != null) set_state = "name";
         else {
             set_state = "start";
             view_query = "";
@@ -110,18 +117,20 @@
         variables_loader = document.createElement("input");
         variables_loader.type = "file";
 
-        variables_loader.onchange = (e: any) => {
+        variables_loader.onchange = (e: Event) => {
             // getting a hold of the file reference
-            var file = e.target.files[0];
+            const target = e.target as HTMLInputElement;
+            if (!target.files || target.files.length === 0) return;
+            const file = target.files[0];
 
             // setting up the reader
-            var reader = new FileReader();
+            const reader = new FileReader();
             reader.readAsText(file, "UTF-8");
 
             // here we tell the reader what to do when it's done reading...
-            reader.onload = (readerEvent: any) => {
-                if (readerEvent !== null) {
-                    variables = JSON.parse(readerEvent["target"]["result"]);
+            reader.onload = (readerEvent: ProgressEvent<FileReader>) => {
+                if (readerEvent.target?.result && typeof readerEvent.target.result === "string") {
+                    variables = JSON.parse(readerEvent.target.result);
                 }
             };
         };
@@ -159,6 +168,7 @@
     // -------------------------------------------------------------------------------------------------
     onDestroy(() => {
         if (watchId) navigator.geolocation.clearWatch(watchId);
+        if (monitorTimeoutId) clearTimeout(monitorTimeoutId);
     });
     // -------------------------------------------------------------------------------------------------
 
@@ -176,9 +186,9 @@
     // -------------------------------------------------------------------------------------------------
     // Set up the monitoring of the Reality2 Node
     if (id_query == null && name_query == null) {
-        setTimeout(() => {
+        monitorTimeoutId = setTimeout(() => {
             // Set up monitoring callback
-            r2_node.monitor((data: any) => {
+            r2_node.monitor((data: GraphQLResponse) => {
                 updateSentants(data);
             });
 
@@ -187,17 +197,14 @@
                 set_state = result.state;
                 loadedData = result.data;
             });
-        }, 100);
+        }, MONITOR_INIT_DELAY_MS);
     }
     // -------------------------------------------------------------------------------------------------
 
     // -------------------------------------------------------------------------------------------------
     // Load the Sentant(s) the first time.
     // -------------------------------------------------------------------------------------------------
-    function loadSentants(): Promise<{
-        state: string;
-        data: [any] | any | [];
-    }> {
+    function loadSentants(): Promise<LoadResult> {
         return new Promise((resolve, reject) => {
             if (id_query != null) {
                 set_state = "loading";
@@ -215,7 +222,9 @@
                             resolve({ state: "id", data: [result] });
                         }
                     })
-                    .catch((_error) => {
+                    .catch((error: Error) => {
+                        console.error("Error loading sentant by ID:", error);
+                        errorMessage = `Failed to load sentant: ${error.message}`;
                         resolve({ state: "error", data: [] });
                     });
             } else if (name_query != null) {
@@ -234,7 +243,9 @@
                             resolve({ state: "name", data: [result] });
                         }
                     })
-                    .catch((_error) => {
+                    .catch((error: Error) => {
+                        console.error("Error loading sentant by name:", error);
+                        errorMessage = `Failed to load sentant: ${error.message}`;
                         resolve({ state: "error", data: [] });
                     });
             } else if (
@@ -277,7 +288,9 @@
                             });
                         }
                     })
-                    .catch((_error) => {
+                    .catch((error: Error) => {
+                        console.error("Error loading all sentants:", error);
+                        errorMessage = `Failed to load sentants: ${error.message}`;
                         resolve({ state: "error", data: [] });
                     });
             }
@@ -288,11 +301,11 @@
     // -------------------------------------------------------------------------------------------------
     // Update the list of sentants when something changes (can either be create or delete)
     // -------------------------------------------------------------------------------------------------
-    function updateSentants(updates: any) {
+    function updateSentants(updates: GraphQLResponse): void {
         if (name_query == null && id_query == null) {
             var sentant_id = R2.JSONPath(updates, "parameters.id");
             var sentant_name = R2.JSONPath(updates, "parameters.name");
-            if (sentant_id !== null && sentant_name !== "view") {
+            if (sentant_id !== null && sentant_name !== RESERVED_SENTANT_NAMES.VIEW) {
                 switch (R2.JSONPath(updates, "parameters.activity")) {
                     case "created":
                         r2_node
@@ -312,7 +325,7 @@
                         // Go through the loaded data, find the deleted sentant and remove it.
                         loadedData = sentantData.map((data) => {
                             if (sentant_id == R2.JSONPath(data, "id")) {
-                                data.name = ".deleted";
+                                data.name = RESERVED_SENTANT_NAMES.DELETED;
                             }
                             return data;
                         });
@@ -328,7 +341,7 @@
     // -------------------------------------------------------------------------------------------------
     // Functions used in the Layout
     // -------------------------------------------------------------------------------------------------
-    function change_state(e: any) {
+    function change_state(e: CustomEvent<{ value: string }>): void {
         let newstate = e.detail.value;
         if (newstate == "view" || newstate == "map") {
             loadSentants().then((result) => {
@@ -345,11 +358,11 @@
     }
 
     // return true if there are no Sentants, or only the one called "monitor"
-    function none_or_monitor_only(sentants: any[] | []): boolean {
+    function none_or_monitor_only(sentants: Sentant[]): boolean {
         let response = true;
 
         for (let i = 0; i < sentants.length; i++) {
-            if (R2.JSONPath(sentants[i], "name") !== "monitor") {
+            if (R2.JSONPath(sentants[i], "name") !== RESERVED_SENTANT_NAMES.MONITOR) {
                 response = false;
                 break;
             }
@@ -380,7 +393,7 @@
     }
 
     // Get the keys pressed (so we can process them to determine the path)
-    function on_key_down(event: any) {
+    function on_key_down(event: KeyboardEvent): void {
         let new_location = "";
         if (event.key === "Enter" && event.target.id === "path") {
             let elements = path.split("|");
@@ -489,6 +502,13 @@ Layout
                 </Dropdown>
             </Menu>
         </Menu>
+        {#if errorMessage}
+            <Message ui error onClose={() => (errorMessage = "")}>
+                <Icon close />
+                <Header>Error</Header>
+                <p>{errorMessage}</p>
+            </Message>
+        {/if}
         <Segment
             ui
             bottom
@@ -596,6 +616,13 @@ Layout
                 <!--------------------------------------------------------------------------------------------->
             {:else if state == "mr"}
                 <!--------------------------------------------------------------------------------------------->
+                <!-- TODO: Implement Mixed Reality View
+                     - Add WebXR integration using @threlte/xr
+                     - Display sentants in 3D space
+                     - Enable AR/VR modes
+                     - Add hand tracking and controllers
+                     - Implement spatial audio
+                -->
                 <Message
                     ui
                     centered
@@ -603,7 +630,11 @@ Layout
                     massive
                     style="position: fixed; top: 100; left: 0; right: 0; z-index: 1000;"
                 >
-                    <Content ui>Coming soon ...</Content>
+                    <Header>Mixed Reality View - In Development</Header>
+                    <Content ui>
+                        <p>3D/AR/VR visualization of sentants will be available in a future release.</p>
+                        <p>This feature will use @threlte/xr for WebXR integration.</p>
+                    </Content>
                 </Message>
                 <!--------------------------------------------------------------------------------------------->
             {/if}

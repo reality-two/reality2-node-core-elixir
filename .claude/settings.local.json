@@ -2,7 +2,28 @@
   "permissions": {
     "allow": [
       "Bash(./run)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(mix compile:*)",
+      "Bash(mix clean:*)",
+      "Bash(wc:*)",
+      "WebSearch",
+      "Bash(cargo build:*)",
+      "Bash(ls:*)",
+      "Bash(mix deps.compile:*)",
+      "Bash(elixir -e:*)",
+      "Bash(iw dev:*)",
+      "Bash(pkill:*)",
+      "Bash(pgrep:*)",
+      "Bash(kill:*)",
+      "Bash(mix deps.get:*)",
+      "Bash(find:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 60 mix compile:*)",
+      "Bash(echo:*)",
+      "Bash(mix cmd:*)",
+      "Bash(timeout 10 iex:*)",
+      "Bash(test:*)"
     ]
   }
 }

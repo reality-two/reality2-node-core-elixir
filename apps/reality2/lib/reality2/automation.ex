@@ -10,6 +10,7 @@ defmodule Reality2.Automation do
 
   @doc false
   use GenServer, restart: :transient
+  require Logger
   alias Reality2.Helpers.R2Map, as: R2Map
   alias Reality2.Helpers.JsonPath, as: JsonPath
   alias Reality2.Helpers.R2Process, as: R2Process
@@ -114,7 +115,8 @@ defmodule Reality2.Automation do
         {:send, name_or_id, %{event: event} = details},
         {name, id, sentant_name, automation_map, keys, state}
       ) do
-    Reality2.Sentants.sendto(name_or_id, details)
+    # Use PNS router for location-transparent routing
+    send_via_pns(name_or_id, details)
     R2Process.deregister(id <> "|timers|" <> event)
     {:noreply, {name, id, sentant_name, automation_map, keys, state}}
   end
@@ -510,7 +512,8 @@ defmodule Reality2.Automation do
       # Send the event either immediately or after a delay.
       case R2Map.get(combined_parameters, :delay) do
         nil ->
-          Reality2.Sentants.sendto(name_or_id, %{
+          # Use PNS router for location-transparent routing (local or remote)
+          send_via_pns(name_or_id, %{
             event: event,
             parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(),
             passthrough: passthrough
@@ -535,6 +538,39 @@ defmodule Reality2.Automation do
 
     # No side effects, so just return the parameters sent in
     accumulated_parameters |> Map.merge(%{result: :ok})
+  end
+
+  # Helper function to send via PNS router with fallback to direct send
+  defp send_via_pns(name_or_id, message_map) do
+    # Try to use PNS router if available
+    if Code.ensure_loaded?(AiReality2Pns.Router) do
+      sentant_id = case name_or_id do
+        %{id: id} -> id
+        %{name: name} -> Reality2.Metadata.get(:SentantIDs, name) || name
+        id when is_binary(id) -> id
+      end
+
+      # Suppress compile-time warning - PNS is an optional plugin
+      router_module = AiReality2Pns.Router
+      case apply(router_module, :send_to_sentant, [
+        sentant_id,
+        message_map.event,
+        message_map.parameters,
+        message_map.passthrough
+      ]) do
+        {:ok, :local, _result} -> :ok
+        {:ok, {:remote, _node_id}, _result} -> :ok
+        {:error, :not_found, _} ->
+          # Fallback to direct send
+          Reality2.Sentants.sendto(name_or_id, message_map)
+        {:error, reason} ->
+          Logger.warning("PNS routing failed: #{inspect(reason)}, falling back to direct send")
+          Reality2.Sentants.sendto(name_or_id, message_map)
+      end
+    else
+      # PNS not available, use direct send
+      Reality2.Sentants.sendto(name_or_id, message_map)
+    end
   end
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------

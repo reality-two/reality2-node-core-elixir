@@ -119,7 +119,16 @@ defmodule Reality2.Plugin do
             {:reply, {:error, :url}, {name, id, plugin_map, state}}
 
           base_url ->
-            url = base_url <> if query_string != "", do: "?" <> query_string, else: ""
+            url =
+              (base_url <>
+                 if(query_string != "",
+                   do: "?" <> query_string,
+                   else: ""
+                 ))
+              |> replace_variable_in_map(parameters)
+              |> URI.encode()
+
+            IO.puts(url)
 
             case Finch.build(method, url, headers, body) |> Finch.request(Reality2.HTTPClient) do
               {:error, reason} ->

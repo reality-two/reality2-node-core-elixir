@@ -11,22 +11,29 @@
     import { onMount } from "svelte";
     import { onDestroy } from "svelte";
 
-    // @ts-ignore
+    // @ts-ignore - Leaflet doesn't have proper TypeScript support for all methods
     import * as L from "leaflet";
     import "leaflet/dist/leaflet.css";
 
-    import type { Sentant } from "./reality2.js";
-
+    import type { Sentant, Location, SignalData } from "./types";
+    import {
+        DEFAULT_MAP_HEIGHT_PX,
+        MAP_ZOOM_LEVEL_DEFAULT,
+        MAP_ZOOM_LEVEL_WITH_LOCATION,
+        MAPBOX_TILE_SIZE,
+        MAPBOX_ZOOM_OFFSET,
+        HEADER_HEIGHT_PX,
+    } from "./constants";
     import R2 from "./reality2";
 
     export let r2_node: R2;
-    export let sentantData: any[] | any = [];
-    export let location: any = {};
+    export let sentantData: Sentant[] = [];
+    export let location: Location = { latitude: 0, longitude: 0 };
 
-    let map: any;
-    let mapHeight = "400px";
+    let map: L.Map;
+    let mapHeight = `${DEFAULT_MAP_HEIGHT_PX}px`;
 
-    let markers: {} | any = {};
+    let markers: Record<string, L.Marker> = {};
 
     onMount(() => {
         console.log(location);
@@ -35,15 +42,20 @@
                 location.latitude == undefined ? 0 : location.latitude,
                 location.longitude == undefined ? 0 : location.longitude,
             ],
-            location.latitude == undefined ? 5 : 13,
+            location.latitude == undefined ? MAP_ZOOM_LEVEL_DEFAULT : MAP_ZOOM_LEVEL_WITH_LOCATION,
         );
 
+        // Use Mapbox tile layer with access token from environment
+        const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+
         L.tileLayer(
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png?access_token={token}",
+            "https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token={accessToken}",
             {
                 attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                token: "pk.eyJ1Ijoicm95LWMtZGF2aWVzIiwiYSI6ImNtYmJjM216cjB5MjMyanBvYW50YnJuYmkifQ.4ZIRqPo0xg1h0i68wfNcBw",
+                    '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                accessToken: mapboxToken,
+                tileSize: MAPBOX_TILE_SIZE,
+                zoomOffset: MAPBOX_ZOOM_OFFSET,
             },
         ).addTo(map);
 
@@ -66,7 +78,7 @@
                 }
             }
 
-            r2_node.awaitSignal(sentant.id, "get", (data: any) => {
+            r2_node.awaitSignal(sentant.id, "get", (data: SignalData) => {
                 if (R2.JSONPath(data, "status") == "connected") {
                     r2_node.sentantSend(sentant.id, "get_position", {});
                 } else {
@@ -83,27 +95,49 @@
                     }
 
                     markers[sentant.name].on("click", () => {
-                        const popupContent = document.createElement("div");
-                        popupContent.innerHTML = `
-                            <div class="card ui" style="width: 250px; padding: 0px;">
-                                <div class="image">
-                                    <img src="/images/bee_blue.png">
-                                </div>
-                                <div class="content" style="text-align: center;">
-                                    <div class="header">${sentant.name}</div>
-                                    <p><Text ui tiny blue>${sentant.id}</Text></p>
-                                    <p>${sentant.description}</p>
-                                </div>
-                            </div>
-                        `;
+                        // Create popup content safely using DOM APIs to prevent XSS
+                        const card = document.createElement("div");
+                        card.className = "card ui";
+                        card.style.width = "250px";
+                        card.style.padding = "0px";
+
+                        const imageDiv = document.createElement("div");
+                        imageDiv.className = "image";
+                        const img = document.createElement("img");
+                        img.src = "/images/bee_blue.png";
+                        imageDiv.appendChild(img);
+
+                        const contentDiv = document.createElement("div");
+                        contentDiv.className = "content";
+                        contentDiv.style.textAlign = "center";
+
+                        const header = document.createElement("div");
+                        header.className = "header";
+                        header.textContent = sentant.name;
+
+                        const idPara = document.createElement("p");
+                        const idText = document.createElement("span");
+                        idText.className = "ui tiny blue text";
+                        idText.textContent = sentant.id;
+                        idPara.appendChild(idText);
+
+                        const descPara = document.createElement("p");
+                        descPara.textContent = sentant.description;
+
+                        contentDiv.appendChild(header);
+                        contentDiv.appendChild(idPara);
+                        contentDiv.appendChild(descPara);
+
+                        card.appendChild(imageDiv);
+                        card.appendChild(contentDiv);
 
                         const popup = L.popup({ offset: [30, 20] })
                             .setLatLng(markers[sentant.name].getLatLng())
-                            .setContent(popupContent)
+                            .setContent(card)
                             .openOn(map);
                     });
 
-                    markers[sentant.name].on("dragend", function (event: any) {
+                    markers[sentant.name].on("dragend", function (event: L.DragEndEvent) {
                         var marker = event.target;
                         var position = marker.getLatLng();
                         marker.setLatLng(
@@ -145,7 +179,7 @@
     }
 
     function updateMapHeight() {
-        mapHeight = `${window.innerHeight - 64}px`;
+        mapHeight = `${window.innerHeight - HEADER_HEIGHT_PX}px`;
         if (map) {
             map.invalidateSize();
         }

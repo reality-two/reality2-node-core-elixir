@@ -36,8 +36,6 @@ Construct Swarms and Bees / Sentants
         update,
     } from "svelte-fomantic-ui";
 
-    //@ts-ignore
-
     // Import Blockly core.
     import * as Blockly from "blockly";
     // Import the default blocks.
@@ -47,10 +45,10 @@ Construct Swarms and Bees / Sentants
     // Import a message file.
     import * as En from "blockly/msg/en";
 
-    //@ts-ignore
+    // @ts-ignore - @blockly/theme-dark@7.0.5 doesn't provide TypeScript type definitions
     import Theme from "@blockly/theme-dark";
 
-    //@ts-ignore
+    // @ts-ignore - js-yaml@4.1.0 doesn't provide comprehensive TypeScript exports
     import yaml from "js-yaml";
 
     import { Backpack } from "@blockly/workspace-backpack";
@@ -60,69 +58,8 @@ Construct Swarms and Bees / Sentants
 
     import R2 from "./reality2";
 
-    import reality2_swarm from "./blockly/reality2_swarm";
-    import reality2_sentant from "./blockly/reality2_sentant";
-    import reality2_key_value from "./blockly/reality2_key_value";
-    import reality2_data from "./blockly/reality2_data";
-    import reality2_encrypt_decrypt_keys from "./blockly/reality2_encrypt_decrypt_keys";
-    import reality2_get_plugin from "./blockly/reality2_get_plugin";
-    import reality2_post_plugin from "./blockly/reality2_post_plugin";
-    import reality2_plugin_header from "./blockly/reality2_plugin_header";
-    import reality2_plugin_body from "./blockly/reality2_plugin_body";
-    import reality2_plugin_body_string from "./blockly/reality2_plugin_body_string";
-    import reality2_plugin_parameter from "./blockly/reality2_plugin_parameter";
-    import reality2_automation from "./blockly/reality2_automation";
-    import reality2_parameter from "./blockly/reality2_parameter";
-    import reality2_transition from "./blockly/reality2_transition";
-    import reality2_transition_no_params from "./blockly/reality2_transition_no_params";
-    import reality2_start_transition from "./blockly/reality2_start_transition";
-    import reality2_start_transition_no_params from "./blockly/reality2_start_transition_no_params";
-    import reality2_simple_transition from "./blockly/reality2_simple_transition";
-    import reality2_simple_transition_no_params from "./blockly/reality2_simple_transition_no_params";
-    import reality2_start_transition_simple from "./blockly/reality2_start_transition_simple";
-    import reality2_monitor from "./blockly/reality2_monitor";
-    import reality2_action_set from "./blockly/reality2_action_set";
-    import reality2_action_set_clear from "./blockly/reality2_action_set_clear";
-    import reality2_action_set_jsonpath from "./blockly/reality2_action_set_jsonpath";
-    import reality2_action_set_data from "./blockly/reality2_action_set_data";
-    import reality2_action_set_calculation from "./blockly/reality2_action_set_calculation";
-    import reality2_action_set_calc_binary from "./blockly/reality2_action_set_calc_binary";
-    import reality2_action_set_calc_unary from "./blockly/reality2_action_set_calc_unary";
-    import reality2_action_set_value from "./blockly/reality2_action_set_value";
-    import reality2_action_send from "./blockly/reality2_action_send";
-    import reality2_action_send_no_params from "./blockly/reality2_action_send_no_params";
-    import reality2_action_send_now from "./blockly/reality2_action_send_now";
-    import reality2_action_send_now_no_params from "./blockly/reality2_action_send_now_no_params";
-    import reality2_action_send_plugin from "./blockly/reality2_action_send_plugin";
-    import reality2_action_send_plugin_no_params from "./blockly/reality2_action_send_plugin_no_params";
-    import reality2_action_send_plugin_no_params_no_event from "./blockly/reality2_action_send_plugin_no_params_no_event";
-    import reality2_action_debug from "./blockly/reality2_action_debug";
-    import reality2_action_test from "./blockly/reality2_action_test";
-    import reality2_action_test_no_params from "./blockly/reality2_action_test_no_params";
-    import reality2_action_test_simple from "./blockly/reality2_action_test_simple";
-    import reality2_action_signal from "./blockly/reality2_action_signal";
-    import reality2_action_signal_no_params from "./blockly/reality2_action_signal_no_params";
-    import reality2_action_parameter from "./blockly/reality2_action_parameter";
-
-    import ai_reality2_vars_set from "./blockly/ai_reality2_vars_set";
-    import ai_reality2_vars_set_no_value from "./blockly/ai_reality2_vars_set_no_value";
-    import ai_reality2_vars_get from "./blockly/ai_reality2_vars_get";
-    import ai_reality2_vars_all from "./blockly/ai_reality2_vars_all";
-    import ai_reality2_vars_delete from "./blockly/ai_reality2_vars_delete";
-    import ai_reality2_vars_clear from "./blockly/ai_reality2_vars_clear";
-
-    import ai_reality2_geospatial_set from "./blockly/ai_reality2_geospatial_set";
-    import ai_reality2_geospatial_set_simple from "./blockly/ai_reality2_geospatial_set_simple";
-    import ai_reality2_geospatial_set_geohash from "./blockly/ai_reality2_geospatial_set_geohash";
-    import ai_reality2_geospatial_set_radius from "./blockly/ai_reality2_geospatial_set_radius";
-    import ai_reality2_geospatial_get from "./blockly/ai_reality2_geospatial_get";
-    import ai_reality2_geospatial_search from "./blockly/ai_reality2_geospatial_search";
-    import ai_reality2_geospatial_remove from "./blockly/ai_reality2_geospatial_remove";
-
-    import ai_reality2_backup_save from "./blockly/ai_reality2_backup_save";
-    import ai_reality2_backup_load from "./blockly/ai_reality2_backup_load";
-    import ai_reality2_backup_delete from "./blockly/ai_reality2_backup_delete";
-
+    // Import all custom Blockly blocks from the registry
+    import { getAllBlocklyModules, blocklyModules } from "./blockly/blocklyRegistry";
     import { splitConcatenatedJSON } from "./blockly/blockly_common";
 
     import toolbox from "./blockly/reality2_blockly_toolbox.json";
@@ -132,7 +69,11 @@ Construct Swarms and Bees / Sentants
     // Exported parameters
     // ------------------------------------------------------------------------------------------------
     export let r2_node: R2;
+
+    // svelte-ignore unused_export_let
+    // Reserved for future use - will be used to populate sentant selection dropdown
     export let sentantData: any[] | any = [];
+
     export let variables: any = {};
     export let savedState: any;
     export let location: any = { longitude: 0, latitude: 0 };
@@ -159,77 +100,15 @@ Construct Swarms and Bees / Sentants
         codeOnPage: {},
     };
 
-    let blockly_definition = [
-        reality2_swarm.shape,
-        reality2_sentant.shape,
-        reality2_key_value.shape,
-        reality2_data.shape,
-        reality2_encrypt_decrypt_keys.shape,
-        reality2_get_plugin.shape,
-        reality2_post_plugin.shape,
-        reality2_plugin_header.shape,
-        reality2_plugin_body.shape,
-        reality2_plugin_body_string.shape,
-        reality2_plugin_parameter.shape,
-        reality2_automation.shape,
-        reality2_parameter.shape,
-        reality2_transition.shape,
-        reality2_transition_no_params.shape,
-        reality2_start_transition.shape,
-        reality2_start_transition_no_params.shape,
-        reality2_start_transition_simple.shape,
-        reality2_simple_transition.shape,
-        reality2_simple_transition_no_params.shape,
-        reality2_monitor.shape,
-        reality2_action_set.shape,
-        reality2_action_set_clear.shape,
-        reality2_action_set_jsonpath.shape,
-        reality2_action_set_data.shape,
-        reality2_action_set_calculation.shape,
-        reality2_action_set_calc_binary.shape,
-        reality2_action_set_calc_unary.shape,
-        reality2_action_set_value.shape,
-        reality2_action_send.shape,
-        reality2_action_send_no_params.shape,
-        reality2_action_send_now.shape,
-        reality2_action_send_now_no_params.shape,
-        reality2_action_send_plugin.shape,
-        reality2_action_send_plugin_no_params.shape,
-        reality2_action_send_plugin_no_params_no_event.shape,
-        reality2_action_debug.shape,
-        reality2_action_test.shape,
-        reality2_action_test_no_params.shape,
-        reality2_action_test_simple.shape,
-        reality2_action_signal.shape,
-        reality2_action_signal_no_params.shape,
-        reality2_action_parameter.shape,
-
-        ai_reality2_vars_set.shape,
-        ai_reality2_vars_set_no_value.shape,
-        ai_reality2_vars_get.shape,
-        ai_reality2_vars_all.shape,
-        ai_reality2_vars_delete.shape,
-        ai_reality2_vars_clear.shape,
-
-        ai_reality2_geospatial_set.shape,
-        ai_reality2_geospatial_set_simple.shape,
-        ai_reality2_geospatial_set_geohash.shape,
-        ai_reality2_geospatial_set_radius.shape,
-        ai_reality2_geospatial_get.shape,
-        ai_reality2_geospatial_search.shape,
-        ai_reality2_geospatial_remove.shape,
-
-        ai_reality2_backup_save.shape,
-        ai_reality2_backup_load.shape,
-        ai_reality2_backup_delete.shape,
-    ];
+    // Get all block definitions from the registry
+    let blockly_definition = getAllBlocklyModules().map(module => module.shape);
 
     let blockly_construct = {
-        sentant: reality2_sentant.construct,
-        swarm: reality2_swarm.construct,
-        get_plugin: reality2_get_plugin.construct,
-        post_plugin: reality2_post_plugin.construct,
-        automation: reality2_automation.construct,
+        sentant: blocklyModules.core.reality2_sentant.construct,
+        swarm: blocklyModules.core.reality2_swarm.construct,
+        get_plugin: blocklyModules.core.reality2_get_plugin.construct,
+        post_plugin: blocklyModules.core.reality2_post_plugin.construct,
+        automation: blocklyModules.automation.reality2_automation.construct,
     };
     // ------------------------------------------------------------------------------------------------
 
@@ -372,127 +251,12 @@ Construct Swarms and Bees / Sentants
             Blockly.svgResize(workspace);
         }, 0);
 
-        // Set up the blocks
-        javascriptGenerator.forBlock["reality2_swarm"] = reality2_swarm.process;
-        javascriptGenerator.forBlock["reality2_sentant"] =
-            reality2_sentant.process;
-        javascriptGenerator.forBlock["reality2_encrypt_decrypt_keys"] =
-            reality2_encrypt_decrypt_keys.process;
-        javascriptGenerator.forBlock["reality2_get_plugin"] =
-            reality2_get_plugin.process;
-        javascriptGenerator.forBlock["reality2_post_plugin"] =
-            reality2_post_plugin.process;
-        javascriptGenerator.forBlock["reality2_plugin_header"] =
-            reality2_plugin_header.process;
-        javascriptGenerator.forBlock["reality2_plugin_body"] =
-            reality2_plugin_body.process;
-        javascriptGenerator.forBlock["reality2_plugin_body_string"] =
-            reality2_plugin_body_string.process;
-        javascriptGenerator.forBlock["reality2_plugin_parameter"] =
-            reality2_plugin_parameter.process;
-        javascriptGenerator.forBlock["reality2_key_value"] =
-            reality2_key_value.process;
-        javascriptGenerator.forBlock["reality2_data"] = reality2_data.process;
-        javascriptGenerator.forBlock["reality2_automation"] =
-            reality2_automation.process;
-        javascriptGenerator.forBlock["reality2_parameter"] =
-            reality2_parameter.process;
-        javascriptGenerator.forBlock["reality2_transition"] =
-            reality2_transition.process;
-        javascriptGenerator.forBlock["reality2_transition_no_params"] =
-            reality2_transition_no_params.process;
-        javascriptGenerator.forBlock["reality2_start_transition"] =
-            reality2_start_transition.process;
-        javascriptGenerator.forBlock["reality2_start_transition_no_params"] =
-            reality2_start_transition_no_params.process;
-        javascriptGenerator.forBlock["reality2_start_transition_simple"] =
-            reality2_start_transition_simple.process;
-        javascriptGenerator.forBlock["reality2_simple_transition"] =
-            reality2_simple_transition.process;
-        javascriptGenerator.forBlock["reality2_simple_transition_no_params"] =
-            reality2_simple_transition_no_params.process;
-        javascriptGenerator.forBlock["reality2_monitor"] =
-            reality2_monitor.process;
-        javascriptGenerator.forBlock["reality2_action_set"] =
-            reality2_action_set.process;
-        javascriptGenerator.forBlock["reality2_action_set_clear"] =
-            reality2_action_set_clear.process;
-        javascriptGenerator.forBlock["reality2_action_set_jsonpath"] =
-            reality2_action_set_jsonpath.process;
-        javascriptGenerator.forBlock["reality2_action_set_data"] =
-            reality2_action_set_data.process;
-        javascriptGenerator.forBlock["reality2_action_set_calculation"] =
-            reality2_action_set_calculation.process;
-        javascriptGenerator.forBlock["reality2_action_set_calc_binary"] =
-            reality2_action_set_calc_binary.process;
-        javascriptGenerator.forBlock["reality2_action_set_calc_unary"] =
-            reality2_action_set_calc_unary.process;
-        javascriptGenerator.forBlock["reality2_action_set_value"] =
-            reality2_action_set_value.process;
-        javascriptGenerator.forBlock["reality2_action_send"] =
-            reality2_action_send.process;
-        javascriptGenerator.forBlock["reality2_action_send_no_params"] =
-            reality2_action_send_no_params.process;
-        javascriptGenerator.forBlock["reality2_action_send_now"] =
-            reality2_action_send_now.process;
-        javascriptGenerator.forBlock["reality2_action_send_now_no_params"] =
-            reality2_action_send_now_no_params.process;
-        javascriptGenerator.forBlock["reality2_action_send_plugin"] =
-            reality2_action_send_plugin.process;
-        javascriptGenerator.forBlock["reality2_action_send_plugin_no_params"] =
-            reality2_action_send_plugin_no_params.process;
-        javascriptGenerator.forBlock[
-            "reality2_action_send_plugin_no_params_no_event"
-        ] = reality2_action_send_plugin_no_params_no_event.process;
-        javascriptGenerator.forBlock["reality2_action_debug"] =
-            reality2_action_debug.process;
-        javascriptGenerator.forBlock["reality2_action_test"] =
-            reality2_action_test.process;
-        javascriptGenerator.forBlock["reality2_action_test_no_params"] =
-            reality2_action_test_no_params.process;
-        javascriptGenerator.forBlock["reality2_action_test_simple"] =
-            reality2_action_test_simple.process;
-        javascriptGenerator.forBlock["reality2_action_signal"] =
-            reality2_action_signal.process;
-        javascriptGenerator.forBlock["reality2_action_signal_no_params"] =
-            reality2_action_signal_no_params.process;
-        javascriptGenerator.forBlock["reality2_action_parameter"] =
-            reality2_action_parameter.process;
-
-        javascriptGenerator.forBlock["ai_reality2_vars_set"] =
-            ai_reality2_vars_set.process;
-        javascriptGenerator.forBlock["ai_reality2_vars_set_no_value"] =
-            ai_reality2_vars_set_no_value.process;
-        javascriptGenerator.forBlock["ai_reality2_vars_get"] =
-            ai_reality2_vars_get.process;
-        javascriptGenerator.forBlock["ai_reality2_vars_all"] =
-            ai_reality2_vars_all.process;
-        javascriptGenerator.forBlock["ai_reality2_vars_delete"] =
-            ai_reality2_vars_delete.process;
-        javascriptGenerator.forBlock["ai_reality2_vars_clear"] =
-            ai_reality2_vars_clear.process;
-
-        javascriptGenerator.forBlock["ai_reality2_geospatial_set"] =
-            ai_reality2_geospatial_set.process;
-        javascriptGenerator.forBlock["ai_reality2_geospatial_set_simple"] =
-            ai_reality2_geospatial_set_simple.process;
-        javascriptGenerator.forBlock["ai_reality2_geospatial_set_geohash"] =
-            ai_reality2_geospatial_set_geohash.process;
-        javascriptGenerator.forBlock["ai_reality2_geospatial_set_radius"] =
-            ai_reality2_geospatial_set_radius.process;
-        javascriptGenerator.forBlock["ai_reality2_geospatial_get"] =
-            ai_reality2_geospatial_get.process;
-        javascriptGenerator.forBlock["ai_reality2_geospatial_search"] =
-            ai_reality2_geospatial_search.process;
-        javascriptGenerator.forBlock["ai_reality2_geospatial_remove"] =
-            ai_reality2_geospatial_remove.process;
-
-        javascriptGenerator.forBlock["ai_reality2_backup_save"] =
-            ai_reality2_backup_save.process;
-        javascriptGenerator.forBlock["ai_reality2_backup_load"] =
-            ai_reality2_backup_load.process;
-        javascriptGenerator.forBlock["ai_reality2_backup_delete"] =
-            ai_reality2_backup_delete.process;
+        // Register JavaScript generators for all blocks from the registry
+        getAllBlocklyModules().forEach(module => {
+            if (module.shape && module.shape.type && module.process) {
+                javascriptGenerator.forBlock[module.shape.type] = module.process;
+            }
+        });
 
         // (re)load the blocks and backpack from variables, for when the mode changes.
         setTimeout(() => {
@@ -603,8 +367,8 @@ Construct Swarms and Bees / Sentants
             // The 'g' flag ensures that all occurrences are replaced
             const regex = new RegExp(key, "g");
             // Replace all occurrences of the key with its corresponding value
-            //@ts-ignore
-            str = str.replace(regex, value);
+            // Convert value to string to satisfy TypeScript
+            str = str.replace(regex, String(value));
         }
         return str;
     }

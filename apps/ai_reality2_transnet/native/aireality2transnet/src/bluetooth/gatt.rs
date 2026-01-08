@@ -21,6 +21,7 @@ const R2_SERVICE_UUID: Uuid = Uuid::from_u128(0x0000180A_0000_1000_8000_00805F9B
 const CHAR_COMMAND_UUID: Uuid = Uuid::from_u128(0x00002A57_0000_1000_8000_00805F9B34FB);
 const CHAR_DATA_UUID: Uuid = Uuid::from_u128(0x00002A58_0000_1000_8000_00805F9B34FB);
 const CHAR_NOTIFY_UUID: Uuid = Uuid::from_u128(0x00002A59_0000_1000_8000_00805F9B34FB);
+const MESH_INFO_CHAR_UUID: Uuid = Uuid::from_u128(0x00001235_0000_1000_8000_00805F9B34FB);
 
 // -------------------------------------------------------------------------------------------
 // GATT Server Types
@@ -195,6 +196,7 @@ async fn run_gatt_server(
     let command_data = CharacteristicData::new(vec![]);
     let data_char_data = CharacteristicData::new(vec![]);
     let notify_data = CharacteristicData::new(vec![]);
+    let mesh_info_data = CharacteristicData::new(vec![]);
 
     // Build GATT service
     let (notify_tx, notify_notifier_rx) = mpsc::unbounded_channel();
@@ -205,10 +207,13 @@ async fn run_gatt_server(
 
     let command_data_clone = command_data.clone();
     let command_data_read = command_data.clone();
+    let command_data_write = command_data.clone();
     let data_char_data_clone = data_char_data.clone();
     let data_char_data_read = data_char_data.clone();
     let data_char_data_write = data_char_data.clone();
     let notify_data_clone = notify_data.clone();
+    let mesh_info_data_read = mesh_info_data.clone();
+    let mesh_info_data_write = mesh_info_data.clone();
     let pid_clone = pid.clone();
 
     let service = Service {
@@ -226,10 +231,12 @@ async fn run_gatt_server(
                             let data = command_data_clone.clone();
                             let pid = pid_clone.clone();
                             Box::pin(async move {
+                                println!("[GATT] COMMAND char write from client: {} bytes", new_value.len());
                                 data.write(new_value.clone());
                                 send_msg(&pid, |env| {
                                     (atoms::gatt_write(), "command", new_value.clone()).encode(env)
                                 });
+                                println!("[GATT] Notified Elixir about write");
                                 Ok(())
                             })
                         },
@@ -240,7 +247,11 @@ async fn run_gatt_server(
                     read: true,
                     fun: Box::new(move |_req_data| {
                         let data = command_data_read.clone();
-                        Box::pin(async move { Ok(data.read()) })
+                        Box::pin(async move {
+                            let value = data.read();
+                            println!("[GATT] COMMAND char read request - returning {} bytes", value.len());
+                            Ok(value)
+                        })
                     }),
                     ..Default::default()
                 }),
@@ -314,6 +325,23 @@ async fn run_gatt_server(
                 }),
                 ..Default::default()
             },
+            // Mesh Info characteristic (read-only)
+            Characteristic {
+                uuid: MESH_INFO_CHAR_UUID,
+                read: Some(CharacteristicRead {
+                    read: true,
+                    fun: Box::new(move |_req_data| {
+                        let data = mesh_info_data_read.clone();
+                        Box::pin(async move {
+                            let value = data.read();
+                            println!("[GATT] MESH_INFO char read request - returning {} bytes", value.len());
+                            Ok(value)
+                        })
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
         ],
         ..Default::default()
     };
@@ -329,10 +357,10 @@ async fn run_gatt_server(
         .map_err(|e| format!("serve_gatt_application_failed: {e}"))?;
 
     // Make adapter discoverable
-    adapter
-        .set_discoverable(true)
-        .await
-        .map_err(|e| format!("set_discoverable_failed: {e}"))?;
+    // adapter
+    //     .set_discoverable(true)
+    //     .await
+    //     .map_err(|e| format!("set_discoverable_failed: {e}"))?;
 
     let _ = ready_tx.send(Ok(()));
 
@@ -348,11 +376,18 @@ async fn run_gatt_server(
             Some((uuid, data)) = write_rx.recv() => {
                 // Handle programmatic writes to characteristics
                 // This allows Elixir to update characteristic values
-                if uuid == CHAR_DATA_UUID {
+                if uuid == CHAR_COMMAND_UUID {
+                    println!("[GATT] Received programmatic write to COMMAND char: {} bytes", data.len());
+                    command_data_write.write(data.clone());
+                    println!("[GATT] Buffer updated, new size: {} bytes", data.len());
+                } else if uuid == CHAR_DATA_UUID {
                     data_char_data_write.write(data);
                 } else if uuid == CHAR_NOTIFY_UUID {
                     notify_data.write(data.clone());
                     notify_data.notify(data);
+                } else if uuid == MESH_INFO_CHAR_UUID {
+                    println!("[GATT] Received programmatic write to MESH_INFO char: {} bytes", data.len());
+                    mesh_info_data_write.write(data);
                 }
             }
 

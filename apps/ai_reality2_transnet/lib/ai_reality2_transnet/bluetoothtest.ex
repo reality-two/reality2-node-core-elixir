@@ -186,11 +186,11 @@ defmodule AiReality2Transnet.BluetoothTest do
         {:error, :gatt_not_running}
 
       is_nil(state[:r2_beacon]) ->
-        Logger.warn("Beacon not running (may be expected)")
+        Logger.warning("Beacon not running (may be expected)")
         :ok
 
       is_nil(state[:r2_watch]) ->
-        Logger.warn("Node watch not running (may be expected)")
+        Logger.warning("Node watch not running (may be expected)")
         :ok
 
       true ->

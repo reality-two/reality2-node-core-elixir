@@ -275,4 +275,11 @@ defmodule AiReality2Transnet.Action do
   """
   def gatt_write_to_device(_pid, _address, _char_uuid, _data, _adapter_name),
     do: :erlang.nif_error(:nif_not_loaded)
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # WiFi Mesh (Reality2 Transient Networks)
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # NOTE: WiFi mesh functionality is now implemented in pure Elixir.
+  # See: AiReality2Transnet.Wifi module for WiFi operations.
+  # The Rust NIFs were causing signal handler conflicts with the Erlang VM when spawning processes.
 end

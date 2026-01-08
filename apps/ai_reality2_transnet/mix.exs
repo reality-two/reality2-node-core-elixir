@@ -36,7 +36,12 @@ defmodule AiReality2Transnet.MixProject do
   defp deps do
     [
       {:reality2, in_umbrella: true},
-      {:rustler, "~> 0.34.0"}
+      # Note: ai_reality2_pns is NOT a compile-time dependency
+      # PNS integration uses runtime checks (Code.ensure_loaded?)
+      # This prevents circular dependency (PNS depends on transnet)
+      {:rustler, "~> 0.34.0"},
+      {:plug_cowboy, "~> 2.0"},
+      {:httpoison, "~> 2.0"}
     ]
   end
 end

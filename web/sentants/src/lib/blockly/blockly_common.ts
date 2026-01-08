@@ -24,7 +24,7 @@ import ai_reality2_vars_set from "./ai_reality2_vars_set";
 import ai_reality2_vars_set_no_value from "./ai_reality2_vars_set_no_value";
 import ai_reality2_vars_get from "./ai_reality2_vars_get";
 import ai_reality2_vars_all from "./ai_reality2_vars_all";
-import ai_reality2_vars_delete from "./ai_reality2_vars_all";
+import ai_reality2_vars_delete from "./ai_reality2_vars_delete";
 import ai_reality2_vars_clear from "./ai_reality2_vars_clear";
 
 import ai_reality2_geospatial_set from "./ai_reality2_geospatial_set";

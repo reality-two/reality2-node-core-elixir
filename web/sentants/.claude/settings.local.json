@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(npm run build:*)",
+      "Bash(cd:*)",
+      "Bash(npm view:*)",
+      "Bash(yarn install:*)",
+      "Bash(yarn build)",
+      "Bash(tac:*)",
+      "Bash(python3:*)",
+      "Bash(npm run setup:libs:*)"
+    ]
+  }
+}
