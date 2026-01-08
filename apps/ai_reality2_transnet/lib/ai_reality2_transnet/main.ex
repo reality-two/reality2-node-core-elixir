@@ -86,7 +86,7 @@ defmodule AiReality2Transnet.Main do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Send the command and parametrs directly through from the Automation.
+  Send the command and parameters directly through from the Automation.
 
   - Parameters
     - `id` - The id of the Sentant for which the command is being sent (ignored here)
@@ -96,7 +96,18 @@ defmodule AiReality2Transnet.Main do
   def sendto(_sentant_id, command_and_parameters) do
     command = R2Map.get(command_and_parameters, :command)
     parameters = R2Map.get(command_and_parameters, :parameters)
-    GenServer.cast(AiReality2Transnet.Bluetooth, %{command: command, parameters: parameters})
+
+    # Route to appropriate server based on command prefix
+    case String.starts_with?(command, "wifi_") do
+      true ->
+        # Strip wifi_ prefix and send to WiFi server
+        wifi_command = String.replace_prefix(command, "wifi_", "")
+        GenServer.cast(AiReality2Transnet.WifiServer, %{command: wifi_command, parameters: parameters})
+
+      false ->
+        # Send to Bluetooth server (default for backwards compatibility)
+        GenServer.cast(AiReality2Transnet.Bluetooth, %{command: command, parameters: parameters})
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
