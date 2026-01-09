@@ -24,7 +24,13 @@
       "Bash(mix cmd:*)",
       "Bash(timeout 10 iex:*)",
       "Bash(test:*)",
-      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir log --oneline)"
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir log --oneline)",
+      "Bash(timeout 15 mix phx.server:*)",
+      "Bash(lsof:*)",
+      "Bash(openssl x509:*)",
+      "Bash(./generate_certificates:*)",
+      "Bash(timeout 10 mix phx.server:*)",
+      "Bash(timeout 15 bash -c 'mix phx.server 2>&1 &\nsleep 8\ncurl -sk https://localhost:4005/iotdemo | head -5\necho \"\"\"\"\ncurl -sk https://localhost:4005/transnet/info\nkill %1 2>/dev/null')"
     ]
   }
 }

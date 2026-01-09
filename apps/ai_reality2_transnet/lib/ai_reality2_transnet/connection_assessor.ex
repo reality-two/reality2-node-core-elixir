@@ -63,11 +63,16 @@ defmodule AiReality2Transnet.ConnectionAssessor do
   alias AiReality2Transnet.{PeerManager, ConnectionManager}
 
   # Configuration
-  @assessment_interval_ms 15_000      # Check every 15 seconds
-  @handover_score_margin 10           # New host must score +10 better
-  @min_dwell_time_ms 30_000           # Stay connected for at least 30s
-  @degraded_signal_threshold -75      # Current signal worse than this triggers handover
-  @rssi_averaging_window 5            # Average last 5 RSSI readings
+  # Check every 15 seconds
+  @assessment_interval_ms 15_000
+  # New host must score +10 better
+  @handover_score_margin 10
+  # Stay connected for at least 30s
+  @min_dwell_time_ms 30_000
+  # Current signal worse than this triggers handover
+  @degraded_signal_threshold -75
+  # Average last 5 RSSI readings
+  @rssi_averaging_window 5
 
   @type candidate :: %{
           peer_id: String.t(),
@@ -160,7 +165,10 @@ defmodule AiReality2Transnet.ConnectionAssessor do
       }
     }
 
-    Logger.info("[ConnectionAssessor] Started - assessment interval: #{@assessment_interval_ms}ms")
+    Logger.info(
+      "[ConnectionAssessor] Started - assessment interval: #{@assessment_interval_ms}ms"
+    )
+
     {:ok, state}
   end
 
@@ -194,10 +202,11 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
   @impl true
   def handle_call(:get_stats, _from, state) do
-    stats = Map.merge(state.stats, %{
-      candidate_count: map_size(state.candidates),
-      best_candidate_score: if(state.best_candidate, do: state.best_candidate.score, else: nil)
-    })
+    stats =
+      Map.merge(state.stats, %{
+        candidate_count: map_size(state.candidates),
+        best_candidate_score: if(state.best_candidate, do: state.best_candidate.score, else: nil)
+      })
 
     {:reply, stats, state}
   end
@@ -214,7 +223,9 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     # Only handover if new candidate is significantly better (prevents ping-pong)
     case evaluate_handover_decision(new_state) do
       {:yes, candidate, reason} ->
-        Logger.info("[ConnectionAssessor] Handover recommended: #{String.slice(candidate.peer_id, 0..7)} (#{reason})")
+        Logger.info(
+          "[ConnectionAssessor] Handover recommended: #{String.slice(candidate.peer_id, 0..7)} (#{reason})"
+        )
 
         # Trigger handover via ConnectionManager
         case candidate.join_offer do
@@ -233,8 +244,9 @@ defmodule AiReality2Transnet.ConnectionAssessor do
             end)
         end
 
-        final_state = %{new_state |
-          stats: Map.update!(new_state.stats, :handovers_recommended, &(&1 + 1))
+        final_state = %{
+          new_state
+          | stats: Map.update!(new_state.stats, :handovers_recommended, &(&1 + 1))
         }
 
         schedule_assessment()
@@ -260,7 +272,8 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
     # Score each peer
     {candidates, rssi_history} =
-      Enum.reduce(peers, {%{}, state.rssi_history}, fn {peer_id, peer}, {acc_candidates, acc_rssi} ->
+      Enum.reduce(peers, {%{}, state.rssi_history}, fn {peer_id, peer},
+                                                       {acc_candidates, acc_rssi} ->
         # Update RSSI history
         new_rssi_history = update_rssi_history(acc_rssi, peer_id, peer.rssi)
 
@@ -280,18 +293,22 @@ defmodule AiReality2Transnet.ConnectionAssessor do
       |> Map.values()
       |> Enum.max_by(fn c -> c.score end, fn -> nil end)
 
-    new_state = %{state |
-      candidates: candidates,
-      rssi_history: rssi_history,
-      best_candidate: best,
-      stats: %{state.stats |
-        assessments_performed: state.stats.assessments_performed + 1,
-        candidates_evaluated: map_size(candidates)
-      }
+    new_state = %{
+      state
+      | candidates: candidates,
+        rssi_history: rssi_history,
+        best_candidate: best,
+        stats: %{
+          state.stats
+          | assessments_performed: state.stats.assessments_performed + 1,
+            candidates_evaluated: map_size(candidates)
+        }
     }
 
     if best do
-      Logger.debug("[ConnectionAssessor] Best candidate: #{String.slice(best.peer_id, 0..7)} (score: #{best.score})")
+      Logger.debug(
+        "[ConnectionAssessor] Best candidate: #{String.slice(best.peer_id, 0..7)} (score: #{best.score})"
+      )
     else
       Logger.debug("[ConnectionAssessor] No viable candidates")
     end
@@ -331,10 +348,14 @@ defmodule AiReality2Transnet.ConnectionAssessor do
         base_score = 100 - abs(round(rssi_avg))
 
         # Apply bonuses and penalties:
-        fixed_bonus = if is_fixed, do: 20, else: 0      # Prefer fixed anchors (sticky)
-        hosting_bonus = 10                               # Bonus for being active
-        load_penalty = client_count * 2                  # Prefer less-loaded hosts
-        upstream_bonus = div(upstream_quality, 10)       # Factor in upstream quality (0-100 → 0-10)
+        # Prefer fixed anchors (sticky)
+        fixed_bonus = if is_fixed, do: 20, else: 0
+        # Bonus for being active
+        hosting_bonus = 10
+        # Prefer less-loaded hosts
+        load_penalty = client_count * 2
+        # Factor in upstream quality (0-100 → 0-10)
+        upstream_bonus = div(upstream_quality, 10)
 
         final_score = base_score + fixed_bonus + hosting_bonus - load_penalty + upstream_bonus
 
@@ -469,11 +490,12 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     case current_host do
       nil ->
         # Don't know current host score, use conservative approach
-        candidate.score >= 70  # Absolute threshold
+        # Absolute threshold
+        candidate.score >= 70
 
       current ->
         # Require margin over current
-        candidate.score >= (current.score + @handover_score_margin)
+        candidate.score >= current.score + @handover_score_margin
     end
   end
 

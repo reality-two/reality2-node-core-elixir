@@ -3,25 +3,25 @@ defmodule AiReality2Transnet.PeerManager do
   Manages discovered peers in the Reality2 Transient Network.
 
   Tracks peer nodes discovered via BLE beacons, maintains their state,
-  manages transport upgrades (BLE → WiFi mesh), and coordinates with
+  manages transport upgrades (BLE → WiFi hotspot), and coordinates with
   the PNS Router for Sentant routing.
 
   ## State Management
 
   For each peer, tracks:
   - Node ID (UUID)
-  - Transport method (:ble_gatt | :wifi_mesh)
+  - Transport method (:ble_gatt | :wifi_hotspot)
   - Available Sentants
   - Connection info (address, RSSI, etc.)
-  - Capabilities (WiFi mesh support, etc.)
+  - Capabilities (WiFi hotspot support, etc.)
   - Last seen timestamp
 
   ## Lifecycle
 
   1. **Discovery** - BLE beacon detected → peer added
   2. **Connection** - Optional GATT bootstrap exchange (minimal metadata)
-  3. **Upgrade** - Upgrade to WiFi mesh
-  4. **Exchange** - Sentant directory retrieved over WiFi mesh (HTTP/GraphQL)
+  3. **Upgrade** - Connect to WiFi hotspot (host) or accept connection (client)
+  4. **Exchange** - Sentant directory retrieved over WiFi (HTTP/GraphQL)
   5. **Monitor** - Track connection health
   6. **Removal** - Peer lost or timeout
 
@@ -50,18 +50,18 @@ defmodule AiReality2Transnet.PeerManager do
 
   ## Fields
   - `node_id` - UUID of the peer node
-  - `transport` - Current transport method (`:ble_gatt` or `:wifi_mesh`)
+  - `transport` - Current transport method (`:ble_gatt` or `:wifi_hotspot`)
   - `address` - BLE MAC address (may be nil for WiFi-only peers)
   - `rssi` - Signal strength in dBm (may be nil)
   - `sentants` - List of Sentant IDs available on this peer
-  - `capabilities` - Map of peer capabilities (e.g., `%{wifi_mesh: true}`)
+  - `capabilities` - Map of peer capabilities (e.g., `%{wifi_hotspot: true}`)
   - `discovered_at` - Unix timestamp (milliseconds) when peer was first discovered
   - `last_seen` - Unix timestamp (milliseconds) of last beacon or interaction
   - `connection_state` - Connection lifecycle state (`:discovered`, `:sentants_exchanged`, etc.)
   """
   @type peer :: %{
     node_id: String.t(),
-    transport: :ble_gatt | :wifi_mesh,
+    transport: :ble_gatt | :wifi_hotspot,
     address: binary() | nil,
     rssi: integer() | nil,
     sentants: [String.t()],
@@ -105,11 +105,11 @@ defmodule AiReality2Transnet.PeerManager do
   end
 
   @doc """
-  Updates a peer's Sentant directory after Wi-Fi mesh query.
+  Updates a peer's Sentant directory after WiFi hotspot query.
 
   ## Parameters
   - `node_id` - UUID of the peer node
-  - `sentants` - List of Sentant maps from GATT protocol
+  - `sentants` - List of Sentant maps from GraphQL query
 
   ## Returns
   `:ok`
@@ -120,7 +120,7 @@ defmodule AiReality2Transnet.PeerManager do
   end
 
   @doc """
-  Updates a peer's capabilities (e.g., WiFi mesh support).
+  Updates a peer's capabilities (e.g., WiFi hotspot support).
 
   ## Parameters
   - `node_id` - UUID of the peer node
@@ -150,7 +150,7 @@ defmodule AiReality2Transnet.PeerManager do
   end
 
   @doc """
-  Upgrades a peer's transport to WiFi mesh.
+  Upgrades a peer's transport to WiFi hotspot.
 
   ## Parameters
   - `node_id` - UUID of the peer node
@@ -158,9 +158,9 @@ defmodule AiReality2Transnet.PeerManager do
   ## Returns
   `:ok`
   """
-  @spec upgrade_to_wifi_mesh(String.t()) :: :ok
-  def upgrade_to_wifi_mesh(node_id) do
-    update_peer_transport(node_id, :wifi_mesh)
+  @spec upgrade_to_wifi_hotspot(String.t()) :: :ok
+  def upgrade_to_wifi_hotspot(node_id) do
+    update_peer_transport(node_id, :wifi_hotspot)
   end
 
   @doc """
@@ -210,7 +210,7 @@ defmodule AiReality2Transnet.PeerManager do
   - `node_id` - UUID of the peer node
 
   ## Returns
-  - `:ble_gatt` | `:wifi_mesh` - Current transport
+  - `:ble_gatt` | `:wifi_hotspot` - Current transport
   - `nil` - Peer not found
   """
   @spec get_transport(String.t()) :: atom() | nil
@@ -303,7 +303,7 @@ defmodule AiReality2Transnet.PeerManager do
         {:noreply, state}
 
       peer ->
-        # Update peer with the Sentant directory received from WiFi mesh exchange
+        # Update peer with the Sentant directory received from WiFi hotspot exchange
         # This happens after successful GraphQL sentantAll query
         updated_peer = %{peer |
           sentants: sentants,                           # List of Sentant maps from peer
@@ -333,7 +333,7 @@ defmodule AiReality2Transnet.PeerManager do
         {:noreply, state}
 
       peer ->
-        # Update peer capabilities (e.g., %{wifi_mesh: true, battery_level: 85})
+        # Update peer capabilities (e.g., %{wifi_hotspot: true, battery_level: 85})
         # Capabilities are typically extracted from BLE beacon flags
         updated_peer = %{peer |
           capabilities: capabilities,                   # Store capability map
@@ -356,8 +356,8 @@ defmodule AiReality2Transnet.PeerManager do
         {:noreply, state}
 
       peer ->
-        # Upgrade peer's transport layer (e.g., :ble_gatt → :wifi_mesh)
-        # This happens after successful WiFi connection and capability exchange
+        # Upgrade peer's transport layer (e.g., :ble_gatt → :wifi_hotspot)
+        # This happens after successful WiFi hotspot connection
         updated_peer = %{peer |
           transport: new_transport,                     # Set new transport type
           last_seen: System.system_time(:millisecond)   # Update activity timestamp
@@ -366,7 +366,7 @@ defmodule AiReality2Transnet.PeerManager do
         new_peers = Map.put(state.peers, node_id, updated_peer)
 
         # Track WiFi upgrades in statistics (for monitoring/debugging)
-        new_stats = if new_transport == :wifi_mesh,
+        new_stats = if new_transport == :wifi_hotspot,
           do: Map.update!(state.stats, :wifi_upgrades, &(&1 + 1)),
           else: state.stats
 
@@ -421,7 +421,7 @@ defmodule AiReality2Transnet.PeerManager do
     stats = Map.merge(state.stats, %{
       current_peers: map_size(state.peers),
       ble_peers: count_by_transport(state.peers, :ble_gatt),
-      wifi_peers: count_by_transport(state.peers, :wifi_mesh)
+      wifi_peers: count_by_transport(state.peers, :wifi_hotspot)
     })
 
     {:reply, stats, state}

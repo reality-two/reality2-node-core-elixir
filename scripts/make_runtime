@@ -1,17 +1,18 @@
 #!/bin/bash
+set -e
 
-cd ..
+# Navigate to project root (works regardless of where script is called from)
+cd "$(dirname "$0")/.."
 
 ARCH=$(uname -m)
 OS=$(uname -o | sed 's/\//_/g')
-if [ $(git rev-parse --abbrev-ref HEAD) == "develop" ]; then
+if [ "$(git rev-parse --abbrev-ref HEAD)" == "develop" ]; then
     RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)_dev
     BUILD_FOLDER=${ARCH}_${OS}_dev
 else
     RELEASE=$(awk -F'"' '/version:/ {print $2}' mix.exs)
     BUILD_FOLDER=${ARCH}_${OS}
 fi
-
 
 echo "********************************************************************"
 echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
@@ -21,20 +22,9 @@ echo "***** Cleaning up the previous build..."
 rm -rf "_build/prod"
 rm -rf "builds/${BUILD_FOLDER}.zip"
 
-if [ ! -d "builds" ]; then
-    mkdir "builds"
-fi
-if [ ! -d "builds/${BUILD_FOLDER}" ]; then
-    mkdir "builds/${BUILD_FOLDER}"
-fi
-
-echo "***** Generating new Certificates..."
-cd apps/reality2_web/priv/cert
-./generate_certificates
-cd ../../../..
+mkdir -p "builds/${BUILD_FOLDER}"
 
 # Set the environment variables
-# export DATABASE_URL="ecto://postgres:postgres@localhost/reality2"
 export SECRET_KEY_BASE=$(openssl rand -hex 32)
 export PORT=4005
 export POOLSIZE=10
@@ -49,9 +39,7 @@ mix deps.get
 echo "***** Building the Reality2 Node..."
 mix release
 
-# echo "***** Copying the Reality2 Demos to the release directory..."
 cp "scripts/runtime_run" "_build/prod/rel/reality2/run"
-# cp -r demos/python "_build/prod/rel/reality2"
 
 if [ "$ARCH" == "aarch64" ]; then
     cp -r "../reality2-definitions/client-SBC" "_build/prod/rel/reality2/"
@@ -81,7 +69,7 @@ echo "Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} has been built."
 echo "********************************************************************"
 
 if [ $# -eq 0 ]; then
-    exit 1
+    exit 0
 else
     echo "***** Copying to $1"
     scp "${BUILD_FOLDER}.zip" "root@$1:/root/"

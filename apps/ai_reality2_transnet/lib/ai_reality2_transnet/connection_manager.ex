@@ -175,7 +175,7 @@ defmodule AiReality2Transnet.ConnectionManager do
         psk: "secure_password",
         channel: 6,
         rendezvous_ip: "192.168.42.1",
-        rendezvous_port: 8080,
+        rendezvous_port: 4005,
         offer_expiry: System.system_time(:second) + 300,
         host_node_id: "host-uuid"
       }
@@ -504,7 +504,7 @@ defmodule AiReality2Transnet.ConnectionManager do
 
               # Step 3: Exchange Sentant directories via GraphQL
               # This populates PNS routing table with host's available Sentants
-              case perform_sentant_exchange(join_offer.rendezvous_ip, join_offer.rendezvous_port) do
+              case perform_sentant_exchange(peer_id, join_offer.rendezvous_ip, join_offer.rendezvous_port) do
                 :ok ->
                   # Step 4: Update state to :connected_as_client
                   final_state = %{new_state |
@@ -588,7 +588,7 @@ defmodule AiReality2Transnet.ConnectionManager do
         case Wifi.get_interface_ip(state.wifi_interface) do
           {:ok, _my_ip} ->
             # Perform sentantAll with new host
-            case perform_sentant_exchange(new_join_offer.rendezvous_ip, new_join_offer.rendezvous_port) do
+            case perform_sentant_exchange(new_peer_id, new_join_offer.rendezvous_ip, new_join_offer.rendezvous_port) do
               :ok ->
                 final_state = %{new_state |
                   connection_state: :connected_as_client,
@@ -662,7 +662,7 @@ defmodule AiReality2Transnet.ConnectionManager do
               psk: psk,
               channel: channel,
               ip_address: ip_address,
-              port: 8080,  # HTTP server port
+              port: 4005,  # HTTP/GraphQL server port (unified with Reality2Web)
               active: true
             }
 
@@ -721,11 +721,16 @@ defmodule AiReality2Transnet.ConnectionManager do
     end
   end
 
-  defp perform_sentant_exchange(host_ip, host_port) do
+  defp perform_sentant_exchange(host_node_id, host_ip, host_port) do
     Logger.info("[ConnectionManager] Performing sentantAll exchange with #{host_ip}:#{host_port}")
 
-    # Get our node_id and sentants
-    my_node_id = Reality2.Bootstrap.get(:node_id)
+    # Store peer connection info for PNS Router lookup
+    Reality2.Metadata.set(:PNS_Peers, host_node_id, %{
+      peer_ip: host_ip,
+      port: host_port,
+      connected_at: System.system_time(:millisecond)
+    })
+
     _my_sentants = get_local_sentants()  # Reserved for future bidirectional exchange
 
     # Build GraphQL query for sentantAll
@@ -764,7 +769,7 @@ defmodule AiReality2Transnet.ConnectionManager do
             Logger.info("[ConnectionManager] Received #{length(host_sentants)} sentants from host")
 
             # Update PNS routing table with host's sentants
-            update_pns_routing_table(my_node_id, host_ip, host_sentants)
+            update_pns_routing_table(host_node_id, host_ip, host_sentants)
 
             Logger.info("[ConnectionManager] sentantAll exchange completed successfully")
             :ok

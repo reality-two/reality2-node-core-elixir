@@ -4,8 +4,8 @@ defmodule AiReality2Transnet.GattProtocol do
 
   **MINIMAL PROTOCOL FOR DISCOVERY ONLY**
 
-  BLE GATT is now used ONLY for node discovery and WiFi mesh coordination.
-  All Sentant queries and commands happen over WiFi mesh HTTP protocol.
+  BLE GATT is used for node discovery and WiFi hotspot coordination.
+  All Sentant queries and commands happen over WiFi HTTP/GraphQL protocol.
 
   ## Protocol Architecture
 
@@ -16,17 +16,17 @@ defmodule AiReality2Transnet.GattProtocol do
 
   1. **Node Info** (Read)
      - UUID: `00001237-0000-1000-8000-00805f9b34fb`
-     - Returns minimal node metadata and WiFi mesh info
-     - DOES NOT include full Sentant list (use WiFi mesh HTTP for that)
+     - Returns minimal node metadata and WiFi capability info
+     - DOES NOT include full Sentant list (use WiFi HTTP for that)
 
-  2. **WiFi Mesh Details** (Read, Notify)
+  2. **WiFi Join Offer** (Read, Notify)
      - UUID: `00001235-0000-1000-8000-00805f9b34fb`
-     - Returns WiFi mesh connection information
-     - Includes: mesh_id, IPv6 address, port for HTTP server
+     - Returns WiFi hotspot connection credentials
+     - Includes: SSID, PSK, rendezvous IP/port
 
-  3. **Mesh Command** (Write)
+  3. **Network Command** (Write)
      - UUID: `00001236-0000-1000-8000-00805f9b34fb`
-     - Send mesh coordination commands (join mesh, etc.)
+     - Send network commands (join_network, leave_network)
 
   ## Message Format
 
@@ -36,18 +36,18 @@ defmodule AiReality2Transnet.GattProtocol do
         "version": "0.1.13",
         "capabilities": {
           "bluetooth": true,
-          "wifi_mesh": true,
+          "wifi_hotspot": true,
           "sentant_count": 5
         }
       }
 
-      # WiFi Mesh Details Response:
+      # WiFi Join Offer Response:
       {
-        "mesh_active": true,
-        "mesh_id": "R2MESH_abc123",
-        "ipv6_link_local": "fe80::1234:5678:90ab:cdef",
-        "http_port": 4005,
-        "instructions": "Query sentants via HTTP: GET http://[ipv6]:port/mesh/sentants"
+        "hotspot_available": true,
+        "ssid": "R2-NODE-A3F7",
+        "psk": "secure_password",
+        "rendezvous_ip": "192.168.42.1",
+        "rendezvous_port": 4005
       }
 
   **Author**
@@ -62,9 +62,12 @@ defmodule AiReality2Transnet.GattProtocol do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   @reality2_service_uuid "00001234-0000-1000-8000-00805f9b34fb"
-  @mesh_details_char_uuid "00001235-0000-1000-8000-00805f9b34fb"  # WiFi mesh connection info
-  @mesh_command_char_uuid "00001236-0000-1000-8000-00805f9b34fb"  # Mesh coordination commands
-  @node_info_char_uuid "00001237-0000-1000-8000-00805f9b34fb"     # Minimal node info
+  # WiFi hotspot join offer (SSID, PSK, rendezvous info)
+  @mesh_details_char_uuid "00001235-0000-1000-8000-00805f9b34fb"
+  # Network commands (join_network, leave_network)
+  @mesh_command_char_uuid "00001236-0000-1000-8000-00805f9b34fb"
+  # Minimal node info
+  @node_info_char_uuid "00001237-0000-1000-8000-00805f9b34fb"
 
   def service_uuid, do: @reality2_service_uuid
   def mesh_details_uuid, do: @mesh_details_char_uuid
@@ -86,16 +89,19 @@ defmodule AiReality2Transnet.GattProtocol do
   """
   @spec encode_node_info(String.t()) :: String.t()
   def encode_node_info(node_id) do
+    node_name = Reality2.Bootstrap.get(:node_name, "R2Node")
+
     payload = %{
       node_id: node_id,
+      node_name: node_name,
       version: "0.1.13",
       capabilities: %{
         bluetooth: true,
-        wifi_mesh: wifi_available?(),
+        wifi_hotspot: wifi_available?(),
         sentant_count: Reality2.Metadata.all(:SentantIDs) |> map_size()
       },
       timestamp: System.system_time(:millisecond),
-      message: "Use WiFi mesh HTTP for Sentant queries - see mesh_details characteristic"
+      message: "Use WiFi HTTP for Sentant queries - connect to hotspot first"
     }
 
     Jason.encode!(payload)
@@ -116,7 +122,6 @@ defmodule AiReality2Transnet.GattProtocol do
       {:ok, config} ->
         node_id = Reality2.Bootstrap.get(:node_id)
 
-<<<<<<< Updated upstream
         payload = %{
           hotspot_available: true,
           ssid: config.ssid,
@@ -125,20 +130,11 @@ defmodule AiReality2Transnet.GattProtocol do
           security: "WPA2-PSK",
           rendezvous_ip: config.ip_address,
           rendezvous_port: config.port,
-          offer_expiry: System.system_time(:second) + 300,  # Valid for 5 minutes
+          # Valid for 5 minutes
+          offer_expiry: System.system_time(:second) + 300,
           host_node_id: node_id,
           timestamp: System.system_time(:millisecond)
         }
-=======
-    payload = %{
-      mesh_active: mesh_info.active,
-      mesh_id: Map.get(mesh_info, :mesh_id),
-      ipv6_link_local: Map.get(mesh_info, :ipv6_link_local),
-      http_port: Application.get_env(:ai_reality2_transnet, :wifi_server_port, 4005),
-      instructions: "Query sentants: GET http://[ipv6]:port/mesh/sentants",
-      timestamp: System.system_time(:millisecond)
-    }
->>>>>>> Stashed changes
 
         Jason.encode!(payload)
 
@@ -195,6 +191,7 @@ defmodule AiReality2Transnet.GattProtocol do
       {:ok, %{"node_id" => node_id} = data} ->
         node_info = %{
           node_id: node_id,
+          node_name: Map.get(data, "node_name"),
           version: Map.get(data, "version"),
           capabilities: Map.get(data, "capabilities", %{}),
           timestamp: Map.get(data, "timestamp"),
@@ -226,7 +223,6 @@ defmodule AiReality2Transnet.GattProtocol do
   @spec decode_join_offer(String.t()) :: {:ok, map()} | {:error, String.t()}
   def decode_join_offer(json_data) do
     case Jason.decode(json_data) do
-<<<<<<< Updated upstream
       {:ok, %{"hotspot_available" => true} = data} ->
         join_offer = %{
           hotspot_available: true,
@@ -235,18 +231,9 @@ defmodule AiReality2Transnet.GattProtocol do
           channel: Map.get(data, "channel", 6),
           security: Map.get(data, "security", "WPA2-PSK"),
           rendezvous_ip: Map.get(data, "rendezvous_ip"),
-          rendezvous_port: Map.get(data, "rendezvous_port", 8080),
+          rendezvous_port: Map.get(data, "rendezvous_port", 4005),
           offer_expiry: Map.get(data, "offer_expiry"),
           host_node_id: Map.get(data, "host_node_id"),
-=======
-      {:ok, data} when is_map(data) ->
-        mesh_details = %{
-          mesh_active: Map.get(data, "mesh_active", false),
-          mesh_id: Map.get(data, "mesh_id"),
-          ipv6_link_local: Map.get(data, "ipv6_link_local"),
-          http_port: Map.get(data, "http_port", 4005),
-          instructions: Map.get(data, "instructions"),
->>>>>>> Stashed changes
           timestamp: Map.get(data, "timestamp")
         }
 
@@ -415,8 +402,11 @@ defmodule AiReality2Transnet.GattProtocol do
           psk: Map.get(params, :psk) || Map.get(params, "psk"),
           channel: Map.get(params, :channel) || Map.get(params, "channel", 6),
           rendezvous_ip: Map.get(params, :rendezvous_ip) || Map.get(params, "rendezvous_ip"),
-          rendezvous_port: Map.get(params, :rendezvous_port) || Map.get(params, "rendezvous_port", 8080),
-          offer_expiry: Map.get(params, :offer_expiry) || Map.get(params, "offer_expiry") || System.system_time(:second) + 300,
+          rendezvous_port:
+            Map.get(params, :rendezvous_port) || Map.get(params, "rendezvous_port", 4005),
+          offer_expiry:
+            Map.get(params, :offer_expiry) || Map.get(params, "offer_expiry") ||
+              System.system_time(:second) + 300,
           host_node_id: Map.get(params, :host_node_id) || Map.get(params, "host_node_id")
         }
 

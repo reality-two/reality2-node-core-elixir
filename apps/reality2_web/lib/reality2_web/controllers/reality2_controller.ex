@@ -3,18 +3,18 @@ defmodule Reality2Web.Reality2Controller do
 
   use Reality2Web, :controller
 
-  def index(conn, _params) do
-    [path] =
-      case Map.get(conn, :path_info) do
-        [] -> ["sentants"]
-        path_info -> path_info
-      end
+  @sites_dir "priv/static/sites"
 
-    html(
-      conn,
-      File.read!(
-        Application.app_dir(:reality2_web) <> "/priv/static/sites/" <> path <> "/index.html"
-      )
-    )
+  def index(conn, params) do
+    site = Map.get(params, "site", "sentants")
+    index_path = Path.join([Application.app_dir(:reality2_web), @sites_dir, site, "index.html"])
+
+    if File.exists?(index_path) do
+      html(conn, File.read!(index_path))
+    else
+      conn
+      |> put_status(:not_found)
+      |> text("Site not found: #{site}")
+    end
   end
 end

@@ -27,6 +27,5 @@ defmodule Reality2.Application do
 
     Logger.info("[ai.reality2] started successfully")
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
->>>>>>> Stashed changes
   end
 end

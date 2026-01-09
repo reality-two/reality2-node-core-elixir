@@ -12,25 +12,13 @@ defmodule Reality2Web.Router do
     plug :put_secure_browser_headers
   end
 
-  scope "/", Reality2Web do
-    web_routes =
-      Path.wildcard("priv/static/sites/*")
-      |> Enum.map(fn path -> String.replace(path, "priv/static/sites/", "") end)
-
-    pipe_through :browser
-    get "/", Reality2Controller, :index
-
-    Enum.each(web_routes, fn name ->
-      get "/" <> name, Reality2Controller, :index
-    end)
-  end
-
   pipeline :reality2 do
     plug Reality2Web.Plugs.SetLocalContext
     plug :accepts, ["json"]
     # plug Reality2Web.HeadersAndAdminContext
   end
 
+  # GraphQL endpoint - must come before catch-all routes
   scope "/reality2" do
     pipe_through :reality2
 
@@ -42,13 +30,11 @@ defmodule Reality2Web.Router do
       ]
   end
 
-  # Mesh network endpoints for transient peer communication
-  # These expose only public Sentant information (name, events, signals)
-  scope "/mesh", Reality2Web do
+  # Transient network endpoint for node/connection status
+  scope "/transnet", Reality2Web do
     pipe_through :reality2
 
-    get "/sentants", MeshController, :sentants
-    get "/info", MeshController, :info
+    get "/info", TransnetController, :info
   end
 
   if Mix.env() == :dev do
@@ -76,5 +62,13 @@ defmodule Reality2Web.Router do
 
       live_dashboard "/dashboard", metrics: Reality2Web.Telemetry
     end
+  end
+
+  # Static sites - catch-all must come LAST to not override specific routes
+  scope "/", Reality2Web do
+    pipe_through :browser
+
+    get "/", Reality2Controller, :index
+    get "/:site", Reality2Controller, :index
   end
 end

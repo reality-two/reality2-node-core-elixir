@@ -349,11 +349,7 @@ defmodule AiReality2Pns.Router do
       case peer.transport do
         :wifi_hotspot ->
           # Use WiFi hotspot + GraphQL for sending commands
-          send_via_graphql(peer, sentant_id, event, parameters, passthrough)
-
-        :wifi_mesh ->
-          # Legacy transport - use GraphQL if peer has IP
-          send_via_graphql(peer, sentant_id, event, parameters, passthrough)
+          send_via_graphql(node_id, sentant_id, event, parameters, passthrough)
 
         :ble_gatt ->
           # BLE is for discovery only
@@ -377,9 +373,9 @@ defmodule AiReality2Pns.Router do
   end
 
   # Send command via GraphQL (Reality2Web endpoint on port 4005)
-  defp send_via_graphql(peer, sentant_id, event, parameters, passthrough) do
-    # Get peer's IP address from PNS routing table
-    peer_ip = get_peer_ip(peer)
+  defp send_via_graphql(node_id, sentant_id, event, parameters, passthrough) do
+    # Get peer's IP address from PNS_Peers metadata (stored by ConnectionManager)
+    peer_ip = get_peer_ip(node_id)
 
     if peer_ip do
       Logger.info("[PNS Router] Sending to Sentant #{String.slice(sentant_id, 0..7)}... via GraphQL")
@@ -434,10 +430,12 @@ defmodule AiReality2Pns.Router do
     end
   end
 
-  # Get peer IP from PNS routing table or peer metadata
-  defp get_peer_ip(peer) do
-    # Try to get from peer metadata first
-    Map.get(peer, :peer_ip) || Map.get(peer, :host_ip)
+  # Get peer IP from PNS_Peers metadata (stored by ConnectionManager)
+  defp get_peer_ip(node_id) do
+    case Reality2.Metadata.get(:PNS_Peers, node_id) do
+      %{peer_ip: ip} -> ip
+      _ -> nil
+    end
   end
 
 

@@ -682,56 +682,36 @@ defmodule AiReality2Transnet.Wifi do
   end
 
   @doc """
-  Generates a unique, deterministic SSID from node ID and site.
+  Generates the SSID for the WiFi hotspot using the node name.
 
-  Creates SSIDs in the format: `R2-<SITE_ID>-<HOST_SHORT_ID>`
-  - `SITE_ID`: Deployment site identifier (configurable, default: "NODE")
-  - `HOST_SHORT_ID`: Last 4 hex chars from node UUID (ensures uniqueness)
+  The SSID is the node's name, which is determined by:
+  1. Environment variable `R2_NODE_NAME` (if set)
+  2. Auto-generated name in format "R2Node_XXXX" (4 random alphanumeric chars)
 
-  This prevents SSID collisions when multiple Reality2 nodes host hotspots
-  in the same physical area.
-
-  ## Site ID Resolution Order
-  1. Parameter `site_id` (if provided)
-  2. Environment variable `R2_SITE_ID`
-  3. Application config `:site_id`
-  4. Default: "NODE"
+  This ensures each Reality2 node has a unique, identifiable SSID.
 
   ## Parameters
-  - `node_id` - Node UUID (e.g., "123e4567-e89b-12d3-a456-426614174000")
-  - `site_id` - Optional site identifier override
+  - `node_id` - Ignored (kept for backwards compatibility)
+  - `site_id` - Ignored (kept for backwards compatibility)
 
   ## Returns
-  - SSID string (e.g., "R2-WAIROA-4000")
+  - SSID string (e.g., "R2Node_A3F7" or custom name from R2_NODE_NAME env var)
 
   ## Examples
 
-      iex> Wifi.generate_ssid("123e4567-e89b-12d3-a456-426614174000", "WAIROA")
-      "R2-WAIROA-4000"
+      # With R2_NODE_NAME env var set to "MyNode"
+      iex> Wifi.generate_ssid()
+      "MyNode"
 
-      iex> System.put_env("R2_SITE_ID", "AUCKLAND")
-      iex> Wifi.generate_ssid("abcd1234-5678-90ab-cdef-ghij12345678")
-      "R2-AUCKLAND-5678"
+      # Without R2_NODE_NAME env var (auto-generated)
+      iex> Wifi.generate_ssid()
+      "R2Node_A3F7"
   """
-  @spec generate_ssid(String.t(), String.t() | nil) :: String.t()
-  def generate_ssid(node_id, site_id \\ nil) do
-    # Get site_id from: parameter > env var > config > default
-    site =
-      site_id ||
-      System.get_env("R2_SITE_ID") ||
-      Application.get_env(:ai_reality2_transnet, :site_id, "NODE")
-
-    # Extract last 4 hex characters from node_id UUID (last 2 bytes)
-    # Remove hyphens and take last 4 chars
-    clean_id = String.replace(node_id, "-", "")
-    host_short_id =
-      clean_id
-      |> String.slice(-4..-1)
-      |> String.upcase()
-
-    # Format: R2-<SITE_ID>-<HOST_SHORT_ID>
-    # Example: R2-WAIROA-A3F7
-    "R2-#{site}-#{host_short_id}"
+  @spec generate_ssid(String.t() | nil, String.t() | nil) :: String.t()
+  def generate_ssid(_node_id \\ nil, _site_id \\ nil) do
+    # Use the node_name from Bootstrap as the SSID
+    # This is either set via R2_NODE_NAME env var or auto-generated as "R2Node_XXXX"
+    Reality2.Bootstrap.get(:node_name, "R2Node")
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
