@@ -40,7 +40,7 @@ defmodule Reality2.Autostart do
 
   @impl true
   def handle_info(:check_ready, state) do
-    if !!Process.whereis(Reality2.HTTPClient) do
+    if system_ready?() do
       Logger.info("System is ready. Loading autostart files...")
       load_autostart_files()
     else
@@ -49,6 +49,42 @@ defmodule Reality2.Autostart do
     end
 
     {:noreply, state}
+  end
+
+  # Check if the core system and all plugins are ready
+  defp system_ready? do
+    Process.whereis(Reality2.HTTPClient) != nil and plugins_ready?()
+  end
+
+  # Check if all configured plugin applications have started
+  defp plugins_ready? do
+    started_apps = Application.started_applications()
+                   |> Enum.map(fn {app, _, _} -> app end)
+
+    plugin_apps = get_plugin_app_names()
+
+    Enum.all?(plugin_apps, fn app -> app in started_apps end)
+  end
+
+  # Convert plugin names from env var to application atom names
+  # e.g., "ai.reality2.vars" -> :ai_reality2_vars
+  defp get_plugin_app_names do
+    case System.get_env("PLUGINS") do
+      nil -> []
+      "" -> []
+      plugins_str ->
+        plugins_str
+        |> String.split(",")
+        |> Enum.map(&String.trim/1)
+        |> Enum.map(&plugin_to_app_name/1)
+    end
+  end
+
+  defp plugin_to_app_name(plugin_name) do
+    # Convert "ai.reality2.vars" to :ai_reality2_vars
+    plugin_name
+    |> String.replace(".", "_")
+    |> String.to_atom()
   end
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------

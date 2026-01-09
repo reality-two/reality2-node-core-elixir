@@ -24,6 +24,13 @@ rm -rf "builds/${BUILD_FOLDER}.zip"
 
 mkdir -p "builds/${BUILD_FOLDER}"
 
+echo "***** Clearing certificate files (will be generated on first run)..."
+rm -f apps/reality2_web/priv/cert/*.pem
+rm -f apps/reality2_web/priv/cert/*.crt
+rm -f apps/reality2_web/priv/cert/*.key
+rm -f apps/reality2_web/priv/cert/*.csr
+rm -f apps/reality2_web/priv/cert/*.srl
+
 # Set the environment variables
 export SECRET_KEY_BASE=$(openssl rand -hex 32)
 export PORT=4005
@@ -40,6 +47,11 @@ echo "***** Building the Reality2 Node..."
 mix release
 
 cp "scripts/runtime_run" "_build/prod/rel/reality2/run"
+
+# Set BUILD_BRANCH in run script based on current git branch
+if [ "$(git rev-parse --abbrev-ref HEAD)" == "develop" ]; then
+    sed -i 's/BUILD_BRANCH=main/BUILD_BRANCH=develop/' "_build/prod/rel/reality2/run"
+fi
 
 if [ "$ARCH" == "aarch64" ]; then
     cp -r "../reality2-definitions/client-SBC" "_build/prod/rel/reality2/"

@@ -50,10 +50,11 @@ defmodule AiReality2Transnet.PeerManager do
 
   ## Fields
   - `node_id` - UUID of the peer node
+  - `node_name` - Human-readable node name (e.g., "R2Node_A3F7")
   - `transport` - Current transport method (`:ble_gatt` or `:wifi_hotspot`)
   - `address` - BLE MAC address (may be nil for WiFi-only peers)
   - `rssi` - Signal strength in dBm (may be nil)
-  - `sentants` - List of Sentant IDs available on this peer
+  - `sentants` - List of Sentant maps available on this peer (includes id and name)
   - `capabilities` - Map of peer capabilities (e.g., `%{wifi_hotspot: true}`)
   - `discovered_at` - Unix timestamp (milliseconds) when peer was first discovered
   - `last_seen` - Unix timestamp (milliseconds) of last beacon or interaction
@@ -61,10 +62,11 @@ defmodule AiReality2Transnet.PeerManager do
   """
   @type peer :: %{
     node_id: String.t(),
+    node_name: String.t() | nil,
     transport: :ble_gatt | :wifi_hotspot,
     address: binary() | nil,
     rssi: integer() | nil,
-    sentants: [String.t()],
+    sentants: [map()],
     capabilities: map(),
     discovered_at: integer(),
     last_seen: integer(),
@@ -178,7 +180,7 @@ defmodule AiReality2Transnet.PeerManager do
   end
 
   @doc """
-  Gets information about a specific peer.
+  Gets information about a specific peer by node ID.
 
   ## Parameters
   - `node_id` - UUID of the peer node
@@ -190,6 +192,21 @@ defmodule AiReality2Transnet.PeerManager do
   @spec get_peer(String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_peer(node_id) do
     GenServer.call(__MODULE__, {:get_peer, node_id})
+  end
+
+  @doc """
+  Gets information about a specific peer by node name.
+
+  ## Parameters
+  - `node_name` - Human-readable node name (e.g., "R2Node_A3F7")
+
+  ## Returns
+  - `{:ok, peer_info}` - Peer found
+  - `{:error, :not_found}` - Peer not tracked
+  """
+  @spec get_peer_by_name(String.t()) :: {:ok, map()} | {:error, :not_found}
+  def get_peer_by_name(node_name) do
+    GenServer.call(__MODULE__, {:get_peer_by_name, node_name})
   end
 
   @doc """
@@ -262,10 +279,14 @@ defmodule AiReality2Transnet.PeerManager do
     # Check if we've seen this peer before
     existing = Map.get(state.peers, node_id)
 
+    # Extract node_name from info (may come from GATT decode or other sources)
+    node_name = Map.get(info, :node_name) || Map.get(info, "node_name")
+
     # Build new peer record with defaults
     # Start with BLE transport (will be upgraded to WiFi later if available)
     peer = %{
       node_id: node_id,
+      node_name: node_name,              # Human-readable node name
       transport: :ble_gatt,              # Initially discovered via BLE beacon
       address: Map.get(info, :address),  # BLE MAC address
       rssi: Map.get(info, :rssi),        # Signal strength from beacon
@@ -283,12 +304,18 @@ defmodule AiReality2Transnet.PeerManager do
     # Store updated peer in state
     new_peers = Map.put(state.peers, node_id, peer)
 
+    # Register node_name -> node_id mapping for PNS lookup
+    if peer.node_name do
+      Reality2.Metadata.set(:PNS_NodeNames, peer.node_name, node_id)
+    end
+
     # Only increment discovery counter for brand new peers
     new_stats = if existing, do: state.stats, else: Map.update!(state.stats, :total_discovered, &(&1 + 1))
 
     # Log new peer discovery (but not re-discoveries from beacons)
     unless existing do
-      Logger.info("[PeerManager] New peer discovered: #{String.slice(node_id, 0..7)}... (RSSI: #{peer.rssi})")
+      name_info = if peer.node_name, do: " (#{peer.node_name})", else: ""
+      Logger.info("[PeerManager] New peer discovered: #{String.slice(node_id, 0..7)}...#{name_info} (RSSI: #{peer.rssi})")
     end
 
     {:noreply, %{state | peers: new_peers, stats: new_stats}}
@@ -383,10 +410,15 @@ defmodule AiReality2Transnet.PeerManager do
         # Peer not found - already removed or never existed
         {:noreply, state}
 
-      _peer ->
+      peer ->
         # Remove peer from tracking (e.g., user request or connection lost)
         new_peers = Map.delete(state.peers, node_id)
         new_stats = Map.update!(state.stats, :total_removed, &(&1 + 1))
+
+        # Clean up PNS_NodeNames mapping
+        if peer.node_name do
+          Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
+        end
 
         Logger.info("[PeerManager] Peer removed: #{String.slice(node_id, 0..7)}...")
 
@@ -406,6 +438,19 @@ defmodule AiReality2Transnet.PeerManager do
     case Map.get(state.peers, node_id) do
       nil -> {:reply, {:error, :not_found}, state}
       peer -> {:reply, {:ok, peer}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:get_peer_by_name, node_name}, _from, state) do
+    # Synchronous lookup of peer info by node name
+    peer = state.peers
+    |> Map.values()
+    |> Enum.find(fn p -> p.node_name == node_name end)
+
+    case peer do
+      nil -> {:reply, {:error, :not_found}, state}
+      p -> {:reply, {:ok, p}, state}
     end
   end
 
@@ -440,9 +485,12 @@ defmodule AiReality2Transnet.PeerManager do
         peer.last_seen < cutoff
       end)
 
-    # Log each removal for debugging
-    Enum.each(stale_peers, fn {node_id, _peer} ->
+    # Log each removal and clean up PNS_NodeNames mapping
+    Enum.each(stale_peers, fn {node_id, peer} ->
       Logger.info("[PeerManager] Removing stale peer: #{String.slice(node_id, 0..7)}... (timeout)")
+      if peer.node_name do
+        Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
+      end
     end)
 
     new_peers = Map.new(fresh_peers)

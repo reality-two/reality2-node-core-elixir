@@ -63,16 +63,22 @@ defmodule AiReality2Transnet.GattProtocol do
 
   @reality2_service_uuid "00001234-0000-1000-8000-00805f9b34fb"
   # WiFi hotspot join offer (SSID, PSK, rendezvous info)
-  @mesh_details_char_uuid "00001235-0000-1000-8000-00805f9b34fb"
+  @join_offer_char_uuid "00001235-0000-1000-8000-00805f9b34fb"
   # Network commands (join_network, leave_network)
-  @mesh_command_char_uuid "00001236-0000-1000-8000-00805f9b34fb"
+  @network_command_char_uuid "00001236-0000-1000-8000-00805f9b34fb"
   # Minimal node info
   @node_info_char_uuid "00001237-0000-1000-8000-00805f9b34fb"
 
   def service_uuid, do: @reality2_service_uuid
-  def mesh_details_uuid, do: @mesh_details_char_uuid
-  def mesh_command_uuid, do: @mesh_command_char_uuid
+  def join_offer_uuid, do: @join_offer_char_uuid
+  def network_command_uuid, do: @network_command_char_uuid
   def node_info_uuid, do: @node_info_char_uuid
+
+  # Legacy aliases for backward compatibility
+  @deprecated "Use join_offer_uuid/0 instead"
+  def mesh_details_uuid, do: @join_offer_char_uuid
+  @deprecated "Use network_command_uuid/0 instead"
+  def mesh_command_uuid, do: @network_command_char_uuid
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Encoding Functions
@@ -151,17 +157,17 @@ defmodule AiReality2Transnet.GattProtocol do
   end
 
   @doc """
-  Encodes a mesh coordination command.
+  Encodes a network coordination command.
 
   ## Parameters
-  - `command` - Command type (:join_mesh, :leave_mesh, etc.)
+  - `command` - Command type (:join_network, :leave_network)
   - `parameters` - Command parameters
 
   ## Returns
   JSON string ready for GATT write
   """
-  @spec encode_mesh_command(atom(), map()) :: String.t()
-  def encode_mesh_command(command, parameters \\ %{}) do
+  @spec encode_network_command(atom(), map()) :: String.t()
+  def encode_network_command(command, parameters \\ %{}) do
     payload = %{
       command: to_string(command),
       parameters: parameters,
@@ -253,7 +259,7 @@ defmodule AiReality2Transnet.GattProtocol do
   end
 
   @doc """
-  Decodes a mesh command received via GATT.
+  Decodes a network command received via GATT.
 
   ## Parameters
   - `json_data` - JSON string from GATT write
@@ -262,8 +268,8 @@ defmodule AiReality2Transnet.GattProtocol do
   - `{:ok, command}` - Successfully decoded
   - `{:error, reason}` - Failed to decode
   """
-  @spec decode_mesh_command(String.t()) :: {:ok, map()} | {:error, String.t()}
-  def decode_mesh_command(json_data) do
+  @spec decode_network_command(String.t()) :: {:ok, map()} | {:error, String.t()}
+  def decode_network_command(json_data) do
     case Jason.decode(json_data) do
       {:ok, %{"command" => command} = data} ->
         with {:ok, command_atom} <- decode_command_atom(command) do
@@ -331,16 +337,17 @@ defmodule AiReality2Transnet.GattProtocol do
     json
   end
 
-  # Legacy name for compatibility
+  # Legacy alias for backward compatibility
+  @deprecated "Use handle_join_offer_read/0 instead"
   @spec handle_mesh_details_read() :: binary()
   def handle_mesh_details_read do
     handle_join_offer_read()
   end
 
   @doc """
-  Handles a GATT write request for mesh coordination command.
+  Handles a GATT write request for network coordination command.
 
-  Called when a remote device writes to the mesh command characteristic.
+  Called when a remote device writes to the network command characteristic.
 
   ## Parameters
   - `data` - Binary data written by the client
@@ -349,21 +356,26 @@ defmodule AiReality2Transnet.GattProtocol do
   - `:ok` - Command executed successfully
   - `{:error, reason}` - Failed to execute command
   """
-  @spec handle_mesh_command_write(binary()) :: :ok | {:error, String.t()}
-  def handle_mesh_command_write(data) do
-    Logger.debug("[GATT Protocol] Received mesh command: #{byte_size(data)} bytes")
+  @spec handle_network_command_write(binary()) :: :ok | {:error, String.t()}
+  def handle_network_command_write(data) do
+    Logger.debug("[GATT Protocol] Received network command: #{byte_size(data)} bytes")
 
     with {:ok, json} <- safe_to_string(data),
-         {:ok, command} <- decode_mesh_command(json),
-         {:ok, _result} <- execute_mesh_command(command) do
-      Logger.info("[GATT Protocol] Mesh command executed: #{command.command}")
+         {:ok, command} <- decode_network_command(json),
+         {:ok, _result} <- execute_network_command(command) do
+      Logger.info("[GATT Protocol] Network command executed: #{command.command}")
       :ok
     else
       {:error, reason} ->
-        Logger.error("[GATT Protocol] Mesh command failed: #{inspect(reason)}")
+        Logger.error("[GATT Protocol] Network command failed: #{inspect(reason)}")
         {:error, reason}
     end
   end
+
+  # Legacy alias for backward compatibility
+  @deprecated "Use handle_network_command_write/1 instead"
+  @spec handle_mesh_command_write(binary()) :: :ok | {:error, String.t()}
+  def handle_mesh_command_write(data), do: handle_network_command_write(data)
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Private Helper Functions
@@ -392,8 +404,8 @@ defmodule AiReality2Transnet.GattProtocol do
 
   defp safe_to_string(_), do: {:error, "not_binary"}
 
-  # Execute a hotspot connection command
-  defp execute_mesh_command(%{command: command, parameters: params}) do
+  # Execute a network command (join/leave hotspot)
+  defp execute_network_command(%{command: command, parameters: params}) do
     case command do
       :join_network ->
         # Extract join offer from parameters

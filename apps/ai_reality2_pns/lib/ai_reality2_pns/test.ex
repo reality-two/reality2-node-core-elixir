@@ -329,7 +329,7 @@ defmodule AiReality2Pns.Test do
 
     Enum.each(peers, fn {node_id, peer_info} ->
       Logger.info("\nPeer: #{String.slice(node_id, 0..7)}...")
-      Logger.info("Sentants: #{peer_info.sentant_count}")
+      Logger.info("Sentants: #{length(peer_info.sentants)}")
 
       Enum.each(peer_info.sentants, fn sentant ->
         name = Map.get(sentant, "name", "unnamed")

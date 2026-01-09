@@ -4,28 +4,105 @@ defmodule AiReality2Pns.Router do
 
   Automatically routes events to the appropriate destination:
   - Local Sentants on this node
-  - Remote Sentants on peer nodes via GATT
+  - Remote Sentants on peer nodes via WiFi/GraphQL
   - Remote Sentants on GraphQL nodes (future)
 
   ## Architecture
 
-  The router maintains a topology cache of all known Sentants:
-  - Local Sentants tracked via Reality2.Metadata
-  - Remote Sentants discovered via GATT peer connections
-  - GraphQL nodes (future)
+  The router maintains a topology of all known Sentants:
+  - Local Sentants tracked via Reality2.Metadata (:SentantIDs)
+  - Remote Sentants discovered via transnet peer connections
+  - Searches local first, then all known peer nodes
 
-  ## Usage
+  ## Addressing Formats
 
-      # Send to any Sentant (local or remote)
-      AiReality2Pns.Router.send_to_sentant(
-        sentant_id,
-        "event_name",
-        %{param: "value"},
-        %{passthrough: "data"}
-      )
+  ### Local-only (no `|` separator)
 
-      # Broadcast to all Sentants matching a pattern
-      AiReality2Pns.Router.broadcast("device_*", event, params)
+  - `"Sentant Name"` - Send to local sentant by name
+  - `"sentant-uuid"` - Send to local sentant by UUID
+  - No `to:` field - Send to self (current Sentant)
+
+  ### Broadcast all (`*`)
+
+  - `"*"` - Send to ALL sentants on ALL known nodes (local + remote)
+
+  This enables full broadcast messaging across the entire network.
+
+  ### All nodes with name (`*|` prefix)
+
+  - `"*|Sentant Name"` - Send to ALL sentants with this name across ALL known nodes
+  - `"*|sentant-uuid"` - Send to sentant by UUID (checks local + all peers)
+
+  This enables broadcast-style messaging to identically-named sentants on different nodes.
+
+  ### Specific node (`node|` prefix)
+
+  - `"node_name|sentant_name"` - Specific node and sentant by names
+  - `"node_name|sentant_uuid"` - Specific node by name, sentant by UUID
+  - `"node_uuid|sentant_name"` - Specific node by UUID, sentant by name
+  - `"node_uuid|sentant_uuid"` - Specific node and sentant by UUIDs
+
+  ## Examples
+
+  In Sentant automation YAML:
+
+      # Send to self (no to: field)
+      - command: send
+        parameters:
+          event: "self_event"
+
+      # Send to local sentant by name
+      - command: send
+        parameters:
+          to: "Zen Quote"
+          event: "get_quote"
+
+      # Broadcast to ALL sentants on ALL nodes
+      - command: send
+        parameters:
+          to: "*"
+          event: "network_announcement"
+
+      # Send to ALL nodes with "Sensor" sentant
+      - command: send
+        parameters:
+          to: "*|Sensor"
+          event: "read_data"
+
+      # Send to specific node and sentant
+      - command: send
+        parameters:
+          to: "R2Node_A3F7|Zen Quote"
+          event: "get_quote"
+
+      # Send to multiple targets
+      - command: send
+        parameters:
+          to:
+            - "Local Sentant"
+            - "R2Node_B2C1|Remote Sentant"
+            - "*|Broadcast Target"
+          event: "multi_send"
+
+  Programmatic usage:
+
+      # Send to local sentant
+      AiReality2Pns.Router.send_to_sentant("Zen Quote", "init", %{})
+
+      # Send to all nodes with "Sensor"
+      AiReality2Pns.Router.send_to_sentant("*|Sensor", "ping", %{})
+      # => {:ok, %{local: 1, remote: 3, results: [...]}}
+
+      # Target specific node
+      AiReality2Pns.Router.send_to_sentant("R2Node_A3F7|Zen Quote", "init", %{})
+
+      # Locate a sentant locally
+      AiReality2Pns.Router.locate("Zen Quote")
+      # => {:ok, :local, "uuid..."}
+
+      # Locate across all nodes
+      AiReality2Pns.Router.locate("*|Sensor")
+      # => {:ok, :multiple, [{:local, "uuid1"}, {{:remote, "node-uuid"}, "uuid2"}]}
 
   **Author**
   - Dr. Roy C. Davies
@@ -48,16 +125,25 @@ defmodule AiReality2Pns.Router do
   Send an event to a Sentant, automatically routing to local or remote.
 
   ## Parameters
-  - `sentant_identifier` - UUID, name, or %{id: uuid} / %{name: name}
+  - `sentant_identifier` - One of:
+    - `"sentant_name"` - Send to local sentant by name
+    - `"sentant_uuid"` - Send to local sentant by UUID
+    - `"*"` - Broadcast to ALL sentants on ALL known nodes
+    - `"*|sentant_name"` - Send to ALL nodes with this sentant name
+    - `"*|sentant_uuid"` - Send to sentant by UUID (local + all peers)
+    - `"node_name|sentant_name"` - Specific node and sentant
+    - `"node_uuid|sentant_uuid"` - Specific node and sentant by UUIDs
+    - `%{id: uuid}` or `%{name: name}` - Map format (local only)
   - `event` - Event name string
   - `parameters` - Optional parameters map (default: %{})
   - `passthrough` - Optional passthrough data (default: nil)
 
   ## Returns
-  - `{:ok, :local}` - Sent to local Sentant
-  - `{:ok, {:remote, node_id}}` - Sent to remote Sentant via GATT
-  - `{:error, :not_found}` - Sentant not found anywhere
-  - `{:error, reason}` - Other error
+  - `{:ok, :local, result}` - Sent to local Sentant
+  - `{:ok, {:remote, node_id}, result}` - Sent to remote Sentant
+  - `{:ok, %{local: n, remote: m, results: [...]}}` - Sent to multiple (`*` or `*|` format)
+  - `{:error, :not_found}` - Sentant not found
+  - `{:error, :node_not_found}` - Target node not found
   """
   def send_to_sentant(sentant_identifier, event, parameters \\ %{}, passthrough \\ nil) do
     GenServer.call(__MODULE__, {:send_to_sentant, sentant_identifier, event, parameters, passthrough})
@@ -82,10 +168,18 @@ defmodule AiReality2Pns.Router do
   @doc """
   Find a Sentant's location (local or remote).
 
+  Supports the same addressing formats as `send_to_sentant/4`:
+  - `"sentant_name"` - Find on local node only
+  - `"sentant_uuid"` - Find on local node by UUID
+  - `"*|sentant_name"` - Find on ALL known nodes
+  - `"node_name|sentant_name"` - Find on specific node
+
   ## Returns
-  - `{:ok, :local}` - Sentant is on this node
-  - `{:ok, {:remote, node_id}}` - Sentant is on remote node
+  - `{:ok, :local, sentant_id}` - Found on local node
+  - `{:ok, {:remote, node_id}, sentant_id}` - Found on remote node
+  - `{:ok, :multiple, [{location, sentant_id}, ...]}` - Multiple matches (`*|` format)
   - `{:error, :not_found}` - Sentant not found
+  - `{:error, :node_not_found}` - Target node not found
   """
   def locate(sentant_identifier) do
     GenServer.call(__MODULE__, {:locate, sentant_identifier})
@@ -143,33 +237,23 @@ defmodule AiReality2Pns.Router do
 
   @impl true
   def handle_call({:send_to_sentant, identifier, event, params, passthrough}, _from, state) do
-    sentant_id = normalize_identifier(identifier)
+    # Parse path to handle different formats
+    case parse_path(identifier) do
+      :broadcast_all ->
+        # "*" - send to ALL sentants on ALL known nodes
+        handle_broadcast_all(event, params, passthrough, state)
 
-    case resolve_location(sentant_id, state) do
-      {:ok, :local} ->
-        # Send to local Sentant
-        result = send_to_local(sentant_id, event, params, passthrough)
-        new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
-        {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
+      {:local_only, sentant_identifier} ->
+        # No node prefix - send to local node only
+        handle_local_only(sentant_identifier, event, params, passthrough, state)
 
-      {:ok, {:remote, node_id}} ->
-        # Send to remote Sentant via GATT
-        result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough)
-        new_stats = Map.update!(state.stats, :remote_sends, &(&1 + 1))
-        {:reply, {:ok, {:remote, node_id}, result}, %{state | stats: new_stats}}
+      {:all_nodes, sentant_identifier} ->
+        # "*|sentant" - send to all nodes with this sentant
+        handle_all_nodes(sentant_identifier, event, params, passthrough, state)
 
-      {:error, :not_found} ->
-        Logger.debug("[PNS Router] Sentant #{sentant_id} not found - attempting direct send")
-        # Try direct send anyway (might be newly created)
-        case send_to_local(sentant_id, event, params, passthrough) do
-          {:ok, _} = result ->
-            # Update cache
-            new_locations = Map.put(state.sentant_locations, sentant_id, :local)
-            {:reply, {:ok, :local, result}, %{state | sentant_locations: new_locations}}
-
-          error ->
-            {:reply, {:error, :not_found, error}, state}
-        end
+      {:specific_node, node_part, sentant_part} ->
+        # "node|sentant" - route to specific node
+        handle_specific_node(node_part, sentant_part, event, params, passthrough, state)
     end
   end
 
@@ -200,9 +284,71 @@ defmodule AiReality2Pns.Router do
 
   @impl true
   def handle_call({:locate, identifier}, _from, state) do
-    sentant_id = normalize_identifier(identifier)
-    result = resolve_location(sentant_id, state)
-    {:reply, result, state}
+    case parse_path(identifier) do
+      {:local_only, sentant_identifier} ->
+        # Only check local node
+        sentant_id = normalize_identifier(sentant_identifier)
+        if is_local_sentant?(sentant_id) do
+          {:reply, {:ok, :local, sentant_id}, state}
+        else
+          {:reply, {:error, :not_found}, state}
+        end
+
+      {:all_nodes, sentant_identifier} ->
+        # Search local and all peers, return all matches
+        {is_name, id} = case sentant_identifier do
+          %{id: i} -> {false, i}
+          %{name: n} -> {true, n}
+          str when is_binary(str) -> {not uuid?(str), str}
+          other -> {false, other}
+        end
+
+        local_id = if is_name do
+          Reality2.Metadata.get(:SentantIDs, id)
+        else
+          if is_local_sentant?(id), do: id, else: nil
+        end
+
+        local_match = if local_id, do: [{:local, local_id}], else: []
+
+        remote_matches = if is_name do
+          case find_sentants_by_name_on_peers(id) do
+            {:ok, matches} ->
+              Enum.map(matches, fn {sentant_id, node_id} ->
+                {{:remote, node_id}, sentant_id}
+              end)
+            {:error, _} -> []
+          end
+        else
+          case find_sentant_by_id_on_peers(id) do
+            {:ok, node_id} -> [{{:remote, node_id}, id}]
+            {:error, _} -> []
+          end
+        end
+
+        all_matches = local_match ++ remote_matches
+
+        case all_matches do
+          [] -> {:reply, {:error, :not_found}, state}
+          [{location, sentant_id}] -> {:reply, {:ok, location, sentant_id}, state}
+          matches -> {:reply, {:ok, :multiple, matches}, state}
+        end
+
+      {:specific_node, node_part, sentant_part} ->
+        # Target specific node
+        case resolve_node_identifier(node_part) do
+          {:local, _node_id} ->
+            sentant_id = resolve_sentant_on_node(sentant_part, :local)
+            {:reply, {:ok, :local, sentant_id}, state}
+
+          {:remote, node_id} ->
+            sentant_id = resolve_sentant_on_node(sentant_part, {:remote, node_id})
+            {:reply, {:ok, {:remote, node_id}, sentant_id}, state}
+
+          {:error, reason} ->
+            {:reply, {:error, reason}, state}
+        end
+    end
   end
 
   @impl true
@@ -222,6 +368,155 @@ defmodule AiReality2Pns.Router do
     }
 
     {:reply, table, state}
+  end
+
+
+  # Handle "*" - broadcast to ALL sentants on ALL known nodes
+  defp handle_broadcast_all(event, params, passthrough, state) do
+    # Get all local sentants
+    local_sentant_ids = case Reality2.Metadata.all(:SentantIDs) do
+      map when is_map(map) -> Map.values(map)
+      _ -> []
+    end
+
+    # Send to all local sentants
+    local_results = Enum.map(local_sentant_ids, fn sentant_id ->
+      result = send_to_local(sentant_id, event, params, passthrough)
+      {:local, sentant_id, result}
+    end)
+    local_count = length(local_results)
+
+    # Get all remote sentants from all peers
+    {remote_count, remote_results} = if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      peers = AiReality2Transnet.PeerManager.get_all_peers()
+
+      results = Enum.flat_map(peers, fn {node_id, peer} ->
+        Enum.map(peer.sentants, fn s ->
+          sentant_id = Map.get(s, :id) || Map.get(s, "id")
+          result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough)
+          {{:remote, node_id}, sentant_id, result}
+        end)
+      end)
+
+      {length(results), results}
+    else
+      {0, []}
+    end
+
+    all_results = local_results ++ remote_results
+    total_sent = local_count + remote_count
+
+    new_stats = state.stats
+    |> Map.update!(:local_sends, &(&1 + local_count))
+    |> Map.update!(:remote_sends, &(&1 + remote_count))
+    |> Map.update!(:broadcasts, &(&1 + 1))
+
+    {:reply, {:ok, %{local: local_count, remote: remote_count, total: total_sent, results: all_results}}, %{state | stats: new_stats}}
+  end
+
+  # Handle "node|sentant" - route to specific node
+  defp handle_specific_node(node_part, sentant_part, event, params, passthrough, state) do
+    case resolve_node_identifier(node_part) do
+      {:local, _node_id} ->
+        # Target is this node - resolve sentant locally
+        sentant_id = resolve_sentant_on_node(sentant_part, :local)
+        result = send_to_local(sentant_id, event, params, passthrough)
+        new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
+        {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
+
+      {:remote, node_id} ->
+        # Target is a remote node
+        sentant_id = resolve_sentant_on_node(sentant_part, {:remote, node_id})
+        result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough)
+        new_stats = Map.update!(state.stats, :remote_sends, &(&1 + 1))
+        {:reply, {:ok, {:remote, node_id}, result}, %{state | stats: new_stats}}
+
+      {:error, :node_not_found} ->
+        Logger.warning("[PNS Router] Node not found: #{node_part}")
+        {:reply, {:error, :node_not_found}, state}
+    end
+  end
+
+  # Handle local-only routing (no node prefix)
+  # Only searches the local node
+  defp handle_local_only(sentant_identifier, event, params, passthrough, state) do
+    # Normalize to sentant ID
+    sentant_id = normalize_identifier(sentant_identifier)
+
+    # Check if it exists locally
+    if is_local_sentant?(sentant_id) do
+      result = send_to_local(sentant_id, event, params, passthrough)
+      new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
+      {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
+    else
+      Logger.debug("[PNS Router] Sentant '#{sentant_id}' not found locally")
+      {:reply, {:error, :not_found}, state}
+    end
+  end
+
+  # Handle "*|sentant" - send to ALL nodes with this sentant
+  defp handle_all_nodes(sentant_identifier, event, params, passthrough, state) do
+    # Determine if this is a name or UUID
+    {is_name, identifier} = case sentant_identifier do
+      %{id: id} -> {false, id}
+      %{name: name} -> {true, name}
+      str when is_binary(str) -> {not uuid?(str), str}
+      other -> {false, other}
+    end
+
+    # Check local first
+    local_sentant_id = if is_name do
+      Reality2.Metadata.get(:SentantIDs, identifier)
+    else
+      if is_local_sentant?(identifier), do: identifier, else: nil
+    end
+
+    # Send to local if found
+    {local_count, local_results} = if local_sentant_id do
+      result = send_to_local(local_sentant_id, event, params, passthrough)
+      {1, [{:local, result}]}
+    else
+      {0, []}
+    end
+
+    # Send to all remote peers with matching sentant
+    {remote_count, remote_results} = if is_name do
+      case find_sentants_by_name_on_peers(identifier) do
+        {:ok, matches} ->
+          results = Enum.map(matches, fn {sentant_id, node_id} ->
+            result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough)
+            {{:remote, node_id}, result}
+          end)
+          {length(matches), results}
+
+        {:error, _} ->
+          {0, []}
+      end
+    else
+      # ID-based: can only be on one remote node
+      case find_sentant_by_id_on_peers(identifier) do
+        {:ok, node_id} ->
+          result = send_to_remote_gatt(node_id, identifier, event, params, passthrough)
+          {1, [{{:remote, node_id}, result}]}
+
+        {:error, _} ->
+          {0, []}
+      end
+    end
+
+    all_results = local_results ++ remote_results
+    total_sent = local_count + remote_count
+
+    if total_sent > 0 do
+      new_stats = state.stats
+      |> Map.update!(:local_sends, &(&1 + local_count))
+      |> Map.update!(:remote_sends, &(&1 + remote_count))
+
+      {:reply, {:ok, %{local: local_count, remote: remote_count, results: all_results}}, %{state | stats: new_stats}}
+    else
+      Logger.debug("[PNS Router] Sentant '#{identifier}' not found on any known node")
+      {:reply, {:error, :not_found}, state}
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -282,6 +577,159 @@ defmodule AiReality2Pns.Router do
   # Private Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
+  # Parse path format:
+  # - "*" -> {:broadcast_all} (all sentants on all nodes)
+  # - "sentant" -> {:local_only, sentant}
+  # - "*|sentant" -> {:all_nodes, sentant}
+  # - "node|sentant" -> {:specific_node, node, sentant}
+  defp parse_path("*"), do: :broadcast_all
+  defp parse_path(path) when is_binary(path) do
+    case String.split(path, "|", parts: 2) do
+      ["*", sentant_part] -> {:all_nodes, sentant_part}
+      [node_part, sentant_part] -> {:specific_node, node_part, sentant_part}
+      [sentant_only] -> {:local_only, sentant_only}
+    end
+  end
+
+  defp parse_path(%{id: _} = map), do: {:local_only, map}
+  defp parse_path(%{name: _} = map), do: {:local_only, map}
+  defp parse_path(other), do: {:local_only, other}
+
+  # Resolve a node identifier (name or ID) to node_id
+  # Returns the node_id, or nil if not found
+  defp resolve_node_identifier(identifier) when is_binary(identifier) do
+    local_node_id = Reality2.Bootstrap.get(:node_id)
+    local_node_name = Reality2.Bootstrap.get(:node_name)
+
+    cond do
+      # Check if it's this node's ID
+      identifier == local_node_id ->
+        {:local, local_node_id}
+
+      # Check if it's this node's name
+      identifier == local_node_name ->
+        {:local, local_node_id}
+
+      # Check if it's a UUID (remote node ID)
+      uuid?(identifier) ->
+        {:remote, identifier}
+
+      # Must be a remote node name - look it up in PNS_NodeNames
+      true ->
+        case Reality2.Metadata.get(:PNS_NodeNames, identifier) do
+          nil -> {:error, :node_not_found}
+          node_id -> {:remote, node_id}
+        end
+    end
+  end
+
+  # Resolve a sentant identifier on a specific node
+  # For local: use existing lookup
+  # For remote: look up in peer's sentant list
+  defp resolve_sentant_on_node(sentant_identifier, :local) do
+    normalize_identifier(sentant_identifier)
+  end
+
+  defp resolve_sentant_on_node(sentant_identifier, {:remote, node_id}) do
+    # If it's already a UUID, return it
+    if uuid?(sentant_identifier) do
+      sentant_identifier
+    else
+      # It's a name - look it up in the peer's sentant list
+      case lookup_sentant_name_on_peer(node_id, sentant_identifier) do
+        {:ok, sentant_id} -> sentant_id
+        {:error, _} -> sentant_identifier  # Return as-is, will fail on remote
+      end
+    end
+  end
+
+  # Search for ALL sentants by name across all known peers
+  # Returns {:ok, [{sentant_id, node_id}, ...]} or {:error, :not_found}
+  defp find_sentants_by_name_on_peers(sentant_name) do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      peers = AiReality2Transnet.PeerManager.get_all_peers()
+
+      # Search each peer's sentant list for the name - collect ALL matches
+      matches = Enum.flat_map(peers, fn {node_id, peer} ->
+        peer.sentants
+        |> Enum.filter(fn s ->
+          name = Map.get(s, :name) || Map.get(s, "name")
+          name == sentant_name
+        end)
+        |> Enum.map(fn s ->
+          sentant_id = Map.get(s, :id) || Map.get(s, "id")
+          {sentant_id, node_id}
+        end)
+      end)
+
+      case matches do
+        [] -> {:error, :not_found}
+        list -> {:ok, list}
+      end
+    else
+      {:error, :transnet_not_available}
+    end
+  end
+
+  # Search for a sentant by ID across all known peers
+  # Returns {:ok, node_id} or {:error, :not_found}
+  defp find_sentant_by_id_on_peers(sentant_id) do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      peers = AiReality2Transnet.PeerManager.get_all_peers()
+
+      # Search each peer's sentant list for the ID
+      result = Enum.find_value(peers, fn {node_id, peer} ->
+        found = Enum.any?(peer.sentants, fn s ->
+          id = Map.get(s, :id) || Map.get(s, "id")
+          id == sentant_id
+        end)
+
+        if found, do: {:found, node_id}, else: nil
+      end)
+
+      case result do
+        {:found, node_id} -> {:ok, node_id}
+        nil -> {:error, :not_found}
+      end
+    else
+      {:error, :transnet_not_available}
+    end
+  end
+
+  # Look up a sentant name on a remote peer
+  defp lookup_sentant_name_on_peer(node_id, sentant_name) do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      case AiReality2Transnet.PeerManager.get_peer(node_id) do
+        {:ok, peer} ->
+          # Search the sentant list for matching name
+          sentant = Enum.find(peer.sentants, fn s ->
+            name = Map.get(s, :name) || Map.get(s, "name")
+            name == sentant_name
+          end)
+
+          case sentant do
+            nil -> {:error, :sentant_not_found}
+            s -> {:ok, Map.get(s, :id) || Map.get(s, "id")}
+          end
+
+        {:error, _} ->
+          {:error, :peer_not_found}
+      end
+    else
+      {:error, :transnet_not_available}
+    end
+  end
+
+  # Check if a string is a valid UUID
+  defp uuid?(str) when is_binary(str) do
+    case UUID.info(str) do
+      {:ok, _} -> true
+      {:error, _} -> false
+    end
+  end
+
+  defp uuid?(_), do: false
+
   # Normalize various identifier formats to UUID
   defp normalize_identifier(id) when is_binary(id) do
     # Check if it's a UUID or a name
@@ -302,25 +750,6 @@ defmodule AiReality2Pns.Router do
   end
 
   defp normalize_identifier(other), do: other
-
-  # Resolve where a Sentant is located
-  defp resolve_location(sentant_id, state) do
-    # Check cache first
-    case Map.get(state.sentant_locations, sentant_id) do
-      :local ->
-        {:ok, :local}
-
-      {:remote, node_id} ->
-        {:ok, {:remote, node_id}}
-
-      nil ->
-        # Cache miss - check if it's local
-        case is_local_sentant?(sentant_id) do
-          true -> {:ok, :local}
-          false -> {:error, :not_found}
-        end
-    end
-  end
 
   # Check if a Sentant exists locally
   defp is_local_sentant?(sentant_id) do

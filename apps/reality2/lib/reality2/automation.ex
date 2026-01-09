@@ -461,35 +461,42 @@ defmodule Reality2.Automation do
       |> interpret()
 
     # Get the 'to' parameter, if it exists.  If not, return a list with the id of this Sentant.
-    to_field =
-      case R2Map.get(combined_parameters, :to) do
-        # Self
-        nil -> [id]
-        # All Sentants on this node
-        "*" -> Map.values(Reality2.Metadata.all(:SentantIDs))
-        # List of Sentant IDs or names
-        other -> other
-      end
+    # Special path formats ("*", "*|name", "node|name") are passed directly to PNS Router.
+    to_field = R2Map.get(combined_parameters, :to)
 
-    # If the 'to' parameter was not a list, turn it into one with a single element.
     to_list =
-      case is_list(to_field) do
-        true -> to_field
-        false -> [to_field]
+      case to_field do
+        # Self - no 'to' field specified
+        nil -> [id]
+        # Pass strings directly to PNS Router (handles "*", "*|name", "node|name", etc.)
+        str when is_binary(str) -> [str]
+        # List of targets
+        list when is_list(list) -> list
+        # Other (map, etc.)
+        other -> [other]
       end
 
     # Go through the list, sending the event to each one.
     for to <- to_list do
-      # Create a map with either the name or the ID of the Sentant to send the event to.
+      # Create identifier for PNS Router
+      # For path formats like "*", "*|name", "node|name" - pass as-is
+      # For local names/IDs - wrap in map for backwards compatibility
       name_or_id =
-        case Reality2.Metadata.get(:SentantIDs, to) do
-          nil ->
-            # Not a Name for a Sentant on this Node, so send to the Sentant with that ID.
-            %{id: to}
+        cond do
+          # Path formats containing "|" or "*" - pass directly to PNS Router
+          is_binary(to) and (String.contains?(to, "|") or to == "*") ->
+            to
 
-          id ->
-            # Must have been a name.
-            %{id: id}
+          # Local name lookup
+          is_binary(to) ->
+            case Reality2.Metadata.get(:SentantIDs, to) do
+              nil -> %{id: to}  # Assume it's an ID
+              found_id -> %{id: found_id}  # Was a name
+            end
+
+          # Already a map
+          true ->
+            to
         end
 
       # Get the event to send.
@@ -541,32 +548,46 @@ defmodule Reality2.Automation do
   defp send_via_pns(name_or_id, message_map) do
     # Try to use PNS router if available
     if Code.ensure_loaded?(AiReality2Pns.Router) do
-      sentant_id = case name_or_id do
+      # Extract identifier for PNS Router
+      identifier = case name_or_id do
         %{id: id} -> id
         %{name: name} -> Reality2.Metadata.get(:SentantIDs, name) || name
-        id when is_binary(id) -> id
+        str when is_binary(str) -> str  # Pass path formats directly ("*", "*|name", "node|name")
       end
 
       # Suppress compile-time warning - PNS is an optional plugin
       router_module = AiReality2Pns.Router
       case apply(router_module, :send_to_sentant, [
-        sentant_id,
+        identifier,
         message_map.event,
         message_map.parameters,
         message_map.passthrough
       ]) do
+        # Single target results
         {:ok, :local, _result} -> :ok
         {:ok, {:remote, _node_id}, _result} -> :ok
+        # Broadcast results (for "*" and "*|name" formats)
+        {:ok, %{local: _, remote: _}} -> :ok
+        # Errors
         {:error, :not_found, _} ->
-          # Fallback to direct send
-          Reality2.Sentants.sendto(name_or_id, message_map)
+          # Fallback to direct send (only works for local targets)
+          if is_map(name_or_id) do
+            Reality2.Sentants.sendto(name_or_id, message_map)
+          else
+            Logger.warning("PNS routing failed: not_found for #{inspect(name_or_id)}")
+          end
+        {:error, :not_found} ->
+          Logger.warning("PNS routing failed: not_found for #{inspect(name_or_id)}")
         {:error, reason} ->
-          Logger.warning("PNS routing failed: #{inspect(reason)}, falling back to direct send")
-          Reality2.Sentants.sendto(name_or_id, message_map)
+          Logger.warning("PNS routing failed: #{inspect(reason)}")
       end
     else
-      # PNS not available, use direct send
-      Reality2.Sentants.sendto(name_or_id, message_map)
+      # PNS not available, use direct send (only works for local targets)
+      if is_map(name_or_id) do
+        Reality2.Sentants.sendto(name_or_id, message_map)
+      else
+        Logger.warning("PNS not available, cannot route #{inspect(name_or_id)}")
+      end
     end
   end
 
@@ -782,35 +803,42 @@ defmodule Reality2.Automation do
       end
 
     # Get the 'to' parameter, if it exists.  If not, return a list with the id of this Sentant.
-    to_field =
-      case R2Map.get(combined_parameters, :to) do
-        # Self
-        nil -> [id]
-        # All Sentants on this node
-        "*" -> Map.values(Reality2.Metadata.all(:SentantIDs))
-        # List of Sentant IDs or names
-        other -> other
-      end
+    # Special path formats ("*", "*|name", "node|name") are passed directly to PNS Router.
+    to_field = R2Map.get(combined_parameters, :to)
 
-    # If the 'to' parameter was not a list, turn it into one with a single element.
     to_list =
-      case is_list(to_field) do
-        true -> to_field
-        false -> [to_field]
+      case to_field do
+        # Self - no 'to' field specified
+        nil -> [id]
+        # Pass strings directly to PNS Router (handles "*", "*|name", "node|name", etc.)
+        str when is_binary(str) -> [str]
+        # List of targets
+        list when is_list(list) -> list
+        # Other (map, etc.)
+        other -> [other]
       end
 
     # Go through the list, sending the event to each Sentant.
     for to <- to_list do
-      # Create a map with either the name or the ID of the Sentant to send the event to.
+      # Create identifier for PNS Router
+      # For path formats like "*", "*|name", "node|name" - pass as-is
+      # For local names/IDs - wrap in map for backwards compatibility
       name_or_id =
-        case Reality2.Metadata.get(:SentantIDs, to) do
-          nil ->
-            # Not a Name for a Sentant on this Node, so send to the Sentant with that ID.
-            %{id: to}
+        cond do
+          # Path formats containing "|" or "*" - pass directly to PNS Router
+          is_binary(to) and (String.contains?(to, "|") or to == "*") ->
+            to
 
-          id ->
-            # Must have been a name.
-            %{id: id}
+          # Local name lookup
+          is_binary(to) ->
+            case Reality2.Metadata.get(:SentantIDs, to) do
+              nil -> %{id: to}  # Assume it's an ID
+              found_id -> %{id: found_id}  # Was a name
+            end
+
+          # Already a map
+          true ->
+            to
         end
 
       event_parameters = R2Map.get(action_parameters, :parameters, %{})

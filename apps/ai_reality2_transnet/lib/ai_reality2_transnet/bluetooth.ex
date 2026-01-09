@@ -204,12 +204,12 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, new_state}
   end
 
-  # GATT hotspot command (Write)
+  # GATT network command (Write)
   # Clients write a small JSON command to coordinate hotspot join/leave.
   def handle_info({:gatt_write, "data", data}, state) do
-    Logger.info("GATT hotspot command received")
+    Logger.info("GATT network command received")
 
-    case AiReality2Transnet.GattProtocol.handle_mesh_command_write(data) do
+    case AiReality2Transnet.GattProtocol.handle_network_command_write(data) do
       :ok ->
         # Connection state may have changed; refresh join offer.
         update_join_offer_characteristic(state.gatt_handle)

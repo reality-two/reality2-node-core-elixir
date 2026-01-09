@@ -9,5 +9,6 @@ import Config
 #   url: [host: "example.com", port: 80],
 #   cache_static_manifest: "priv/static/cache_manifest.json"
 
-# Do not print debug messages in production
-config :logger, level: :error
+# Show info messages in production (for startup/bootstrap info)
+# but filter out debug messages
+config :logger, level: :info

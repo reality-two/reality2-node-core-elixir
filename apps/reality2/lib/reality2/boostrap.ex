@@ -63,6 +63,7 @@ defmodule Reality2.Bootstrap do
     |> Map.put(:node_id, node_config.node_id)
     |> Map.put(:node_name, node_name)
 
+    log_version()
     Logger.info("[Bootstrap] Node ID: #{node_config.node_id}")
     Logger.info("[Bootstrap] Node Name: #{node_name}")
     log_ip_addresses()
@@ -81,6 +82,22 @@ defmodule Reality2.Bootstrap do
   # ---------------------------------------------------------------------------------------------------------------------------------------------
   # Private Functions
   # ---------------------------------------------------------------------------------------------------------------------------------------------
+
+  defp log_version do
+    version = Application.spec(:reality2, :vsn) |> to_string()
+    mix_env = Mix.env() |> to_string()
+
+    # BUILD_BRANCH is set by make_runtime when creating releases
+    branch_suffix = case System.get_env("BUILD_BRANCH") do
+      "develop" -> " (develop)"
+      _ -> ""
+    end
+
+    Logger.info("**************************************")
+    Logger.info("Reality2 Node v#{version}#{branch_suffix}")
+    Logger.info("Environment: #{mix_env}")
+    Logger.info("**************************************")
+  end
 
   defp load_or_create_node_config! do
     path = Path.join(File.cwd!(), @node_file)
