@@ -195,6 +195,11 @@ defmodule AiReality2Transnet.ConnectionAssessor do
   end
 
   @impl true
+  def handle_call(:get_state, _from, state) do
+    {:reply, state, state}
+  end
+
+  @impl true
   def handle_call(:should_handover, _from, state) do
     result = evaluate_handover_decision(state)
     {:reply, result, state}

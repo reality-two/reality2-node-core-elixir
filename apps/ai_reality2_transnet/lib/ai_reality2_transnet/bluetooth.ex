@@ -244,6 +244,11 @@ defmodule AiReality2Transnet.Bluetooth do
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
       AiReality2Transnet.PeerManager.register_peer(id, info)
       Logger.info("Peer #{String.slice(id, 0..7)}... registered with PeerManager")
+
+      # Fetch capabilities via GATT to enable WiFi negotiation
+      if address do
+        fetch_peer_capabilities(address, id, state)
+      end
     end
 
     {:noreply, state}
@@ -306,6 +311,41 @@ defmodule AiReality2Transnet.Bluetooth do
     # Broadcast to GATT clients via notification characteristic
     broadcast_signal(id, event, event, parameters, passthrough)
 
+    {:noreply, state}
+  end
+
+  # GATT client read response - capability fetch completed
+  def handle_info({:gatt_read, address, value}, state) when is_list(value) do
+    # Convert byte list to binary string
+    json_data = :binary.list_to_bin(value)
+
+    # Look up which node_id this address corresponds to
+    case Process.get({:pending_gatt_read, address}) do
+      nil ->
+        Logger.warning("[Bluetooth] Received GATT read response for unknown address: #{address}")
+        {:noreply, state}
+
+      node_id ->
+        Process.delete({:pending_gatt_read, address})
+        handle_gatt_node_info_response(node_id, json_data)
+        {:noreply, state}
+    end
+  end
+
+  def handle_info({:gatt_read, value}, state) when is_list(value) do
+    # Older format without address - try to handle gracefully
+    Logger.debug("[Bluetooth] Received GATT read (no address): #{byte_size(:binary.list_to_bin(value))} bytes")
+    {:noreply, state}
+  end
+
+  def handle_info({:gatt_read_error, address, reason}, state) do
+    Logger.warning("[Bluetooth] GATT read failed for #{address}: #{inspect(reason)}")
+    Process.delete({:pending_gatt_read, address})
+    {:noreply, state}
+  end
+
+  def handle_info({:gatt_read_error, reason}, state) do
+    Logger.warning("[Bluetooth] GATT read failed: #{inspect(reason)}")
     {:noreply, state}
   end
 
@@ -409,7 +449,8 @@ defmodule AiReality2Transnet.Bluetooth do
   defp start_watch({:ok, state}) do
     adapter_name = Map.get(state, :adapter_name, "hci0")
     company_id = r2_company_id()
-    lost_after_ms = 30_000
+    # Time before a node is considered "lost" - configurable via app env
+    lost_after_ms = Application.get_env(:ai_reality2_transnet, :node_lost_timeout_ms, 60_000)
 
     case AiReality2Transnet.Action.start_watching(self(), company_id, adapter_name, lost_after_ms) do
       {:ok, h} ->
@@ -551,6 +592,64 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   defp truncate_if_needed(json, _max_size), do: json
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # GATT Client - Fetch Peer Capabilities
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Process the GATT node_info response and update peer capabilities
+  defp handle_gatt_node_info_response(node_id, json_data) do
+    case AiReality2Transnet.GattProtocol.decode_node_info(json_data) do
+      {:ok, node_info} ->
+        Logger.info("[Bluetooth] Received capabilities for peer #{String.slice(node_id, 0..7)}...")
+
+        # Extract capabilities from the decoded info
+        capabilities = Map.get(node_info, :capabilities, %{})
+
+        # Update peer with capabilities (enables WiFi negotiation)
+        if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+          AiReality2Transnet.PeerManager.update_peer_capabilities(node_id, capabilities)
+
+          # Also update node_name if available
+          if node_name = node_info[:node_name] do
+            # Re-register with node_name to update the mapping
+            AiReality2Transnet.PeerManager.register_peer(node_id, %{node_name: node_name})
+          end
+
+          Logger.info("[Bluetooth] Peer #{String.slice(node_id, 0..7)}... capabilities: #{inspect(capabilities)}")
+        end
+
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("[Bluetooth] Failed to decode node_info from peer #{String.slice(node_id, 0..7)}...: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  # Initiates a GATT read to fetch peer capabilities after beacon discovery.
+  # The response will arrive as a {:gatt_read, ...} message.
+  defp fetch_peer_capabilities(address, node_id, state) do
+    adapter_name = Map.get(state, :adapter_name, "hci0")
+    node_info_uuid = AiReality2Transnet.GattProtocol.node_info_uuid()
+
+    Logger.debug("[Bluetooth] Fetching capabilities from peer #{String.slice(node_id, 0..7)}... at #{address}")
+
+    # Store pending read so we can match response to node_id
+    # Note: This is fire-and-forget; response handled in handle_info
+    Process.put({:pending_gatt_read, address}, node_id)
+
+    case AiReality2Transnet.Action.gatt_read_characteristic(self(), address, node_info_uuid, adapter_name) do
+      :ok ->
+        Logger.debug("[Bluetooth] GATT read initiated for #{address}")
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("[Bluetooth] Failed to initiate GATT read for #{address}: #{inspect(reason)}")
+        Process.delete({:pending_gatt_read, address})
+        {:error, reason}
+    end
+  end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Beacon Encoding/Decoding - Role Flags and Status
