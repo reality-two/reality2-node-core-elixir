@@ -10,6 +10,7 @@ defmodule Reality2.Plugin do
 
   @doc false
   use GenServer, restart: :transient
+  require Logger
   alias Reality2.Helpers.R2Process, as: R2Process
   alias Reality2.Helpers.R2Map, as: R2Map
   alias Reality2.Helpers.JsonPath, as: JsonPath
@@ -128,7 +129,7 @@ defmodule Reality2.Plugin do
               |> replace_variable_in_map(parameters)
               |> URI.encode()
 
-            IO.puts(url)
+            Logger.debug("Plugin HTTP request: #{url}")
 
             case Finch.build(method, url, headers, body) |> Finch.request(Reality2.HTTPClient) do
               {:error, reason} ->

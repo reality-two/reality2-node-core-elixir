@@ -17,6 +17,7 @@ defmodule AiReality2Vars.Main do
   # *******************************************************************************************************************************************
   @doc false
   use DynamicSupervisor, restart: :transient
+  require Logger
   alias Reality2.Helpers.R2Process, as: R2Process
   alias Reality2.Helpers.R2Map, as: R2Map
 
@@ -30,7 +31,7 @@ defmodule AiReality2Vars.Main do
 
   @impl true
   def init(init_arg) do
-    IO.puts("[ai.reality2.data] started successfully.")
+    Logger.info("[ai.reality2.vars] started successfully")
     DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [init_arg])
   end
 

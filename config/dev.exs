@@ -64,7 +64,18 @@ config :reality2_web, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 # , level: :error
-config :logger, :console, format: "[$level] $message\n"
+# Logger colors disabled due to spacing issues with Pop!_OS Cosmic terminal
+# To enable colors, replace `colors: [enabled: false]` with:
+#   colors: [
+#     enabled: true,
+#     debug: :cyan,
+#     info: :normal,
+#     warning: :yellow,
+#     error: :red
+#   ]
+config :logger, :console,
+  format: "[$level] $message\n",
+  colors: [enabled: false]
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime

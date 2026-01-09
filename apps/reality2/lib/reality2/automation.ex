@@ -371,10 +371,7 @@ defmodule Reality2.Automation do
   defp test_and_wait(name, count) do
     case R2Process.whereis(name) do
       nil ->
-        IO.puts(
-          "Waiting for Plugin: " <> name <> " to start, count is: " <> Integer.to_string(count)
-        )
-
+        Logger.debug("Waiting for plugin: #{name} to start, count is: #{count}")
         Process.sleep(100)
         test_and_wait(name, count - 1)
 
@@ -610,14 +607,12 @@ defmodule Reality2.Automation do
           _pid ->
             event_parameters = R2Map.get(action_parameters, :parameters, %{})
 
-            apply(Reality2Web.SentantResolver, :send_signal, [
+            Reality2.Signals.broadcast(
               id,
               event,
               Map.merge(event_parameters, accumulated_parameters) |> interpret(),
               passthrough
-            ])
-
-            # Reality2Web.SentantResolver.send_signal(id, event, Map.merge(event_parameters, accumulated_parameters) |> interpret(), passthrough)
+            )
         end
     end
 
@@ -639,14 +634,7 @@ defmodule Reality2.Automation do
          _decryption_key,
          _data
        ) do
-    apply(Reality2Web.SentantResolver, :send_signal, [
-      id,
-      "debug",
-      accumulated_parameters,
-      passthrough
-    ])
-
-    # Reality2Web.SentantResolver.send_signal(id, "debug", accumulated_parameters, passthrough)
+    Reality2.Signals.broadcast(id, "debug", accumulated_parameters, passthrough)
 
     accumulated_parameters |> Map.merge(%{result: :ok})
   end

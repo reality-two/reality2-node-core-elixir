@@ -15,6 +15,7 @@ defmodule AiReality2Backup.Main do
   # *******************************************************************************************************************************************
   @doc false
   use GenServer, restart: :transient
+  require Logger
   alias Reality2.Helpers.R2Map, as: R2Map
   alias Reality2.Helpers.Crypto, as: Crypto
   alias :mnesia, as: Mnesia
@@ -33,7 +34,7 @@ defmodule AiReality2Backup.Main do
          :ok <- Mnesia.start(),
          :ok <- create_table(:backup, attributes: [:name, :data], disc_only_copies: [node()]),
          :ok <- create_table(:data, attributes: [:id, :data], disc_only_copies: [node()]) do
-      IO.puts("[ai.reality2.backup] started successfully.")
+      Logger.info("[ai.reality2.backup] started successfully")
       {:ok, state}
     else
       _ -> {:error, :mnesia}

@@ -1,3 +1,12 @@
 cd ../../../..
-podman run --rm -it --platform linux/arm64   -v "$PWD":/aarch64 -w /aarch64   elixir-buster-rust-cmake:latest   bash
+# podman run --rm -it --platform linux/arm64   -v "$PWD":/aarch64 -w /aarch64   elixir-buster-rust-cmake:latest   bash
+podman run --rm -it --platform linux/arm64 \
+  --memory 48g --memory-swap 48g \
+  -e MAKEFLAGS="-j16" \
+  -e CARGO_BUILD_JOBS=16 \
+  -e ERL_FLAGS="+S 16:16" \
+  -v "$PWD":/aarch64 -w /aarch64 \
+  elixir-buster-rust-cmake:latest \
+  bash
+
 cd reality2-node-core-elixir/scripts

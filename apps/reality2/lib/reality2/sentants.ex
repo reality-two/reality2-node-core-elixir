@@ -19,6 +19,7 @@ defmodule Reality2.Sentants do
   # *********************************************************************************************************************************************
   @doc false
   use DynamicSupervisor
+  require Logger
   alias Reality2.Types
   alias Reality2.Helpers.R2Process, as: R2Process
   alias Reality2.Helpers.R2Map, as: R2Map
@@ -357,9 +358,7 @@ defmodule Reality2.Sentants do
   """
   # ---------------------------------------------------------------------------------------------------------------------------------------------
   def delete(name_or_uuid, local \\ true, override \\ false) do
-    IO.puts(
-      "DELETING #{inspect(name_or_uuid)} local:#{local} override:#{override}, locked:#{System.get_env("LOCKED")}"
-    )
+    Logger.debug("Deleting sentant: #{inspect(name_or_uuid)} local:#{local} override:#{override}, locked:#{System.get_env("LOCKED")}")
 
     if override do
       do_delete(name_or_uuid)

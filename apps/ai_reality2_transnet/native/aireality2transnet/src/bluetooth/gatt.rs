@@ -231,12 +231,12 @@ async fn run_gatt_server(
                             let data = command_data_clone.clone();
                             let pid = pid_clone.clone();
                             Box::pin(async move {
-                                println!("[GATT] COMMAND char write from client: {} bytes", new_value.len());
+                                eprint!("[debug] GATT COMMAND char write from client: {} bytes\r\n", new_value.len());
                                 data.write(new_value.clone());
                                 send_msg(&pid, |env| {
                                     (atoms::gatt_write(), "command", new_value.clone()).encode(env)
                                 });
-                                println!("[GATT] Notified Elixir about write");
+                                eprint!("[debug] GATT notified Elixir about write\r\n");
                                 Ok(())
                             })
                         },
@@ -249,7 +249,7 @@ async fn run_gatt_server(
                         let data = command_data_read.clone();
                         Box::pin(async move {
                             let value = data.read();
-                            println!("[GATT] COMMAND char read request - returning {} bytes", value.len());
+                            eprint!("[debug] GATT COMMAND char read request - returning {} bytes\r\n", value.len());
                             Ok(value)
                         })
                     }),
@@ -334,7 +334,7 @@ async fn run_gatt_server(
                         let data = mesh_info_data_read.clone();
                         Box::pin(async move {
                             let value = data.read();
-                            println!("[GATT] MESH_INFO char read request - returning {} bytes", value.len());
+                            eprint!("[debug] GATT MESH_INFO char read request - returning {} bytes\r\n", value.len());
                             Ok(value)
                         })
                     }),
@@ -377,16 +377,16 @@ async fn run_gatt_server(
                 // Handle programmatic writes to characteristics
                 // This allows Elixir to update characteristic values
                 if uuid == CHAR_COMMAND_UUID {
-                    println!("[GATT] Received programmatic write to COMMAND char: {} bytes", data.len());
+                    eprint!("[debug] GATT received programmatic write to COMMAND char: {} bytes\r\n", data.len());
                     command_data_write.write(data.clone());
-                    println!("[GATT] Buffer updated, new size: {} bytes", data.len());
+                    eprint!("[debug] GATT buffer updated, new size: {} bytes\r\n", data.len());
                 } else if uuid == CHAR_DATA_UUID {
                     data_char_data_write.write(data);
                 } else if uuid == CHAR_NOTIFY_UUID {
                     notify_data.write(data.clone());
                     notify_data.notify(data);
                 } else if uuid == MESH_INFO_CHAR_UUID {
-                    println!("[GATT] Received programmatic write to MESH_INFO char: {} bytes", data.len());
+                    eprint!("[debug] GATT received programmatic write to MESH_INFO char: {} bytes\r\n", data.len());
                     mesh_info_data_write.write(data);
                 }
             }

@@ -11,6 +11,7 @@ defmodule AiReality2Geospatial.GeohashSearch do
 
   @doc false
   use GenServer, restart: :transient
+  require Logger
   alias Reality2.Helpers.R2Process, as: R2Process
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -41,7 +42,7 @@ defmodule AiReality2Geospatial.GeohashSearch do
   end
 
   def handle_call(_request, _from, state) do
-    IO.puts("Unknown Command #{inspect(state, pretty: true)}")
+    Logger.warning("Unknown command received, state: #{inspect(state, pretty: true)}")
     {:reply, {:error, :unknown_command}, state}
   end
 

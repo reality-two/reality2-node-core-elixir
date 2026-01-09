@@ -14,6 +14,7 @@ defmodule AiReality2Rustdemo.Main do
   # *******************************************************************************************************************************************
   @doc false
   use GenServer, restart: :transient
+  require Logger
   alias Reality2.Helpers.R2Map, as: R2Map
   alias Reality2.Helpers.Convert, as: Convert
 
@@ -26,7 +27,7 @@ defmodule AiReality2Rustdemo.Main do
   @doc false
   @impl true
   def init(state) do
-    IO.puts("[ai.reality2.rustdemo] started successfully.")
+    Logger.info("[ai.reality2.rustdemo] started successfully")
     {:ok, state}
   end
 

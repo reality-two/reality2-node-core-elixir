@@ -37,7 +37,7 @@ pub fn list_adapters_seq() -> Vec<Adapters> {
     {
         Ok(rt) => rt,
         Err(e) => {
-            eprintln!("list_adapters: failed to build tokio runtime: {e}");
+            eprint!("[warning] list_adapters: failed to build tokio runtime: {e}\r\n");
             return vec![];
         }
     };
@@ -77,7 +77,7 @@ pub fn list_adapters_seq() -> Vec<Adapters> {
     match result {
         Ok(adapters) => adapters,
         Err(e) => {
-            eprintln!("list_adapters error: {e}");
+            eprint!("[warning] list_adapters error: {e}\r\n");
             vec![]
         }
     }

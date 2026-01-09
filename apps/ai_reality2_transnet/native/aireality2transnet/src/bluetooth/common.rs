@@ -147,7 +147,7 @@ pub async fn configure_rssi_discovery_filter(adapter: &bluer::Adapter) {
     filter.rssi = Some(-127); // Accept all signal strengths (-127 = minimum)
 
     if let Err(e) = adapter.set_discovery_filter(filter).await {
-        eprintln!("set_discovery_filter failed (continuing): {e}");
+        eprint!("[warning] set_discovery_filter failed (continuing): {e}\r\n");
     }
 }
 

@@ -10,6 +10,7 @@ defmodule Reality2.Plugins do
 
   @doc false
   use DynamicSupervisor
+  require Logger
   alias Reality2.Types
   alias Reality2.Helpers.R2Process, as: R2Process
 
@@ -61,10 +62,7 @@ defmodule Reality2.Plugins do
 
           # Error starting child for some other reason.
           {:error, reason} ->
-            if Application.get_env(:reality2, :build_env) != :prod do
-              IO.puts("Error starting child: #{inspect(reason)}")
-            end
-
+            Logger.warning("Error starting plugin child: #{inspect(reason)}")
             {:error, reason}
         end
     end

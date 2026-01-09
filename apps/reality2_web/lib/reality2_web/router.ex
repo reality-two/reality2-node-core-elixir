@@ -42,6 +42,15 @@ defmodule Reality2Web.Router do
       ]
   end
 
+  # Mesh network endpoints for transient peer communication
+  # These expose only public Sentant information (name, events, signals)
+  scope "/mesh", Reality2Web do
+    pipe_through :reality2
+
+    get "/sentants", MeshController, :sentants
+    get "/info", MeshController, :info
+  end
+
   if Mix.env() == :dev do
     forward "/graphiql", Absinthe.Plug.GraphiQL,
       schema: Reality2Web.Schema,

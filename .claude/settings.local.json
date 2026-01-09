@@ -24,6 +24,7 @@
       "Bash(mix cmd:*)",
       "Bash(timeout 10 iex:*)",
       "Bash(test:*)",
+<<<<<<< Updated upstream
       "Bash(PLUGINS=ai_reality2_transnet mix clean:*)",
       "Bash(PLUGINS=ai_reality2_transnet mix compile:*)",
       "Bash(1)",
@@ -32,6 +33,9 @@
       "Bash(PLUGINS=ai_reality2_transnet,ai_reality2_pns mix clean:*)",
       "Bash(MIX_ENV=prod mix compile:*)",
       "Bash(xargs:*)"
+=======
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir log --oneline)"
+>>>>>>> Stashed changes
     ]
   }
 }

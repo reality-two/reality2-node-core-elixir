@@ -10,6 +10,7 @@ defmodule Reality2.Autostart do
 
   @doc false
   use GenServer
+  require Logger
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------
   # GenServer callbacks
@@ -40,10 +41,10 @@ defmodule Reality2.Autostart do
   @impl true
   def handle_info(:check_ready, state) do
     if !!Process.whereis(Reality2.HTTPClient) do
-      IO.puts("System is ready. Loading autostart files...")
+      Logger.info("System is ready. Loading autostart files...")
       load_autostart_files()
     else
-      IO.puts("System not ready yet, retrying...")
+      Logger.debug("System not ready yet, retrying...")
       Process.send_after(self(), :check_ready, 1000)
     end
 
@@ -78,12 +79,12 @@ defmodule Reality2.Autostart do
     autostart = autostart_dir()
 
     if File.dir?(autostart) do
-      IO.puts("Loading from autostart directory: " <> autostart)
+      Logger.info("Loading from autostart directory: #{autostart}")
 
       File.ls!(autostart)
       |> Enum.each(&load_file/1)
     else
-      IO.puts("Autostart directory not found.")
+      Logger.debug("Autostart directory not found")
     end
   end
 
@@ -102,20 +103,20 @@ defmodule Reality2.Autostart do
         {:ok, content} ->
           case Reality2.Swarm.create(content, true, true) do
             {:ok, _} ->
-              IO.puts("   Swarm file: " <> file_name <> " loaded")
+              Logger.info("Swarm file loaded: #{file_name}")
 
             _ ->
               case Reality2.Sentants.create(content, true, true) do
                 {:ok, _} ->
-                  IO.puts("   Sentant file: " <> file_name <> " loaded")
+                  Logger.info("Sentant file loaded: #{file_name}")
 
                 _ ->
-                  IO.puts("   Error loading " <> full_path)
+                  Logger.warning("Error loading file: #{full_path}")
               end
           end
 
         {:error, reason} ->
-          IO.puts("   Error reading file: #{reason}")
+          Logger.error("Error reading file #{full_path}: #{reason}")
       end
     end
   end

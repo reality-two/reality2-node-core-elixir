@@ -14,6 +14,7 @@ defmodule AiReality2Transnet.Main do
 
   @doc false
   use GenServer, restart: :transient
+  require Logger
   alias Reality2.Helpers.R2Map, as: R2Map
   # alias Reality2.Helpers.Convert, as: Convert
 
@@ -26,6 +27,10 @@ defmodule AiReality2Transnet.Main do
   @doc false
   @impl true
   def init(state) do
+<<<<<<< Updated upstream
+=======
+    Logger.info("[ai.reality2.transnet] Main GenServer initialized")
+>>>>>>> Stashed changes
     {:ok, state}
   end
 

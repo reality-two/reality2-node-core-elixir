@@ -4,6 +4,7 @@ defmodule Reality2Web.Application do
   @moduledoc false
 
   use Application
+  require Logger
 
   @impl true
   def start(_type, _args) do
@@ -22,7 +23,7 @@ defmodule Reality2Web.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Reality2Web.Supervisor]
-    IO.puts("[ai.reality2.web] started successfully.")
+    Logger.info("[ai.reality2.web] started successfully")
     Supervisor.start_link(children, opts)
   end
 

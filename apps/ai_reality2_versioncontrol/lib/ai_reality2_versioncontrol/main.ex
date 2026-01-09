@@ -16,6 +16,7 @@ defmodule AiReality2Versioncontrol.Main do
   # *******************************************************************************************************************************************
     @doc false
     use GenServer, restart: :transient
+    require Logger
     alias Reality2.Helpers.R2Map, as: R2Map
     # alias Reality2.Helpers.Crypto, as: Crypto
     # alias :mnesia, as: Mnesia
@@ -29,7 +30,7 @@ defmodule AiReality2Versioncontrol.Main do
     @doc false
     @impl true
     def init(state) do
-        IO.puts("[ai.reality2.versioncontrol] started successfully.")
+        Logger.info("[ai.reality2.versioncontrol] started successfully")
         {:ok, state}
     end
     # -----------------------------------------------------------------------------------------------------------------------------------------

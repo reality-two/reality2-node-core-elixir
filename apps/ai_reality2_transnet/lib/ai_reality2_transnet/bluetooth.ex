@@ -88,7 +88,7 @@ This module:
   @impl true
   def terminate(_reason, state) do
     # Stop watcher + beacon + GATT server using the stored keys
-    IO.puts("Terminating Bluetooth service")
+    Logger.info("Terminating Bluetooth service")
     if h = state[:r2_watch], do: AiReality2Transnet.Action.stop_watching(h)
     if h = state[:r2_beacon], do: AiReality2Transnet.Action.stop_broadcast(h)
     if h = state[:gatt_handle], do: AiReality2Transnet.Action.stop_gatt_server(h)
@@ -347,12 +347,16 @@ This module:
            adapter_name
          ) do
       {:ok, h} ->
+<<<<<<< Updated upstream
         IO.puts("|-- Node ID: #{node_id} beacon started on #{adapter_name}")
         IO.puts("|-- Beacon flags: hosting=#{can_host_ap?()}, fixed=#{is_fixed_anchor?()}")
+=======
+        Logger.info("Node ID: #{node_id} beacon started on #{adapter_name}")
+>>>>>>> Stashed changes
         {:ok, Map.put(state, :r2_beacon, h)}
 
       {:error, reason} ->
-        IO.puts("|-- start_beacon failed: #{inspect(reason)}")
+        Logger.warning("start_beacon failed: #{inspect(reason)}")
         {:error, reason}
     end
   end
@@ -365,7 +369,11 @@ This module:
 
     case AiReality2Transnet.Action.start_gatt_server(self(), adapter_name) do
       {:ok, handle} ->
+<<<<<<< Updated upstream
         IO.puts("|-- GATT Bootstrap Server started successfully")
+=======
+        Logger.info("GATT Sentant Server started successfully")
+>>>>>>> Stashed changes
 
         # Initialize the Node Info characteristic (minimal bootstrap)
         update_query_characteristic(handle)
@@ -386,7 +394,7 @@ This module:
          })}
 
       {:error, reason} ->
-        IO.puts("|-- Failed to start GATT Sentant Server: #{reason}")
+        Logger.warning("Failed to start GATT Sentant Server: #{reason}")
         {:error, reason}
     end
   end
@@ -401,11 +409,11 @@ This module:
 
     case AiReality2Transnet.Action.start_watching(self(), company_id, adapter_name, lost_after_ms) do
       {:ok, h} ->
-        IO.puts("|-- R2 watch started on #{adapter_name}")
+        Logger.info("R2 watch started on #{adapter_name}")
         {:ok, Map.put(state, :r2_watch, h)}
 
       {:error, reason} ->
-        IO.puts("|-- Failed to start R2 watch: #{reason}")
+        Logger.warning("Failed to start R2 watch: #{reason}")
         {:error, reason}
     end
   end
@@ -416,7 +424,7 @@ This module:
   defp subscribe_to_pubsub({:ok, state}) do
     # Subscribe to sentant signals from Reality2.PubSub (shared across all apps)
     Phoenix.PubSub.subscribe(Reality2.PubSub, "sentant:signals")
-    IO.puts("|-- Subscribed to sentant:signals PubSub topic")
+    Logger.debug("Subscribed to sentant:signals PubSub topic")
     {:ok, state}
   end
 
@@ -451,6 +459,129 @@ This module:
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
+<<<<<<< Updated upstream
+=======
+  # GATT Server - sentantSend Mutation Handler
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  defp parse_sentant_send(data) when is_list(data) do
+    data |> :binary.list_to_bin() |> parse_sentant_send()
+  end
+
+  defp parse_sentant_send(data) when is_binary(data) do
+    case Jason.decode(data) do
+      {:ok, %{"id" => id, "event" => event} = mutation} ->
+        {:ok,
+         %{
+           id: id,
+           event: event,
+           parameters: Map.get(mutation, "parameters", %{}),
+           passthrough: Map.get(mutation, "passthrough")
+         }}
+
+      {:ok, _} ->
+        {:error, "missing_required_fields_id_and_event"}
+
+      {:error, reason} ->
+        {:error, "json_decode_error: #{inspect(reason)}"}
+    end
+  end
+
+  defp handle_sentant_send(
+         %{id: id, event: event, parameters: parameters, passthrough: passthrough},
+         %{gatt_handle: handle} = state
+       ) do
+    Logger.info("Processing sentantSend: id=#{id}, event=#{event}")
+
+    # Mirror GraphQL resolver pattern: validate Sentant exists and event is allowed
+    case Reality2.Sentants.read(%{id: id}, :definition) do
+      {:ok, sentant} ->
+        # Validate event is allowed (same as GraphQL does)
+        events = get_event_list(Map.get(sentant, :events, []))
+
+        if Enum.member?(events, event) do
+          # Send the event to the Sentant
+          case Reality2.Sentants.sendto(%{id: id}, %{
+                 event: event,
+                 parameters: parameters,
+                 passthrough: passthrough
+               }) do
+            {:ok, _pid} ->
+              # Success response
+              response = %{
+                type: "mutation_response",
+                mutation: "sentantSend",
+                success: true,
+                version: @protocol_version,
+                timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+                data: sentant
+              }
+
+              encode_and_notify(handle, response)
+              {:noreply, %{state | events_sent: state.events_sent + 1}}
+
+            {:error, reason} ->
+              # Error sending event
+              error_response = %{
+                type: "mutation_response",
+                mutation: "sentantSend",
+                success: false,
+                error: to_string(reason),
+                version: @protocol_version,
+                timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+              }
+
+              encode_and_notify(handle, error_response)
+              {:noreply, state}
+          end
+        else
+          # Event not allowed
+          error_response = %{
+            type: "mutation_response",
+            mutation: "sentantSend",
+            success: false,
+            error: "invalid_event",
+            version: @protocol_version,
+            timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+          }
+
+          encode_and_notify(handle, error_response)
+          {:noreply, state}
+        end
+
+      {:error, reason} ->
+        # Sentant not found
+        error_response = %{
+          type: "mutation_response",
+          mutation: "sentantSend",
+          success: false,
+          error: to_string(reason),
+          version: @protocol_version,
+          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+        }
+
+        encode_and_notify(handle, error_response)
+        {:noreply, state}
+    end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # GATT Server - Data Fetching Functions
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  defp fetch_all_sentants do
+    # TODO: Replace with your actual Sentant registry
+    # YourSentantModule.list_all_sentants()
+    # |> Enum.map(&format_sentant/1)
+    #
+    {:ok, sentants} = Reality2.Sentants.read_all(:definition)
+    sentants_map = Enum.map(sentants, fn sentant -> sentant end)
+    Logger.debug("Fetched all sentants: #{inspect(sentants_map, pretty: false, limit: 500)}")
+    sentants_map
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+>>>>>>> Stashed changes
   # GATT Server - Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
 

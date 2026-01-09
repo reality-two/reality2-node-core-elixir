@@ -46,8 +46,13 @@ defmodule AiReality2Transnet.GattProtocol do
         "mesh_active": true,
         "mesh_id": "R2MESH_abc123",
         "ipv6_link_local": "fe80::1234:5678:90ab:cdef",
+<<<<<<< Updated upstream
         "http_port": 8080,
         "instructions": "Use WiFi mesh HTTP/GraphQL for Sentant queries (e.g., POST /graphql)"
+=======
+        "http_port": 4005,
+        "instructions": "Query sentants via HTTP: GET http://[ipv6]:port/mesh/sentants"
+>>>>>>> Stashed changes
       }
 
   **Author**
@@ -116,6 +121,7 @@ defmodule AiReality2Transnet.GattProtocol do
       {:ok, config} ->
         node_id = Reality2.Bootstrap.get(:node_id)
 
+<<<<<<< Updated upstream
         payload = %{
           hotspot_available: true,
           ssid: config.ssid,
@@ -128,6 +134,16 @@ defmodule AiReality2Transnet.GattProtocol do
           host_node_id: node_id,
           timestamp: System.system_time(:millisecond)
         }
+=======
+    payload = %{
+      mesh_active: mesh_info.active,
+      mesh_id: Map.get(mesh_info, :mesh_id),
+      ipv6_link_local: Map.get(mesh_info, :ipv6_link_local),
+      http_port: Application.get_env(:ai_reality2_transnet, :wifi_server_port, 4005),
+      instructions: "Query sentants: GET http://[ipv6]:port/mesh/sentants",
+      timestamp: System.system_time(:millisecond)
+    }
+>>>>>>> Stashed changes
 
         Jason.encode!(payload)
 
@@ -215,6 +231,7 @@ defmodule AiReality2Transnet.GattProtocol do
   @spec decode_join_offer(String.t()) :: {:ok, map()} | {:error, String.t()}
   def decode_join_offer(json_data) do
     case Jason.decode(json_data) do
+<<<<<<< Updated upstream
       {:ok, %{"hotspot_available" => true} = data} ->
         join_offer = %{
           hotspot_available: true,
@@ -226,6 +243,15 @@ defmodule AiReality2Transnet.GattProtocol do
           rendezvous_port: Map.get(data, "rendezvous_port", 8080),
           offer_expiry: Map.get(data, "offer_expiry"),
           host_node_id: Map.get(data, "host_node_id"),
+=======
+      {:ok, data} when is_map(data) ->
+        mesh_details = %{
+          mesh_active: Map.get(data, "mesh_active", false),
+          mesh_id: Map.get(data, "mesh_id"),
+          ipv6_link_local: Map.get(data, "ipv6_link_local"),
+          http_port: Map.get(data, "http_port", 4005),
+          instructions: Map.get(data, "instructions"),
+>>>>>>> Stashed changes
           timestamp: Map.get(data, "timestamp")
         }
 

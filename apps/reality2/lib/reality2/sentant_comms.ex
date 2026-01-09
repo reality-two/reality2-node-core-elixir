@@ -8,6 +8,7 @@ defmodule Reality2.Sentant.Comms do
   # - [roycdavies.github.io](https://roycdavies.github.io/)
   # *********************************************************************************************************************************************
   use GenServer
+  require Logger
   # alias Absinthe.Subscription
   alias Reality2.Helpers.R2Process, as: R2Process
   alias Reality2.Helpers.R2Map, as: R2Map
@@ -55,13 +56,7 @@ defmodule Reality2.Sentant.Comms do
             :ok
 
           pid ->
-            if Application.get_env(:reality2, :build_env) != :prod do
-              IO.puts(
-                "SentantComms: Sending command to automation: " <>
-                  inspect(pid) <> " : " <> inspect(command_and_parameters)
-              )
-            end
-
+            Logger.debug("SentantComms: Sending command to automation: #{inspect(pid)} : #{inspect(command_and_parameters, pretty: false)}")
             GenServer.call(pid, command_and_parameters)
         end
       end)
@@ -91,13 +86,7 @@ defmodule Reality2.Sentant.Comms do
 
         pid ->
           # Send to each automation
-          if Application.get_env(:reality2, :build_env) != :prod do
-            IO.puts(
-              "SentantComms: Sending command to automation: " <>
-                inspect(pid) <> " : " <> inspect(command_and_parameters)
-            )
-          end
-
+          Logger.debug("SentantComms: Sending command to automation: #{inspect(pid)} : #{inspect(command_and_parameters, pretty: false)}")
           GenServer.cast(pid, command_and_parameters)
       end
     end)

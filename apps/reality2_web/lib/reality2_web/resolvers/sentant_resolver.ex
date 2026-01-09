@@ -261,29 +261,15 @@ defmodule Reality2Web.SentantResolver do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # -----------------------------------------------------------------------------------------------------------------------------------------
+  @doc """
+  Send a signal from a Sentant. Delegates to Reality2.Signals.broadcast/4.
+
+  This function is kept for backwards compatibility but the core logic
+  now lives in the Reality2 core app to avoid tight coupling.
+  """
   @spec send_signal(Reality2.Types.uuid(), any(), any(), any()) :: false | :ok
   def send_signal(id, event, parameters, passthrough) do
-    case Reality2.Sentants.read(%{id: id}, :definition) do
-      {:ok, sentant} ->
-        signal_data = %{
-          id: id,
-          sentant: sentant,
-          event: event,
-          parameters: parameters,
-          passthrough: passthrough
-        }
-
-        # Publish to PubSub for all subscribers (GraphQL, GATT, etc.)
-        Phoenix.PubSub.broadcast(
-          Reality2.PubSub,
-          "sentant:signals",
-          {:sentant_signal, signal_data}
-        )
-
-      {:error, _reason} ->
-        # Something went wrong
-        false
-    end
+    Reality2.Signals.broadcast(id, event, parameters, passthrough)
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------

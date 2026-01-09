@@ -11,6 +11,7 @@ defmodule AiReality2Transnet.Application do
   # *******************************************************************************************************************************************
 
   use Application
+  require Logger
 
   @impl true
   def start(_type, _args) do
@@ -46,7 +47,7 @@ defmodule AiReality2Transnet.Application do
       #   - Reality2Web GraphQL (port 4005) for sentantAll exchange
     ]
 
-    IO.puts("[ai.reality2.transnet] started successfully.")
+    Logger.info("[ai.reality2.transnet] started successfully")
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
   end
 end
