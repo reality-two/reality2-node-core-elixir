@@ -258,10 +258,69 @@ defmodule AiReality2Transnet.ConnectionAssessor do
         {:noreply, final_state}
 
       {:no, reason} ->
-        # Current connection is still optimal - stay connected
+        # Current connection is still optimal, OR no candidates available
         Logger.debug("[ConnectionAssessor] No handover needed: #{reason}")
+
+        # Check if we should start hosting (no one else is hosting and we're idle)
+        maybe_start_hosting(new_state, reason)
+
         schedule_assessment()
         {:noreply, new_state}
+    end
+  end
+
+  # If no candidates are available and we're not connected, consider becoming a host
+  defp maybe_start_hosting(_state, reason) do
+    # Only consider starting if:
+    # 1. No viable candidates (no one is hosting)
+    # 2. We're not already connected or hosting
+    # 3. We have WiFi capability
+    # 4. There are discovered peers who could connect to us
+    # 5. We "win" the tie-breaker (lowest node_id becomes host)
+
+    if reason in [:no_candidates_available, :no_better_candidate] do
+      case ConnectionManager.get_connection_status() do
+        {:ok, %{state: conn_state, hosting: false}} when conn_state in [:idle, :disconnected] ->
+          # We're idle and not hosting - check if we should start
+          peers = PeerManager.get_all_peers()
+
+          if map_size(peers) > 0 do
+            # Use node_id comparison as tie-breaker
+            # The node with the "lowest" ID becomes the host
+            my_node_id = Reality2.Bootstrap.get(:node_id)
+            peer_ids = Map.keys(peers)
+            lowest_id = Enum.min([my_node_id | peer_ids])
+
+            if my_node_id == lowest_id do
+              # We should be the host
+              case AiReality2Transnet.Wifi.list_adapters() do
+                {:ok, [_ | _]} ->
+                  Logger.info("[ConnectionAssessor] No hosts available and we have lowest ID - starting hotspot...")
+
+                  Task.start(fn ->
+                    case ConnectionManager.start_hosting() do
+                      {:ok, config} ->
+                        Logger.info("[ConnectionAssessor] Now hosting: #{config.ssid}")
+
+                      {:error, err} ->
+                        Logger.warning("[ConnectionAssessor] Failed to start hosting: #{inspect(err)}")
+                    end
+                  end)
+
+                _ ->
+                  Logger.debug("[ConnectionAssessor] No WiFi adapter available for hosting")
+              end
+            else
+              Logger.debug("[ConnectionAssessor] Waiting for node #{String.slice(lowest_id, 0..7)}... to become host")
+            end
+          end
+
+        {:ok, %{state: conn_state}} ->
+          Logger.debug("[ConnectionAssessor] Not starting host - current state: #{conn_state}")
+
+        _ ->
+          :ok
+      end
     end
   end
 

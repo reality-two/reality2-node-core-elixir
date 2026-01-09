@@ -282,6 +282,9 @@ defmodule AiReality2Transnet.PeerManager do
     # Extract node_name from info (may come from GATT decode or other sources)
     node_name = Map.get(info, :node_name) || Map.get(info, "node_name")
 
+    # Extract capabilities from info (may come from beacon decode or GATT)
+    capabilities = Map.get(info, :capabilities) || Map.get(info, "capabilities") || %{}
+
     # Build new peer record with defaults
     # Start with BLE transport (will be upgraded to WiFi later if available)
     peer = %{
@@ -291,7 +294,7 @@ defmodule AiReality2Transnet.PeerManager do
       address: Map.get(info, :address),  # BLE MAC address
       rssi: Map.get(info, :rssi),        # Signal strength from beacon
       sentants: [],                      # Will be populated after exchange
-      capabilities: %{},                 # Will be updated from beacon flags
+      capabilities: capabilities,        # From beacon flags or GATT
       discovered_at: System.system_time(:millisecond),
       last_seen: System.system_time(:millisecond),
       connection_state: :discovered      # Initial state in lifecycle

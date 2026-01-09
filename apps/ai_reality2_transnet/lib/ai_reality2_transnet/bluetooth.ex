@@ -228,6 +228,28 @@ defmodule AiReality2Transnet.Bluetooth do
     # Extract BLE address from info
     address = Map.get(info, :address)
 
+    # Try to decode capabilities from beacon major/minor fields if present
+    # Otherwise use defaults (all R2 nodes can potentially host WiFi)
+    capabilities = case {Map.get(info, :major), Map.get(info, :minor)} do
+      {major, minor} when is_integer(major) and is_integer(minor) ->
+        # Decode from beacon data
+        flags = decode_beacon_flags(major)
+        status = decode_beacon_status(minor)
+        Map.merge(flags, status) |> Map.put(:wifi_hotspot, flags.can_host_ap)
+
+      _ ->
+        # Default capabilities - assume peer can host WiFi
+        %{
+          wifi_hotspot: true,
+          can_host_ap: true,
+          bluetooth: true,
+          supports_handover: true
+        }
+    end
+
+    # Merge capabilities into info for registration
+    info_with_caps = Map.put(info, :capabilities, capabilities)
+
     # Notify all Sentants about the discovery
     Sentants.sendto_all(%{
       event: "__internal",
@@ -239,13 +261,12 @@ defmodule AiReality2Transnet.Bluetooth do
       }
     })
 
-    # Register peer with PeerManager (BLE discovery only - no GATT sentant reading)
-    # Sentant queries will happen via WiFi mesh HTTP after upgrade
+    # Register peer with PeerManager including capabilities
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      AiReality2Transnet.PeerManager.register_peer(id, info)
-      Logger.info("Peer #{String.slice(id, 0..7)}... registered with PeerManager")
+      AiReality2Transnet.PeerManager.register_peer(id, info_with_caps)
+      Logger.info("Peer #{String.slice(id, 0..7)}... registered with capabilities: #{inspect(capabilities)}")
 
-      # Fetch capabilities via GATT to enable WiFi negotiation
+      # Still try GATT for more detailed info (node_name, sentant_count, etc.)
       if address do
         fetch_peer_capabilities(address, id, state)
       end
