@@ -314,6 +314,41 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
+  # GATT connection established
+  def handle_info({:gatt_connected, address}, state) do
+    Logger.debug("[Bluetooth] GATT connected to #{address}")
+    # Service discovery should follow automatically in the NIF
+    {:noreply, state}
+  end
+
+  # GATT services discovered - now we can read characteristics
+  def handle_info({:gatt_services_discovered, address, _services}, state) do
+    Logger.debug("[Bluetooth] GATT services discovered for #{address}")
+
+    # Look up which node_id this address corresponds to
+    case Process.get({:pending_gatt_connect, address}) do
+      nil ->
+        Logger.warning("[Bluetooth] Services discovered for unknown address: #{address}")
+        {:noreply, state}
+
+      node_id ->
+        # Don't delete yet - we still need it for the read response
+        Process.put({:pending_gatt_read, address}, node_id)
+        Process.delete({:pending_gatt_connect, address})
+
+        # Now read the node_info characteristic
+        adapter_name = Map.get(state, :adapter_name, "hci0")
+        read_peer_node_info(address, node_id, adapter_name)
+        {:noreply, state}
+    end
+  end
+
+  # Handle older format without address
+  def handle_info({:gatt_services_discovered, services}, state) when is_list(services) do
+    Logger.debug("[Bluetooth] GATT services discovered (no address): #{length(services)} services")
+    {:noreply, state}
+  end
+
   # GATT client read response - capability fetch completed
   def handle_info({:gatt_read, address, value}, state) when is_list(value) do
     # Convert byte list to binary string
@@ -346,6 +381,18 @@ defmodule AiReality2Transnet.Bluetooth do
 
   def handle_info({:gatt_read_error, reason}, state) do
     Logger.warning("[Bluetooth] GATT read failed: #{inspect(reason)}")
+    {:noreply, state}
+  end
+
+  # GATT connection failed
+  def handle_info({:gatt_connect_error, address, reason}, state) do
+    Logger.warning("[Bluetooth] GATT connect failed for #{address}: #{inspect(reason)}")
+    Process.delete({:pending_gatt_connect, address})
+    {:noreply, state}
+  end
+
+  def handle_info({:gatt_error, reason}, state) do
+    Logger.warning("[Bluetooth] GATT error: #{inspect(reason)}")
     {:noreply, state}
   end
 
@@ -627,16 +674,35 @@ defmodule AiReality2Transnet.Bluetooth do
     end
   end
 
-  # Initiates a GATT read to fetch peer capabilities after beacon discovery.
-  # The response will arrive as a {:gatt_read, ...} message.
+  # Initiates a GATT connection to fetch peer capabilities after beacon discovery.
+  # Flow: connect -> service discovery -> read characteristic
   defp fetch_peer_capabilities(address, node_id, state) do
     adapter_name = Map.get(state, :adapter_name, "hci0")
+
+    Logger.debug("[Bluetooth] Connecting to peer #{String.slice(node_id, 0..7)}... at #{address}")
+
+    # Store pending connection so we can match response to node_id
+    Process.put({:pending_gatt_connect, address}, node_id)
+
+    case AiReality2Transnet.Action.gatt_connect(self(), address, adapter_name) do
+      :ok ->
+        Logger.debug("[Bluetooth] GATT connect initiated for #{address}")
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("[Bluetooth] Failed to initiate GATT connect for #{address}: #{inspect(reason)}")
+        Process.delete({:pending_gatt_connect, address})
+        {:error, reason}
+    end
+  end
+
+  # After GATT connection and service discovery, read the node_info characteristic
+  defp read_peer_node_info(address, node_id, adapter_name) do
     node_info_uuid = AiReality2Transnet.GattProtocol.node_info_uuid()
 
-    Logger.debug("[Bluetooth] Fetching capabilities from peer #{String.slice(node_id, 0..7)}... at #{address}")
+    Logger.debug("[Bluetooth] Reading node_info from peer #{String.slice(node_id, 0..7)}... at #{address}")
 
     # Store pending read so we can match response to node_id
-    # Note: This is fire-and-forget; response handled in handle_info
     Process.put({:pending_gatt_read, address}, node_id)
 
     case AiReality2Transnet.Action.gatt_read_characteristic(self(), address, node_info_uuid, adapter_name) do
