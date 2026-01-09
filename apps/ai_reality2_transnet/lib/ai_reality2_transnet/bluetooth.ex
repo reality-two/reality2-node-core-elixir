@@ -1,29 +1,29 @@
 defmodule AiReality2Transnet.Bluetooth do
   # *******************************************************************************************************************************************
   @moduledoc """
-Bluetooth transport for Reality2 Transient Networks.
+  Bluetooth transport for Reality2 Transient Networks.
 
-**Hotspot Architecture Protocol**
-1. **Beacon (AltBeacon)**: Discovery and capability advertisement
-   - Broadcasts node capabilities (can_host_ap, is_fixed_anchor, etc.)
-   - Encodes real-time status (client_count, upstream_quality)
-   - Scans for peer beacons
-2. **GATT**: Bootstrap exchange for WiFi hotspot connection
-   - Node info characteristic (minimal metadata)
-   - Join offer characteristic (SSID, PSK, rendezvous IP)
-3. **WiFi Hotspot**: WPA2-PSK access point or client connection
-4. **GraphQL (port 4005)**: sentantAll exchange and sentant control
+  **Hotspot Architecture Protocol**
+  1. **Beacon (AltBeacon)**: Discovery and capability advertisement
+     - Broadcasts node capabilities (can_host_ap, is_fixed_anchor, etc.)
+     - Encodes real-time status (client_count, upstream_quality)
+     - Scans for peer beacons
+  2. **GATT**: Bootstrap exchange for WiFi hotspot connection
+     - Node info characteristic (minimal metadata)
+     - Join offer characteristic (SSID, PSK, rendezvous IP)
+  3. **WiFi Hotspot**: WPA2-PSK access point or client connection
+  4. **GraphQL (port 4005)**: sentantAll exchange and sentant control
 
-This module:
-- Broadcasts and watches Reality2 beacons with capability flags
-- Hosts GATT server for bootstrap exchange (join offers)
-- Registers discovered peers with `AiReality2Transnet.PeerManager`
-- Handles local Sentant commands via GenServer.cast
+  This module:
+  - Broadcasts and watches Reality2 beacons with capability flags
+  - Hosts GATT server for bootstrap exchange (join offers)
+  - Registers discovered peers with `AiReality2Transnet.PeerManager`
+  - Handles local Sentant commands via GenServer.cast
 
-**Author**
-- Dr. Roy C. Davies
-- [roycdavies.github.io](https://roycdavies.github.io/)
-"""
+  **Author**
+  - Dr. Roy C. Davies
+  - [roycdavies.github.io](https://roycdavies.github.io/)
+  """
 
   # *******************************************************************************************************************************************
 
@@ -38,7 +38,9 @@ This module:
 
   # Configuration helpers - load at runtime for better testability
   defp r2_company_id, do: Application.get_env(:ai_reality2_transnet, :r2_company_id, 0xFFFF)
-  defp max_characteristic_size, do: Application.get_env(:ai_reality2_transnet, :max_characteristic_size, 4096)
+
+  defp max_characteristic_size,
+    do: Application.get_env(:ai_reality2_transnet, :max_characteristic_size, 4096)
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Client API
@@ -57,7 +59,10 @@ This module:
   - passthrough: Optional passthrough data
   """
   def broadcast_signal(sentant_id, signal, event, parameters, passthrough \\ nil) do
-    GenServer.cast(__MODULE__, {:broadcast_signal, sentant_id, signal, event, parameters, passthrough})
+    GenServer.cast(
+      __MODULE__,
+      {:broadcast_signal, sentant_id, signal, event, parameters, passthrough}
+    )
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -70,12 +75,13 @@ This module:
     # TODO: Handle multiple adapters and/or set adapter to use as an Environment variable
 
     # Initialize state with default counters to prevent crashes if startup fails
-    initial_state = Map.merge(state, %{
-      events_sent: 0,
-      signals_broadcast: 0,
-      queries_processed: 0,
-      connected_peers: %{}
-    })
+    initial_state =
+      Map.merge(state, %{
+        events_sent: 0,
+        signals_broadcast: 0,
+        queries_processed: 0,
+        connected_peers: %{}
+      })
 
     {:ok, initial_state}
     |> get_adapter_and_name()
@@ -105,7 +111,11 @@ This module:
   end
 
   @impl true
-  def handle_call({:send_to_peer, _peer_id, _sentant_id, _event, _params, _passthrough}, _from, state) do
+  def handle_call(
+        {:send_to_peer, _peer_id, _sentant_id, _event, _params, _passthrough},
+        _from,
+        state
+      ) do
     {:reply, {:error, :use_wifi_mesh}, state}
   end
 
@@ -162,7 +172,10 @@ This module:
   end
 
   # Handle broadcast_signal when GATT server is not initialized
-  def handle_cast({:broadcast_signal, sentant_id, _signal, _event, _parameters, _passthrough}, state) do
+  def handle_cast(
+        {:broadcast_signal, sentant_id, _signal, _event, _parameters, _passthrough},
+        state
+      ) do
     Logger.warning("Cannot broadcast signal from #{sentant_id}: GATT server not initialized")
     {:noreply, state}
   end
@@ -347,12 +360,7 @@ This module:
            adapter_name
          ) do
       {:ok, h} ->
-<<<<<<< Updated upstream
-        IO.puts("|-- Node ID: #{node_id} beacon started on #{adapter_name}")
-        IO.puts("|-- Beacon flags: hosting=#{can_host_ap?()}, fixed=#{is_fixed_anchor?()}")
-=======
         Logger.info("Node ID: #{node_id} beacon started on #{adapter_name}")
->>>>>>> Stashed changes
         {:ok, Map.put(state, :r2_beacon, h)}
 
       {:error, reason} ->
@@ -369,11 +377,7 @@ This module:
 
     case AiReality2Transnet.Action.start_gatt_server(self(), adapter_name) do
       {:ok, handle} ->
-<<<<<<< Updated upstream
-        IO.puts("|-- GATT Bootstrap Server started successfully")
-=======
         Logger.info("GATT Sentant Server started successfully")
->>>>>>> Stashed changes
 
         # Initialize the Node Info characteristic (minimal bootstrap)
         update_query_characteristic(handle)
@@ -459,129 +463,6 @@ This module:
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-<<<<<<< Updated upstream
-=======
-  # GATT Server - sentantSend Mutation Handler
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-
-  defp parse_sentant_send(data) when is_list(data) do
-    data |> :binary.list_to_bin() |> parse_sentant_send()
-  end
-
-  defp parse_sentant_send(data) when is_binary(data) do
-    case Jason.decode(data) do
-      {:ok, %{"id" => id, "event" => event} = mutation} ->
-        {:ok,
-         %{
-           id: id,
-           event: event,
-           parameters: Map.get(mutation, "parameters", %{}),
-           passthrough: Map.get(mutation, "passthrough")
-         }}
-
-      {:ok, _} ->
-        {:error, "missing_required_fields_id_and_event"}
-
-      {:error, reason} ->
-        {:error, "json_decode_error: #{inspect(reason)}"}
-    end
-  end
-
-  defp handle_sentant_send(
-         %{id: id, event: event, parameters: parameters, passthrough: passthrough},
-         %{gatt_handle: handle} = state
-       ) do
-    Logger.info("Processing sentantSend: id=#{id}, event=#{event}")
-
-    # Mirror GraphQL resolver pattern: validate Sentant exists and event is allowed
-    case Reality2.Sentants.read(%{id: id}, :definition) do
-      {:ok, sentant} ->
-        # Validate event is allowed (same as GraphQL does)
-        events = get_event_list(Map.get(sentant, :events, []))
-
-        if Enum.member?(events, event) do
-          # Send the event to the Sentant
-          case Reality2.Sentants.sendto(%{id: id}, %{
-                 event: event,
-                 parameters: parameters,
-                 passthrough: passthrough
-               }) do
-            {:ok, _pid} ->
-              # Success response
-              response = %{
-                type: "mutation_response",
-                mutation: "sentantSend",
-                success: true,
-                version: @protocol_version,
-                timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
-                data: sentant
-              }
-
-              encode_and_notify(handle, response)
-              {:noreply, %{state | events_sent: state.events_sent + 1}}
-
-            {:error, reason} ->
-              # Error sending event
-              error_response = %{
-                type: "mutation_response",
-                mutation: "sentantSend",
-                success: false,
-                error: to_string(reason),
-                version: @protocol_version,
-                timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-              }
-
-              encode_and_notify(handle, error_response)
-              {:noreply, state}
-          end
-        else
-          # Event not allowed
-          error_response = %{
-            type: "mutation_response",
-            mutation: "sentantSend",
-            success: false,
-            error: "invalid_event",
-            version: @protocol_version,
-            timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-          }
-
-          encode_and_notify(handle, error_response)
-          {:noreply, state}
-        end
-
-      {:error, reason} ->
-        # Sentant not found
-        error_response = %{
-          type: "mutation_response",
-          mutation: "sentantSend",
-          success: false,
-          error: to_string(reason),
-          version: @protocol_version,
-          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-        }
-
-        encode_and_notify(handle, error_response)
-        {:noreply, state}
-    end
-  end
-
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-  # GATT Server - Data Fetching Functions
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-
-  defp fetch_all_sentants do
-    # TODO: Replace with your actual Sentant registry
-    # YourSentantModule.list_all_sentants()
-    # |> Enum.map(&format_sentant/1)
-    #
-    {:ok, sentants} = Reality2.Sentants.read_all(:definition)
-    sentants_map = Enum.map(sentants, fn sentant -> sentant end)
-    Logger.debug("Fetched all sentants: #{inspect(sentants_map, pretty: false, limit: 500)}")
-    sentants_map
-  end
-
-  # -----------------------------------------------------------------------------------------------------------------------------------------
->>>>>>> Stashed changes
   # GATT Server - Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -619,7 +500,8 @@ This module:
     result =
       AiReality2Transnet.Action.gatt_write_characteristic(
         handle,
-        "00001235-0000-1000-8000-00805f9b34fb",  # Same UUID, different meaning now
+        # Same UUID, different meaning now
+        "00001235-0000-1000-8000-00805f9b34fb",
         binary_data
       )
 
@@ -689,7 +571,8 @@ This module:
     flags = if can_host_ap?(), do: flags ||| 0x0001, else: flags
     flags = if is_fixed_anchor?(), do: flags ||| 0x0002, else: flags
     flags = if has_upstream?(), do: flags ||| 0x0004, else: flags
-    flags = flags ||| 0x0008  # Always support handover
+    # Always support handover
+    flags = flags ||| 0x0008
     flags
   end
 
@@ -706,7 +589,7 @@ This module:
 
     # Pack into 16 bits: [quality:8][client_count:8]
     quality_byte = div(upstream_quality * 255, 100)
-    (quality_byte <<< 8) ||| client_count
+    quality_byte <<< 8 ||| client_count
   end
 
   @doc """
@@ -738,7 +621,7 @@ This module:
   """
   def decode_beacon_status(minor) when is_integer(minor) do
     client_count = minor &&& 0xFF
-    quality_raw = (minor >>> 8) &&& 0xFF
+    quality_raw = minor >>> 8 &&& 0xFF
     upstream_quality = div(quality_raw * 100, 255)
 
     %{
@@ -806,7 +689,9 @@ This module:
         # -45 dBm (excellent) → 100
         # -85 dBm (poor) → 0
         case status.signal_strength do
-          nil -> 50
+          nil ->
+            50
+
           signal ->
             quality = 100 - abs(signal + 45) * 2.5
             round(max(0, min(100, quality)))
