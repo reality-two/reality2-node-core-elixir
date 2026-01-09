@@ -23,7 +23,15 @@
       "Bash(echo:*)",
       "Bash(mix cmd:*)",
       "Bash(timeout 10 iex:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(PLUGINS=ai_reality2_transnet mix clean:*)",
+      "Bash(PLUGINS=ai_reality2_transnet mix compile:*)",
+      "Bash(1)",
+      "Bash(git rm:*)",
+      "Bash(PLUGINS=ai_reality2_transnet,ai_reality2_pns mix compile:*)",
+      "Bash(PLUGINS=ai_reality2_transnet,ai_reality2_pns mix clean:*)",
+      "Bash(MIX_ENV=prod mix compile:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

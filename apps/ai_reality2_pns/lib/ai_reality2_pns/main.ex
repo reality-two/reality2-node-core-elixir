@@ -1,21 +1,23 @@
-defmodule AiReality2Transnet.Main do
+defmodule AiReality2Pns.Main do
   @behaviour Reality2.Plugin.Main
 
   # *******************************************************************************************************************************************
   @moduledoc """
-  Transient Networking for Reality2 Nodes
+  Main entry point for the Pathing Name System (PNS) plugin.
 
-    **Author**
-    - Dr. Roy C. Davies
-    - [roycdavies.github.io](https://roycdavies.github.io/)
+  PNS provides routing for messages to Sentants across transient networks.
+  Unlike per-Sentant plugins, PNS operates globally via the Router GenServer,
+  so the create/delete callbacks are no-ops.
+
+  **Author**
+  - Dr. Roy C. Davies
+  - [roycdavies.github.io](https://roycdavies.github.io/)
   """
 
   # *******************************************************************************************************************************************
 
   @doc false
   use GenServer, restart: :transient
-  alias Reality2.Helpers.R2Map, as: R2Map
-  # alias Reality2.Helpers.Convert, as: Convert
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks
@@ -26,6 +28,7 @@ defmodule AiReality2Transnet.Main do
   @doc false
   @impl true
   def init(state) do
+    # Startup message is printed by Application module
     {:ok, state}
   end
 
@@ -37,10 +40,13 @@ defmodule AiReality2Transnet.Main do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Does nothing in this module as there are no child processes.
+  Does nothing in this module as PNS operates globally.
+
+  PNS routing is managed by the Router GenServer, not per-Sentant processes.
 
   - Parameters
     - `sentant_id` - ignored in this implementation.
+    - `details` - ignored in this implementation.
   """
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @impl true
@@ -52,7 +58,7 @@ defmodule AiReality2Transnet.Main do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Does nothing in this module as there are no child processes.
+  Does nothing in this module as PNS operates globally.
 
   - Parameters
     - `sentant_id` - ignored in this implementation.
@@ -69,10 +75,10 @@ defmodule AiReality2Transnet.Main do
   @doc """
   Return the process id that can be used for subsequent communications.
 
-  In this implementation, this just refers to this module.
+  In this implementation, this just refers to this module as PNS is global.
 
   - Parameters
-    - `id` - The id of the Sentant for which process id is being returned.
+    - `id` - The id of the Sentant (ignored).
   """
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @impl true
@@ -84,19 +90,17 @@ defmodule AiReality2Transnet.Main do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Send the command and parameters directly through from the Automation.
+  PNS doesn't support direct sendto commands.
+
+  Use AiReality2Pns.Router functions instead for routing operations.
 
   - Parameters
-    - `id` - The id of the Sentant for which the command is being sent (ignored here)
-    - `command` - A map containing the command and parameters to be sent.
+    - `id` - The id of the Sentant (ignored)
+    - `command` - Command map (ignored)
   """
   @impl true
-  def sendto(_sentant_id, command_and_parameters) do
-    command = R2Map.get(command_and_parameters, :command)
-    parameters = R2Map.get(command_and_parameters, :parameters)
-
-    # Send to Bluetooth server for command handling
-    GenServer.cast(AiReality2Transnet.Bluetooth, %{command: command, parameters: parameters})
+  def sendto(_sentant_id, _command_and_parameters) do
+    {:error, :not_supported}
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------

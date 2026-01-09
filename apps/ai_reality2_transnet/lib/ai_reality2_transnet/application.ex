@@ -24,17 +24,26 @@ defmodule AiReality2Transnet.Application do
         start: {AiReality2Transnet.PeerManager, :start_link, [[]]}
       },
       %{
-        id: AiReality2Transnet.TransportManager,
-        start: {AiReality2Transnet.TransportManager, :start_link, [[]]}
+        id: AiReality2Transnet.ConnectionManager,
+        start: {AiReality2Transnet.ConnectionManager, :start_link, [[]]}
+      },
+      %{
+        id: AiReality2Transnet.ConnectionAssessor,
+        start: {AiReality2Transnet.ConnectionAssessor, :start_link, [[]]}
       },
       %{
         id: AiReality2Transnet.Bluetooth,
         start: {AiReality2Transnet.Bluetooth, :start_link, [AiReality2Transnet.Bluetooth]}
-      },
-      %{
-        id: AiReality2Transnet.WifiServer,
-        start: {AiReality2Transnet.WifiServer, :start_link, [AiReality2Transnet.WifiServer]}
       }
+      # NOTE: Legacy modules removed (preserved in git history):
+      # - WifiServer: Port 8080/8081 HTTP server for mesh networking
+      # - TransportManager: Mesh upgrade decision logic
+      #
+      # New hotspot architecture:
+      #   - BLE beacons for discovery
+      #   - ConnectionManager for hotspot/client WiFi
+      #   - ConnectionAssessor for quality assessment and handover
+      #   - Reality2Web GraphQL (port 4005) for sentantAll exchange
     ]
 
     IO.puts("[ai.reality2.transnet] started successfully.")

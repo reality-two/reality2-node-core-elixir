@@ -18,11 +18,20 @@ defmodule Reality2.Application do
       },
       %{id: :SentantNames, start: {Reality2.Metadata, :start_link, [:SentantNames]}},
       %{id: :SentantIDs, start: {Reality2.Metadata, :start_link, [:SentantIDs]}},
-      {Finch, name: Reality2.HTTPClient, start: {Finch, :start_link, []}},
+      %{id: :Sentants, start: {Reality2.Metadata, :start_link, [:Sentants]}},
+      %{id: :PNS_Routes, start: {Reality2.Metadata, :start_link, [:PNS_Routes]}},
+      {Finch, name: Reality2.HTTPClient},
       %{id: :Autostart, start: {Reality2.Autostart, :start_link, [Reality2.Autostart]}}
     ]
 
-    IO.puts("[ai.reality2] started successfully.")
-    Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
+    case Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__) do
+      {:ok, _pid} = result ->
+        IO.puts("[ai.reality2] started successfully.")
+        result
+
+      {:error, reason} = error ->
+        IO.puts("[ai.reality2] failed to start: #{inspect(reason)}")
+        error
+    end
   end
 end

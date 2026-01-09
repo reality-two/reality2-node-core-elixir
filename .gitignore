@@ -39,3 +39,7 @@ mix.lock
 /.vscode/
 
 /.kdev4/
+
+.node
+
+.DS_Store

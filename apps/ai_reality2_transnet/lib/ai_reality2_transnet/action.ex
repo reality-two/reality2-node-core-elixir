@@ -151,27 +151,33 @@ defmodule AiReality2Transnet.Action do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   @doc """
-  Starts a GATT server with pre-defined Sentant characteristics.
+Starts a GATT server for bootstrap exchange.
 
-  The server exposes three characteristics:
-  - Query (0x2A57) - Read to get all Sentants
-  - Mutation (0x2A58) - Write to send events to Sentants
-  - Subscription (0x2A59) - Subscribe to receive Sentant signals
+GATT is **bootstrap-only** in Transient Networks:
+- Beacon discovers peers
+- GATT exchanges minimal metadata and coordinates Wi-Fi mesh
+- Wi-Fi mesh carries all rich interactions (HTTP/GraphQL, Sentant directory, event delivery)
 
-  ## Parameters
-  - `pid` - The Elixir process that will receive GATT events
-  - `adapter_name` - Bluetooth adapter name (e.g., "hci0")
+The server typically exposes:
+- **Node Info** (read) - minimal node metadata (id/name/version/sentant_count)
+- **Mesh Info** (read) - Wi-Fi mesh connection details (mesh_id/IPv6/port)
+- **Mesh Command** (write) - join/leave/refresh mesh commands
+- **Subscription** (notify, optional) - bootstrap notifications
 
-  ## Events sent to `pid`
-  - `:gatt_server_started` - Server is ready and discoverable
-  - `{:gatt_write, "command", data}` - Client wrote to query characteristic
-  - `{:gatt_write, "data", data}` - Client wrote to mutation characteristic
-  - `{:error, reason}` - Server error occurred
+## Parameters
+- `pid` - The Elixir process that will receive GATT events
+- `adapter_name` - Bluetooth adapter name (e.g., "hci0")
 
-  ## Returns
-  - `{:ok, handle}` - Handle to use with other GATT functions
-  - `{:error, reason}` - Failed to start server
-  """
+## Events sent to `pid`
+- `:gatt_server_started` - Server is ready and discoverable
+- `{:gatt_write, "command", data}` - Client requested a bootstrap refresh
+- `{:gatt_write, "data", data}` - Client sent a mesh command payload (JSON)
+- `{:error, reason}` - Server error occurred
+
+## Returns
+- `{:ok, handle}` - Handle to use with other GATT functions
+- `{:error, reason}` - Failed to start server
+"""
   def start_gatt_server(_pid, _adapter_name), do: :erlang.nif_error(:nif_not_loaded)
 
   @doc """
@@ -201,7 +207,7 @@ defmodule AiReality2Transnet.Action do
   @doc """
   Updates a characteristic value programmatically (server-side write).
 
-  Used to update the query characteristic with current Sentant data.
+  Used to update bootstrap characteristics (e.g., node info / mesh info).
 
   ## Parameters
   - `handle` - The GATT server handle

@@ -19,9 +19,9 @@ defmodule AiReality2Transnet.PeerManager do
   ## Lifecycle
 
   1. **Discovery** - BLE beacon detected → peer added
-  2. **Connection** - GATT connection established
-  3. **Exchange** - Sentant directory retrieved
-  4. **Upgrade** - (Optional) Upgrade to WiFi mesh
+  2. **Connection** - Optional GATT bootstrap exchange (minimal metadata)
+  3. **Upgrade** - Upgrade to WiFi mesh
+  4. **Exchange** - Sentant directory retrieved over WiFi mesh (HTTP/GraphQL)
   5. **Monitor** - Track connection health
   6. **Removal** - Peer lost or timeout
 
@@ -40,6 +40,46 @@ defmodule AiReality2Transnet.PeerManager do
 
   @peer_timeout_ms 60_000  # Remove peers not seen for 60 seconds
   @cleanup_interval_ms 30_000  # Check for stale peers every 30 seconds
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Type Definitions
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @typedoc """
+  Represents a peer node in the Reality2 Transient Network.
+
+  ## Fields
+  - `node_id` - UUID of the peer node
+  - `transport` - Current transport method (`:ble_gatt` or `:wifi_mesh`)
+  - `address` - BLE MAC address (may be nil for WiFi-only peers)
+  - `rssi` - Signal strength in dBm (may be nil)
+  - `sentants` - List of Sentant IDs available on this peer
+  - `capabilities` - Map of peer capabilities (e.g., `%{wifi_mesh: true}`)
+  - `discovered_at` - Unix timestamp (milliseconds) when peer was first discovered
+  - `last_seen` - Unix timestamp (milliseconds) of last beacon or interaction
+  - `connection_state` - Connection lifecycle state (`:discovered`, `:sentants_exchanged`, etc.)
+  """
+  @type peer :: %{
+    node_id: String.t(),
+    transport: :ble_gatt | :wifi_mesh,
+    address: binary() | nil,
+    rssi: integer() | nil,
+    sentants: [String.t()],
+    capabilities: map(),
+    discovered_at: integer(),
+    last_seen: integer(),
+    connection_state: atom()
+  }
+
+  @typedoc """
+  Internal GenServer state for PeerManager.
+
+  ## Fields
+  - `peers` - Map of node_id to peer structs
+  """
+  @type state :: %{
+    peers: %{String.t() => peer()}
+  }
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Client API
@@ -65,7 +105,7 @@ defmodule AiReality2Transnet.PeerManager do
   end
 
   @doc """
-  Updates a peer's Sentant directory after GATT exchange.
+  Updates a peer's Sentant directory after Wi-Fi mesh query.
 
   ## Parameters
   - `node_id` - UUID of the peer node
@@ -95,6 +135,21 @@ defmodule AiReality2Transnet.PeerManager do
   end
 
   @doc """
+  Updates a peer's transport type.
+
+  ## Parameters
+  - `node_id` - UUID of the peer node
+  - `transport` - New transport type (`:ble_gatt`, `:wifi_mesh`, `:wifi_hotspot`)
+
+  ## Returns
+  `:ok`
+  """
+  @spec update_peer_transport(String.t(), atom()) :: :ok
+  def update_peer_transport(node_id, transport) do
+    GenServer.cast(__MODULE__, {:upgrade_transport, node_id, transport})
+  end
+
+  @doc """
   Upgrades a peer's transport to WiFi mesh.
 
   ## Parameters
@@ -105,7 +160,7 @@ defmodule AiReality2Transnet.PeerManager do
   """
   @spec upgrade_to_wifi_mesh(String.t()) :: :ok
   def upgrade_to_wifi_mesh(node_id) do
-    GenServer.cast(__MODULE__, {:upgrade_transport, node_id, :wifi_mesh})
+    update_peer_transport(node_id, :wifi_mesh)
   end
 
   @doc """
@@ -204,26 +259,34 @@ defmodule AiReality2Transnet.PeerManager do
 
   @impl true
   def handle_cast({:register_peer, node_id, info}, state) do
+    # Check if we've seen this peer before
     existing = Map.get(state.peers, node_id)
 
+    # Build new peer record with defaults
+    # Start with BLE transport (will be upgraded to WiFi later if available)
     peer = %{
       node_id: node_id,
-      transport: :ble_gatt,
-      address: Map.get(info, :address),
-      rssi: Map.get(info, :rssi),
-      sentants: [],
-      capabilities: %{},
+      transport: :ble_gatt,              # Initially discovered via BLE beacon
+      address: Map.get(info, :address),  # BLE MAC address
+      rssi: Map.get(info, :rssi),        # Signal strength from beacon
+      sentants: [],                      # Will be populated after exchange
+      capabilities: %{},                 # Will be updated from beacon flags
       discovered_at: System.system_time(:millisecond),
       last_seen: System.system_time(:millisecond),
-      connection_state: :discovered
+      connection_state: :discovered      # Initial state in lifecycle
     }
 
-    # Merge with existing peer if already known
+    # If peer already exists, merge new data with existing record
+    # This preserves sentants list, capabilities, etc. while updating RSSI and last_seen
     peer = if existing, do: Map.merge(existing, peer), else: peer
 
+    # Store updated peer in state
     new_peers = Map.put(state.peers, node_id, peer)
+
+    # Only increment discovery counter for brand new peers
     new_stats = if existing, do: state.stats, else: Map.update!(state.stats, :total_discovered, &(&1 + 1))
 
+    # Log new peer discovery (but not re-discoveries from beacons)
     unless existing do
       Logger.info("[PeerManager] New peer discovered: #{String.slice(node_id, 0..7)}... (RSSI: #{peer.rssi})")
     end
@@ -235,21 +298,25 @@ defmodule AiReality2Transnet.PeerManager do
   def handle_cast({:update_sentants, node_id, sentants}, state) do
     case Map.get(state.peers, node_id) do
       nil ->
+        # Peer not found - may have been removed or never registered
         Logger.warning("[PeerManager] Cannot update sentants for unknown peer: #{node_id}")
         {:noreply, state}
 
       peer ->
+        # Update peer with the Sentant directory received from WiFi mesh exchange
+        # This happens after successful GraphQL sentantAll query
         updated_peer = %{peer |
-          sentants: sentants,
-          last_seen: System.system_time(:millisecond),
-          connection_state: :sentants_exchanged
+          sentants: sentants,                           # List of Sentant maps from peer
+          last_seen: System.system_time(:millisecond),  # Update activity timestamp
+          connection_state: :sentants_exchanged         # Mark exchange as complete
         }
 
         new_peers = Map.put(state.peers, node_id, updated_peer)
 
         Logger.info("[PeerManager] Updated sentants for #{String.slice(node_id, 0..7)}...: #{length(sentants)} sentants")
 
-        # Notify PNS Router to refresh topology
+        # Notify PNS Router that new remote Sentants are available
+        # This triggers routing table refresh so messages can be routed to this peer
         if Code.ensure_loaded?(AiReality2Pns.Router) do
           AiReality2Pns.Router.refresh_topology()
         end
@@ -262,12 +329,15 @@ defmodule AiReality2Transnet.PeerManager do
   def handle_cast({:update_capabilities, node_id, capabilities}, state) do
     case Map.get(state.peers, node_id) do
       nil ->
+        # Peer not found - silently ignore (may have been removed)
         {:noreply, state}
 
       peer ->
+        # Update peer capabilities (e.g., %{wifi_mesh: true, battery_level: 85})
+        # Capabilities are typically extracted from BLE beacon flags
         updated_peer = %{peer |
-          capabilities: capabilities,
-          last_seen: System.system_time(:millisecond)
+          capabilities: capabilities,                   # Store capability map
+          last_seen: System.system_time(:millisecond)   # Update activity timestamp
         }
 
         new_peers = Map.put(state.peers, node_id, updated_peer)
@@ -282,15 +352,20 @@ defmodule AiReality2Transnet.PeerManager do
   def handle_cast({:upgrade_transport, node_id, new_transport}, state) do
     case Map.get(state.peers, node_id) do
       nil ->
+        # Peer not found - silently ignore
         {:noreply, state}
 
       peer ->
+        # Upgrade peer's transport layer (e.g., :ble_gatt → :wifi_mesh)
+        # This happens after successful WiFi connection and capability exchange
         updated_peer = %{peer |
-          transport: new_transport,
-          last_seen: System.system_time(:millisecond)
+          transport: new_transport,                     # Set new transport type
+          last_seen: System.system_time(:millisecond)   # Update activity timestamp
         }
 
         new_peers = Map.put(state.peers, node_id, updated_peer)
+
+        # Track WiFi upgrades in statistics (for monitoring/debugging)
         new_stats = if new_transport == :wifi_mesh,
           do: Map.update!(state.stats, :wifi_upgrades, &(&1 + 1)),
           else: state.stats
@@ -305,15 +380,18 @@ defmodule AiReality2Transnet.PeerManager do
   def handle_cast({:remove_peer, node_id}, state) do
     case Map.get(state.peers, node_id) do
       nil ->
+        # Peer not found - already removed or never existed
         {:noreply, state}
 
       _peer ->
+        # Remove peer from tracking (e.g., user request or connection lost)
         new_peers = Map.delete(state.peers, node_id)
         new_stats = Map.update!(state.stats, :total_removed, &(&1 + 1))
 
         Logger.info("[PeerManager] Peer removed: #{String.slice(node_id, 0..7)}...")
 
-        # Notify PNS Router to refresh topology
+        # Notify PNS Router that peer is gone
+        # This removes routes to Sentants on this peer
         if Code.ensure_loaded?(AiReality2Pns.Router) do
           AiReality2Pns.Router.refresh_topology()
         end
@@ -324,6 +402,7 @@ defmodule AiReality2Transnet.PeerManager do
 
   @impl true
   def handle_call({:get_peer, node_id}, _from, state) do
+    # Synchronous lookup of peer info by node ID
     case Map.get(state.peers, node_id) do
       nil -> {:reply, {:error, :not_found}, state}
       peer -> {:reply, {:ok, peer}, state}
@@ -332,11 +411,13 @@ defmodule AiReality2Transnet.PeerManager do
 
   @impl true
   def handle_call(:get_all_peers, _from, state) do
+    # Return entire peer map (used by PNS Router for routing table)
     {:reply, state.peers, state}
   end
 
   @impl true
   def handle_call(:get_stats, _from, state) do
+    # Calculate current statistics (totals + breakdown by transport)
     stats = Map.merge(state.stats, %{
       current_peers: map_size(state.peers),
       ble_peers: count_by_transport(state.peers, :ble_gatt),
@@ -348,15 +429,18 @@ defmodule AiReality2Transnet.PeerManager do
 
   @impl true
   def handle_info(:cleanup_stale_peers, state) do
+    # Periodic cleanup task (runs every @cleanup_interval_ms)
+    # Removes peers that haven't been seen for @peer_timeout_ms
     now = System.system_time(:millisecond)
     cutoff = now - @peer_timeout_ms
 
+    # Split peers into stale (timeout) and fresh (active)
     {stale_peers, fresh_peers} =
       Enum.split_with(state.peers, fn {_id, peer} ->
         peer.last_seen < cutoff
       end)
 
-    # Remove stale peers
+    # Log each removal for debugging
     Enum.each(stale_peers, fn {node_id, _peer} ->
       Logger.info("[PeerManager] Removing stale peer: #{String.slice(node_id, 0..7)}... (timeout)")
     end)
@@ -364,12 +448,13 @@ defmodule AiReality2Transnet.PeerManager do
     new_peers = Map.new(fresh_peers)
     new_stats = Map.update!(state.stats, :total_removed, &(&1 + length(stale_peers)))
 
-    # Notify PNS Router if peers were removed
+    # Notify PNS Router if any peers were removed
+    # This removes routes to Sentants on timed-out peers
     if length(stale_peers) > 0 and Code.ensure_loaded?(AiReality2Pns.Router) do
       AiReality2Pns.Router.refresh_topology()
     end
 
-    # Schedule next cleanup
+    # Schedule next cleanup cycle
     schedule_cleanup()
 
     {:noreply, %{state | peers: new_peers, stats: new_stats}}

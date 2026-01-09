@@ -46,6 +46,19 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Transient Networking configuration
+config :ai_reality2_transnet,
+  # Bluetooth/GATT configuration
+  r2_company_id: 0xFFFF,  # TODO: Replace with assigned company ID
+  max_characteristic_size: 4096,
+  # WiFi hotspot architecture (uses Reality2Web GraphQL on port 4005)
+  # Site identifier for WiFi SSID generation
+  # SSIDs are formatted as: R2-<SITE_ID>-<HOST_SHORT_ID>
+  # Examples: R2-WAIROA-A3F7, R2-AUCKLAND-B2E9
+  # Can be overridden by environment variable R2_SITE_ID
+  # Default: "NODE"
+  site_id: "NODE"
+
 # config/config.exs
 config :mnesia,
   dir: ~c'.mnesia/#{config_env()}/#{node()}',

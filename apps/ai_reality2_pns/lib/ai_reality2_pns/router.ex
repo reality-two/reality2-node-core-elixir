@@ -339,23 +339,26 @@ defmodule AiReality2Pns.Router do
     })
   end
 
-  # Send to remote Sentant via appropriate transport (WiFi mesh preferred, BLE discovery only)
+  # Send to remote Sentant via appropriate transport (WiFi hotspot/GraphQL or BLE discovery)
   defp send_to_remote_gatt(node_id, sentant_id, event, parameters, passthrough) do
     # Check if transnet modules are available
     with true <- Code.ensure_loaded?(AiReality2Transnet.PeerManager),
-         true <- Code.ensure_loaded?(AiReality2Transnet.WifiServer),
          {:ok, peer} <- AiReality2Transnet.PeerManager.get_peer(node_id) do
 
       # Send via appropriate transport
       case peer.transport do
+        :wifi_hotspot ->
+          # Use WiFi hotspot + GraphQL for sending commands
+          send_via_graphql(peer, sentant_id, event, parameters, passthrough)
+
         :wifi_mesh ->
-          # Use WiFi mesh HTTP for sending commands
-          send_via_wifi_mesh(peer, sentant_id, event, parameters, passthrough)
+          # Legacy transport - use GraphQL if peer has IP
+          send_via_graphql(peer, sentant_id, event, parameters, passthrough)
 
         :ble_gatt ->
-          # BLE is for discovery only - suggest upgrading to WiFi
+          # BLE is for discovery only
           Logger.warning("[PNS Router] Peer #{String.slice(node_id, 0..7)}... is on BLE (discovery only)")
-          Logger.info("[PNS Router] Consider upgrading to WiFi mesh for data transfer")
+          Logger.info("[PNS Router] Wait for WiFi hotspot connection for data transfer")
           {:error, :ble_discovery_only}
 
         _ ->
@@ -373,27 +376,68 @@ defmodule AiReality2Pns.Router do
     end
   end
 
-  # Send command via WiFi mesh HTTP
-  defp send_via_wifi_mesh(peer, sentant_id, event, parameters, passthrough) do
-    # Get peer's IPv6 address from mesh info
-    ipv6 = Map.get(peer, :ipv6_link_local)
+  # Send command via GraphQL (Reality2Web endpoint on port 4005)
+  defp send_via_graphql(peer, sentant_id, event, parameters, passthrough) do
+    # Get peer's IP address from PNS routing table
+    peer_ip = get_peer_ip(peer)
 
-    if ipv6 do
-      Logger.info("[PNS Router] Sending to Sentant #{String.slice(sentant_id, 0..7)}... via WiFi mesh HTTP")
+    if peer_ip do
+      Logger.info("[PNS Router] Sending to Sentant #{String.slice(sentant_id, 0..7)}... via GraphQL")
 
-      case AiReality2Transnet.WifiServer.send_to_peer(ipv6, sentant_id, event, parameters, passthrough) do
-        {:ok, response} ->
-          Logger.debug("[PNS Router] WiFi mesh command succeeded: #{inspect(response)}")
-          {:ok, response}
+      # Build GraphQL mutation
+      mutation = """
+      mutation {
+        sentantSend(
+          id: "#{sentant_id}",
+          event: "#{event}",
+          parameters: #{Jason.encode!(parameters || %{})},
+          passthrough: #{Jason.encode!(passthrough)}
+        ) {
+          id
+          name
+        }
+      }
+      """
+
+      graphql_request = %{query: mutation}
+      url = "http://#{peer_ip}:4005/reality2"
+      headers = [{"content-type", "application/json"}]
+      body = Jason.encode!(graphql_request)
+
+      case Finch.build(:post, url, headers, body)
+           |> Finch.request(Reality2.HTTPClient, receive_timeout: 5_000) do
+        {:ok, %Finch.Response{status: 200, body: response_body}} ->
+          case Jason.decode(response_body) do
+            {:ok, %{"data" => %{"sentantSend" => sentant}}} ->
+              Logger.debug("[PNS Router] GraphQL command succeeded")
+              {:ok, sentant}
+
+            {:ok, %{"errors" => errors}} ->
+              Logger.error("[PNS Router] GraphQL errors: #{inspect(errors)}")
+              {:error, :graphql_error}
+
+            {:error, _} ->
+              {:error, :invalid_response}
+          end
+
+        {:ok, %Finch.Response{status: status}} ->
+          Logger.error("[PNS Router] HTTP error #{status}")
+          {:error, :http_error}
 
         {:error, reason} ->
-          Logger.error("[PNS Router] WiFi mesh command failed: #{inspect(reason)}")
-          {:error, reason}
+          Logger.error("[PNS Router] Connection failed: #{inspect(reason)}")
+          {:error, :connection_failed}
       end
     else
-      Logger.error("[PNS Router] Peer has no IPv6 address for WiFi mesh")
-      {:error, :no_ipv6_address}
+      Logger.error("[PNS Router] Peer has no IP address for GraphQL")
+      {:error, :no_ip_address}
     end
+  end
+
+  # Get peer IP from PNS routing table or peer metadata
+  defp get_peer_ip(peer) do
+    # Try to get from peer metadata first
+    Map.get(peer, :peer_ip) || Map.get(peer, :host_ip)
   end
 
 

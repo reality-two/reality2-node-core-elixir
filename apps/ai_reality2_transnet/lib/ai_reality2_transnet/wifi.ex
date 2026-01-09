@@ -1,14 +1,14 @@
 defmodule AiReality2Transnet.Wifi do
   @moduledoc """
-  WiFi Mesh Networking for Reality2 Transient Networks.
+  WiFi Hotspot and Client Networking for Reality2 Transient Networks.
 
-  This module implements IEEE 802.11s WiFi mesh networking using Linux kernel's built-in
-  mesh capabilities. It provides high-bandwidth peer-to-peer communication to complement
-  BLE discovery in the Reality2 transient networking architecture.
+  This module implements standard WiFi hotspot (AP mode) and client (station mode) operations
+  for Reality2 transient networking. It replaces the previous 802.11s mesh implementation,
+  which had poor hardware compatibility.
 
   ## Architecture Overview
 
-  Reality2 uses a **two-phase discovery and communication model**:
+  Reality2 uses a **hotspot-based mobility model**:
 
   ```
   Phase 1: BLE Discovery (Low Power)
@@ -16,152 +16,143 @@ defmodule AiReality2Transnet.Wifi do
   │  Beacon Broadcasting + Scanning         │
   │  - Always on, low power                 │
   │  - Discovers nearby Reality2 nodes      │
+  │  - Advertises: can_host_ap flag         │
   │  - Provides node UUID and RSSI          │
   └─────────────────────────────────────────┘
                     ↓
-  Phase 2: WiFi Mesh Upgrade (High Bandwidth)
+  Phase 2: WiFi Hotspot Connection (High Bandwidth)
   ┌─────────────────────────────────────────┐
-  │  IEEE 802.11s Mesh Networking           │
-  │  - On-demand, high bandwidth            │
-  │  - GraphQL queries for Sentants         │
-  │  - No 512-byte BLE limit                │
-  │  - Multi-hop routing (HWMP)             │
+  │  Standard WPA2-PSK Hotspot              │
+  │  - Fixed/anchor nodes host hotspots     │
+  │  - Mobile nodes connect as clients      │
+  │  - HTTP/GraphQL over standard WiFi      │
+  │  - Automatic handover between hotspots  │
   └─────────────────────────────────────────┘
   ```
 
-  ## IEEE 802.11s Overview
+  ## Node Roles
 
-  IEEE 802.11s is a standard for self-organizing wireless mesh networks:
+  **Hotspot Host (AP Mode)**:
+  - Fixed anchors (POS machines) always host
+  - Mobile nodes with good upstream can host
+  - Broadcasts WPA2-PSK network
+  - Runs HTTP server for sentantAll exchange
+  - Can support multiple clients
 
-  - **Ad-hoc formation**: Nodes automatically discover and connect to each other
-  - **No infrastructure**: No access points or routers required
-  - **Multi-hop routing**: HWMP (Hybrid Wireless Mesh Protocol) finds paths through intermediate nodes
-  - **Automatic addressing**: IPv6 link-local addresses (fe80::) assigned automatically
-  - **Self-healing**: Routes automatically reconfigure when nodes join/leave
+  **Client (Station Mode)**:
+  - Mobile nodes connect to best available hotspot
+  - Single association at a time
+  - Continuous assessment for handover
+  - Re-authenticates after handover
 
-  ## Why Pure Elixir?
+  ## Why Standard WiFi Instead of Mesh?
 
-  Unlike the BLE layer (which uses Rust NIFs), WiFi mesh is implemented in pure Elixir:
+  **802.11s mesh problems**:
+  - Poor hardware support (needs specific drivers)
+  - Complex setup and configuration
+  - Unreliable on many adapters
+  - Not supported on most mobile devices
 
-  - **Simple**: Just shell out to `iw` and `ip` commands
-  - **Leverages kernel**: Linux kernel handles 802.11s protocol, routing, and addressing
-  - **No overhead**: Standard Linux tools, no custom protocol needed
-  - **Reliable**: Battle-tested kernel implementation
-  - **Maintainable**: Easy to understand and modify
+  **Standard WiFi advantages**:
+  - Universal hardware support
+  - Well-tested and reliable
+  - Works on all platforms
+  - Standard WPA2-PSK security
+  - Easy troubleshooting
+
+  ## Implementation: NetworkManager D-Bus API
+
+  This module uses NetworkManager's D-Bus API for:
+  - Creating and managing hotspots
+  - Connecting to networks as a client
+  - Monitoring connection status
+  - Handling handovers
+
+  Alternatively, falls back to:
+  - `nmcli` command-line tool
+  - Direct `hostapd` + `wpa_supplicant` for embedded systems
 
   ## Typical Usage Flow
 
+  **As Hotspot Host:**
   ```elixir
-  # 1. List available WiFi adapters
-  {:ok, adapters} = Wifi.list_adapters()
-  # => [%{interface: "wlan0", ...}]
+  # 1. Generate unique credentials
+  node_id = Reality2.Bootstrap.get(:node_id)
+  ssid = Wifi.generate_ssid(node_id)  # => "R2-WAIROA-A3F7"
+  psk = Wifi.generate_psk()
 
-  # 2. Create mesh interface
-  :ok = Wifi.create_mesh_interface("wlan0", "mesh0")
+  # 2. Start hotspot
+  {:ok, connection_uuid} = Wifi.start_hotspot("wlan0", ssid, psk)
 
-  # 3. Join mesh network (ALL nodes must use same mesh_id!)
-  :ok = Wifi.start_mesh("mesh0", "R2MESH", 2437)
+  # 3. Get assigned IP
+  {:ok, ip} = Wifi.get_hotspot_ip("wlan0")
+  # => "192.168.42.1"
 
-  # 4. Get your IPv6 link-local address
-  {:ok, ipv6} = Wifi.get_ipv6_link_local("mesh0")
-  # => "fe80::aabb:ccff:fedd:eeff"
-
-  # 5. Check for mesh peers
-  {:ok, peers} = Wifi.list_mesh_peers("mesh0")
-  # => [%{mac_address: "aa:bb:cc:dd:ee:ff", signal_strength: -45, ...}]
+  # 4. Wait for clients
+  {:ok, clients} = Wifi.get_connected_clients("wlan0")
+  # => ["aa:bb:cc:dd:ee:ff"]
   ```
 
-  ## Mesh ID (ESSID)
+  **As Client:**
+  ```elixir
+  # 1. Receive join offer via GATT
+  %{ssid: ssid, psk: psk, rendezvous: host_ip} = join_offer
 
-  The mesh ID acts like a network name (ESSID in traditional WiFi):
-  - **Must match** on all nodes for peering to occur
-  - **Case-sensitive**
-  - **Typically 1-32 characters**
-  - **Examples**: "R2MESH", "REALITY2_MESH", "MyMeshNetwork"
+  # 2. Connect to hotspot
+  {:ok, connection_uuid} = Wifi.connect_to_network("wlan0", ssid, psk)
 
-  Think of it like a "club membership" - only nodes with the same mesh ID can connect.
+  # 3. Wait for IP assignment
+  {:ok, my_ip} = Wifi.get_interface_ip("wlan0")
+  # => "192.168.42.15"
 
-  ## Channels and Frequency
-
-  Common 2.4 GHz channels (use these for widest device compatibility):
-  - Channel 1: 2412 MHz
-  - Channel 6: 2437 MHz (recommended - least interference)
-  - Channel 11: 2462 MHz
-
-  5 GHz channels (better performance, less range):
-  - Channel 36: 5180 MHz
-  - Channel 40: 5200 MHz
-  - Channel 44: 5220 MHz
-
-  **Important**: All nodes must use the **same frequency** to form a mesh.
-
-  ## IPv6 Link-Local Addresses
-
-  WiFi mesh uses IPv6 link-local addresses for peer communication:
-  - Automatically assigned (derived from MAC address)
-  - Format: `fe80::xxxx:xxxx:xxxx:xxxx`
-  - Scope: Link-local (not routable beyond the mesh)
-  - Usage: Specify interface with `%mesh0` suffix (e.g., `fe80::1234:5678%mesh0`)
-
-  ## Multi-Hop Routing (HWMP)
-
-  The kernel automatically handles routing through intermediate nodes:
-
+  # 4. Query host's GraphQL endpoint
+  # (host_ip comes from join_offer.rendezvous_ip)
+  # Example: POST http://192.168.42.1:4005/reality2
   ```
-  Node A ←─→ Node B ←─→ Node C
-  (Can't directly reach C, routes through B)
-  ```
-
-  - **Automatic**: No configuration needed
-  - **Dynamic**: Routes update as nodes move or join/leave
-  - **Efficient**: Shortest path selection based on signal quality
 
   ## Requirements
 
   **System packages:**
-  - `iw` - WiFi configuration tool (wireless-tools or iw package)
-  - `ip` - Network interface configuration (iproute2 package)
+  - NetworkManager (nmcli) - Preferred method
+  - OR hostapd + wpa_supplicant - Fallback for embedded
+  - dnsmasq or systemd-resolved - For DHCP server
 
   **Permissions:**
-  - Root/sudo for interface creation (`iw dev add`)
-  - Root/sudo for mesh joining (`iw dev mesh join`)
+  - NetworkManager access via D-Bus (usually automatic)
+  - OR root/sudo for hostapd/wpa_supplicant
 
   **Hardware:**
-  - WiFi adapter that supports mesh mode (IEEE 802.11s)
-  - Check with: `sudo iw list | grep "mesh point"`
+  - WiFi adapter with AP mode support (most adapters)
+  - Check with: `iw list | grep "AP$"`
 
   ## Installation
 
   ```bash
   # Debian/Ubuntu
-  sudo apt-get install iw iproute2
+  sudo apt-get install network-manager dnsmasq
 
   # Fedora/RHEL
-  sudo dnf install iw iproute
+  sudo dnf install NetworkManager dnsmasq
 
-  # Arch Linux
-  sudo pacman -S iw iproute2
+  # Check NetworkManager is running
+  systemctl status NetworkManager
   ```
 
-  ## Troubleshooting
+  ## Security Note
 
-  **"Operation not supported"**: WiFi adapter doesn't support mesh mode
-  **"Device or resource busy"**: NetworkManager is interfering, disable with:
-    `sudo nmcli device set wlan0 managed no`
-  **No peers appear**: Check mesh ID matches, same channel, devices in range
-  **"Permission denied"**: Need root/sudo privileges
+  Hotspots use WPA2-PSK with:
+  - Unique SSID per node (includes node_id)
+  - Time-bounded PSK (rotates every session)
+  - Credentials transmitted via GATT (BLE encrypted)
+  - Optional: mTLS on HTTP layer after connection
 
   ## Related Modules
 
-  - `AiReality2Transnet.WifiServer` - HTTP/GraphQL server for mesh communication
   - `AiReality2Transnet.Bluetooth` - BLE discovery layer
-  - `AiReality2Transnet.PeerManager` - Tracks discovered peers
-
-  ## Further Reading
-
-  - IEEE 802.11s: https://en.wikipedia.org/wiki/IEEE_802.11s
-  - HWMP Protocol: https://en.wikipedia.org/wiki/Hybrid_Wireless_Mesh_Protocol
-  - Linux Wireless: https://wireless.wiki.kernel.org/en/users/documentation/iw
+  - `AiReality2Transnet.ConnectionManager` - Hotspot/client connection management
+  - `AiReality2Transnet.ConnectionAssessor` - Connection quality assessment and handover
+  - `AiReality2Transnet.GattProtocol` - Join offer transmission
+  - `Reality2Web` - GraphQL endpoint (port 4005) for sentantAll exchange
 
   **Author**
   - Dr. Roy C. Davies
@@ -173,48 +164,51 @@ defmodule AiReality2Transnet.Wifi do
   @type wifi_adapter :: %{
           transport: String.t(),
           interface: String.t(),
-          mesh_interface: String.t(),
           address: String.t(),
+          mode: :ap | :station | :inactive,
+          current_ssid: String.t() | nil,
           ip_address: String.t() | nil
         }
 
-  @type mesh_peer :: %{
-          mac_address: String.t(),
-          signal_strength: integer(),
-          last_seen: integer()
+  @type hotspot_config :: %{
+          ssid: String.t(),
+          psk: String.t(),
+          channel: integer(),
+          ip_address: String.t(),
+          dhcp_range_start: String.t(),
+          dhcp_range_end: String.t()
+        }
+
+  @type connection_status :: %{
+          state: :connected | :connecting | :disconnected,
+          ssid: String.t() | nil,
+          ip_address: String.t() | nil,
+          signal_strength: integer() | nil
         }
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Public API
+  # Public API - Adapter Management
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   @doc """
   Lists all WiFi adapters available on the system.
 
-  Uses the `iw dev` command to enumerate WiFi interfaces. Parses the output to extract
-  interface names, MAC addresses, and current status.
-
-  ## Command Used
-
-  ```bash
-  iw dev
-  ```
-
-  This lists all wireless devices managed by the kernel's cfg80211 subsystem.
+  Uses NetworkManager to enumerate WiFi devices and their current state.
 
   ## Returns
 
   - `{:ok, [adapter]}` - List of WiFi adapters with metadata
-  - `{:error, reason}` - Failed to list adapters (iw not installed, permission denied, etc.)
+  - `{:error, reason}` - Failed to list adapters
 
   ## Adapter Information
 
   Each adapter map contains:
   - `:transport` - Always "wifi"
   - `:interface` - Physical interface name (e.g., "wlan0", "wlp3s0")
-  - `:mesh_interface` - Suggested mesh interface name (e.g., "mesh0")
   - `:address` - MAC address of the WiFi adapter
-  - `:ip_address` - Current IP address if assigned, otherwise `nil`
+  - `:mode` - Current mode (:ap, :station, :inactive)
+  - `:current_ssid` - Connected network name if in station mode
+  - `:ip_address` - Current IP address if assigned
 
   ## Examples
 
@@ -223,357 +217,240 @@ defmodule AiReality2Transnet.Wifi do
         %{
           transport: "wifi",
           interface: "wlan0",
-          mesh_interface: "mesh0",
           address: "aa:bb:cc:dd:ee:ff",
+          mode: :inactive,
+          current_ssid: nil,
           ip_address: nil
         }
       ]}
-
-  ## Common Errors
-
-  - **"iw_dev_failed: command not found"** - `iw` tool not installed
-  - **"iw_dev_failed: Operation not permitted"** - Need root/sudo privileges
   """
   @spec list_adapters() :: {:ok, [wifi_adapter()]} | {:error, String.t()}
   def list_adapters do
-    # Run: iw dev
-    # Lists all wireless network interfaces managed by the kernel
-    case System.cmd("iw", ["dev"], stderr_to_stdout: true) do
+    case System.cmd("nmcli", ["-t", "-f", "DEVICE,TYPE,STATE", "device"], stderr_to_stdout: true) do
       {output, 0} ->
-        adapters = parse_iw_dev(output)
+        adapters =
+          output
+          |> String.split("\n", trim: true)
+          |> Enum.filter(fn line ->
+            parts = String.split(line, ":")
+            Enum.at(parts, 1) == "wifi"
+          end)
+          |> Enum.map(fn line ->
+            [interface, _type, state] = String.split(line, ":")
+
+            %{
+              transport: "wifi",
+              interface: interface,
+              address: get_mac_address(interface),
+              mode: parse_device_mode(state),
+              current_ssid: get_current_ssid(interface),
+              ip_address: get_interface_ip(interface)
+            }
+          end)
+
         {:ok, adapters}
 
-      {error, code} ->
-        cond do
-          String.contains?(error, "Operation not permitted") or
-              String.contains?(error, "Permission denied") ->
-            {:error,
-             "permission_denied: iw requires elevated privileges - see WIFI_PERMISSIONS.md for solutions"}
-
-          code != 0 ->
-            {:error, "iw_dev_failed (exit #{code}): #{String.trim(error)}"}
-
-          true ->
-            {:error, "iw_dev_failed: #{error}"}
-        end
-    end
-  rescue
-    # %ErlangError{original: :enoent} ->
-    #   {:error, "iw command not found - install with: sudo apt install iw (Debian/Ubuntu) or sudo dnf install iw (Fedora)"}
-
-    # %ErlangError{original: :eacces} ->
-    #   {:error, "permission_denied: cannot execute iw command - check file permissions"}
-
-    error ->
-      {:error, "exception: #{inspect(error)}"}
-  end
-
-  @doc """
-  Creates a WiFi mesh interface on the specified physical interface.
-
-  Creates a virtual mesh point (mp) interface that will be used for 802.11s mesh networking.
-  This is a **virtual interface** on top of the physical WiFi adapter - think of it like
-  creating a VLAN on an Ethernet port.
-
-  ## Command Used
-
-  ```bash
-  iw dev wlan0 interface add mesh0 type mp
-  ```
-
-  - `wlan0` - Physical WiFi interface
-  - `mesh0` - New virtual mesh interface
-  - `mp` - "Mesh Point" interface type (802.11s)
-
-  ## Parameters
-
-  - `interface` - Physical WiFi interface (e.g., "wlan0", "wlp3s0")
-  - `mesh_interface` - Mesh interface name (default: "mesh0")
-
-  ## Returns
-
-  - `:ok` - Mesh interface created successfully
-  - `:ok` - Interface already exists (idempotent operation)
-  - `{:error, reason}` - Failed to create interface
-
-  ## Permissions
-
-  **Requires root/sudo** - Creating network interfaces is a privileged operation.
-
-  ## Interface Naming
-
-  Common naming conventions:
-  - `mesh0` - First mesh interface (default)
-  - `mesh1` - Second mesh interface (if using multiple)
-  - `wlan0-mesh` - Alternative descriptive naming
-
-  ## Examples
-
-      # Create default mesh0 interface
-      iex> AiReality2Transnet.Wifi.create_mesh_interface("wlan0")
-      :ok
-
-      # Create custom-named mesh interface
-      iex> AiReality2Transnet.Wifi.create_mesh_interface("wlan0", "my_mesh")
-      :ok
-
-      # Interface already exists - still returns :ok
-      iex> AiReality2Transnet.Wifi.create_mesh_interface("wlan0", "mesh0")
-      :ok
-
-  ## Common Errors
-
-  - **"Operation not supported"** - WiFi adapter doesn't support mesh mode
-  - **"Device or resource busy"** - NetworkManager is controlling the interface
-  - **"Permission denied"** - Need root/sudo privileges
-  - **"No such device"** - Physical interface doesn't exist
-
-  ## Troubleshooting
-
-  **NetworkManager interference:**
-  ```bash
-  sudo nmcli device set wlan0 managed no
-  ```
-
-  **Check adapter supports mesh:**
-  ```bash
-  sudo iw list | grep "mesh point"
-  ```
-  """
-  @spec create_mesh_interface(String.t(), String.t()) :: :ok | {:error, String.t()}
-  def create_mesh_interface(interface, mesh_interface \\ "mesh0") do
-    # Run: iw dev wlan0 interface add mesh0 type mp
-    # Creates a virtual "mesh point" interface for 802.11s networking
-    case System.cmd("iw", ["dev", interface, "interface", "add", mesh_interface, "type", "mp"],
-           stderr_to_stdout: true
-         ) do
-      {_output, 0} ->
-        :ok
-
-      {error, _} ->
-        # Interface might already exist, which is okay
-        if String.contains?(error, "already exists") do
-          :ok
-        else
-          {:error, "create_mesh_failed: #{error}"}
-        end
+      {error, _code} ->
+        {:error, "nmcli_failed: #{String.trim(error)}"}
     end
   rescue
     error -> {:error, "exception: #{inspect(error)}"}
   end
 
   @doc """
-  Configures and starts a WiFi mesh network.
-
-  Joins the mesh interface to a specific mesh network (identified by mesh_id) on a specific
-  frequency (channel). After joining, the interface is brought up so it can participate in
-  mesh peering and routing.
-
-  ## Command Used
-
-  ```bash
-  iw dev mesh0 mesh join R2MESH freq 2437
-  ip link set mesh0 up
-  ```
-
-  ## CRITICAL: Mesh ID Must Match!
-
-  **All nodes MUST use the same mesh ID to peer together.** Think of mesh_id like a WiFi
-  network name (ESSID) - only devices with matching IDs can form a mesh.
-
-  ## CRITICAL: Frequency Must Match!
-
-  **All nodes MUST use the same frequency (channel) to communicate.** Mismatched channels
-  won't peer, even with matching mesh IDs.
+  Checks if an adapter supports AP (hotspot) mode.
 
   ## Parameters
-
-  - `mesh_interface` - Mesh interface name (e.g., "mesh0")
-  - `mesh_id` - Mesh network identifier (e.g., "R2MESH", "REALITY2_MESH")
-    - Case-sensitive
-    - Typically 1-32 characters
-    - Must match across all nodes
-  - `frequency` - Channel frequency in MHz (default: 2437)
-    - 2412 = Channel 1
-    - 2437 = Channel 6 (recommended - least interference)
-    - 2462 = Channel 11
-    - 5180 = Channel 36 (5 GHz)
+  - `interface` - WiFi interface name
 
   ## Returns
+  - `{:ok, true/false}` - Whether AP mode is supported
+  - `{:error, reason}` - Failed to check
 
-  - `:ok` - Mesh joined and interface is up
-  - `{:error, reason}` - Failed to join mesh or bring up interface
+  ## Example
 
-  ## Permissions
-
-  **Requires root/sudo** - Joining mesh and bringing up interfaces are privileged operations.
-
-  ## Examples
-
-      # Join mesh on channel 6 (2.4 GHz)
-      iex> AiReality2Transnet.Wifi.start_mesh("mesh0", "R2MESH", 2437)
-      :ok
-
-      # Join mesh on channel 36 (5 GHz)
-      iex> AiReality2Transnet.Wifi.start_mesh("mesh0", "R2MESH_5G", 5180)
-      :ok
-
-      # Use default channel (2437)
-      iex> AiReality2Transnet.Wifi.start_mesh("mesh0", "R2MESH")
-      :ok
-
-  ## Mesh Peering Process
-
-  After joining:
-  1. Interface starts listening on the specified frequency
-  2. Broadcasts mesh beacons advertising mesh_id
-  3. Discovers other nodes with same mesh_id on same frequency
-  4. Initiates mesh peering protocol (MPM)
-  5. Establishes peer links (typically 10-30 seconds)
-  6. Begins routing via HWMP
-
-  ## Common Errors
-
-  - **"No such device"** - Mesh interface doesn't exist (create it first)
-  - **"Device or resource busy"** - Interface already joined to another mesh
-  - **"Operation not supported"** - Adapter doesn't support mesh mode
-  - **"Invalid argument"** - Invalid frequency for adapter's regulatory domain
-
-  ## Troubleshooting
-
-  **No peers appear:**
-  - Verify all nodes use same mesh_id: `sudo iw dev mesh0 info | grep "mesh id"`
-  - Verify all nodes use same channel: `sudo iw dev mesh0 info | grep channel`
-  - Check devices are in range (< 50m for initial testing)
-  - Check regulatory domain allows frequency: `iw reg get`
-
-  **"Invalid argument" on 5 GHz:**
-  Some countries restrict 5 GHz frequencies. Check with: `iw reg get`
+      iex> Wifi.supports_ap_mode("wlan0")
+      {:ok, true}
   """
-  @spec start_mesh(String.t(), String.t(), integer()) :: :ok | {:error, String.t()}
-  def start_mesh(mesh_interface, mesh_id, frequency \\ 2437) do
-    # Run: iw dev mesh0 mesh join R2MESH freq 2437
-    # Joins the mesh network with specified ID on specified frequency
-    case System.cmd(
-           "iw",
-           ["dev", mesh_interface, "mesh", "join", mesh_id, "freq", to_string(frequency)],
-           stderr_to_stdout: true
-         ) do
-      {_output, 0} ->
-        # Bring interface up
-        bring_interface_up(mesh_interface)
-
-      {error, _} ->
-        {:error, "mesh_join_failed: #{error}"}
-    end
-  rescue
-    error -> {:error, "exception: #{inspect(error)}"}
-  end
-
-  @doc """
-  Brings a network interface up.
-
-  ## Parameters
-  - `interface` - Interface name
-
-  ## Returns
-  - `:ok` - Interface is up
-  - `{:error, reason}` - Failed to bring up interface
-  """
-  @spec bring_interface_up(String.t()) :: :ok | {:error, String.t()}
-  def bring_interface_up(interface) do
-    case System.cmd("ip", ["link", "set", interface, "up"], stderr_to_stdout: true) do
-      {_output, 0} ->
-        :ok
-
-      {error, _} ->
-        {:error, "interface_up_failed: #{error}"}
-    end
-  rescue
-    error -> {:error, "exception: #{inspect(error)}"}
-  end
-
-  @doc """
-  Destroys a mesh interface.
-
-  ## Parameters
-  - `mesh_interface` - Mesh interface name
-
-  ## Returns
-  - `:ok` - Interface destroyed
-  - `{:error, reason}` - Failed to destroy interface
-  """
-  @spec destroy_mesh_interface(String.t()) :: :ok | {:error, String.t()}
-  def destroy_mesh_interface(mesh_interface) do
-    case System.cmd("iw", ["dev", mesh_interface, "del"], stderr_to_stdout: true) do
-      {_output, 0} ->
-        :ok
-
-      {error, _} ->
-        {:error, "destroy_mesh_failed: #{error}"}
-    end
-  rescue
-    error -> {:error, "exception: #{inspect(error)}"}
-  end
-
-  @doc """
-  Gets the IPv6 link-local address for an interface.
-
-  ## Parameters
-  - `interface` - Interface name
-
-  ## Returns
-  - `{:ok, address}` - IPv6 link-local address (e.g., "fe80::1234")
-  - `{:error, reason}` - Failed to get address
-
-  ## Examples
-
-      iex> AiReality2Transnet.Wifi.get_ipv6_link_local("mesh0")
-      {:ok, "fe80::1234:5678:9abc:def0"}
-  """
-  @spec get_ipv6_link_local(String.t()) :: {:ok, String.t()} | {:error, String.t()}
-  def get_ipv6_link_local(interface) do
-    case System.cmd("ip", ["-6", "addr", "show", interface], stderr_to_stdout: true) do
+  @spec supports_ap_mode(String.t()) :: {:ok, boolean()} | {:error, String.t()}
+  def supports_ap_mode(_interface) do
+    case System.cmd("iw", ["list"], stderr_to_stdout: true) do
       {output, 0} ->
-        case parse_ipv6_link_local(output) do
-          nil -> {:error, "no_ipv6_link_local_found"}
-          address -> {:ok, address}
+        # Check for "* AP" in supported interface modes
+        supports_ap = String.contains?(output, "* AP\n") or String.contains?(output, "\t* AP")
+        {:ok, supports_ap}
+
+      {error, _} ->
+        {:error, "iw_list_failed: #{error}"}
+    end
+  rescue
+    _ -> {:error, "iw_command_not_found"}
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Public API - Hotspot Operations (AP Mode)
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @doc """
+  Starts a WiFi hotspot on the specified interface.
+
+  Creates a WPA2-PSK access point that other devices can connect to.
+
+  ## Parameters
+  - `interface` - WiFi interface (e.g., "wlan0")
+  - `ssid` - Network name (e.g., "R2-abc123")
+  - `psk` - WPA2 password (must be 8-63 characters)
+  - `channel` - WiFi channel (default: 6 for 2.4GHz)
+
+  ## Returns
+  - `{:ok, connection_uuid}` - Hotspot started successfully
+  - `{:error, reason}` - Failed to start hotspot
+
+  ## IP Assignment
+  - Hotspot automatically gets IP based on SSID hash
+  - Subnet: `192.168.X.0/24` where X = hash(ssid) mod 254
+  - Hotspot IP: `192.168.X.1`
+  - DHCP range: `.10` to `.250`
+
+  ## Examples
+
+      iex> Wifi.start_hotspot("wlan0", "R2-node123", "secretpass", 6)
+      {:ok, "uuid-1234-5678"}
+
+  ## Note
+  This automatically handles:
+  - IP address assignment
+  - DHCP server configuration
+  - Firewall rules for client access
+  """
+  @spec start_hotspot(String.t(), String.t(), String.t(), integer()) ::
+          {:ok, String.t()} | {:error, String.t()}
+  def start_hotspot(interface, ssid, psk, channel \\ 6) do
+    # Generate deterministic IP from SSID
+    subnet_octet = :erlang.phash2(ssid, 254) + 1
+    ip_address = "192.168.#{subnet_octet}.1"
+
+    # Use nmcli to create hotspot connection
+    args = [
+      "connection", "add",
+      "type", "wifi",
+      "ifname", interface,
+      "con-name", "R2-Hotspot-#{ssid}",
+      "autoconnect", "no",
+      "ssid", ssid,
+      "mode", "ap",
+      "ipv4.method", "shared",
+      "ipv4.addresses", "#{ip_address}/24",
+      "wifi-sec.key-mgmt", "wpa-psk",
+      "wifi-sec.psk", psk,
+      "802-11-wireless.channel", to_string(channel)
+    ]
+
+    case System.cmd("nmcli", args, stderr_to_stdout: true) do
+      {output, 0} ->
+        # Extract connection UUID
+        uuid = extract_connection_uuid(output)
+
+        # Activate the connection
+        case System.cmd("nmcli", ["connection", "up", "R2-Hotspot-#{ssid}"], stderr_to_stdout: true) do
+          {_, 0} ->
+            Logger.info("[Wifi] Hotspot started: SSID=#{ssid}, Channel=#{channel}, IP=#{ip_address}")
+            {:ok, uuid}
+
+          {error, _} ->
+            {:error, "hotspot_activation_failed: #{error}"}
         end
 
       {error, _} ->
-        {:error, "get_ipv6_failed: #{error}"}
+        {:error, "hotspot_creation_failed: #{error}"}
     end
   rescue
     error -> {:error, "exception: #{inspect(error)}"}
   end
 
   @doc """
-  Lists mesh peers connected to a mesh interface.
+  Stops a currently running hotspot.
 
   ## Parameters
-  - `mesh_interface` - Mesh interface name
+  - `interface` - WiFi interface
 
   ## Returns
-  - `{:ok, [peer]}` - List of connected peers
-  - `{:error, reason}` - Failed to get peers
-
-  ## Examples
-
-      iex> AiReality2Transnet.Wifi.list_mesh_peers("mesh0")
-      {:ok, [
-        %{
-          mac_address: "aa:bb:cc:dd:ee:ff",
-          signal_strength: -45,
-          last_seen: 1234567890
-        }
-      ]}
+  - `:ok` - Hotspot stopped
+  - `{:error, reason}` - Failed to stop hotspot
   """
-  @spec list_mesh_peers(String.t()) :: {:ok, [mesh_peer()]} | {:error, String.t()}
-  def list_mesh_peers(mesh_interface) do
-    case System.cmd("iw", ["dev", mesh_interface, "station", "dump"], stderr_to_stdout: true) do
+  @spec stop_hotspot(String.t()) :: :ok | {:error, String.t()}
+  def stop_hotspot(interface) do
+    # Get active connection on interface
+    case get_active_connection(interface) do
+      {:ok, connection_name} ->
+        case System.cmd("nmcli", ["connection", "down", connection_name], stderr_to_stdout: true) do
+          {_, 0} ->
+            # Delete the connection profile
+            System.cmd("nmcli", ["connection", "delete", connection_name], stderr_to_stdout: true)
+            Logger.info("[Wifi] Hotspot stopped on #{interface}")
+            :ok
+
+          {error, _} ->
+            {:error, "hotspot_stop_failed: #{error}"}
+        end
+
+      {:error, :no_active_connection} ->
+        :ok
+
+      error ->
+        error
+    end
+  rescue
+    error -> {:error, "exception: #{inspect(error)}"}
+  end
+
+  @doc """
+  Gets the hotspot IP address for an interface.
+
+  ## Parameters
+  - `interface` - WiFi interface
+
+  ## Returns
+  - `{:ok, ip_address}` - Hotspot IP (e.g., "192.168.42.1")
+  - `{:error, reason}` - Not in hotspot mode or no IP
+  """
+  @spec get_hotspot_ip(String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  def get_hotspot_ip(interface) do
+    get_interface_ip(interface)
+  end
+
+  @doc """
+  Gets list of currently connected clients to the hotspot.
+
+  ## Parameters
+  - `interface` - WiFi interface running hotspot
+
+  ## Returns
+  - `{:ok, [client_mac]}` - List of connected client MAC addresses
+  - `{:error, reason}` - Failed to get clients
+
+  ## Example
+
+      iex> Wifi.get_connected_clients("wlan0")
+      {:ok, ["aa:bb:cc:dd:ee:ff", "11:22:33:44:55:66"]}
+  """
+  @spec get_connected_clients(String.t()) :: {:ok, [String.t()]} | {:error, String.t()}
+  def get_connected_clients(interface) do
+    # Use iw to get station info
+    case System.cmd("iw", ["dev", interface, "station", "dump"], stderr_to_stdout: true) do
       {output, 0} ->
-        peers = parse_station_dump(output)
-        {:ok, peers}
+        clients =
+          output
+          |> String.split("\n")
+          |> Enum.filter(&String.starts_with?(&1, "Station "))
+          |> Enum.map(fn line ->
+            line
+            |> String.trim_leading("Station ")
+            |> String.split()
+            |> List.first()
+          end)
+
+        {:ok, clients}
 
       {error, _} ->
         {:error, "station_dump_failed: #{error}"}
@@ -583,117 +460,434 @@ defmodule AiReality2Transnet.Wifi do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Public API - Client Operations (Station Mode)
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @doc """
+  Connects to a WiFi network as a client.
+
+  ## Parameters
+  - `interface` - WiFi interface
+  - `ssid` - Network name to connect to
+  - `psk` - WPA2 password
+
+  ## Returns
+  - `{:ok, connection_uuid}` - Connected successfully
+  - `{:error, reason}` - Failed to connect
+
+  ## Examples
+
+      iex> Wifi.connect_to_network("wlan0", "R2-node123", "secretpass")
+      {:ok, "uuid-1234-5678"}
+
+  ## Note
+  This will:
+  - Disconnect from any current network
+  - Create a new connection profile
+  - Wait for DHCP IP assignment
+  """
+  @spec connect_to_network(String.t(), String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, String.t()}
+  def connect_to_network(interface, ssid, psk) do
+    # First, disconnect from any current connection
+    disconnect_from_network(interface)
+
+    # Use nmcli to connect
+    args = [
+      "device", "wifi", "connect",
+      ssid,
+      "password", psk,
+      "ifname", interface
+    ]
+
+    case System.cmd("nmcli", args, stderr_to_stdout: true) do
+      {_output, 0} ->
+        Logger.info("[Wifi] Connected to network: SSID=#{ssid}")
+
+        # Wait a moment for IP assignment
+        Process.sleep(2000)
+
+        case get_interface_ip(interface) do
+          {:ok, ip} ->
+            Logger.info("[Wifi] IP assigned: #{ip}")
+            {:ok, "connected"}
+
+          {:error, _} ->
+            Logger.warning("[Wifi] Connected but no IP yet")
+            {:ok, "connected_no_ip"}
+        end
+
+      {error, _} ->
+        {:error, "connect_failed: #{error}"}
+    end
+  rescue
+    error -> {:error, "exception: #{inspect(error)}"}
+  end
+
+  @doc """
+  Disconnects from the current WiFi network.
+
+  ## Parameters
+  - `interface` - WiFi interface
+
+  ## Returns
+  - `:ok` - Disconnected or already disconnected
+  - `{:error, reason}` - Failed to disconnect
+  """
+  @spec disconnect_from_network(String.t()) :: :ok | {:error, String.t()}
+  def disconnect_from_network(interface) do
+    case get_active_connection(interface) do
+      {:ok, connection_name} ->
+        case System.cmd("nmcli", ["connection", "down", connection_name], stderr_to_stdout: true) do
+          {_, 0} ->
+            Logger.info("[Wifi] Disconnected from #{connection_name}")
+            :ok
+
+          {error, _} ->
+            {:error, "disconnect_failed: #{error}"}
+        end
+
+      {:error, :no_active_connection} ->
+        :ok
+
+      error ->
+        error
+    end
+  rescue
+    error -> {:error, "exception: #{inspect(error)}"}
+  end
+
+  @doc """
+  Gets the current connection status for an interface.
+
+  ## Parameters
+  - `interface` - WiFi interface
+
+  ## Returns
+  - `{:ok, status}` - Connection status details
+  - `{:error, reason}` - Failed to get status
+
+  ## Example
+
+      iex> Wifi.get_connection_status("wlan0")
+      {:ok, %{
+        state: :connected,
+        ssid: "R2-node123",
+        ip_address: "192.168.42.15",
+        signal_strength: -45
+      }}
+  """
+  @spec get_connection_status(String.t()) :: {:ok, connection_status()} | {:error, String.t()}
+  def get_connection_status(interface) do
+    with {:ok, device_state} <- get_device_state(interface),
+         {:ok, ssid} <- get_current_ssid_result(interface),
+         {:ok, ip} <- get_interface_ip(interface),
+         {:ok, signal} <- get_signal_strength(interface) do
+
+      status = %{
+        state: parse_connection_state(device_state),
+        ssid: ssid,
+        ip_address: ip,
+        signal_strength: signal
+      }
+
+      {:ok, status}
+    else
+      error -> error
+    end
+  rescue
+    error -> {:error, "exception: #{inspect(error)}"}
+  end
+
+  @doc """
+  Scans for available WiFi networks.
+
+  ## Parameters
+  - `interface` - WiFi interface
+
+  ## Returns
+  - `{:ok, [network]}` - List of available networks
+  - `{:error, reason}` - Failed to scan
+
+  ## Example
+
+      iex> Wifi.scan_networks("wlan0")
+      {:ok, [
+        %{ssid: "R2-node123", signal: -45, security: "WPA2"},
+        %{ssid: "R2-node456", signal: -67, security: "WPA2"}
+      ]}
+  """
+  @spec scan_networks(String.t()) :: {:ok, [map()]} | {:error, String.t()}
+  def scan_networks(interface) do
+    # Request rescan
+    System.cmd("nmcli", ["device", "wifi", "rescan", "ifname", interface], stderr_to_stdout: true)
+
+    # Wait for scan to complete
+    Process.sleep(2000)
+
+    case System.cmd("nmcli", ["-t", "-f", "SSID,SIGNAL,SECURITY", "device", "wifi", "list", "ifname", interface], stderr_to_stdout: true) do
+      {output, 0} ->
+        networks =
+          output
+          |> String.split("\n", trim: true)
+          |> Enum.map(fn line ->
+            case String.split(line, ":") do
+              [ssid, signal, security] ->
+                %{
+                  ssid: ssid,
+                  signal: String.to_integer(signal),
+                  security: security
+                }
+
+              _ ->
+                nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+
+        {:ok, networks}
+
+      {error, _} ->
+        {:error, "scan_failed: #{error}"}
+    end
+  rescue
+    error -> {:error, "exception: #{inspect(error)}"}
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Public API - Utility Functions
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @doc """
+  Generates a secure random PSK for hotspot use.
+
+  ## Parameters
+  - `length` - Password length (default: 16, min: 8, max: 63)
+
+  ## Returns
+  - String with random alphanumeric password
+
+  ## Example
+
+      iex> Wifi.generate_psk()
+      "aB3dE7gH9kL2nP5q"
+  """
+  @spec generate_psk(integer()) :: String.t()
+  def generate_psk(length \\ 16) do
+    length = max(8, min(63, length))
+
+    :crypto.strong_rand_bytes(length)
+    |> Base.encode64()
+    |> binary_part(0, length)
+  end
+
+  @doc """
+  Generates a unique, deterministic SSID from node ID and site.
+
+  Creates SSIDs in the format: `R2-<SITE_ID>-<HOST_SHORT_ID>`
+  - `SITE_ID`: Deployment site identifier (configurable, default: "NODE")
+  - `HOST_SHORT_ID`: Last 4 hex chars from node UUID (ensures uniqueness)
+
+  This prevents SSID collisions when multiple Reality2 nodes host hotspots
+  in the same physical area.
+
+  ## Site ID Resolution Order
+  1. Parameter `site_id` (if provided)
+  2. Environment variable `R2_SITE_ID`
+  3. Application config `:site_id`
+  4. Default: "NODE"
+
+  ## Parameters
+  - `node_id` - Node UUID (e.g., "123e4567-e89b-12d3-a456-426614174000")
+  - `site_id` - Optional site identifier override
+
+  ## Returns
+  - SSID string (e.g., "R2-WAIROA-4000")
+
+  ## Examples
+
+      iex> Wifi.generate_ssid("123e4567-e89b-12d3-a456-426614174000", "WAIROA")
+      "R2-WAIROA-4000"
+
+      iex> System.put_env("R2_SITE_ID", "AUCKLAND")
+      iex> Wifi.generate_ssid("abcd1234-5678-90ab-cdef-ghij12345678")
+      "R2-AUCKLAND-5678"
+  """
+  @spec generate_ssid(String.t(), String.t() | nil) :: String.t()
+  def generate_ssid(node_id, site_id \\ nil) do
+    # Get site_id from: parameter > env var > config > default
+    site =
+      site_id ||
+      System.get_env("R2_SITE_ID") ||
+      Application.get_env(:ai_reality2_transnet, :site_id, "NODE")
+
+    # Extract last 4 hex characters from node_id UUID (last 2 bytes)
+    # Remove hyphens and take last 4 chars
+    clean_id = String.replace(node_id, "-", "")
+    host_short_id =
+      clean_id
+      |> String.slice(-4..-1)
+      |> String.upcase()
+
+    # Format: R2-<SITE_ID>-<HOST_SHORT_ID>
+    # Example: R2-WAIROA-A3F7
+    "R2-#{site}-#{host_short_id}"
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   # Private Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # Parse output from `iw dev`
-  defp parse_iw_dev(output) do
-    output
-    |> String.split("\n")
-    |> Enum.reduce({[], nil, nil}, fn line, {adapters, current_interface, current_address} ->
-      trimmed = String.trim(line)
-
-      cond do
-        # Match "Interface wlan0"
-        String.starts_with?(trimmed, "Interface ") ->
-          interface = String.trim_leading(trimmed, "Interface ")
-          {adapters, interface, current_address}
-
-        # Match "addr aa:bb:cc:dd:ee:ff"
-        String.starts_with?(trimmed, "addr ") ->
-          address = String.trim_leading(trimmed, "addr ")
-
-          # Create adapter if we have both interface and address
-          adapter =
-            if current_interface && address do
-              %{
-                transport: "wifi",
-                interface: current_interface,
-                mesh_interface: "mesh0",
-                address: address,
-                ip_address: nil
-              }
-            end
-
-          new_adapters = if adapter, do: [adapter | adapters], else: adapters
-          {new_adapters, nil, nil}
-
-        true ->
-          {adapters, current_interface, current_address}
-      end
-    end)
-    |> elem(0)
-    |> Enum.reverse()
+  # Get MAC address for interface
+  defp get_mac_address(interface) do
+    case System.cmd("cat", ["/sys/class/net/#{interface}/address"], stderr_to_stdout: true) do
+      {address, 0} -> String.trim(address)
+      _ -> "unknown"
+    end
   end
 
-  # Parse IPv6 link-local address from `ip -6 addr show`
-  defp parse_ipv6_link_local(output) do
+  # Parse device mode from nmcli state
+  defp parse_device_mode("connected (externally)"), do: :ap
+  defp parse_device_mode("connected"), do: :station
+  defp parse_device_mode(_), do: :inactive
+
+  # Get current SSID if connected
+  defp get_current_ssid(interface) do
+    case System.cmd("nmcli", ["-t", "-f", "ACTIVE,SSID", "device", "wifi", "list", "ifname", interface], stderr_to_stdout: true) do
+      {output, 0} ->
+        output
+        |> String.split("\n", trim: true)
+        |> Enum.find_value(fn line ->
+          case String.split(line, ":") do
+            ["yes", ssid] -> ssid
+            _ -> nil
+          end
+        end)
+
+      _ ->
+        nil
+    end
+  end
+
+  # Get current SSID (result variant)
+  defp get_current_ssid_result(interface) do
+    case get_current_ssid(interface) do
+      nil -> {:error, :not_connected}
+      ssid -> {:ok, ssid}
+    end
+  end
+
+  @doc """
+  Gets the current IP address of an interface.
+
+  ## Parameters
+  - `interface` - Network interface name (e.g., "wlan0")
+
+  ## Returns
+  - `{:ok, ip}` - IP address string
+  - `{:error, reason}` - Failed to get IP
+  """
+  @spec get_interface_ip(String.t()) :: {:ok, String.t()} | {:error, atom()}
+  def get_interface_ip(interface) do
+    case System.cmd("ip", ["-4", "addr", "show", interface], stderr_to_stdout: true) do
+      {output, 0} ->
+        case parse_ip_from_output(output) do
+          nil -> {:error, :no_ip_address}
+          ip -> {:ok, ip}
+        end
+
+      _ ->
+        {:error, :interface_not_found}
+    end
+  end
+
+  # Parse IP from ip addr output
+  defp parse_ip_from_output(output) do
     output
     |> String.split("\n")
     |> Enum.find_value(fn line ->
-      trimmed = String.trim(line)
-
-      if String.starts_with?(trimmed, "inet6 fe80:") do
-        # Extract address (format: "inet6 fe80::1234/64 scope link")
-        trimmed
-        |> String.trim_leading("inet6 ")
+      if String.contains?(line, "inet ") do
+        line
+        |> String.trim()
         |> String.split()
+        |> Enum.at(1)
+        |> String.split("/")
         |> List.first()
-        |> then(fn addr_with_prefix ->
-          # Remove /64 suffix
-          String.split(addr_with_prefix, "/") |> List.first()
-        end)
       end
     end)
   end
 
-  # Parse output from `iw station dump`
-  defp parse_station_dump(output) do
-    output
-    |> String.split("\n")
-    |> Enum.reduce({[], nil, nil}, fn line, {peers, current_mac, current_signal} ->
-      trimmed = String.trim(line)
-
-      cond do
-        # Match "Station aa:bb:cc:dd:ee:ff (on mesh0)"
-        String.starts_with?(trimmed, "Station ") ->
-          mac =
-            trimmed
-            |> String.trim_leading("Station ")
-            |> String.split()
-            |> List.first()
-
-          {peers, mac, current_signal}
-
-        # Match "signal: -45 dBm"
-        String.starts_with?(trimmed, "signal:") ->
-          signal =
-            trimmed
-            |> String.trim_leading("signal:")
-            |> String.trim()
-            |> String.split()
-            |> List.first()
-            |> String.to_integer()
-
-          # Create peer if we have both MAC and signal
-          peer =
-            if current_mac && signal do
-              %{
-                mac_address: current_mac,
-                signal_strength: signal,
-                last_seen: System.system_time(:millisecond)
-              }
+  # Get active connection name for interface
+  defp get_active_connection(interface) do
+    case System.cmd("nmcli", ["-t", "-f", "DEVICE,NAME", "connection", "show", "--active"], stderr_to_stdout: true) do
+      {output, 0} ->
+        result =
+          output
+          |> String.split("\n", trim: true)
+          |> Enum.find_value(fn line ->
+            case String.split(line, ":") do
+              [^interface, name] -> name
+              _ -> nil
             end
+          end)
 
-          new_peers = if peer, do: [peer | peers], else: peers
-          {new_peers, nil, nil}
+        case result do
+          nil -> {:error, :no_active_connection}
+          name -> {:ok, name}
+        end
 
-        true ->
-          {peers, current_mac, current_signal}
-      end
-    end)
-    |> elem(0)
-    |> Enum.reverse()
+      {error, _} ->
+        {:error, "query_failed: #{error}"}
+    end
+  end
+
+  # Extract connection UUID from nmcli output
+  defp extract_connection_uuid(output) do
+    case Regex.run(~r/\(([a-f0-9-]+)\)/, output) do
+      [_, uuid] -> uuid
+      _ -> "unknown"
+    end
+  end
+
+  # Get device state
+  defp get_device_state(interface) do
+    case System.cmd("nmcli", ["-t", "-f", "STATE", "device", "show", interface], stderr_to_stdout: true) do
+      {output, 0} ->
+        state = output |> String.trim() |> String.split(":") |> List.last()
+        {:ok, state}
+
+      {error, _} ->
+        {:error, "device_query_failed: #{error}"}
+    end
+  end
+
+  # Parse connection state
+  defp parse_connection_state("100 (connected)"), do: :connected
+  defp parse_connection_state("connecting"), do: :connecting
+  defp parse_connection_state(_), do: :disconnected
+
+  # Get signal strength
+  defp get_signal_strength(interface) do
+    case System.cmd("nmcli", ["-t", "-f", "IN-USE,SIGNAL", "device", "wifi", "list", "ifname", interface], stderr_to_stdout: true) do
+      {output, 0} ->
+        signal =
+          output
+          |> String.split("\n", trim: true)
+          |> Enum.find_value(fn line ->
+            case String.split(line, ":") do
+              ["*", signal] -> String.to_integer(signal)
+              _ -> nil
+            end
+          end)
+
+        case signal do
+          nil -> {:error, :no_signal}
+          sig -> {:ok, sig}
+        end
+
+      {error, _} ->
+        {:error, "signal_query_failed: #{error}"}
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -705,40 +899,34 @@ defmodule AiReality2Transnet.Wifi do
 
   ## Returns
   - `{:ok, :all_available}` - All required commands found
-  - `{:error, missing_commands}` - List of missing commands with installation instructions
+  - `{:error, missing_commands}` - List of missing commands
 
   ## Example
 
-      iex> AiReality2Transnet.Wifi.check_dependencies()
+      iex> Wifi.check_dependencies()
       {:ok, :all_available}
-
-      # Or if commands are missing:
-      {:error, [
-        %{command: "iw", install: "sudo apt install iw"},
-        %{command: "ip", install: "sudo apt install iproute2"}
-      ]}
   """
   @spec check_dependencies() :: {:ok, :all_available} | {:error, list(map())}
   def check_dependencies do
-    required_commands = [
+    required = [
+      %{
+        command: "nmcli",
+        debian: "sudo apt install network-manager",
+        fedora: "sudo dnf install NetworkManager",
+        arch: "sudo pacman -S networkmanager"
+      },
       %{
         command: "iw",
         debian: "sudo apt install iw",
         fedora: "sudo dnf install iw",
         arch: "sudo pacman -S iw"
-      },
-      %{
-        command: "ip",
-        debian: "sudo apt install iproute2",
-        fedora: "sudo dnf install iproute2",
-        arch: "sudo pacman -S iproute2"
       }
     ]
 
     missing =
-      Enum.filter(required_commands, fn %{command: cmd} ->
+      Enum.filter(required, fn %{command: cmd} ->
         case System.cmd("which", [cmd], stderr_to_stdout: true) do
-          {_output, 0} -> false
+          {_, 0} -> false
           _ -> true
         end
       end)

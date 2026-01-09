@@ -47,7 +47,7 @@ defmodule AiReality2Transnet.GattProtocol do
         "mesh_id": "R2MESH_abc123",
         "ipv6_link_local": "fe80::1234:5678:90ab:cdef",
         "http_port": 8080,
-        "instructions": "Query sentants via HTTP: GET http://[ipv6]:port/sentants"
+        "instructions": "Use WiFi mesh HTTP/GraphQL for Sentant queries (e.g., POST /graphql)"
       }
 
   **Author**
@@ -102,27 +102,45 @@ defmodule AiReality2Transnet.GattProtocol do
   end
 
   @doc """
-  Encodes WiFi mesh connection details for GATT transmission.
+  Encodes a WiFi hotspot join offer for GATT transmission.
 
-  Returns mesh_id, IPv6 address, and HTTP port for Sentant queries.
+  Returns complete connection credentials and rendezvous information.
 
   ## Returns
-  JSON string with mesh connection info
+  JSON string with join offer details
   """
-  @spec encode_mesh_details() :: String.t()
-  def encode_mesh_details do
-    mesh_info = get_mesh_info()
+  @spec encode_join_offer() :: String.t()
+  def encode_join_offer do
+    # Get current hosting configuration
+    case AiReality2Transnet.ConnectionManager.get_hosting_config() do
+      {:ok, config} ->
+        node_id = Reality2.Bootstrap.get(:node_id)
 
-    payload = %{
-      mesh_active: mesh_info.active,
-      mesh_id: Map.get(mesh_info, :mesh_id),
-      ipv6_link_local: Map.get(mesh_info, :ipv6_link_local),
-      http_port: Application.get_env(:ai_reality2_transnet, :wifi_server_port, 8080),
-      instructions: "Query sentants: GET http://[ipv6]:port/sentants",
-      timestamp: System.system_time(:millisecond)
-    }
+        payload = %{
+          hotspot_available: true,
+          ssid: config.ssid,
+          psk: config.psk,
+          channel: config.channel,
+          security: "WPA2-PSK",
+          rendezvous_ip: config.ip_address,
+          rendezvous_port: config.port,
+          offer_expiry: System.system_time(:second) + 300,  # Valid for 5 minutes
+          host_node_id: node_id,
+          timestamp: System.system_time(:millisecond)
+        }
 
-    Jason.encode!(payload)
+        Jason.encode!(payload)
+
+      {:error, :not_hosting} ->
+        # Not hosting - return unavailable
+        payload = %{
+          hotspot_available: false,
+          message: "This node is not hosting a hotspot",
+          timestamp: System.system_time(:millisecond)
+        }
+
+        Jason.encode!(payload)
+    end
   end
 
   @doc """
@@ -185,29 +203,39 @@ defmodule AiReality2Transnet.GattProtocol do
   end
 
   @doc """
-  Decodes WiFi mesh details received via GATT.
+  Decodes a WiFi hotspot join offer received via GATT.
 
   ## Parameters
   - `json_data` - JSON string from GATT read
 
   ## Returns
-  - `{:ok, mesh_details}` - Successfully decoded
+  - `{:ok, join_offer}` - Successfully decoded
   - `{:error, reason}` - Failed to decode
   """
-  @spec decode_mesh_details(String.t()) :: {:ok, map()} | {:error, String.t()}
-  def decode_mesh_details(json_data) do
+  @spec decode_join_offer(String.t()) :: {:ok, map()} | {:error, String.t()}
+  def decode_join_offer(json_data) do
     case Jason.decode(json_data) do
-      {:ok, data} when is_map(data) ->
-        mesh_details = %{
-          mesh_active: Map.get(data, "mesh_active", false),
-          mesh_id: Map.get(data, "mesh_id"),
-          ipv6_link_local: Map.get(data, "ipv6_link_local"),
-          http_port: Map.get(data, "http_port", 8080),
-          instructions: Map.get(data, "instructions"),
+      {:ok, %{"hotspot_available" => true} = data} ->
+        join_offer = %{
+          hotspot_available: true,
+          ssid: Map.get(data, "ssid"),
+          psk: Map.get(data, "psk"),
+          channel: Map.get(data, "channel", 6),
+          security: Map.get(data, "security", "WPA2-PSK"),
+          rendezvous_ip: Map.get(data, "rendezvous_ip"),
+          rendezvous_port: Map.get(data, "rendezvous_port", 8080),
+          offer_expiry: Map.get(data, "offer_expiry"),
+          host_node_id: Map.get(data, "host_node_id"),
           timestamp: Map.get(data, "timestamp")
         }
 
-        {:ok, mesh_details}
+        {:ok, join_offer}
+
+      {:ok, %{"hotspot_available" => false} = data} ->
+        {:error, "hotspot_not_available: #{Map.get(data, "message", "unknown")}"}
+
+      {:ok, _} ->
+        {:error, "invalid_join_offer_format"}
 
       {:error, reason} ->
         {:error, "json_decode_failed: #{inspect(reason)}"}
@@ -230,13 +258,15 @@ defmodule AiReality2Transnet.GattProtocol do
   def decode_mesh_command(json_data) do
     case Jason.decode(json_data) do
       {:ok, %{"command" => command} = data} ->
-        result = %{
-          command: String.to_existing_atom(command),
-          parameters: Map.get(data, "parameters", %{}),
-          timestamp: Map.get(data, "timestamp")
-        }
+        with {:ok, command_atom} <- decode_command_atom(command) do
+          result = %{
+            command: command_atom,
+            parameters: Map.get(data, "parameters", %{}),
+            timestamp: Map.get(data, "timestamp")
+          }
 
-        {:ok, result}
+          {:ok, result}
+        end
 
       {:ok, _} ->
         {:error, "invalid_command_format"}
@@ -246,6 +276,17 @@ defmodule AiReality2Transnet.GattProtocol do
     end
   rescue
     error -> {:error, "decode_exception: #{inspect(error)}"}
+  end
+
+  # Convert command strings to atoms using an explicit allow-list.
+  # This avoids `String.to_existing_atom/1` raising on unexpected inputs.
+  defp decode_command_atom(command) when is_binary(command) do
+    case command do
+      # Hotspot commands
+      "join_network" -> {:ok, :join_network}
+      "leave_network" -> {:ok, :leave_network}
+      other -> {:error, "unknown_command: #{other}"}
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -268,18 +309,24 @@ defmodule AiReality2Transnet.GattProtocol do
   end
 
   @doc """
-  Handles a GATT read request for WiFi mesh details.
+  Handles a GATT read request for WiFi hotspot join offer.
 
-  Returns mesh connection information for HTTP queries.
+  Returns complete connection credentials and rendezvous information.
 
   ## Returns
-  Binary data containing mesh details
+  Binary data containing join offer
   """
+  @spec handle_join_offer_read() :: binary()
+  def handle_join_offer_read do
+    json = encode_join_offer()
+    Logger.debug("[GATT Protocol] Join offer read: #{byte_size(json)} bytes")
+    json
+  end
+
+  # Legacy name for compatibility
   @spec handle_mesh_details_read() :: binary()
   def handle_mesh_details_read do
-    json = encode_mesh_details()
-    Logger.debug("[GATT Protocol] Mesh details read: #{byte_size(json)} bytes")
-    json
+    handle_join_offer_read()
   end
 
   @doc """
@@ -322,44 +369,12 @@ defmodule AiReality2Transnet.GattProtocol do
     end
   end
 
-  # Get mesh network info
-  defp get_mesh_info do
-    case AiReality2Transnet.Wifi.list_adapters() do
-      {:ok, adapters} ->
-        # Look for mesh interface
-        mesh_adapter = Enum.find(adapters, fn adapter ->
-          Map.get(adapter, :mesh_interface) != nil
-        end)
-
-        if mesh_adapter do
-          # Get IPv6 link-local address
-          case AiReality2Transnet.Wifi.get_ipv6_link_local(mesh_adapter.mesh_interface) do
-            {:ok, ipv6} ->
-              %{
-                active: true,
-                mesh_id: "R2MESH",
-                interface: mesh_adapter.mesh_interface,
-                ipv6_link_local: ipv6
-              }
-
-            {:error, _} ->
-              %{
-                active: true,
-                mesh_id: "R2MESH",
-                interface: mesh_adapter.mesh_interface,
-                ipv6_link_local: nil
-              }
-          end
-        else
-          %{active: false}
-        end
-
-      {:error, _} ->
-        %{active: false}
-    end
+  # Safely convert GATT payloads (binary or list-of-bytes) into UTF-8 strings.
+  @spec safe_to_string(binary() | list() | any()) :: {:ok, String.t()} | {:error, String.t()}
+  defp safe_to_string(data) when is_list(data) do
+    data |> :binary.list_to_bin() |> safe_to_string()
   end
 
-  # Safely convert binary to string
   defp safe_to_string(data) when is_binary(data) do
     case String.valid?(data) do
       true -> {:ok, data}
@@ -369,16 +384,32 @@ defmodule AiReality2Transnet.GattProtocol do
 
   defp safe_to_string(_), do: {:error, "not_binary"}
 
-  # Execute a mesh command
+  # Execute a hotspot connection command
   defp execute_mesh_command(%{command: command, parameters: params}) do
     case command do
-      :join_mesh ->
-        mesh_id = Map.get(params, :mesh_id, "R2MESH")
-        AiReality2Transnet.TransportManager.initiate_wifi_upgrade(nil, mesh_id)
+      :join_network ->
+        # Extract join offer from parameters
+        join_offer = %{
+          ssid: Map.get(params, :ssid) || Map.get(params, "ssid"),
+          psk: Map.get(params, :psk) || Map.get(params, "psk"),
+          channel: Map.get(params, :channel) || Map.get(params, "channel", 6),
+          rendezvous_ip: Map.get(params, :rendezvous_ip) || Map.get(params, "rendezvous_ip"),
+          rendezvous_port: Map.get(params, :rendezvous_port) || Map.get(params, "rendezvous_port", 8080),
+          offer_expiry: Map.get(params, :offer_expiry) || Map.get(params, "offer_expiry") || System.system_time(:second) + 300,
+          host_node_id: Map.get(params, :host_node_id) || Map.get(params, "host_node_id")
+        }
 
-      :leave_mesh ->
-        # TODO: Implement mesh leave logic
-        {:ok, :not_implemented}
+        # Get peer_id from host_node_id
+        peer_id = join_offer.host_node_id
+
+        # Connect to host
+        case AiReality2Transnet.ConnectionManager.connect_to_host(peer_id, join_offer) do
+          {:ok, _info} -> {:ok, :connected}
+          error -> error
+        end
+
+      :leave_network ->
+        AiReality2Transnet.ConnectionManager.disconnect_from_current_host()
 
       _ ->
         {:error, :unknown_command}

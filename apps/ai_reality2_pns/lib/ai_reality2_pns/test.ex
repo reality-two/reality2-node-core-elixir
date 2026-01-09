@@ -160,7 +160,7 @@ defmodule AiReality2Pns.Test do
 
     # Get peer info to find an event
     Logger.info("Getting peer Sentant info...")
-    case AiReality2Transnet.Bluetooth.get_peer(peer_node_id) do
+    case AiReality2Transnet.PeerManager.get_peer(peer_node_id) do
       {:ok, peer_info} ->
         peer_sentant = Enum.find(peer_info.sentants, fn s ->
           Map.get(s, "id") == sentant_id
@@ -260,7 +260,7 @@ defmodule AiReality2Pns.Test do
 
     # Step 4: Test remote send if peers available
     Logger.info("\n4. Testing Remote Send:")
-    peers = AiReality2Transnet.Bluetooth.get_connected_peers()
+    peers = AiReality2Transnet.PeerManager.get_all_peers()
 
     if map_size(peers) > 0 do
       {peer_id, peer_info} = Enum.at(Map.to_list(peers), 0)
@@ -319,7 +319,7 @@ defmodule AiReality2Pns.Test do
   Helper to list all remote Sentants from connected peers.
   """
   def list_remote_sentants do
-    peers = AiReality2Transnet.Bluetooth.get_connected_peers()
+    peers = AiReality2Transnet.PeerManager.get_all_peers()
 
     Logger.info("""
 
