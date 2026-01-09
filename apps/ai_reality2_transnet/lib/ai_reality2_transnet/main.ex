@@ -27,10 +27,7 @@ defmodule AiReality2Transnet.Main do
   @doc false
   @impl true
   def init(state) do
-<<<<<<< Updated upstream
-=======
     Logger.info("[ai.reality2.transnet] Main GenServer initialized")
->>>>>>> Stashed changes
     {:ok, state}
   end
 

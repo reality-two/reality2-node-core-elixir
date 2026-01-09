@@ -463,6 +463,126 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
+  # GATT Server - sentantSend Mutation Handler
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  defp parse_sentant_send(data) when is_list(data) do
+    data |> :binary.list_to_bin() |> parse_sentant_send()
+  end
+
+  defp parse_sentant_send(data) when is_binary(data) do
+    case Jason.decode(data) do
+      {:ok, %{"id" => id, "event" => event} = mutation} ->
+        {:ok,
+         %{
+           id: id,
+           event: event,
+           parameters: Map.get(mutation, "parameters", %{}),
+           passthrough: Map.get(mutation, "passthrough")
+         }}
+
+      {:ok, _} ->
+        {:error, "missing_required_fields_id_and_event"}
+
+      {:error, reason} ->
+        {:error, "json_decode_error: #{inspect(reason)}"}
+    end
+  end
+
+  defp handle_sentant_send(
+         %{id: id, event: event, parameters: parameters, passthrough: passthrough},
+         %{gatt_handle: handle} = state
+       ) do
+    Logger.info("Processing sentantSend: id=#{id}, event=#{event}")
+
+    # Mirror GraphQL resolver pattern: validate Sentant exists and event is allowed
+    case Reality2.Sentants.read(%{id: id}, :definition) do
+      {:ok, sentant} ->
+        # Validate event is allowed (same as GraphQL does)
+        events = get_event_list(Map.get(sentant, :events, []))
+
+        if Enum.member?(events, event) do
+          # Send the event to the Sentant
+          case Reality2.Sentants.sendto(%{id: id}, %{
+                 event: event,
+                 parameters: parameters,
+                 passthrough: passthrough
+               }) do
+            {:ok, _pid} ->
+              # Success response
+              response = %{
+                type: "mutation_response",
+                mutation: "sentantSend",
+                success: true,
+                version: @protocol_version,
+                timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+                data: sentant
+              }
+
+              encode_and_notify(handle, response)
+              {:noreply, %{state | events_sent: state.events_sent + 1}}
+
+            {:error, reason} ->
+              # Error sending event
+              error_response = %{
+                type: "mutation_response",
+                mutation: "sentantSend",
+                success: false,
+                error: to_string(reason),
+                version: @protocol_version,
+                timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+              }
+
+              encode_and_notify(handle, error_response)
+              {:noreply, state}
+          end
+        else
+          # Event not allowed
+          error_response = %{
+            type: "mutation_response",
+            mutation: "sentantSend",
+            success: false,
+            error: "invalid_event",
+            version: @protocol_version,
+            timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+          }
+
+          encode_and_notify(handle, error_response)
+          {:noreply, state}
+        end
+
+      {:error, reason} ->
+        # Sentant not found
+        error_response = %{
+          type: "mutation_response",
+          mutation: "sentantSend",
+          success: false,
+          error: to_string(reason),
+          version: @protocol_version,
+          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+        }
+
+        encode_and_notify(handle, error_response)
+        {:noreply, state}
+    end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # GATT Server - Data Fetching Functions
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  defp fetch_all_sentants do
+    # TODO: Replace with your actual Sentant registry
+    # YourSentantModule.list_all_sentants()
+    # |> Enum.map(&format_sentant/1)
+    #
+    {:ok, sentants} = Reality2.Sentants.read_all(:definition)
+    sentants_map = Enum.map(sentants, fn sentant -> sentant end)
+    Logger.debug("Fetched all sentants: #{inspect(sentants_map, pretty: false, limit: 500)}")
+    sentants_map
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   # GATT Server - Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
 

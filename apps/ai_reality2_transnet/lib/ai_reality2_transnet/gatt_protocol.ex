@@ -46,13 +46,8 @@ defmodule AiReality2Transnet.GattProtocol do
         "mesh_active": true,
         "mesh_id": "R2MESH_abc123",
         "ipv6_link_local": "fe80::1234:5678:90ab:cdef",
-<<<<<<< Updated upstream
-        "http_port": 8080,
-        "instructions": "Use WiFi mesh HTTP/GraphQL for Sentant queries (e.g., POST /graphql)"
-=======
         "http_port": 4005,
         "instructions": "Query sentants via HTTP: GET http://[ipv6]:port/mesh/sentants"
->>>>>>> Stashed changes
       }
 
   **Author**

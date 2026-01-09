@@ -25,17 +25,6 @@ defmodule Reality2.Application do
       %{id: :Autostart, start: {Reality2.Autostart, :start_link, [Reality2.Autostart]}}
     ]
 
-<<<<<<< Updated upstream
-    case Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__) do
-      {:ok, _pid} = result ->
-        IO.puts("[ai.reality2] started successfully.")
-        result
-
-      {:error, reason} = error ->
-        IO.puts("[ai.reality2] failed to start: #{inspect(reason)}")
-        error
-    end
-=======
     Logger.info("[ai.reality2] started successfully")
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
 >>>>>>> Stashed changes
