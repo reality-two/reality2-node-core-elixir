@@ -1254,20 +1254,57 @@ defmodule AiReality2Transnet.ConnectionManager do
       {:ok, gateway_ip} ->
         Logger.info("[ConnectionManager] Attempting exchange with gateway: #{gateway_ip}")
 
-        # Use a placeholder node_id based on SSID
-        # This isn't ideal but allows the exchange to proceed
-        placeholder_node_id = "unknown-#{ssid}"
+        # Query /mesh/info to get the real node_id instead of using a placeholder
+        # This ensures sentants are stored under the correct peer ID
+        case query_mesh_info(gateway_ip) do
+          {:ok, %{"node_id" => real_node_id}} ->
+            Logger.info("[ConnectionManager] Got real node_id from mesh/info: #{String.slice(real_node_id, 0..7)}...")
 
-        case perform_sentant_exchange(placeholder_node_id, gateway_ip, 4005) do
-          :ok ->
-            Logger.info("[ConnectionManager] sentantAll exchange completed via gateway for #{ssid}")
+            case perform_sentant_exchange(real_node_id, gateway_ip, 4005) do
+              :ok ->
+                Logger.info("[ConnectionManager] sentantAll exchange completed via gateway for #{ssid}")
+
+              {:error, reason} ->
+                Logger.error("[ConnectionManager] sentantAll exchange failed via gateway: #{reason}")
+            end
 
           {:error, reason} ->
-            Logger.error("[ConnectionManager] sentantAll exchange failed via gateway: #{reason}")
+            Logger.warning("[ConnectionManager] Could not get node_id from mesh/info: #{reason}, using placeholder")
+            # Fallback to placeholder (not ideal but better than failing completely)
+            placeholder_node_id = "unknown-#{ssid}"
+
+            case perform_sentant_exchange(placeholder_node_id, gateway_ip, 4005) do
+              :ok ->
+                Logger.info("[ConnectionManager] sentantAll exchange completed via gateway for #{ssid} (placeholder)")
+
+              {:error, reason} ->
+                Logger.error("[ConnectionManager] sentantAll exchange failed via gateway: #{reason}")
+            end
         end
 
       {:error, reason} ->
         Logger.error("[ConnectionManager] Could not get gateway IP: #{reason}")
+    end
+  end
+
+  # Query the host's /mesh/info endpoint to get its node_id
+  defp query_mesh_info(host_ip) do
+    url = "https://#{host_ip}:4005/mesh/info"
+
+    request = Finch.build(:get, url, [{"accept", "application/json"}])
+
+    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
+      {:ok, %Finch.Response{status: 200, body: response_body}} ->
+        case Jason.decode(response_body) do
+          {:ok, info} -> {:ok, info}
+          {:error, _} -> {:error, "invalid_json"}
+        end
+
+      {:ok, %Finch.Response{status: status}} ->
+        {:error, "http_#{status}"}
+
+      {:error, reason} ->
+        {:error, inspect(reason)}
     end
   end
 
