@@ -80,15 +80,29 @@ defmodule AiReality2Transnet.Bluetooth do
         events_sent: 0,
         signals_broadcast: 0,
         queries_processed: 0,
-        connected_peers: %{}
+        connected_peers: %{},
+        bluetooth_available: false
       })
 
-    {:ok, initial_state}
-    |> get_adapter_and_name()
-    |> start_beacon()
-    |> start_gatt_server()
-    |> start_watch()
-    |> subscribe_to_pubsub()
+    # Try to initialize Bluetooth, but continue in degraded mode if unavailable
+    result =
+      {:ok, initial_state}
+      |> get_adapter_and_name()
+      |> start_beacon()
+      |> start_gatt_server()
+      |> start_watch()
+      |> subscribe_to_pubsub()
+
+    case result do
+      {:ok, final_state} ->
+        {:ok, Map.put(final_state, :bluetooth_available, true)}
+
+      {:error, reason} ->
+        Logger.warning("[Bluetooth] Bluetooth unavailable: #{inspect(reason)} - running in WiFi-only mode")
+        # Subscribe to PubSub even without Bluetooth for future use
+        Phoenix.PubSub.subscribe(Reality2.PubSub, "sentants")
+        {:ok, initial_state}
+    end
   end
 
   @impl true

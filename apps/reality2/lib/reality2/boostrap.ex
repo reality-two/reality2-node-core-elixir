@@ -39,6 +39,9 @@ defmodule Reality2.Bootstrap do
   use GenServer
   require Logger
 
+  # Capture Mix.env at compile time (Mix not available at runtime in releases)
+  @mix_env Mix.env()
+
   @node_file ".node"
   @cert_file "selfsigned.pem"
   @key_file "selfsigned_key.pem"
@@ -85,7 +88,7 @@ defmodule Reality2.Bootstrap do
 
   defp log_version do
     version = Application.spec(:reality2, :vsn) |> to_string()
-    mix_env = Mix.env() |> to_string()
+    mix_env = @mix_env |> to_string()
 
     # BUILD_BRANCH is set by make_runtime when creating releases
     branch_suffix = case System.get_env("BUILD_BRANCH") do

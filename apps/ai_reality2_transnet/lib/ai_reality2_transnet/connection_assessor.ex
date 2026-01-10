@@ -489,6 +489,14 @@ defmodule AiReality2Transnet.ConnectionAssessor do
             end
         end
 
+      {:ok, status} when status.state == :hosting_ap ->
+        # We're hosting - no need to connect anywhere
+        {:no, "currently_hosting"}
+
+      {:ok, status} when status.state in [:connecting, :handover_in_progress] ->
+        # Connection/handover in progress - wait for it to complete
+        {:no, "connection_in_progress"}
+
       _ ->
         {:no, "invalid_connection_state"}
     end
