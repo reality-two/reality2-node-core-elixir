@@ -459,8 +459,8 @@ defmodule AiReality2Transnet.Bluetooth do
         # Initialize the Query characteristic with current Sentants
         update_query_characteristic(handle)
 
-        # Initialize the Mesh Info characteristic with WiFi mesh connection details
-        update_mesh_info_characteristic(handle)
+        # Initialize the Join Offer characteristic with WiFi hotspot credentials
+        update_join_offer_characteristic(handle)
 
         # TODO: Subscribe to Sentant signals via PubSub
         # Phoenix.PubSub.subscribe(YourPubSub, "sentant:signals")
@@ -760,12 +760,12 @@ defmodule AiReality2Transnet.Bluetooth do
     end
   end
 
-  defp update_mesh_info_characteristic(handle) do
-    # Use GattProtocol to encode mesh connection details
-    json = AiReality2Transnet.GattProtocol.encode_mesh_details()
+  defp update_join_offer_characteristic(handle) do
+    # Use GattProtocol to encode WiFi hotspot join offer
+    json = AiReality2Transnet.GattProtocol.encode_join_offer()
     binary_data = :binary.bin_to_list(json)
 
-    Logger.info("Writing #{byte_size(json)} bytes to mesh info characteristic")
+    Logger.info("Writing #{byte_size(json)} bytes to join offer characteristic")
 
     result =
       AiReality2Transnet.Action.gatt_write_characteristic(
@@ -776,11 +776,11 @@ defmodule AiReality2Transnet.Bluetooth do
 
     case result do
       :ok ->
-        Logger.info("Successfully wrote mesh info characteristic data")
+        Logger.info("Successfully wrote join offer characteristic data")
         :ok
 
       :error ->
-        Logger.error("Failed to write mesh info characteristic")
+        Logger.error("Failed to write join offer characteristic")
         :error
 
       other ->
