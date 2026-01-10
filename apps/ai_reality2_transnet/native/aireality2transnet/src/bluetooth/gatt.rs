@@ -22,6 +22,7 @@ const CHAR_COMMAND_UUID: Uuid = Uuid::from_u128(0x00002A57_0000_1000_8000_00805F
 const CHAR_DATA_UUID: Uuid = Uuid::from_u128(0x00002A58_0000_1000_8000_00805F9B34FB);
 const CHAR_NOTIFY_UUID: Uuid = Uuid::from_u128(0x00002A59_0000_1000_8000_00805F9B34FB);
 const MESH_INFO_CHAR_UUID: Uuid = Uuid::from_u128(0x00001235_0000_1000_8000_00805F9B34FB);
+const NODE_INFO_CHAR_UUID: Uuid = Uuid::from_u128(0x00001237_0000_1000_8000_00805F9B34FB);
 
 // -------------------------------------------------------------------------------------------
 // GATT Server Types
@@ -197,6 +198,7 @@ async fn run_gatt_server(
     let data_char_data = CharacteristicData::new(vec![]);
     let notify_data = CharacteristicData::new(vec![]);
     let mesh_info_data = CharacteristicData::new(vec![]);
+    let node_info_data = CharacteristicData::new(vec![]);
 
     // Build GATT service
     let (notify_tx, notify_notifier_rx) = mpsc::unbounded_channel();
@@ -214,6 +216,8 @@ async fn run_gatt_server(
     let notify_data_clone = notify_data.clone();
     let mesh_info_data_read = mesh_info_data.clone();
     let mesh_info_data_write = mesh_info_data.clone();
+    let node_info_data_read = node_info_data.clone();
+    let node_info_data_write = node_info_data.clone();
     let pid_clone = pid.clone();
 
     let service = Service {
@@ -342,6 +346,23 @@ async fn run_gatt_server(
                 }),
                 ..Default::default()
             },
+            // Node Info characteristic (read-only)
+            Characteristic {
+                uuid: NODE_INFO_CHAR_UUID,
+                read: Some(CharacteristicRead {
+                    read: true,
+                    fun: Box::new(move |_req_data| {
+                        let data = node_info_data_read.clone();
+                        Box::pin(async move {
+                            let value = data.read();
+                            eprint!("[debug] GATT NODE_INFO char read request - returning {} bytes\r\n", value.len());
+                            Ok(value)
+                        })
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
         ],
         ..Default::default()
     };
@@ -388,6 +409,9 @@ async fn run_gatt_server(
                 } else if uuid == MESH_INFO_CHAR_UUID {
                     eprint!("[debug] GATT received programmatic write to MESH_INFO char: {} bytes\r\n", data.len());
                     mesh_info_data_write.write(data);
+                } else if uuid == NODE_INFO_CHAR_UUID {
+                    eprint!("[debug] GATT received programmatic write to NODE_INFO char: {} bytes\r\n", data.len());
+                    node_info_data_write.write(data);
                 }
             }
 

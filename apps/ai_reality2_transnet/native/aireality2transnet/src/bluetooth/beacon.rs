@@ -30,7 +30,7 @@ use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use crate::atoms;
-use crate::bluetooth::common::{get_or_default_adapter, ALTBEACON_CODE, DEFAULT_DEVICE_NAME};
+use crate::bluetooth::common::{get_or_default_adapter, ALTBEACON_CODE};
 use crate::bluetooth::resources::BeaconHandle;
 
 // -------------------------------------------------------------------------------------------
@@ -57,6 +57,7 @@ const STARTUP_TIMEOUT_SECS: u64 = 2;
 /// - `major` - Major version/group identifier (16-bit)
 /// - `minor` - Minor version/node identifier (16-bit)
 /// - `rssi_at_1m` - Calibrated RSSI value at 1 meter distance (used for distance estimation)
+/// - `node_name` - Human-readable node name (e.g., "R2Node_A3F7") for BLE device name
 /// - `adapter_name` - Optional Bluetooth adapter name (e.g., "hci0"), uses default if None
 ///
 /// ## Returns
@@ -80,6 +81,7 @@ const STARTUP_TIMEOUT_SECS: u64 = 2;
 ///   1,
 ///   100,
 ///   -59,
+///   "R2Node_A3F7",
 ///   "hci0"
 /// )
 /// ```
@@ -91,6 +93,7 @@ pub fn start_broadcast<'a>(
     major: u16,
     minor: u16,
     rssi_at_1m: i8,
+    node_name: String,
     adapter_name: Option<String>,
 ) -> NifResult<Term<'a>> {
     // Parse UUID string into proper UUID type
@@ -131,6 +134,7 @@ pub fn start_broadcast<'a>(
                 major,
                 minor,
                 rssi_at_1m,
+                node_name,
                 adapter_name,
                 shutdown_rx,
                 ready_tx,
@@ -213,6 +217,7 @@ pub fn stop_broadcast(handle: ResourceArc<BeaconHandle>) -> rustler::Atom {
 /// - `major` - Major version identifier
 /// - `minor` - Minor version identifier
 /// - `rssi_at_1m` - Calibrated signal strength for distance calculation
+/// - `node_name` - Human-readable node name for BLE device name
 /// - `adapter_name` - Bluetooth adapter to use (e.g., "hci0")
 /// - `shutdown_rx` - Receives signal from Elixir to stop advertising
 /// - `ready_tx` - Sends signal to Elixir when advertising starts
@@ -227,6 +232,7 @@ async fn run_beacon_advertisement(
     major: u16,
     minor: u16,
     rssi_at_1m: i8,
+    node_name: String,
     adapter_name: Option<String>,
     shutdown_rx: oneshot::Receiver<()>,
     ready_tx: std::sync::mpsc::Sender<Result<(), String>>,
@@ -256,12 +262,12 @@ async fn run_beacon_advertisement(
     // Configure advertisement with:
     // - Type: Peripheral (connectable, for GATT if needed)
     // - Discoverable: Yes (visible in scans)
-    // - Local name: "Reality2" (human-readable name)
+    // - Local name: Node name from Bootstrap (e.g., "R2Node_A3F7")
     // - Manufacturer data: Our AltBeacon payload
     let advertisement = adv::Advertisement {
         advertisement_type: adv::Type::Peripheral,
         discoverable: Some(true),
-        local_name: Some(DEFAULT_DEVICE_NAME.to_string()),
+        local_name: Some(node_name),
         manufacturer_data,
         ..Default::default()
     };

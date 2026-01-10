@@ -457,6 +457,7 @@ defmodule AiReality2Transnet.Bluetooth do
   # Start up the BLE beacon on the previously found given adapter. Uses the ALTBeacon format.
   defp start_beacon({:ok, state}) do
     node_id = Reality2.Bootstrap.get(:node_id)
+    node_name = Reality2.Bootstrap.get(:node_name, "R2Node")
     adapter_name = Map.get(state, :adapter_name, "hci0")
 
     # Encode capabilities into major/minor fields
@@ -471,10 +472,11 @@ defmodule AiReality2Transnet.Bluetooth do
            major,
            minor,
            -59,
+           node_name,
            adapter_name
          ) do
       {:ok, h} ->
-        Logger.info("Node ID: #{node_id} beacon started on #{adapter_name}")
+        Logger.info("#{node_name} (#{node_id}) beacon started on #{adapter_name}")
         {:ok, Map.put(state, :r2_beacon, h)}
 
       {:error, reason} ->
