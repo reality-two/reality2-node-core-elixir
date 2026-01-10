@@ -350,6 +350,10 @@ defmodule AiReality2Transnet.Wifi do
         Logger.info("[Wifi] Hotspot started successfully: #{ssid}")
         # Extract connection info from output if available
         uuid = extract_connection_uuid(output) || "hotspot-#{ssid}"
+
+        # Configure NAT so hotspot clients can access the internet
+        configure_nat_for_hotspot(interface)
+
         {:ok, uuid}
 
       {error, exit_code} ->
@@ -372,6 +376,9 @@ defmodule AiReality2Transnet.Wifi do
   """
   @spec stop_hotspot(String.t()) :: :ok | {:error, String.t()}
   def stop_hotspot(interface) do
+    # Clean up NAT rules first
+    cleanup_nat_for_hotspot(interface)
+
     # Get active connection on interface
     case get_active_connection(interface) do
       {:ok, connection_name} ->
@@ -993,6 +1000,172 @@ defmodule AiReality2Transnet.Wifi do
     case missing do
       [] -> {:ok, :all_available}
       commands -> {:error, commands}
+    end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # NAT Configuration for Hotspot Internet Sharing
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @doc """
+  Configures NAT to allow hotspot clients to access the internet through the host.
+
+  This enables IP forwarding and sets up iptables MASQUERADE rules so that
+  clients connected to the R2 hotspot can reach external networks.
+  """
+  defp configure_nat_for_hotspot(hotspot_interface) do
+    # Find the upstream interface (the one with internet access)
+    case find_upstream_interface(hotspot_interface) do
+      {:ok, upstream_interface} ->
+        Logger.info("[Wifi] Configuring NAT: #{hotspot_interface} -> #{upstream_interface}")
+
+        # Get the hotspot subnet (typically 10.42.0.0/24 for NetworkManager hotspots)
+        hotspot_subnet = get_hotspot_subnet(hotspot_interface)
+
+        # Enable IP forwarding
+        case System.cmd("sysctl", ["-w", "net.ipv4.ip_forward=1"], stderr_to_stdout: true) do
+          {_, 0} ->
+            Logger.debug("[Wifi] IP forwarding enabled")
+
+          {error, _} ->
+            Logger.warning("[Wifi] Failed to enable IP forwarding: #{error}")
+        end
+
+        # Add iptables MASQUERADE rule for NAT
+        # This allows hotspot clients to access the internet through the upstream interface
+        iptables_args = [
+          "-t", "nat",
+          "-A", "POSTROUTING",
+          "-s", hotspot_subnet,
+          "-o", upstream_interface,
+          "-j", "MASQUERADE"
+        ]
+
+        case System.cmd("iptables", iptables_args, stderr_to_stdout: true) do
+          {_, 0} ->
+            Logger.info("[Wifi] NAT configured: clients on #{hotspot_subnet} can access internet via #{upstream_interface}")
+
+          {error, _} ->
+            Logger.warning("[Wifi] Failed to configure NAT iptables rule: #{error}")
+        end
+
+        # Allow forwarding between interfaces
+        forward_args = [
+          "-A", "FORWARD",
+          "-i", hotspot_interface,
+          "-o", upstream_interface,
+          "-j", "ACCEPT"
+        ]
+        System.cmd("iptables", forward_args, stderr_to_stdout: true)
+
+        reverse_forward_args = [
+          "-A", "FORWARD",
+          "-i", upstream_interface,
+          "-o", hotspot_interface,
+          "-m", "state",
+          "--state", "RELATED,ESTABLISHED",
+          "-j", "ACCEPT"
+        ]
+        System.cmd("iptables", reverse_forward_args, stderr_to_stdout: true)
+
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("[Wifi] Cannot configure NAT - no upstream interface: #{reason}")
+        :ok
+    end
+  end
+
+  @doc """
+  Cleans up NAT rules when stopping the hotspot.
+  """
+  defp cleanup_nat_for_hotspot(hotspot_interface) do
+    case find_upstream_interface(hotspot_interface) do
+      {:ok, upstream_interface} ->
+        hotspot_subnet = get_hotspot_subnet(hotspot_interface)
+
+        Logger.info("[Wifi] Cleaning up NAT rules for #{hotspot_interface}")
+
+        # Remove MASQUERADE rule
+        iptables_args = [
+          "-t", "nat",
+          "-D", "POSTROUTING",
+          "-s", hotspot_subnet,
+          "-o", upstream_interface,
+          "-j", "MASQUERADE"
+        ]
+        System.cmd("iptables", iptables_args, stderr_to_stdout: true)
+
+        # Remove FORWARD rules
+        forward_args = [
+          "-D", "FORWARD",
+          "-i", hotspot_interface,
+          "-o", upstream_interface,
+          "-j", "ACCEPT"
+        ]
+        System.cmd("iptables", forward_args, stderr_to_stdout: true)
+
+        reverse_forward_args = [
+          "-D", "FORWARD",
+          "-i", upstream_interface,
+          "-o", hotspot_interface,
+          "-m", "state",
+          "--state", "RELATED,ESTABLISHED",
+          "-j", "ACCEPT"
+        ]
+        System.cmd("iptables", reverse_forward_args, stderr_to_stdout: true)
+
+        :ok
+
+      {:error, _} ->
+        :ok
+    end
+  end
+
+  # Find the upstream interface that has internet access
+  # This is typically the interface with a default route, excluding the hotspot interface
+  defp find_upstream_interface(hotspot_interface) do
+    case System.cmd("ip", ["route", "show", "default"], stderr_to_stdout: true) do
+      {output, 0} ->
+        # Parse output like: "default via 192.168.1.1 dev eth0 proto dhcp metric 100"
+        # There may be multiple default routes, find one that's not the hotspot interface
+        interfaces = output
+          |> String.split("\n", trim: true)
+          |> Enum.map(fn line ->
+            case Regex.run(~r/dev\s+(\S+)/, line) do
+              [_, interface] -> interface
+              _ -> nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.reject(&(&1 == hotspot_interface))
+
+        case interfaces do
+          [upstream | _] -> {:ok, upstream}
+          [] -> {:error, :no_upstream_interface}
+        end
+
+      {error, _} ->
+        {:error, "ip_route_failed: #{error}"}
+    end
+  end
+
+  # Get the subnet for the hotspot interface
+  # NetworkManager typically uses 10.42.0.0/24 for hotspots
+  defp get_hotspot_subnet(interface) do
+    case get_interface_ip(interface) do
+      {:ok, ip} ->
+        # Convert IP to subnet (e.g., 10.42.0.1 -> 10.42.0.0/24)
+        parts = String.split(ip, ".")
+        if length(parts) == 4 do
+          [a, b, c, _d] = parts
+          "#{a}.#{b}.#{c}.0/24"
+        else
+          "10.42.0.0/24"  # Default fallback
+        end
+
+      {:error, _} ->
+        "10.42.0.0/24"  # Default fallback
     end
   end
 end
