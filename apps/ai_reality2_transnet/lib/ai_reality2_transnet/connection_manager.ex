@@ -119,6 +119,9 @@ defmodule AiReality2Transnet.ConnectionManager do
           active: boolean()
         }
 
+  # Cooldown period after a failed handover to prevent thrashing (30 seconds)
+  @handover_cooldown_ms 30_000
+
   @typedoc """
   Connection manager state.
   """
@@ -132,6 +135,9 @@ defmodule AiReality2Transnet.ConnectionManager do
           current_host_ip: String.t() | nil,
           connected_at: integer() | nil,
           last_sentant_exchange: integer() | nil,
+
+          # Handover cooldown tracking
+          last_handover_failed_at: integer() | nil,
 
           # Host mode state (when hosting hotspot)
           hosting_config: hotspot_config() | nil,
@@ -326,6 +332,9 @@ defmodule AiReality2Transnet.ConnectionManager do
       connected_at: nil,
       last_sentant_exchange: nil,
 
+      # Handover cooldown tracking
+      last_handover_failed_at: nil,
+
       # Host mode state (when hosting hotspot)
       hosting_config: nil,
       connected_clients: [],
@@ -418,8 +427,15 @@ defmodule AiReality2Transnet.ConnectionManager do
     # Performs: new connection → sentantAll exchange → disconnect from old host
     case state.connection_state do
       :connected_as_client ->
-        # Only allow handover when actively connected to a host
-        perform_handover(new_peer_id, new_join_offer, state)
+        # Check if we're in cooldown period after a recent failed handover
+        if handover_in_cooldown?(state) do
+          cooldown_remaining = @handover_cooldown_ms - (System.system_time(:millisecond) - state.last_handover_failed_at)
+          Logger.warning("[ConnectionManager] Handover rejected - in cooldown period (#{div(cooldown_remaining, 1000)}s remaining)")
+          {:reply, {:error, "handover_cooldown_active"}, state}
+        else
+          # Only allow handover when actively connected to a host
+          perform_handover(new_peer_id, new_join_offer, state)
+        end
 
       _ ->
         # Can't handover if not connected - must use connect_to_host instead
@@ -614,7 +630,11 @@ defmodule AiReality2Transnet.ConnectionManager do
   defp perform_handover(new_peer_id, new_join_offer, state) do
     Logger.info("[ConnectionManager] Handover: #{String.slice(state.current_host_peer_id, 0..7)} -> #{String.slice(new_peer_id, 0..7)}")
 
-    _old_host_id = state.current_host_peer_id
+    # Store old host info for potential rollback
+    old_host_peer_id = state.current_host_peer_id
+    old_host_ssid = state.current_host_ssid
+    old_host_ip = state.current_host_ip
+
     new_state = %{state | connection_state: :handover_in_progress}
 
     # Connect to new host
@@ -635,6 +655,7 @@ defmodule AiReality2Transnet.ConnectionManager do
                   current_host_ip: new_join_offer.rendezvous_ip,
                   connected_at: System.system_time(:millisecond),
                   last_sentant_exchange: System.system_time(:millisecond),
+                  last_handover_failed_at: nil,  # Clear cooldown on success
                   stats: Map.update!(new_state.stats, :handovers_completed, &(&1 + 1))
                 }
 
@@ -646,32 +667,58 @@ defmodule AiReality2Transnet.ConnectionManager do
 
               {:error, reason} ->
                 Logger.error("[ConnectionManager] Handover sentantAll failed: #{reason}")
-                # Try to reconnect to old host
-                Logger.warning("[ConnectionManager] Attempting rollback to old host")
-                # For now, just mark as failed
+                # Connected to new host but sentantAll failed - disconnect and set cooldown
+                Wifi.disconnect_from_network(state.wifi_interface)
+
                 {:reply, {:error, "handover_sentant_exchange_failed"},
                  %{new_state |
                    connection_state: :disconnected,
+                   current_host_peer_id: nil,
+                   current_host_ssid: nil,
+                   current_host_ip: nil,
+                   last_handover_failed_at: System.system_time(:millisecond),
                    stats: Map.update!(new_state.stats, :handovers_failed, &(&1 + 1))
                  }}
             end
 
           {:error, reason} ->
             Logger.error("[ConnectionManager] Handover IP assignment failed: #{reason}")
+            # Connected but no IP - disconnect and set cooldown
+            Wifi.disconnect_from_network(state.wifi_interface)
+
             {:reply, {:error, "handover_ip_failed"},
              %{new_state |
                connection_state: :disconnected,
+               current_host_peer_id: nil,
+               current_host_ssid: nil,
+               current_host_ip: nil,
+               last_handover_failed_at: System.system_time(:millisecond),
                stats: Map.update!(new_state.stats, :handovers_failed, &(&1 + 1))
              }}
         end
 
       {:error, reason} ->
         Logger.error("[ConnectionManager] Handover connection failed: #{reason}")
+        # Connection to new host failed - restore previous state completely
         {:reply, {:error, "handover_connect_failed"},
          %{new_state |
-           connection_state: :connected_as_client,  # Restore previous state
+           connection_state: :connected_as_client,
+           current_host_peer_id: old_host_peer_id,
+           current_host_ssid: old_host_ssid,
+           current_host_ip: old_host_ip,
+           last_handover_failed_at: System.system_time(:millisecond),
            stats: Map.update!(new_state.stats, :handovers_failed, &(&1 + 1))
          }}
+    end
+  end
+
+  # Check if we're in handover cooldown period
+  defp handover_in_cooldown?(state) do
+    case state.last_handover_failed_at do
+      nil -> false
+      timestamp ->
+        elapsed = System.system_time(:millisecond) - timestamp
+        elapsed < @handover_cooldown_ms
     end
   end
 
@@ -791,16 +838,19 @@ defmodule AiReality2Transnet.ConnectionManager do
       query: graphql_query
     }
 
-    # Make HTTP POST request to host's GraphQL endpoint
-    # Note: Using port 4005 for Reality2Web GraphQL endpoint
-    url = "http://#{host_ip}:4005/reality2"
+    # Make HTTPS POST request to host's GraphQL endpoint
+    # Using port 4005 (HTTPS) with certificate verification disabled for self-signed certs
+    url = "https://#{host_ip}:4005/reality2"
     headers = [{"content-type", "application/json"}]
     body = Jason.encode!(graphql_request)
 
     Logger.debug("[ConnectionManager] Querying GraphQL endpoint: #{url}")
 
-    case Finch.build(:post, url, headers, body)
-         |> Finch.request(Reality2.HTTPClient, receive_timeout: 5_000) do
+    # Build request with SSL options to accept self-signed certificates
+    request = Finch.build(:post, url, headers, body)
+
+    # Use pool with relaxed SSL verification for transient network peers
+    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
       {:ok, %Finch.Response{status: 200, body: response_body}} ->
         case Jason.decode(response_body) do
           {:ok, %{"data" => %{"sentantAll" => host_sentants}}} ->
@@ -889,14 +939,26 @@ defmodule AiReality2Transnet.ConnectionManager do
 
   # Perform sentantAll exchange after auto-connecting to an R2 hotspot via SSID
   # Called when ConnectionAssessor discovers and connects to a hotspot
+  # Includes retry logic to handle race condition where BLE discovery hasn't completed yet
   defp perform_sentant_exchange_by_ssid(ssid) do
     Logger.info("[ConnectionManager] Performing sentantAll exchange for SSID: #{ssid}")
 
+    # Retry up to 5 times with 2 second delays to allow BLE discovery to complete
+    perform_sentant_exchange_by_ssid(ssid, 5)
+  end
+
+  defp perform_sentant_exchange_by_ssid(ssid, retries_left) when retries_left <= 0 do
+    # All retries exhausted - try exchange with gateway IP as last resort
+    Logger.warning("[ConnectionManager] Peer lookup exhausted for #{ssid}, attempting exchange with gateway")
+    perform_exchange_with_gateway(ssid)
+  end
+
+  defp perform_sentant_exchange_by_ssid(ssid, retries_left) do
     # The SSID is the node_name - find the peer by looking up the node_id
     case Reality2.Metadata.get(:PNS_NodeNames, ssid) do
       nil ->
         # Peer not found by node_name, try to find by scanning all peers
-        find_peer_by_ssid_and_exchange(ssid)
+        find_peer_by_ssid_and_exchange(ssid, retries_left)
 
       peer_node_id ->
         # Found peer node_id, get gateway IP and perform exchange
@@ -904,7 +966,7 @@ defmodule AiReality2Transnet.ConnectionManager do
     end
   end
 
-  defp find_peer_by_ssid_and_exchange(ssid) do
+  defp find_peer_by_ssid_and_exchange(ssid, retries_left) do
     # Search all peers for one with matching node_name
     peers = AiReality2Transnet.PeerManager.get_all_peers()
 
@@ -912,10 +974,15 @@ defmodule AiReality2Transnet.ConnectionManager do
       {peer_node_id, _peer} ->
         perform_exchange_with_peer(peer_node_id, ssid)
 
+      nil when retries_left > 1 ->
+        # Peer not found yet - wait and retry (BLE discovery may still be in progress)
+        Logger.debug("[ConnectionManager] Peer #{ssid} not found, waiting for BLE discovery (#{retries_left - 1} retries left)")
+        Process.sleep(2_000)
+        perform_sentant_exchange_by_ssid(ssid, retries_left - 1)
+
       nil ->
-        # No peer found - the peer may have been removed due to timeout
-        # Try to exchange anyway using the gateway IP
-        Logger.warning("[ConnectionManager] No peer found for SSID #{ssid}, attempting exchange with gateway")
+        # Last retry failed
+        Logger.warning("[ConnectionManager] No peer found for SSID #{ssid} after retries")
         perform_exchange_with_gateway(ssid)
     end
   end

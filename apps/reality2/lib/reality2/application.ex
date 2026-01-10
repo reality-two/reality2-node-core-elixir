@@ -22,6 +22,17 @@ defmodule Reality2.Application do
       %{id: :Sentants, start: {Reality2.Metadata, :start_link, [:Sentants]}},
       %{id: :PNS_Routes, start: {Reality2.Metadata, :start_link, [:PNS_Routes]}},
       {Finch, name: Reality2.HTTPClient},
+      # HTTP client for transient network peers with relaxed SSL (accepts self-signed certs)
+      {Finch,
+        name: Reality2.TransnetHTTPClient,
+        pools: %{
+          :default => [
+            conn_opts: [
+              transport_opts: [verify: :verify_none]
+            ]
+          ]
+        }
+      },
       %{id: :Autostart, start: {Reality2.Autostart, :start_link, [Reality2.Autostart]}}
     ]
 

@@ -479,13 +479,20 @@ defmodule AiReality2Transnet.PeerManager do
   def handle_info(:cleanup_stale_peers, state) do
     # Periodic cleanup task (runs every @cleanup_interval_ms)
     # Removes peers that haven't been seen for @peer_timeout_ms
+    # EXCEPT peers with active WiFi connections (to prevent cleanup during exchange)
     now = System.system_time(:millisecond)
     cutoff = now - @peer_timeout_ms
 
     # Split peers into stale (timeout) and fresh (active)
+    # Protected peers: those with active WiFi connection or recent sentant exchange
     {stale_peers, fresh_peers} =
       Enum.split_with(state.peers, fn {_id, peer} ->
-        peer.last_seen < cutoff
+        is_stale = peer.last_seen < cutoff
+        is_protected = peer.transport == :wifi_hotspot ||
+                       peer.connection_state == :sentants_exchanged
+
+        # Only consider stale if both timeout has passed AND peer is not protected
+        is_stale && !is_protected
       end)
 
     # Log each removal and clean up PNS_NodeNames mapping

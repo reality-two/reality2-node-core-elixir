@@ -496,17 +496,15 @@ defmodule AiReality2Transnet.Wifi do
       {_output, 0} ->
         Logger.info("[Wifi] Connected to network: SSID=#{ssid}")
 
-        # Wait a moment for IP assignment
-        Process.sleep(2000)
-
-        case get_interface_ip(interface) do
+        # Wait for IP assignment with retries
+        case wait_for_ip_assignment(interface, 5) do
           {:ok, ip} ->
             Logger.info("[Wifi] IP assigned: #{ip}")
-            {:ok, "connected"}
+            {:ok, ip}
 
-          {:error, _} ->
-            Logger.warning("[Wifi] Connected but no IP yet")
-            {:ok, "connected_no_ip"}
+          {:error, :timeout} ->
+            Logger.error("[Wifi] Connected but DHCP failed - no IP assigned after retries")
+            {:error, "dhcp_timeout"}
         end
 
       {error, _} ->
@@ -791,6 +789,21 @@ defmodule AiReality2Transnet.Wifi do
   # Extract IP from result tuple, returning nil on error
   defp extract_ip({:ok, ip}), do: ip
   defp extract_ip({:error, _}), do: nil
+
+  # Wait for IP assignment with retries (DHCP can take time)
+  defp wait_for_ip_assignment(interface, retries_left) when retries_left > 0 do
+    case get_interface_ip(interface) do
+      {:ok, ip} ->
+        {:ok, ip}
+
+      {:error, _} ->
+        Logger.debug("[Wifi] Waiting for DHCP IP assignment (#{retries_left} retries left)...")
+        Process.sleep(2_000)
+        wait_for_ip_assignment(interface, retries_left - 1)
+    end
+  end
+
+  defp wait_for_ip_assignment(_interface, 0), do: {:error, :timeout}
 
   # Parse device mode from nmcli state
   defp parse_device_mode("connected (externally)"), do: :ap
