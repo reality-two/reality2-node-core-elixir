@@ -599,7 +599,8 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     # This runs when we determine another node should be hosting
 
     case AiReality2Transnet.Wifi.list_adapters() do
-      {:ok, [interface | _]} ->
+      {:ok, [adapter | _]} when is_map(adapter) ->
+        interface = adapter.interface
         Logger.info("[ConnectionAssessor] Scanning for R2 hotspots on #{interface}...")
 
         case AiReality2Transnet.Wifi.find_r2_hotspots(interface) do
