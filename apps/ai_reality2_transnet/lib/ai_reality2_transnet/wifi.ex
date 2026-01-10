@@ -1029,43 +1029,73 @@ defmodule AiReality2Transnet.Wifi do
   end
 
   @doc """
-  Checks if this node has a wired (non-WiFi) interface with internet access.
+  Checks if this node has a wired (non-WiFi) interface with actual internet access.
 
   This is important because:
   - A node with Ethernet + WiFi can host a hotspot AND keep internet
   - A node with only WiFi loses internet when it becomes a hotspot
 
+  Note: Excludes virtual bridges (virbr0, docker0, br-*, veth*, etc.) which
+  are "wired" but only provide internal VM/container networking.
+
   ## Returns
-  - `true` - Has wired internet (Ethernet, USB, etc.)
-  - `false` - Only has WiFi or no internet
+  - `true` - Has real wired internet (Ethernet, USB, etc.)
+  - `false` - Only has WiFi, virtual bridges, or no internet
   """
   @spec has_wired_internet?() :: boolean()
   def has_wired_internet? do
-    case System.cmd("ip", ["route", "show", "default"], stderr_to_stdout: true) do
-      {output, 0} ->
-        # Find interfaces with default routes
-        interfaces = output
-          |> String.split("\n", trim: true)
-          |> Enum.map(fn line ->
-            case Regex.run(~r/dev\s+(\S+)/, line) do
-              [_, interface] -> interface
-              _ -> nil
-            end
-          end)
-          |> Enum.reject(&is_nil/1)
-
-        # Check if any default route is on a non-WiFi interface
-        # WiFi interfaces typically start with wl (wlan0, wlp2s0, etc.)
-        # Ethernet typically starts with eth, en, or em
-        Enum.any?(interfaces, fn iface ->
-          !String.starts_with?(iface, "wl")
-        end)
+    # Get the interface that's actually used for internet traffic
+    case get_internet_interface() do
+      {:ok, interface} ->
+        # Check if it's a real wired interface (not WiFi, not virtual)
+        is_real_wired_interface?(interface)
 
       _ ->
         false
     end
   rescue
     _ -> false
+  end
+
+  # Get the interface that's actually used for internet traffic
+  defp get_internet_interface do
+    # Use ip route get to find which interface reaches the internet
+    case System.cmd("ip", ["route", "get", "8.8.8.8"], stderr_to_stdout: true) do
+      {output, 0} ->
+        # Parse output like: "8.8.8.8 via 192.168.1.1 dev eth0 src 192.168.1.67"
+        case Regex.run(~r/dev\s+(\S+)/, output) do
+          [_, interface] -> {:ok, interface}
+          _ -> {:error, :no_interface}
+        end
+
+      _ ->
+        {:error, :route_failed}
+    end
+  end
+
+  # Check if an interface is a real wired interface (not WiFi, not virtual)
+  defp is_real_wired_interface?(interface) do
+    # WiFi interfaces - start with wl
+    is_wifi = String.starts_with?(interface, "wl")
+
+    # Virtual/bridge interfaces to exclude:
+    # - virbr* : libvirt virtual bridges
+    # - docker* : Docker bridges
+    # - br-* : Docker/bridge networks
+    # - veth* : Virtual ethernet (containers)
+    # - lo : Loopback
+    # - tun* : VPN tunnels
+    # - tap* : VPN/VM interfaces
+    is_virtual = String.starts_with?(interface, "virbr") ||
+                 String.starts_with?(interface, "docker") ||
+                 String.starts_with?(interface, "br-") ||
+                 String.starts_with?(interface, "veth") ||
+                 String.starts_with?(interface, "tun") ||
+                 String.starts_with?(interface, "tap") ||
+                 interface == "lo"
+
+    # Real wired = not WiFi and not virtual
+    !is_wifi && !is_virtual
   end
 
   @doc """
