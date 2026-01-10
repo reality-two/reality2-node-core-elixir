@@ -280,9 +280,10 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
     if reason in [:no_candidates_available, :no_better_candidate] do
       case ConnectionManager.get_connection_status() do
-        {:ok, %{state: conn_state, hosting: false}} when conn_state in [:idle, :disconnected] ->
-          # We're idle and not hosting - check if we should start
+        {:ok, %{state: :disconnected, hosting: hosting}} when hosting != true ->
+          # We're disconnected and not hosting - check if we should start
           peers = PeerManager.get_all_peers()
+          Logger.debug("[ConnectionAssessor] Checking hosting: #{map_size(peers)} peers discovered")
 
           if map_size(peers) > 0 do
             # Use node_id comparison as tie-breaker
