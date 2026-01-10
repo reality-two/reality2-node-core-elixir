@@ -506,6 +506,12 @@ defmodule AiReality2Transnet.ConnectionManager do
       stats: Map.update!(state.stats, :connections_made, &(&1 + 1))
     }
 
+    # Find the peer by SSID (the SSID is the node_name)
+    # and perform sentantAll exchange
+    Task.start(fn ->
+      perform_sentant_exchange_by_ssid(ssid)
+    end)
+
     {:noreply, new_state}
   end
 
@@ -879,5 +885,95 @@ defmodule AiReality2Transnet.ConnectionManager do
     end)
 
     Logger.info("[ConnectionManager] PNS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
+  end
+
+  # Perform sentantAll exchange after auto-connecting to an R2 hotspot via SSID
+  # Called when ConnectionAssessor discovers and connects to a hotspot
+  defp perform_sentant_exchange_by_ssid(ssid) do
+    Logger.info("[ConnectionManager] Performing sentantAll exchange for SSID: #{ssid}")
+
+    # The SSID is the node_name - find the peer by looking up the node_id
+    case Reality2.Metadata.get(:PNS_NodeNames, ssid) do
+      nil ->
+        # Peer not found by node_name, try to find by scanning all peers
+        find_peer_by_ssid_and_exchange(ssid)
+
+      peer_node_id ->
+        # Found peer node_id, get gateway IP and perform exchange
+        perform_exchange_with_peer(peer_node_id, ssid)
+    end
+  end
+
+  defp find_peer_by_ssid_and_exchange(ssid) do
+    # Search all peers for one with matching node_name
+    peers = AiReality2Transnet.PeerManager.get_all_peers()
+
+    case Enum.find(peers, fn {_id, peer} -> peer.node_name == ssid end) do
+      {peer_node_id, _peer} ->
+        perform_exchange_with_peer(peer_node_id, ssid)
+
+      nil ->
+        # No peer found - the peer may have been removed due to timeout
+        # Try to exchange anyway using the gateway IP
+        Logger.warning("[ConnectionManager] No peer found for SSID #{ssid}, attempting exchange with gateway")
+        perform_exchange_with_gateway(ssid)
+    end
+  end
+
+  defp perform_exchange_with_peer(peer_node_id, ssid) do
+    # Get the gateway IP (the hotspot host's IP)
+    case get_gateway_ip() do
+      {:ok, gateway_ip} ->
+        Logger.info("[ConnectionManager] Found gateway IP: #{gateway_ip} for peer #{String.slice(peer_node_id, 0..7)}...")
+
+        case perform_sentant_exchange(peer_node_id, gateway_ip, 4005) do
+          :ok ->
+            Logger.info("[ConnectionManager] sentantAll exchange completed for #{ssid}")
+
+          {:error, reason} ->
+            Logger.error("[ConnectionManager] sentantAll exchange failed for #{ssid}: #{reason}")
+        end
+
+      {:error, reason} ->
+        Logger.error("[ConnectionManager] Could not get gateway IP: #{reason}")
+    end
+  end
+
+  defp perform_exchange_with_gateway(ssid) do
+    # Try to exchange with gateway IP even without knowing the peer_node_id
+    case get_gateway_ip() do
+      {:ok, gateway_ip} ->
+        Logger.info("[ConnectionManager] Attempting exchange with gateway: #{gateway_ip}")
+
+        # Use a placeholder node_id based on SSID
+        # This isn't ideal but allows the exchange to proceed
+        placeholder_node_id = "unknown-#{ssid}"
+
+        case perform_sentant_exchange(placeholder_node_id, gateway_ip, 4005) do
+          :ok ->
+            Logger.info("[ConnectionManager] sentantAll exchange completed via gateway for #{ssid}")
+
+          {:error, reason} ->
+            Logger.error("[ConnectionManager] sentantAll exchange failed via gateway: #{reason}")
+        end
+
+      {:error, reason} ->
+        Logger.error("[ConnectionManager] Could not get gateway IP: #{reason}")
+    end
+  end
+
+  # Get the default gateway IP (the hotspot host's IP)
+  defp get_gateway_ip do
+    case System.cmd("ip", ["route", "show", "default"], stderr_to_stdout: true) do
+      {output, 0} ->
+        # Parse: "default via 10.42.0.1 dev wlp195s0 proto dhcp metric 600"
+        case Regex.run(~r/default via ([0-9.]+)/, output) do
+          [_, gateway_ip] -> {:ok, gateway_ip}
+          _ -> {:error, :no_default_route}
+        end
+
+      {error, _} ->
+        {:error, "ip_route_failed: #{error}"}
+    end
   end
 end
