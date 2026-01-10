@@ -244,7 +244,7 @@ defmodule AiReality2Transnet.Wifi do
               address: get_mac_address(interface),
               mode: parse_device_mode(state),
               current_ssid: get_current_ssid(interface),
-              ip_address: get_interface_ip(interface)
+              ip_address: extract_ip(get_interface_ip(interface))
             }
           end)
 
@@ -756,10 +756,6 @@ defmodule AiReality2Transnet.Wifi do
 
   This ensures each Reality2 node has a unique, identifiable SSID.
 
-  ## Parameters
-  - `node_id` - Ignored (kept for backwards compatibility)
-  - `site_id` - Ignored (kept for backwards compatibility)
-
   ## Returns
   - SSID string (e.g., "R2Node_A3F7" or custom name from R2_NODE_NAME env var)
 
@@ -773,8 +769,8 @@ defmodule AiReality2Transnet.Wifi do
       iex> Wifi.generate_ssid()
       "R2Node_A3F7"
   """
-  @spec generate_ssid(String.t() | nil, String.t() | nil) :: String.t()
-  def generate_ssid(_node_id \\ nil, _site_id \\ nil) do
+  @spec generate_ssid() :: String.t()
+  def generate_ssid do
     # Use the node_name from Bootstrap as the SSID
     # This is either set via R2_NODE_NAME env var or auto-generated as "R2Node_XXXX"
     Reality2.Bootstrap.get(:node_name, "R2Node")
@@ -791,6 +787,10 @@ defmodule AiReality2Transnet.Wifi do
       _ -> "unknown"
     end
   end
+
+  # Extract IP from result tuple, returning nil on error
+  defp extract_ip({:ok, ip}), do: ip
+  defp extract_ip({:error, _}), do: nil
 
   # Parse device mode from nmcli state
   defp parse_device_mode("connected (externally)"), do: :ap

@@ -254,7 +254,8 @@ defmodule AiReality2Transnet.Bluetooth do
 
     case encode_and_notify(handle, message) do
       :ok ->
-        Logger.debug("Broadcast signal from Sentant #{sentant_id}: #{signal}")
+        node_name = get_node_name_from_params(parameters)
+        Logger.debug("GATT notify from #{node_name}: Sentant #{sentant_id} - #{signal}")
         new_state = %{state | signals_broadcast: state.signals_broadcast + 1}
         {:noreply, new_state}
 
@@ -382,10 +383,14 @@ defmodule AiReality2Transnet.Bluetooth do
   # PubSub message: Sentant signal received (mirrors GraphQL awaitSignal subscription)
   def handle_info({:sentant_signal, signal_data}, state) do
     %{id: id, event: event, parameters: parameters, passthrough: passthrough} = signal_data
-    Logger.debug("Sentant signal received: #{id} - #{event}")
+    # Extract signal name if present, otherwise use event name as the signal
+    signal = Map.get(signal_data, :signal, event)
+    # Get node name from parameters (remote) or local node
+    node_name = get_node_name_from_params(parameters)
+    Logger.debug("PubSub event from #{node_name}: Sentant #{id} - #{signal}")
 
     # Broadcast to GATT clients via notification characteristic
-    broadcast_signal(id, event, event, parameters, passthrough)
+    broadcast_signal(id, signal, event, parameters, passthrough)
 
     {:noreply, state}
   end
@@ -693,6 +698,18 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   defp get_event_list(_), do: []
+
+  # Extract node name from parameters (for remote signals) or fall back to local node name
+  defp get_node_name_from_params(parameters) when is_map(parameters) do
+    # Try various keys that might contain node name from remote nodes
+    Map.get(parameters, :node_name) ||
+      Map.get(parameters, "node_name") ||
+      Map.get(parameters, :source_node) ||
+      Map.get(parameters, "source_node") ||
+      Reality2.Bootstrap.get(:node_name, "local")
+  end
+
+  defp get_node_name_from_params(_), do: Reality2.Bootstrap.get(:node_name, "local")
 
   defp update_query_characteristic(handle) do
     sentants = fetch_all_sentants()

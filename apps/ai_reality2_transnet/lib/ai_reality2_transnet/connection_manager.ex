@@ -679,8 +679,7 @@ defmodule AiReality2Transnet.ConnectionManager do
     #   Environment: export R2_SITE_ID=WAIROA
     #   Config: config :ai_reality2_transnet, site_id: "WAIROA"
     #   Default: "NODE"
-    node_id = Reality2.Bootstrap.get(:node_id)
-    ssid = Wifi.generate_ssid(node_id)  # Uses node_name from Bootstrap
+    ssid = Wifi.generate_ssid()  # Uses node_name from Bootstrap
     # Use deterministic PSK so other nodes can predict credentials from SSID
     psk = Wifi.generate_psk_for_node(ssid)
     channel = 6

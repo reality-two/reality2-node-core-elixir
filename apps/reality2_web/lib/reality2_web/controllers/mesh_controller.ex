@@ -107,9 +107,17 @@ defmodule Reality2Web.MeshController do
 
   defp get_mesh_info do
     if wifi_available?() do
-      case GenServer.call(AiReality2Transnet.WifiServer, :get_mesh_info, 5000) do
-        {:ok, info} -> info
-        _ -> %{active: false}
+      # Use apply/3 to avoid compile-time warning for cross-app module reference
+      case apply(AiReality2Transnet.ConnectionManager, :get_connection_status, []) do
+        {:ok, status} ->
+          %{
+            active: status.state in [:connected_as_client, :hosting_ap],
+            state: status.state,
+            hosting: Map.get(status, :hosting, false),
+            ssid: Map.get(status, :ssid)
+          }
+        _ ->
+          %{active: false}
       end
     else
       %{active: false}
@@ -124,7 +132,7 @@ defmodule Reality2Web.MeshController do
   end
 
   defp wifi_available? do
-    Code.ensure_loaded?(AiReality2Transnet.WifiServer) &&
-      Process.whereis(AiReality2Transnet.WifiServer) != nil
+    Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) &&
+      Process.whereis(AiReality2Transnet.ConnectionManager) != nil
   end
 end

@@ -137,6 +137,16 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     GenServer.call(__MODULE__, :get_stats)
   end
 
+  @doc """
+  Gets the full internal state of the assessor.
+
+  Useful for debugging and monitoring.
+  """
+  @spec get_state() :: map()
+  def get_state do
+    GenServer.call(__MODULE__, :get_state)
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # GenServer Callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------

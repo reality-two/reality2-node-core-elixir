@@ -74,12 +74,6 @@ defmodule AiReality2Transnet.GattProtocol do
   def network_command_uuid, do: @network_command_char_uuid
   def node_info_uuid, do: @node_info_char_uuid
 
-  # Legacy aliases for backward compatibility
-  @deprecated "Use join_offer_uuid/0 instead"
-  def mesh_details_uuid, do: @join_offer_char_uuid
-  @deprecated "Use network_command_uuid/0 instead"
-  def mesh_command_uuid, do: @network_command_char_uuid
-
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Encoding Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -337,13 +331,6 @@ defmodule AiReality2Transnet.GattProtocol do
     json
   end
 
-  # Legacy alias for backward compatibility
-  @deprecated "Use handle_join_offer_read/0 instead"
-  @spec handle_mesh_details_read() :: binary()
-  def handle_mesh_details_read do
-    handle_join_offer_read()
-  end
-
   @doc """
   Handles a GATT write request for network coordination command.
 
@@ -371,11 +358,6 @@ defmodule AiReality2Transnet.GattProtocol do
         {:error, reason}
     end
   end
-
-  # Legacy alias for backward compatibility
-  @deprecated "Use handle_network_command_write/1 instead"
-  @spec handle_mesh_command_write(binary()) :: :ok | {:error, String.t()}
-  def handle_mesh_command_write(data), do: handle_network_command_write(data)
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Private Helper Functions

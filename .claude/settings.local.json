@@ -35,7 +35,9 @@
       "Bash(git checkout:*)",
       "Bash(git add:*)",
       "Bash(git stash show:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git commit:*)",
+      "Bash(mix test:*)"
     ]
   }
 }
