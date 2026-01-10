@@ -288,6 +288,23 @@ defmodule AiReality2Transnet.ConnectionManager do
     GenServer.call(__MODULE__, :get_hosting_config)
   end
 
+  @doc """
+  Reports that WiFi connection to an R2 hotspot was established externally.
+
+  Called by ConnectionAssessor when it successfully connects to an R2 hotspot
+  during auto-discovery. Updates internal state to reflect the connection.
+
+  ## Parameters
+  - `ssid` - SSID of the connected hotspot
+
+  ## Returns
+  - `:ok` - State updated
+  """
+  @spec report_wifi_connected(String.t()) :: :ok
+  def report_wifi_connected(ssid) do
+    GenServer.cast(__MODULE__, {:wifi_connected, ssid})
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # GenServer Callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -477,6 +494,21 @@ defmodule AiReality2Transnet.ConnectionManager do
     end
   end
 
+  @impl true
+  def handle_cast({:wifi_connected, ssid}, state) do
+    # External notification that WiFi was connected (e.g., by ConnectionAssessor auto-discovery)
+    Logger.info("[ConnectionManager] WiFi connection reported: #{ssid}")
+
+    new_state = %{state |
+      connection_state: :connected_as_client,
+      current_host_ssid: ssid,
+      connected_at: System.system_time(:millisecond),
+      stats: Map.update!(state.stats, :connections_made, &(&1 + 1))
+    }
+
+    {:noreply, new_state}
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Private Functions - Connection Operations
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -648,8 +680,9 @@ defmodule AiReality2Transnet.ConnectionManager do
     #   Config: config :ai_reality2_transnet, site_id: "WAIROA"
     #   Default: "NODE"
     node_id = Reality2.Bootstrap.get(:node_id)
-    ssid = Wifi.generate_ssid(node_id)  # Reads R2_SITE_ID env var, config, or "NODE"
-    psk = Wifi.generate_psk()
+    ssid = Wifi.generate_ssid(node_id)  # Uses node_name from Bootstrap
+    # Use deterministic PSK so other nodes can predict credentials from SSID
+    psk = Wifi.generate_psk_for_node(ssid)
     channel = 6
 
     case Wifi.start_hotspot(state.wifi_interface, ssid, psk, channel) do

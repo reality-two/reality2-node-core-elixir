@@ -325,7 +325,7 @@ defmodule AiReality2Transnet.Wifi do
   """
   @spec start_hotspot(String.t(), String.t(), String.t(), integer()) ::
           {:ok, String.t()} | {:error, String.t()}
-  def start_hotspot(interface, ssid, psk, channel \\ 6) do
+  def start_hotspot(interface, ssid, psk, _channel \\ 6) do
     # Disconnect from any current WiFi network on this interface
     # Most adapters can't be client + AP simultaneously
     Logger.info("[Wifi] Disconnecting #{interface} from current network to start hotspot...")
@@ -646,6 +646,46 @@ defmodule AiReality2Transnet.Wifi do
     error -> {:error, "exception: #{inspect(error)}"}
   end
 
+  @doc """
+  Scans for and returns Reality2 node hotspots.
+
+  Filters scan results to only include SSIDs matching R2Node_ pattern
+  (or custom R2 node names).
+
+  ## Parameters
+  - `interface` - WiFi interface name (e.g., "wlan0")
+
+  ## Returns
+  - `{:ok, hotspots}` - List of R2 hotspot maps with ssid and psk (derived)
+  - `{:error, reason}` - Scan failed
+
+  ## Example
+
+      iex> Wifi.find_r2_hotspots("wlan0")
+      {:ok, [
+        %{ssid: "R2Node_A3F7", signal: -45, psk: "derived_psk_here"},
+        %{ssid: "R2Node_B2C1", signal: -67, psk: "derived_psk_here"}
+      ]}
+  """
+  @spec find_r2_hotspots(String.t()) :: {:ok, [map()]} | {:error, String.t()}
+  def find_r2_hotspots(interface) do
+    case scan_networks(interface) do
+      {:ok, networks} ->
+        r2_hotspots =
+          networks
+          |> Enum.filter(fn net -> String.starts_with?(net.ssid, "R2Node_") or String.starts_with?(net.ssid, "R2-") end)
+          |> Enum.map(fn net ->
+            Map.put(net, :psk, generate_psk_for_node(net.ssid))
+          end)
+          |> Enum.sort_by(fn net -> net.signal end, :desc)  # Best signal first
+
+        {:ok, r2_hotspots}
+
+      error ->
+        error
+    end
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Public API - Utility Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -671,6 +711,40 @@ defmodule AiReality2Transnet.Wifi do
     :crypto.strong_rand_bytes(length)
     |> Base.encode64()
     |> binary_part(0, length)
+  end
+
+  @doc """
+  Generates a deterministic PSK from a node name.
+
+  This allows nodes to predict each other's hotspot credentials based on
+  the SSID (node_name). Uses HMAC-SHA256 with a shared secret to derive
+  the password deterministically.
+
+  ## Parameters
+  - `node_name` - The node's name (same as SSID)
+
+  ## Returns
+  - 16-character alphanumeric PSK derived from the node name
+
+  ## Security Note
+  This provides predictable credentials for auto-discovery. For higher
+  security deployments, use GATT credential exchange with random PSK.
+
+  ## Example
+
+      iex> Wifi.generate_psk_for_node("R2Node_A3F7")
+      "xY9kL2mN3pQ4rS5t"
+  """
+  @spec generate_psk_for_node(String.t()) :: String.t()
+  def generate_psk_for_node(node_name) do
+    # Shared secret - in production this could come from config
+    secret = Application.get_env(:ai_reality2_transnet, :psk_secret, "R2TransnetSharedSecret2024")
+
+    # Derive PSK using HMAC-SHA256
+    :crypto.mac(:hmac, :sha256, secret, node_name)
+    |> Base.encode64()
+    |> String.replace(~r/[^a-zA-Z0-9]/, "")
+    |> binary_part(0, 16)
   end
 
   @doc """

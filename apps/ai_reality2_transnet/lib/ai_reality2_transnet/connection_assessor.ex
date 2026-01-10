@@ -312,7 +312,12 @@ defmodule AiReality2Transnet.ConnectionAssessor do
                   Logger.debug("[ConnectionAssessor] No WiFi adapter available for hosting")
               end
             else
-              Logger.debug("[ConnectionAssessor] Waiting for node #{String.slice(lowest_id, 0..7)}... to become host")
+              # We should be a client - try to find and connect to an R2 hotspot
+              Logger.info("[ConnectionAssessor] Lower ID node #{String.slice(lowest_id, 0..7)}... should host - scanning for R2 hotspots...")
+
+              Task.start(fn ->
+                try_connect_to_r2_hotspot()
+              end)
             end
           end
 
@@ -582,6 +587,49 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
       _ ->
         nil
+    end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Private Functions - R2 Hotspot Discovery and Connection
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  defp try_connect_to_r2_hotspot do
+    # Try to find and connect to an R2 hotspot
+    # This runs when we determine another node should be hosting
+
+    case AiReality2Transnet.Wifi.list_adapters() do
+      {:ok, [interface | _]} ->
+        Logger.info("[ConnectionAssessor] Scanning for R2 hotspots on #{interface}...")
+
+        case AiReality2Transnet.Wifi.find_r2_hotspots(interface) do
+          {:ok, []} ->
+            Logger.info("[ConnectionAssessor] No R2 hotspots found yet - will retry on next assessment")
+
+          {:ok, hotspots} ->
+            Logger.info("[ConnectionAssessor] Found #{length(hotspots)} R2 hotspot(s)")
+
+            # Try to connect to the first (strongest signal) R2 hotspot
+            [best | _] = hotspots
+            Logger.info("[ConnectionAssessor] Attempting to connect to #{best.ssid} (signal: #{best.signal})")
+
+            case AiReality2Transnet.Wifi.connect_to_network(interface, best.ssid, best.psk) do
+              {:ok, _uuid} ->
+                Logger.info("[ConnectionAssessor] Successfully connected to #{best.ssid}!")
+
+                # Update connection state
+                ConnectionManager.report_wifi_connected(best.ssid)
+
+              {:error, reason} ->
+                Logger.warning("[ConnectionAssessor] Failed to connect to #{best.ssid}: #{reason}")
+            end
+
+          {:error, reason} ->
+            Logger.warning("[ConnectionAssessor] Failed to scan for R2 hotspots: #{reason}")
+        end
+
+      _ ->
+        Logger.debug("[ConnectionAssessor] No WiFi adapter available for client connection")
     end
   end
 
