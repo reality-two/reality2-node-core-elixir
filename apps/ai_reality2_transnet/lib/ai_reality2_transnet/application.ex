@@ -39,6 +39,10 @@ defmodule AiReality2Transnet.Application do
       %{
         id: AiReality2Transnet.R2Mesh,
         start: {AiReality2Transnet.R2Mesh, :start_link, [[]]}
+      },
+      %{
+        id: AiReality2Transnet.LoRaMesh,
+        start: {AiReality2Transnet.LoRaMesh, :start_link, [[]]}
       }
       # NOTE: Legacy modules removed (preserved in git history):
       # - WifiServer: Port 8080/8081 HTTP server for mesh networking
