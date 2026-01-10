@@ -390,8 +390,8 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # PubSub message: Sentants changed (created, updated, deleted)
   # Refresh the query characteristic so clients see updated sentant list
-  def handle_info({:sentants, _action, _sentant_data}, %{gatt_handle: handle} = state) do
-    Logger.debug("Sentants changed - refreshing query characteristic")
+  def handle_info({:sentants, action, sentant_data}, %{gatt_handle: handle} = state) do
+    Logger.info("PubSub: Sentants #{action} - #{inspect(sentant_data)} - refreshing query characteristic")
     update_query_characteristic(handle)
     {:noreply, state}
   end
@@ -734,6 +734,7 @@ defmodule AiReality2Transnet.Bluetooth do
 
   defp update_query_characteristic(handle) do
     sentants = fetch_all_sentants()
+    Logger.info("update_query_characteristic: Found #{length(sentants)} sentants")
 
     # Create compact version with only essential fields for BLE transmission
     # Remove parameters to reduce size - they're just type hints for the UI
