@@ -326,6 +326,18 @@ defmodule AiReality2Transnet.Wifi do
   @spec start_hotspot(String.t(), String.t(), String.t(), integer()) ::
           {:ok, String.t()} | {:error, String.t()}
   def start_hotspot(interface, ssid, psk, channel \\ 6) do
+    connection_name = "R2-Hotspot-#{ssid}"
+
+    # Clean up any existing R2 hotspot connection with this name
+    System.cmd("nmcli", ["connection", "delete", connection_name], stderr_to_stdout: true)
+
+    # Disconnect from any current WiFi network on this interface
+    # Most adapters can't be client + AP simultaneously
+    Logger.info("[Wifi] Disconnecting #{interface} from current network to start hotspot...")
+    System.cmd("nmcli", ["device", "disconnect", interface], stderr_to_stdout: true)
+    # Brief pause to let the interface settle
+    Process.sleep(500)
+
     # Generate deterministic IP from SSID
     subnet_octet = :erlang.phash2(ssid, 254) + 1
     ip_address = "192.168.#{subnet_octet}.1"
@@ -335,7 +347,7 @@ defmodule AiReality2Transnet.Wifi do
       "connection", "add",
       "type", "wifi",
       "ifname", interface,
-      "con-name", "R2-Hotspot-#{ssid}",
+      "con-name", connection_name,
       "autoconnect", "no",
       "ssid", ssid,
       "mode", "ap",
@@ -352,7 +364,7 @@ defmodule AiReality2Transnet.Wifi do
         uuid = extract_connection_uuid(output)
 
         # Activate the connection
-        case System.cmd("nmcli", ["connection", "up", "R2-Hotspot-#{ssid}"], stderr_to_stdout: true) do
+        case System.cmd("nmcli", ["connection", "up", connection_name], stderr_to_stdout: true) do
           {_, 0} ->
             Logger.info("[Wifi] Hotspot started: SSID=#{ssid}, Channel=#{channel}, IP=#{ip_address}")
             {:ok, uuid}
