@@ -43,3 +43,6 @@ mix.lock
 .node
 
 .DS_Store
+
+# Native library binaries (platform-specific, should be built locally)
+*.so

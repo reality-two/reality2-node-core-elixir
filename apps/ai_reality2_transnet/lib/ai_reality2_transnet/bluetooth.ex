@@ -1,28 +1,23 @@
 defmodule AiReality2Transnet.Bluetooth do
   # *******************************************************************************************************************************************
   @moduledoc """
-  Bluetooth transport for Reality2 Transient Networks.
+  Bluetooth module for Transient Networks. Handles BLE beacons, node discovery, and GATT server
+  for Sentant access. Calls into the Rust NIFs detailed in AiReality2Transnet.Action.
 
-  **Hotspot Architecture Protocol**
-  1. **Beacon (AltBeacon)**: Discovery and capability advertisement
-     - Broadcasts node capabilities (can_host_ap, is_fixed_anchor, etc.)
-     - Encodes real-time status (client_count, upstream_quality)
-     - Scans for peer beacons
-  2. **GATT**: Bootstrap exchange for WiFi hotspot connection
-     - Node info characteristic (minimal metadata)
-     - Join offer characteristic (SSID, PSK, rendezvous IP)
-  3. **WiFi Hotspot**: WPA2-PSK access point or client connection
-  4. **GraphQL (port 4005)**: sentantAll exchange and sentant control
+  ## GATT Server Operations:
 
-  This module:
-  - Broadcasts and watches Reality2 beacons with capability flags
-  - Hosts GATT server for bootstrap exchange (join offers)
-  - Registers discovered peers with `AiReality2Transnet.PeerManager`
-  - Handles local Sentant commands via GenServer.cast
+  ### Query Characteristic (Read) - UUID: 00002a57
+  - sentantAll - Get all Sentants on the node
 
-  **Author**
-  - Dr. Roy C. Davies
-  - [roycdavies.github.io](https://roycdavies.github.io/)
+  ### Mutation Characteristic (Write) - UUID: 00002a58
+  - sentantSend - Send event to a Sentant
+
+  ### Subscription Characteristic (Notify) - UUID: 00002a59
+  - awaitSignal - Stream signals from Sentants (BLE notifications)
+
+    **Author**
+    - Dr. Roy C. Davies
+    - [roycdavies.github.io](https://roycdavies.github.io/)
   """
 
   # *******************************************************************************************************************************************
@@ -31,16 +26,13 @@ defmodule AiReality2Transnet.Bluetooth do
   alias Reality2.Helpers.R2Map, as: R2Map
   use GenServer, restart: :transient
   require Logger
-  import Bitwise
 
-  # Protocol version
+  # Default Company ID for R2 manufacturer data.
+  # TODO: Replace with an assigned company ID.
+  @r2_company_id 0xFFFF
+  # Increased to support larger sentant data
+  @max_characteristic_size 4096
   @protocol_version "1.0"
-
-  # Configuration helpers - load at runtime for better testability
-  defp r2_company_id, do: Application.get_env(:ai_reality2_transnet, :r2_company_id, 0xFFFF)
-
-  defp max_characteristic_size,
-    do: Application.get_env(:ai_reality2_transnet, :max_characteristic_size, 4096)
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Client API
@@ -49,20 +41,77 @@ defmodule AiReality2Transnet.Bluetooth do
   def start_link(_), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
 
   @doc """
-  Broadcast a signal to GATT clients via notification characteristic.
+  Broadcasts a Sentant signal to all subscribed BLE clients.
+  Mirrors GraphQL: awaitSignal(id, signal)
 
-  ## Parameters
-  - sentant_id: The ID of the sentant broadcasting the signal
-  - signal: The signal name
-  - event: The event name
-  - parameters: Event parameters
-  - passthrough: Optional passthrough data
+  This should be called whenever a Sentant emits a signal.
   """
   def broadcast_signal(sentant_id, signal, event, parameters, passthrough \\ nil) do
     GenServer.cast(
       __MODULE__,
       {:broadcast_signal, sentant_id, signal, event, parameters, passthrough}
     )
+  end
+
+  @doc """
+  Gets the current Bluetooth server state and statistics.
+  """
+  def get_state do
+    GenServer.call(__MODULE__, :get_state)
+  end
+
+  @doc """
+  Send a mutation to a peer node's Sentant.
+
+  ## Parameters
+  - `peer_node_id` - The Reality2 node ID of the peer
+  - `sentant_id` - The UUID of the Sentant on the peer node
+  - `event` - The event name to trigger
+  - `parameters` - Optional parameters map
+  - `passthrough` - Optional passthrough data
+
+  ## Returns
+  - `{:ok, response}` - Success with response data
+  - `{:error, reason}` - Error reason
+  """
+  def send_to_peer_sentant(peer_node_id, sentant_id, event, parameters \\ %{}, passthrough \\ nil) do
+    GenServer.call(
+      __MODULE__,
+      {:send_to_peer, peer_node_id, sentant_id, event, parameters, passthrough}
+    )
+  end
+
+  @doc """
+  Get list of connected peer nodes.
+
+  DEPRECATED: Use AiReality2Transnet.PeerManager.get_all_peers() instead.
+
+  ## Returns
+  - `%{node_id => %{address, sentants, connected_at}}`
+  """
+  def get_connected_peers do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      AiReality2Transnet.PeerManager.get_all_peers()
+    else
+      %{}
+    end
+  end
+
+  @doc """
+  Get a specific peer's information.
+
+  DEPRECATED: Use AiReality2Transnet.PeerManager.get_peer(peer_id) instead.
+
+  ## Returns
+  - `{:ok, peer_info}` - Peer found
+  - `{:error, :not_found}` - Peer not connected
+  """
+  def get_peer(peer_node_id) do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      AiReality2Transnet.PeerManager.get_peer(peer_node_id)
+    else
+      {:error, :not_found}
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -125,12 +174,42 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   @impl true
-  def handle_call(
-        {:send_to_peer, _peer_id, _sentant_id, _event, _params, _passthrough},
-        _from,
-        state
-      ) do
-    {:reply, {:error, :use_wifi_hotspot}, state}
+  def handle_call({:send_to_peer, peer_id, sentant_id, event, params, passthrough}, _from, state) do
+    # Use PeerManager to get peer info
+    peer_result =
+      if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+        AiReality2Transnet.PeerManager.get_peer(peer_id)
+      else
+        {:error, :not_found}
+      end
+
+    case peer_result do
+      {:error, :not_found} ->
+        {:reply, {:error, :peer_not_connected}, state}
+
+      {:ok, peer_info} ->
+        mutation = %{
+          id: sentant_id,
+          event: event,
+          parameters: params,
+          passthrough: passthrough
+        }
+
+        mutation_json = Jason.encode!(mutation)
+        data_uuid = "00002a58-0000-1000-8000-00805f9b34fb"
+        adapter_name = Map.get(state, :adapter_name, "hci0")
+
+        result =
+          AiReality2Transnet.Action.gatt_write_to_device(
+            self(),
+            peer_info.address,
+            data_uuid,
+            mutation_json,
+            adapter_name
+          )
+
+        {:reply, result, state}
+    end
   end
 
   def handle_call(_request, _from, state), do: {:reply, {:error, :unknown_command}, state}
@@ -159,7 +238,7 @@ defmodule AiReality2Transnet.Bluetooth do
         {:broadcast_signal, sentant_id, signal, event, parameters, passthrough},
         %{gatt_handle: handle} = state
       ) do
-    # Broadcasts optional bootstrap notifications
+    # Mirrors GraphQL subscription: awaitSignal(id, signal)
     message = %{
       type: "await_signal",
       version: @protocol_version,
@@ -185,15 +264,6 @@ defmodule AiReality2Transnet.Bluetooth do
     end
   end
 
-  # Handle broadcast_signal when GATT server is not initialized
-  def handle_cast(
-        {:broadcast_signal, sentant_id, _signal, _event, _parameters, _passthrough},
-        state
-      ) do
-    Logger.warning("Cannot broadcast signal from #{sentant_id}: GATT server not initialized")
-    {:noreply, state}
-  end
-
   def handle_cast(_, state), do: {:noreply, state}
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -204,33 +274,30 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # GATT Server Events
   def handle_info(:gatt_server_started, state) do
-    Logger.info("GATT Bootstrap Server is ready and discoverable")
+    Logger.info("GATT Sentant Server is ready and discoverable")
     {:noreply, state}
   end
 
-  # GATT bootstrap refresh (Write)
-  # A write to the "command" characteristic triggers a refresh of bootstrap characteristics.
+  # Query Operations (BLE Read) - Mirrors sentantAll
   def handle_info({:gatt_write, "command", _data}, state) do
-    Logger.debug("GATT bootstrap refresh requested")
+    # Any write to command characteristic triggers a refresh of Sentant list
+    Logger.debug("Query characteristic written - refreshing Sentant list")
     update_query_characteristic(state.gatt_handle)
-    update_join_offer_characteristic(state.gatt_handle)
     new_state = %{state | queries_processed: state.queries_processed + 1}
     {:noreply, new_state}
   end
 
-  # GATT network command (Write)
-  # Clients write a small JSON command to coordinate hotspot join/leave.
+  # Mutation Operations (BLE Write) - Mirrors sentantSend
   def handle_info({:gatt_write, "data", data}, state) do
-    Logger.info("GATT network command received")
+    Logger.info("Mutation received: #{inspect(data)}")
 
-    case AiReality2Transnet.GattProtocol.handle_network_command_write(data) do
-      :ok ->
-        # Connection state may have changed; refresh join offer.
-        update_join_offer_characteristic(state.gatt_handle)
-        {:noreply, state}
+    case parse_sentant_send(data) do
+      {:ok, mutation} ->
+        handle_sentant_send(mutation, state)
 
       {:error, reason} ->
-        send_error_notification(state.gatt_handle, "hotspot_command_failed", to_string(reason))
+        Logger.error("Invalid sentantSend mutation: #{reason}")
+        send_error_notification(state.gatt_handle, "invalid_mutation", reason)
         {:noreply, state}
     end
   end
@@ -241,28 +308,6 @@ defmodule AiReality2Transnet.Bluetooth do
 
     # Extract BLE address from info
     address = Map.get(info, :address)
-
-    # Try to decode capabilities from beacon major/minor fields if present
-    # Otherwise use defaults (all R2 nodes can potentially host WiFi)
-    capabilities = case {Map.get(info, :major), Map.get(info, :minor)} do
-      {major, minor} when is_integer(major) and is_integer(minor) ->
-        # Decode from beacon data
-        flags = decode_beacon_flags(major)
-        status = decode_beacon_status(minor)
-        Map.merge(flags, status) |> Map.put(:wifi_hotspot, flags.can_host_ap)
-
-      _ ->
-        # Default capabilities - assume peer can host WiFi
-        %{
-          wifi_hotspot: true,
-          can_host_ap: true,
-          bluetooth: true,
-          supports_handover: true
-        }
-    end
-
-    # Merge capabilities into info for registration
-    info_with_caps = Map.put(info, :capabilities, capabilities)
 
     # Notify all Sentants about the discovery
     Sentants.sendto_all(%{
@@ -275,15 +320,11 @@ defmodule AiReality2Transnet.Bluetooth do
       }
     })
 
-    # Register peer with PeerManager including capabilities
+    # Register peer with PeerManager (BLE discovery only - no GATT sentant reading)
+    # Sentant queries will happen via WiFi mesh HTTP after upgrade
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      AiReality2Transnet.PeerManager.register_peer(id, info_with_caps)
-      Logger.info("Peer #{String.slice(id, 0..7)}... registered with capabilities: #{inspect(capabilities)}")
-
-      # Still try GATT for more detailed info (node_name, sentant_count, etc.)
-      if address do
-        fetch_peer_capabilities(address, id, state)
-      end
+      AiReality2Transnet.PeerManager.register_peer(id, info)
+      Logger.info("Peer #{String.slice(id, 0..7)}... registered with PeerManager")
     end
 
     {:noreply, state}
@@ -332,13 +373,13 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
-  # GATT errors (non-critical - we use default capabilities from beacon)
+  # GATT errors
   def handle_info({:error, reason}, state) do
-    Logger.debug("[Bluetooth] GATT error (non-critical): #{reason}")
+    Logger.error("GATT error: #{reason}")
     {:noreply, state}
   end
 
-  # PubSub message: Sentant signal received
+  # PubSub message: Sentant signal received (mirrors GraphQL awaitSignal subscription)
   def handle_info({:sentant_signal, signal_data}, state) do
     %{id: id, event: event, parameters: parameters, passthrough: passthrough} = signal_data
     Logger.debug("Sentant signal received: #{id} - #{event}")
@@ -346,94 +387,6 @@ defmodule AiReality2Transnet.Bluetooth do
     # Broadcast to GATT clients via notification characteristic
     broadcast_signal(id, event, event, parameters, passthrough)
 
-    {:noreply, state}
-  end
-
-  # GATT connection established (with address)
-  def handle_info({:gatt_connected, address}, state) when is_binary(address) do
-    Logger.debug("[Bluetooth] GATT connected to #{address}")
-    # Service discovery should follow automatically in the NIF
-    {:noreply, state}
-  end
-
-  # GATT connection established (without address - older NIF format)
-  def handle_info(:gatt_connected, state) do
-    Logger.debug("[Bluetooth] GATT connected (address unknown)")
-    {:noreply, state}
-  end
-
-  # GATT services discovered - now we can read characteristics
-  def handle_info({:gatt_services_discovered, address, _services}, state) do
-    Logger.debug("[Bluetooth] GATT services discovered for #{address}")
-
-    # Look up which node_id this address corresponds to
-    case Process.get({:pending_gatt_connect, address}) do
-      nil ->
-        Logger.warning("[Bluetooth] Services discovered for unknown address: #{address}")
-        {:noreply, state}
-
-      node_id ->
-        # Don't delete yet - we still need it for the read response
-        Process.put({:pending_gatt_read, address}, node_id)
-        Process.delete({:pending_gatt_connect, address})
-
-        # Now read the node_info characteristic
-        adapter_name = Map.get(state, :adapter_name, "hci0")
-        read_peer_node_info(address, node_id, adapter_name)
-        {:noreply, state}
-    end
-  end
-
-  # Handle older format without address
-  def handle_info({:gatt_services_discovered, services}, state) when is_list(services) do
-    Logger.debug("[Bluetooth] GATT services discovered (no address): #{length(services)} services")
-    {:noreply, state}
-  end
-
-  # GATT client read response - capability fetch completed
-  def handle_info({:gatt_read, address, value}, state) when is_list(value) do
-    # Convert byte list to binary string
-    json_data = :binary.list_to_bin(value)
-
-    # Look up which node_id this address corresponds to
-    case Process.get({:pending_gatt_read, address}) do
-      nil ->
-        Logger.warning("[Bluetooth] Received GATT read response for unknown address: #{address}")
-        {:noreply, state}
-
-      node_id ->
-        Process.delete({:pending_gatt_read, address})
-        handle_gatt_node_info_response(node_id, json_data)
-        {:noreply, state}
-    end
-  end
-
-  def handle_info({:gatt_read, value}, state) when is_list(value) do
-    # Older format without address - try to handle gracefully
-    Logger.debug("[Bluetooth] Received GATT read (no address): #{byte_size(:binary.list_to_bin(value))} bytes")
-    {:noreply, state}
-  end
-
-  def handle_info({:gatt_read_error, address, reason}, state) do
-    Logger.warning("[Bluetooth] GATT read failed for #{address}: #{inspect(reason)}")
-    Process.delete({:pending_gatt_read, address})
-    {:noreply, state}
-  end
-
-  def handle_info({:gatt_read_error, reason}, state) do
-    Logger.warning("[Bluetooth] GATT read failed: #{inspect(reason)}")
-    {:noreply, state}
-  end
-
-  # GATT connection failed
-  def handle_info({:gatt_connect_error, address, reason}, state) do
-    Logger.warning("[Bluetooth] GATT connect failed for #{address}: #{inspect(reason)}")
-    Process.delete({:pending_gatt_connect, address})
-    {:noreply, state}
-  end
-
-  def handle_info({:gatt_error, reason}, state) do
-    Logger.warning("[Bluetooth] GATT error: #{inspect(reason)}")
     {:noreply, state}
   end
 
@@ -473,17 +426,11 @@ defmodule AiReality2Transnet.Bluetooth do
     node_id = Reality2.Bootstrap.get(:node_id)
     adapter_name = Map.get(state, :adapter_name, "hci0")
 
-    # Encode capabilities into major/minor fields
-    # Major field encodes role flags
-    major = encode_beacon_flags()
-    # Minor field encodes client count and quality
-    minor = encode_beacon_status()
-
     case AiReality2Transnet.Action.start_broadcast(
-           r2_company_id(),
+           @r2_company_id,
            node_id,
-           major,
-           minor,
+           1,
+           2,
            -59,
            adapter_name
          ) do
@@ -507,11 +454,11 @@ defmodule AiReality2Transnet.Bluetooth do
       {:ok, handle} ->
         Logger.info("GATT Sentant Server started successfully")
 
-        # Initialize the Node Info characteristic (minimal bootstrap)
+        # Initialize the Query characteristic with current Sentants
         update_query_characteristic(handle)
 
-        # Initialize the Join Offer characteristic with WiFi hotspot credentials
-        update_join_offer_characteristic(handle)
+        # Initialize the Mesh Info characteristic with WiFi mesh connection details
+        update_mesh_info_characteristic(handle)
 
         # TODO: Subscribe to Sentant signals via PubSub
         # Phoenix.PubSub.subscribe(YourPubSub, "sentant:signals")
@@ -536,9 +483,8 @@ defmodule AiReality2Transnet.Bluetooth do
   # Start watching for nearby Reality2 Nodes.
   defp start_watch({:ok, state}) do
     adapter_name = Map.get(state, :adapter_name, "hci0")
-    company_id = r2_company_id()
-    # Time before a node is considered "lost" - configurable via app env
-    lost_after_ms = Application.get_env(:ai_reality2_transnet, :node_lost_timeout_ms, 60_000)
+    company_id = @r2_company_id
+    lost_after_ms = 30_000
 
     case AiReality2Transnet.Action.start_watching(self(), company_id, adapter_name, lost_after_ms) do
       {:ok, h} ->
@@ -567,6 +513,30 @@ defmodule AiReality2Transnet.Bluetooth do
   # Beacon and Watch Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
+  # Stop the previously started BLE beacon.
+  # defp stop_beacon(state, _params) do
+  #   case Map.get(state, :r2_beacon) do
+  #     nil ->
+  #       {:ok, state}
+
+  #     h ->
+  #       AiReality2Transnet.Action.stop_broadcast(h)
+  #       {:ok, Map.put(state, :r2_beacon, nil)}
+  #   end
+  # end
+
+  # Stop watching for nearby Reality2 Nodes.
+  # defp stop_watch(state, _params) do
+  #   case Map.get(state, :r2_watch) do
+  #     nil ->
+  #       {:ok, state}
+
+  #     h ->
+  #       AiReality2Transnet.Action.stop_watching(h)
+  #       {:ok, Map.put(state, :r2_watch, nil)}
+  #   end
+  # end
+
   # List the Bluetooth adapters on this device.
   defp list_adapters(state) do
     AiReality2Transnet.Action.list_adapters(self())
@@ -592,55 +562,223 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # GATT Server - Helper Functions
+  # GATT Server - sentantSend Mutation Handler
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  defp update_query_characteristic(handle) do
-    # Legacy name retained: this characteristic now carries *minimal node info*.
-    # Full Sentant directory and all higher-level interactions occur over Wi-Fi mesh.
-    node_id = Reality2.Bootstrap.get(:node_id)
-    json = AiReality2Transnet.GattProtocol.encode_node_info(node_id)
-    binary_data = :binary.bin_to_list(json)
+  defp parse_sentant_send(data) when is_list(data) do
+    data |> :binary.list_to_bin() |> parse_sentant_send()
+  end
 
-    # Prefer the dedicated node-info characteristic UUID; fall back to the legacy query UUID if needed.
-    preferred_uuid = AiReality2Transnet.GattProtocol.node_info_uuid()
-    legacy_uuid = "00002a57-0000-1000-8000-00805f9b34fb"
+  defp parse_sentant_send(data) when is_binary(data) do
+    case Jason.decode(data) do
+      {:ok, %{"id" => id, "event" => event} = mutation} ->
+        {:ok,
+         %{
+           id: id,
+           event: event,
+           parameters: Map.get(mutation, "parameters", %{}),
+           passthrough: Map.get(mutation, "passthrough")
+         }}
 
-    case AiReality2Transnet.Action.gatt_write_characteristic(handle, preferred_uuid, binary_data) do
-      :ok ->
-        :ok
+      {:ok, _} ->
+        {:error, "missing_required_fields_id_and_event"}
 
-      _ ->
-        Logger.warning(
-          "Failed to write node_info to #{preferred_uuid}; falling back to legacy UUID #{legacy_uuid}"
-        )
-
-        AiReality2Transnet.Action.gatt_write_characteristic(handle, legacy_uuid, binary_data)
+      {:error, reason} ->
+        {:error, "json_decode_error: #{inspect(reason)}"}
     end
   end
 
-  defp update_join_offer_characteristic(handle) do
-    # Use GattProtocol to encode hotspot join offer
-    json = AiReality2Transnet.GattProtocol.encode_join_offer()
+  defp handle_sentant_send(
+         %{id: id, event: event, parameters: parameters, passthrough: passthrough},
+         %{gatt_handle: handle} = state
+       ) do
+    Logger.info("Processing sentantSend: id=#{id}, event=#{event}")
+
+    # Mirror GraphQL resolver pattern: validate Sentant exists and event is allowed
+    case Reality2.Sentants.read(%{id: id}, :definition) do
+      {:ok, sentant} ->
+        # Validate event is allowed (same as GraphQL does)
+        events = get_event_list(Map.get(sentant, :events, []))
+
+        if Enum.member?(events, event) do
+          # Send the event to the Sentant
+          case Reality2.Sentants.sendto(%{id: id}, %{
+                 event: event,
+                 parameters: parameters,
+                 passthrough: passthrough
+               }) do
+            {:ok, _pid} ->
+              # Success response
+              response = %{
+                type: "mutation_response",
+                mutation: "sentantSend",
+                success: true,
+                version: @protocol_version,
+                timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+                data: sentant
+              }
+
+              encode_and_notify(handle, response)
+              {:noreply, %{state | events_sent: state.events_sent + 1}}
+
+            {:error, reason} ->
+              # Error sending event
+              error_response = %{
+                type: "mutation_response",
+                mutation: "sentantSend",
+                success: false,
+                error: to_string(reason),
+                version: @protocol_version,
+                timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+              }
+
+              encode_and_notify(handle, error_response)
+              {:noreply, state}
+          end
+        else
+          # Event not allowed
+          error_response = %{
+            type: "mutation_response",
+            mutation: "sentantSend",
+            success: false,
+            error: "invalid_event",
+            version: @protocol_version,
+            timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+          }
+
+          encode_and_notify(handle, error_response)
+          {:noreply, state}
+        end
+
+      {:error, reason} ->
+        # Sentant not found
+        error_response = %{
+          type: "mutation_response",
+          mutation: "sentantSend",
+          success: false,
+          error: to_string(reason),
+          version: @protocol_version,
+          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+        }
+
+        encode_and_notify(handle, error_response)
+        {:noreply, state}
+    end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # GATT Server - Data Fetching Functions
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  defp fetch_all_sentants do
+    # TODO: Replace with your actual Sentant registry
+    # YourSentantModule.list_all_sentants()
+    # |> Enum.map(&format_sentant/1)
+    #
+    {:ok, sentants} = Reality2.Sentants.read_all(:definition)
+    sentants_map = Enum.map(sentants, fn sentant -> sentant end)
+    Logger.debug("Fetched all sentants: #{inspect(sentants_map, pretty: false, limit: 500)}")
+    sentants_map
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # GATT Server - Helper Functions
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Extract event names from event list (mirrors GraphQL resolver pattern)
+  defp get_event_list(events) when is_list(events) do
+    Enum.map(events, &Map.get(&1, :name))
+  end
+
+  defp get_event_list(_), do: []
+
+  defp update_query_characteristic(handle) do
+    sentants = fetch_all_sentants()
+
+    # Create compact version with only essential fields for BLE transmission
+    # Remove parameters to reduce size - they're just type hints for the UI
+    compact_sentants =
+      Enum.map(sentants, fn sentant ->
+        %{
+          id: Map.get(sentant, :id),
+          name: Map.get(sentant, :name),
+          events:
+            Map.get(sentant, :events, [])
+            |> Enum.map(fn event ->
+              %{event: Map.get(event, :event)}
+            end),
+          signals: Map.get(sentant, :signals, [])
+        }
+      end)
+
+    message = %{
+      type: "sentant_all_response",
+      version: @protocol_version,
+      count: length(compact_sentants),
+      data: compact_sentants
+    }
+
+    case Jason.encode(message) do
+      {:ok, json} ->
+        json = truncate_if_needed(json, @max_characteristic_size)
+        binary_data = :binary.bin_to_list(json)
+
+        Logger.debug("Writing #{byte_size(json)} bytes to query characteristic")
+
+        result =
+          AiReality2Transnet.Action.gatt_write_characteristic(
+            handle,
+            "00002a57-0000-1000-8000-00805f9b34fb",
+            binary_data
+          )
+
+        case result do
+          :ok ->
+            Logger.debug("Successfully wrote query characteristic data")
+            :ok
+
+          :error ->
+            Logger.error(
+              "Failed to write query characteristic - gatt_write_characteristic returned :error"
+            )
+
+            :error
+
+          other ->
+            Logger.error(
+              "Unexpected return value from gatt_write_characteristic: #{inspect(other)}"
+            )
+
+            :error
+        end
+
+      {:error, reason} ->
+        Logger.error("Failed to encode Sentants data: #{inspect(reason)}")
+        :error
+    end
+  end
+
+  defp update_mesh_info_characteristic(handle) do
+    # Use GattProtocol to encode mesh connection details
+    json = AiReality2Transnet.GattProtocol.encode_mesh_details()
     binary_data = :binary.bin_to_list(json)
 
-    Logger.info("Writing #{byte_size(json)} bytes to join offer characteristic")
+    Logger.info("Writing #{byte_size(json)} bytes to mesh info characteristic")
 
     result =
       AiReality2Transnet.Action.gatt_write_characteristic(
         handle,
-        # Same UUID, different meaning now
         "00001235-0000-1000-8000-00805f9b34fb",
         binary_data
       )
 
     case result do
       :ok ->
-        Logger.info("Successfully wrote join offer characteristic data")
+        Logger.info("Successfully wrote mesh info characteristic data")
         :ok
 
       :error ->
-        Logger.error("Failed to write join offer characteristic")
+        Logger.error("Failed to write mesh info characteristic")
         :error
 
       other ->
@@ -652,7 +790,7 @@ defmodule AiReality2Transnet.Bluetooth do
   defp encode_and_notify(handle, message) do
     case Jason.encode(message) do
       {:ok, json} ->
-        json = truncate_if_needed(json, max_characteristic_size())
+        json = truncate_if_needed(json, @max_characteristic_size)
         binary_data = :binary.bin_to_list(json)
         AiReality2Transnet.Action.gatt_notify(handle, binary_data)
 
@@ -682,248 +820,19 @@ defmodule AiReality2Transnet.Bluetooth do
   defp truncate_if_needed(json, _max_size), do: json
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # GATT Client - Fetch Peer Capabilities
+  # Peer Connection Helpers (DEPRECATED - Use WiFi Mesh HTTP)
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # Process the GATT node_info response and update peer capabilities
-  defp handle_gatt_node_info_response(node_id, json_data) do
-    case AiReality2Transnet.GattProtocol.decode_node_info(json_data) do
-      {:ok, node_info} ->
-        Logger.info("[Bluetooth] Received capabilities for peer #{String.slice(node_id, 0..7)}...")
-
-        # Extract capabilities from the decoded info
-        capabilities = Map.get(node_info, :capabilities, %{})
-
-        # Update peer with capabilities (enables WiFi negotiation)
-        if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-          AiReality2Transnet.PeerManager.update_peer_capabilities(node_id, capabilities)
-
-          # Also update node_name if available
-          if node_name = node_info[:node_name] do
-            # Re-register with node_name to update the mapping
-            AiReality2Transnet.PeerManager.register_peer(node_id, %{node_name: node_name})
-          end
-
-          Logger.info("[Bluetooth] Peer #{String.slice(node_id, 0..7)}... capabilities: #{inspect(capabilities)}")
-        end
-
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("[Bluetooth] Failed to decode node_info from peer #{String.slice(node_id, 0..7)}...: #{inspect(reason)}")
-        {:error, reason}
-    end
-  end
-
-  # Initiates a GATT connection to fetch peer capabilities after beacon discovery.
-  # Flow: connect -> service discovery -> read characteristic
-  defp fetch_peer_capabilities(address, node_id, state) do
-    adapter_name = Map.get(state, :adapter_name, "hci0")
-
-    Logger.debug("[Bluetooth] Connecting to peer #{String.slice(node_id, 0..7)}... at #{address}")
-
-    # Store pending connection so we can match response to node_id
-    Process.put({:pending_gatt_connect, address}, node_id)
-
-    case AiReality2Transnet.Action.gatt_connect(self(), address, adapter_name) do
-      :ok ->
-        Logger.debug("[Bluetooth] GATT connect initiated for #{address}")
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("[Bluetooth] Failed to initiate GATT connect for #{address}: #{inspect(reason)}")
-        Process.delete({:pending_gatt_connect, address})
-        {:error, reason}
-    end
-  end
-
-  # After GATT connection and service discovery, read the node_info characteristic
-  defp read_peer_node_info(address, node_id, adapter_name) do
-    node_info_uuid = AiReality2Transnet.GattProtocol.node_info_uuid()
-
-    Logger.debug("[Bluetooth] Reading node_info from peer #{String.slice(node_id, 0..7)}... at #{address}")
-
-    # Store pending read so we can match response to node_id
-    Process.put({:pending_gatt_read, address}, node_id)
-
-    case AiReality2Transnet.Action.gatt_read_characteristic(self(), address, node_info_uuid, adapter_name) do
-      :ok ->
-        Logger.debug("[Bluetooth] GATT read initiated for #{address}")
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("[Bluetooth] Failed to initiate GATT read for #{address}: #{inspect(reason)}")
-        Process.delete({:pending_gatt_read, address})
-        {:error, reason}
-    end
-  end
-
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Beacon Encoding/Decoding - Role Flags and Status
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-
-  # Encodes node capabilities into beacon major field (16-bit).
+  # NOTE: These functions are deprecated. BLE is now for discovery only.
+  # For Sentant queries, use WiFi Mesh HTTP via WifiServer module.
   #
-  # Bit layout:
-  # - Bit 0: can_host_ap (currently hosting hotspot)
-  # - Bit 1: is_fixed_anchor (POS/fixed device)
-  # - Bit 2: has_upstream (connected to upstream)
-  # - Bit 3: supports_handover
-  # - Bits 4-15: Reserved
+  # Old flow (removed):
+  #   BLE Beacon → GATT Connect → Read Sentants (512 byte limit!)
   #
-  # Returns: Integer 0-65535 for beacon major field
-  defp encode_beacon_flags do
-    flags = 0
-    flags = if can_host_ap?(), do: flags ||| 0x0001, else: flags
-    flags = if is_fixed_anchor?(), do: flags ||| 0x0002, else: flags
-    flags = if has_upstream?(), do: flags ||| 0x0004, else: flags
-    # Always support handover
-    flags = flags ||| 0x0008
-    flags
-  end
-
-  # Encodes node status into beacon minor field (16-bit).
+  # New flow (current):
+  #   BLE Beacon → Register with PeerManager → Upgrade to WiFi Mesh → HTTP Query
   #
-  # Layout:
-  # - Byte 0 (bits 0-7): client_count (0-255)
-  # - Byte 1 (bits 8-15): upstream_quality (0-100, scaled to 0-255)
-  #
-  # Returns: Integer 0-65535 for beacon minor field
-  defp encode_beacon_status do
-    client_count = get_client_count()
-    upstream_quality = get_upstream_quality()
-
-    # Pack into 16 bits: [quality:8][client_count:8]
-    quality_byte = div(upstream_quality * 255, 100)
-    quality_byte <<< 8 ||| client_count
-  end
-
-  @doc """
-  Decodes beacon major field into capabilities map.
-
-  ## Parameters
-  - major: 16-bit integer from beacon
-
-  ## Returns
-  Map with capability flags
-  """
-  def decode_beacon_flags(major) when is_integer(major) do
-    %{
-      can_host_ap: (major &&& 0x0001) != 0,
-      is_fixed_anchor: (major &&& 0x0002) != 0,
-      has_upstream: (major &&& 0x0004) != 0,
-      supports_handover: (major &&& 0x0008) != 0
-    }
-  end
-
-  @doc """
-  Decodes beacon minor field into status map.
-
-  ## Parameters
-  - minor: 16-bit integer from beacon
-
-  ## Returns
-  Map with status information
-  """
-  def decode_beacon_status(minor) when is_integer(minor) do
-    client_count = minor &&& 0xFF
-    quality_raw = minor >>> 8 &&& 0xFF
-    upstream_quality = div(quality_raw * 100, 255)
-
-    %{
-      client_count: client_count,
-      upstream_quality: upstream_quality
-    }
-  end
-
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Node Capability Helpers
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-
-  # Check if this node can/is hosting a hotspot
-  defp can_host_ap? do
-    case AiReality2Transnet.ConnectionManager.get_hosting_config() do
-      {:ok, config} -> config.active
-      _ -> false
-    end
-  end
-
-  # Check if this is a fixed anchor node
-  defp is_fixed_anchor? do
-    # Check environment variable or config
-    case Application.get_env(:ai_reality2_transnet, :node_role) do
-      :fixed_anchor -> true
-      :pos -> true
-      _ -> false
-    end
-  end
-
-  # Check if node has upstream connectivity
-  defp has_upstream? do
-    case AiReality2Transnet.ConnectionManager.get_connection_status() do
-      {:ok, status} -> status.state == :connected_as_client
-      _ -> false
-    end
-  end
-
-  # Get current client count if hosting
-  defp get_client_count do
-    case AiReality2Transnet.ConnectionManager.get_hosting_config() do
-      {:ok, _config} ->
-        # Get WiFi interface
-        case AiReality2Transnet.Wifi.list_adapters() do
-          {:ok, [adapter | _]} ->
-            case AiReality2Transnet.Wifi.get_connected_clients(adapter.interface) do
-              {:ok, clients} -> min(length(clients), 255)
-              _ -> 0
-            end
-
-          _ ->
-            0
-        end
-
-      _ ->
-        0
-    end
-  end
-
-  # Get upstream quality score (0-100)
-  defp get_upstream_quality do
-    case AiReality2Transnet.ConnectionManager.get_connection_status() do
-      {:ok, status} when status.state == :connected_as_client ->
-        # Convert signal strength to quality (0-100)
-        # -45 dBm (excellent) → 100
-        # -85 dBm (poor) → 0
-        case status.signal_strength do
-          nil ->
-            50
-
-          signal ->
-            quality = 100 - abs(signal + 45) * 2.5
-            round(max(0, min(100, quality)))
-        end
-
-      _ ->
-        # Not connected, but might have wired/LTE
-        # TODO: Check for wired/LTE connection
-        0
-    end
-  end
-
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Architecture Notes: BLE Discovery + WiFi Data Exchange
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-  #
-  # BLE is used for discovery only (beacons + GATT bootstrap).
-  # Data exchange happens over WiFi hotspot connections using Reality2Web GraphQL.
-  #
-  # Discovery flow:
-  #   1. BLE Beacon → Discovered by peer
-  #   2. GATT Bootstrap → Exchange node info + join offer
-  #   3. WiFi Connect → Client connects to host's hotspot
-  #   4. GraphQL Query → Retrieve sentantAll via HTTP (port 4005)
-  #
-  # To query remote sentants from PNS or other code:
+  # To query remote sentants:
   #   {:ok, peer} = AiReality2Transnet.PeerManager.get_peer(node_id)
-  #   # Use GraphQL to query: http://<peer_ip>:4005/reality2
+  #   {:ok, sentants} = AiReality2Transnet.WifiServer.query_peer_sentants(peer.ipv6_link_local)
 end
