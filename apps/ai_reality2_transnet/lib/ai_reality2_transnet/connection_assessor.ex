@@ -278,7 +278,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     # 4. There are discovered peers who could connect to us
     # 5. We "win" the tie-breaker (lowest node_id becomes host)
 
-    if reason in [:no_candidates_available, :no_better_candidate, :no_join_offer_available] do
+    if reason in ["no_candidates_available", "no_better_candidate", "no_join_offer_available", "no_join_offer_for_candidate"] do
       case ConnectionManager.get_connection_status() do
         {:ok, %{state: :disconnected, hosting: hosting}} when hosting != true ->
           # We're disconnected and not hosting - check if we should start
