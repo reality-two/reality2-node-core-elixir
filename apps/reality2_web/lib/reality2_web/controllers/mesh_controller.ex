@@ -32,6 +32,74 @@ defmodule Reality2Web.MeshController do
   end
 
   @doc """
+  POST /mesh/register - Register a remote node and its sentants.
+
+  Called by clients after connecting to register their sentants with the host.
+  This enables bidirectional sentant discovery.
+
+  ## Request Body
+  ```json
+  {
+    "node_id": "uuid-string",
+    "node_name": "R2Node_XXXX",
+    "sentants": [
+      {"id": "uuid", "name": "SentantName", "description": "...", "events": [], "signals": []}
+    ]
+  }
+  ```
+
+  ## Response
+  ```json
+  {
+    "status": "ok",
+    "registered_sentants": 2,
+    "host_node_id": "uuid-string"
+  }
+  ```
+  """
+  def register(conn, params) do
+    require Logger
+
+    node_id = Map.get(params, "node_id")
+    node_name = Map.get(params, "node_name")
+    sentants = Map.get(params, "sentants", [])
+    client_ip = conn.remote_ip |> :inet.ntoa() |> to_string()
+
+    Logger.info("[MeshController] Registering remote node: #{node_name} (#{String.slice(node_id || "", 0..7)}...) with #{length(sentants)} sentants")
+
+    if node_id do
+      # Register the peer if not already known
+      if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+        apply(AiReality2Transnet.PeerManager, :register_peer, [node_id, %{
+          node_name: node_name,
+          address: client_ip
+        }])
+
+        # Update peer's sentants
+        apply(AiReality2Transnet.PeerManager, :update_peer_sentants, [node_id, sentants])
+
+        # Update peer's transport to wifi_hotspot
+        apply(AiReality2Transnet.PeerManager, :update_peer_transport, [node_id, :wifi_hotspot])
+      end
+
+      # Update PNS routing table with client's sentants
+      update_pns_routes_for_peer(node_id, node_name, client_ip, sentants)
+
+      response = %{
+        status: "ok",
+        registered_sentants: length(sentants),
+        host_node_id: Reality2.Bootstrap.get(:node_id)
+      }
+
+      json(conn, response)
+    else
+      conn
+      |> put_status(:bad_request)
+      |> json(%{error: "node_id is required"})
+    end
+  end
+
+  @doc """
   GET /mesh/info - Query node information and capabilities.
 
   Returns node_id, version, capabilities (bluetooth, wifi_mesh, sentant count),
@@ -134,5 +202,37 @@ defmodule Reality2Web.MeshController do
   defp wifi_available? do
     Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) &&
       Process.whereis(AiReality2Transnet.ConnectionManager) != nil
+  end
+
+  defp update_pns_routes_for_peer(peer_node_id, peer_node_name, peer_ip, peer_sentants) do
+    require Logger
+
+    # Update PNS routing table with peer's sentants
+    Enum.each(peer_sentants, fn sentant ->
+      sentant_name = Map.get(sentant, "name") || Map.get(sentant, :name)
+      sentant_id = Map.get(sentant, "id") || Map.get(sentant, :id)
+
+      if sentant_name do
+        pns_key = "#{peer_node_id}|#{sentant_name}"
+
+        Reality2.Metadata.set(:PNS_Routes, pns_key, %{
+          peer_node_id: peer_node_id,
+          peer_node_name: peer_node_name,
+          peer_ip: peer_ip,
+          sentant_name: sentant_name,
+          sentant_id: sentant_id,
+          discovered_at: System.system_time(:millisecond)
+        })
+
+        Logger.debug("[MeshController] PNS route added: #{peer_node_name}|#{sentant_name} -> #{peer_ip}")
+      end
+    end)
+
+    # Notify PNS Router of topology change
+    if Code.ensure_loaded?(AiReality2Pns.Router) do
+      apply(AiReality2Pns.Router, :refresh_topology, [])
+    end
+
+    Logger.info("[MeshController] PNS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
   end
 end

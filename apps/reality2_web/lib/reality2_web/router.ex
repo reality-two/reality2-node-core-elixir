@@ -37,6 +37,15 @@ defmodule Reality2Web.Router do
     get "/info", TransnetController, :info
   end
 
+  # Mesh network endpoints for peer discovery and sentant exchange
+  scope "/mesh", Reality2Web do
+    pipe_through :reality2
+
+    get "/info", MeshController, :info
+    get "/sentants", MeshController, :sentants
+    post "/register", MeshController, :register
+  end
+
   if Mix.env() == :dev do
     forward "/graphiql", Absinthe.Plug.GraphiQL,
       schema: Reality2Web.Schema,

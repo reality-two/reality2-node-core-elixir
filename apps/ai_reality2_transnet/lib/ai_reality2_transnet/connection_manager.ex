@@ -862,6 +862,9 @@ defmodule AiReality2Transnet.ConnectionManager do
             # Update PNS routing table with host's sentants
             update_pns_routing_table(host_node_id, host_ip, host_sentants)
 
+            # Register our sentants with the host (bidirectional exchange)
+            register_with_host(host_ip, host_port)
+
             Logger.info("[ConnectionManager] sentantAll exchange completed successfully")
             :ok
 
@@ -885,22 +888,96 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp get_local_sentants do
-    # Get all local sentants
-    Reality2.Metadata.all(:SentantIDs)
-    |> Enum.map(fn {sentant_id, _} ->
-      case Reality2.Metadata.get(:Sentants, sentant_id) do
-        {:ok, sentant} ->
+    # Get all local sentants with full public info
+    case Reality2.Sentants.read_all(:definition) do
+      {:ok, sentants} ->
+        Enum.map(sentants, fn sentant ->
           %{
-            id: sentant_id,
-            name: Map.get(sentant, :name, "unknown"),
-            description: Map.get(sentant, :description, nil)
+            id: Map.get(sentant, :id),
+            name: Map.get(sentant, :name),
+            description: Map.get(sentant, :description),
+            events: get_event_names(Map.get(sentant, :events, [])),
+            signals: get_signal_names(Map.get(sentant, :signals, []))
           }
+        end)
 
-        _ ->
-          nil
-      end
+      _ ->
+        []
+    end
+  end
+
+  defp get_event_names(events) when is_list(events) do
+    Enum.map(events, fn
+      %{event: name} -> name
+      %{name: name} -> name
+      %{"event" => name} -> name
+      %{"name" => name} -> name
+      name when is_binary(name) -> name
+      _ -> nil
     end)
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp get_event_names(_), do: []
+
+  defp get_signal_names(signals) when is_list(signals) do
+    Enum.map(signals, fn
+      %{signal: name} -> name
+      %{name: name} -> name
+      %{"signal" => name} -> name
+      %{"name" => name} -> name
+      name when is_binary(name) -> name
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp get_signal_names(_), do: []
+
+  # Register our sentants with the host for bidirectional discovery
+  defp register_with_host(host_ip, host_port) do
+    my_node_id = Reality2.Bootstrap.get(:node_id)
+    my_node_name = Reality2.Bootstrap.get(:node_name)
+    my_sentants = get_local_sentants()
+
+    Logger.info("[ConnectionManager] Registering #{length(my_sentants)} sentants with host at #{host_ip}:#{host_port}")
+
+    register_request = %{
+      node_id: my_node_id,
+      node_name: my_node_name,
+      sentants: my_sentants
+    }
+
+    url = "https://#{host_ip}:#{host_port}/mesh/register"
+    headers = [{"content-type", "application/json"}]
+    body = Jason.encode!(register_request)
+
+    request = Finch.build(:post, url, headers, body)
+
+    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
+      {:ok, %Finch.Response{status: 200, body: response_body}} ->
+        case Jason.decode(response_body) do
+          {:ok, %{"status" => "ok", "registered_sentants" => count}} ->
+            Logger.info("[ConnectionManager] Successfully registered #{count} sentants with host")
+            :ok
+
+          {:ok, response} ->
+            Logger.warning("[ConnectionManager] Unexpected register response: #{inspect(response)}")
+            :ok
+
+          {:error, reason} ->
+            Logger.error("[ConnectionManager] Failed to decode register response: #{inspect(reason)}")
+            {:error, "invalid_response"}
+        end
+
+      {:ok, %Finch.Response{status: status, body: body}} ->
+        Logger.error("[ConnectionManager] Register request failed with status #{status}: #{body}")
+        {:error, "http_error_#{status}"}
+
+      {:error, reason} ->
+        Logger.error("[ConnectionManager] Register request failed: #{inspect(reason)}")
+        {:error, "connection_failed"}
+    end
   end
 
   defp update_pns_routing_table(peer_node_id, peer_ip, peer_sentants) do
