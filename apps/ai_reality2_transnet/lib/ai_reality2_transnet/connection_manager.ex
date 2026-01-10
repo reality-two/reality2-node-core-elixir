@@ -800,6 +800,9 @@ defmodule AiReality2Transnet.ConnectionManager do
           {:ok, %{"data" => %{"sentantAll" => host_sentants}}} ->
             Logger.info("[ConnectionManager] Received #{length(host_sentants)} sentants from host")
 
+            # Update PeerManager with host's sentants
+            AiReality2Transnet.PeerManager.update_peer_sentants(host_node_id, host_sentants)
+
             # Update PNS routing table with host's sentants
             update_pns_routing_table(host_node_id, host_ip, host_sentants)
 
@@ -845,6 +848,12 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp update_pns_routing_table(peer_node_id, peer_ip, peer_sentants) do
+    # Get peer's node_name from PeerManager for better identification
+    peer_node_name = case AiReality2Transnet.PeerManager.get_peer(peer_node_id) do
+      {:ok, peer} -> Map.get(peer, :node_name, "Unknown")
+      _ -> "Unknown"
+    end
+
     # Update PNS routing table with peer's sentants
     # Format: peer_node_id|sentant_name -> peer_ip
     Enum.each(peer_sentants, fn sentant ->
@@ -855,19 +864,20 @@ defmodule AiReality2Transnet.ConnectionManager do
         # Store routing entry: node_id|sentant_name -> host_ip
         pns_key = "#{peer_node_id}|#{sentant_name}"
 
-        # Store in PNS metadata (you may want to use a different storage mechanism)
+        # Store in PNS metadata with peer node name for easier identification
         Reality2.Metadata.set(:PNS_Routes, pns_key, %{
           peer_node_id: peer_node_id,
+          peer_node_name: peer_node_name,
           peer_ip: peer_ip,
           sentant_name: sentant_name,
           sentant_id: sentant_id,
           discovered_at: System.system_time(:millisecond)
         })
 
-        Logger.debug("[ConnectionManager] PNS route added: #{pns_key} -> #{peer_ip}")
+        Logger.debug("[ConnectionManager] PNS route added: #{peer_node_name}|#{sentant_name} -> #{peer_ip}")
       end
     end)
 
-    Logger.info("[ConnectionManager] PNS routing table updated with #{length(peer_sentants)} entries")
+    Logger.info("[ConnectionManager] PNS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
   end
 end

@@ -305,10 +305,17 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # The details of a Reality2 node that has been found nearby.
   def handle_info({:r2node_found, id, info}, state) do
-    Logger.info("R2 Node discovered: #{id}")
-
-    # Extract BLE address from info
+    # Extract BLE address and node name from info
     address = Map.get(info, :address)
+    # BLE discovery provides :name (device name), map it to :node_name for PeerManager
+    node_name = Map.get(info, :name) || Map.get(info, :node_name) || "Unknown"
+
+    Logger.info("R2 Node discovered: #{node_name} (#{String.slice(id, 0..7)}...)")
+
+    # Enrich info with properly named fields for downstream consumers
+    enriched_info = info
+      |> Map.put(:node_name, node_name)
+      |> Map.put(:node_id, id)
 
     # Notify all Sentants about the discovery
     Sentants.sendto_all(%{
@@ -316,7 +323,8 @@ defmodule AiReality2Transnet.Bluetooth do
       parameters: %{
         activity: "r2_node_found",
         id: id,
-        info: info,
+        node_name: node_name,
+        info: enriched_info,
         address: address
       }
     })
@@ -324,8 +332,8 @@ defmodule AiReality2Transnet.Bluetooth do
     # Register peer with PeerManager (BLE discovery only - no GATT sentant reading)
     # Sentant queries will happen via WiFi mesh HTTP after upgrade
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      AiReality2Transnet.PeerManager.register_peer(id, info)
-      Logger.info("Peer #{String.slice(id, 0..7)}... registered with PeerManager")
+      AiReality2Transnet.PeerManager.register_peer(id, enriched_info)
+      Logger.info("Peer #{node_name} (#{String.slice(id, 0..7)}...) registered with PeerManager")
     end
 
     {:noreply, state}
