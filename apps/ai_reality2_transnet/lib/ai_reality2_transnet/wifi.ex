@@ -1004,6 +1004,175 @@ defmodule AiReality2Transnet.Wifi do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Host Capability Checking
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @doc """
+  Checks if this node has internet access.
+
+  Performs a quick connectivity test to a reliable external endpoint.
+
+  ## Returns
+  - `true` - Internet is reachable
+  - `false` - No internet access
+  """
+  @spec has_internet_access?() :: boolean()
+  def has_internet_access? do
+    # Try to ping a reliable DNS server (Google's 8.8.8.8)
+    # Using a short timeout to avoid blocking
+    case System.cmd("ping", ["-c", "1", "-W", "2", "8.8.8.8"], stderr_to_stdout: true) do
+      {_, 0} -> true
+      _ -> false
+    end
+  rescue
+    _ -> false
+  end
+
+  @doc """
+  Checks if this node has a wired (non-WiFi) interface with internet access.
+
+  This is important because:
+  - A node with Ethernet + WiFi can host a hotspot AND keep internet
+  - A node with only WiFi loses internet when it becomes a hotspot
+
+  ## Returns
+  - `true` - Has wired internet (Ethernet, USB, etc.)
+  - `false` - Only has WiFi or no internet
+  """
+  @spec has_wired_internet?() :: boolean()
+  def has_wired_internet? do
+    case System.cmd("ip", ["route", "show", "default"], stderr_to_stdout: true) do
+      {output, 0} ->
+        # Find interfaces with default routes
+        interfaces = output
+          |> String.split("\n", trim: true)
+          |> Enum.map(fn line ->
+            case Regex.run(~r/dev\s+(\S+)/, line) do
+              [_, interface] -> interface
+              _ -> nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+
+        # Check if any default route is on a non-WiFi interface
+        # WiFi interfaces typically start with wl (wlan0, wlp2s0, etc.)
+        # Ethernet typically starts with eth, en, or em
+        Enum.any?(interfaces, fn iface ->
+          !String.starts_with?(iface, "wl")
+        end)
+
+      _ ->
+        false
+    end
+  rescue
+    _ -> false
+  end
+
+  @doc """
+  Checks if this node has multiple WiFi adapters.
+
+  With 2+ WiFi adapters, one can stay connected to internet (station mode)
+  while the other runs as a hotspot (AP mode).
+
+  ## Returns
+  - `true` - Has 2 or more WiFi adapters
+  - `false` - Has 0 or 1 WiFi adapter
+  """
+  @spec has_multiple_wifi_adapters?() :: boolean()
+  def has_multiple_wifi_adapters? do
+    case list_adapters() do
+      {:ok, adapters} when length(adapters) >= 2 -> true
+      _ -> false
+    end
+  end
+
+  @doc """
+  Checks if this node can provide NAT (has multiple network interfaces with one having internet).
+
+  A node can provide NAT if:
+  1. It has at least 2 network interfaces (e.g., eth0 + wlan0)
+  2. One interface has internet access
+  3. The WiFi interface can run as a hotspot
+
+  ## Returns
+  - `true` - Can provide NAT for hotspot clients
+  - `false` - Cannot provide NAT
+  """
+  @spec can_provide_nat?() :: boolean()
+  def can_provide_nat? do
+    # Count non-loopback interfaces with IP addresses
+    case System.cmd("ip", ["-4", "-o", "addr", "show"], stderr_to_stdout: true) do
+      {output, 0} ->
+        interfaces = output
+          |> String.split("\n", trim: true)
+          |> Enum.map(fn line ->
+            case Regex.run(~r/^\d+:\s+(\S+)\s+/, line) do
+              [_, interface] -> interface
+              _ -> nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.reject(&(&1 == "lo"))  # Exclude loopback
+          |> Enum.uniq()
+
+        # Need at least 2 interfaces and internet access
+        length(interfaces) >= 2 && has_internet_access?()
+
+      _ ->
+        false
+    end
+  rescue
+    _ -> false
+  end
+
+  @doc """
+  Gets a hosting priority score for this node.
+
+  Higher score = better host candidate.
+
+  ## Scoring:
+  - 100: Has WIRED internet + WiFi, OR has 2+ WiFi adapters with internet - BEST
+         (can NAT and keeps internet as host)
+  - 75: Has internet + multiple interfaces but single WiFi (may lose internet)
+  - 50: Has internet but single interface (will lose internet as host)
+  - 10: No internet but has WiFi (can still host locally)
+  - 0: No WiFi capability
+
+  The key distinction is whether the node can maintain internet while hosting:
+  - Wired internet (Ethernet) is retained when WiFi becomes a hotspot
+  - Multiple WiFi adapters: one for internet, one for hotspot
+  - Single WiFi: loses internet when it becomes a hotspot
+
+  ## Returns
+  - Integer score (0-100)
+  """
+  @spec get_hosting_priority() :: integer()
+  def get_hosting_priority do
+    has_wifi = case list_adapters() do
+      {:ok, [_ | _]} -> true
+      _ -> false
+    end
+
+    has_wired = has_wired_internet?()
+    has_multi_wifi = has_multiple_wifi_adapters?()
+    has_internet = has_internet_access?()
+    can_nat = can_provide_nat?()
+
+    # Can maintain internet while hosting if:
+    # - Has wired internet (Ethernet stays connected)
+    # - Has 2+ WiFi adapters (one for internet, one for hotspot)
+    can_host_with_internet = (has_wired || has_multi_wifi) && has_internet
+
+    cond do
+      !has_wifi -> 0
+      can_host_with_internet && can_nat -> 100  # Best: keeps internet while hosting
+      can_nat -> 75                              # Good: can NAT but may lose internet
+      has_internet -> 50                         # OK: has internet but single interface
+      true -> 10                                 # Basic: can host but no internet
+    end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
   # NAT Configuration for Hotspot Internet Sharing
   # -----------------------------------------------------------------------------------------------------------------------------------------
 

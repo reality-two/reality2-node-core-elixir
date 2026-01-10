@@ -286,7 +286,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     # 2. We're not already connected or hosting
     # 3. We have WiFi capability
     # 4. There are discovered peers who could connect to us
-    # 5. We "win" the tie-breaker (lowest node_id becomes host)
+    # 5. We "win" the selection (best hosting priority, then lowest node_id as tie-breaker)
 
     if reason in ["no_candidates_available", "no_better_candidate", "no_join_offer_available", "no_join_offer_for_candidate"] do
       case ConnectionManager.get_connection_status() do
@@ -296,17 +296,25 @@ defmodule AiReality2Transnet.ConnectionAssessor do
           Logger.debug("[ConnectionAssessor] Checking hosting: #{map_size(peers)} peers discovered")
 
           if map_size(peers) > 0 do
-            # Use node_id comparison as tie-breaker
-            # The node with the "lowest" ID becomes the host
+            # Check our hosting priority (internet + NAT capability)
+            my_priority = AiReality2Transnet.Wifi.get_hosting_priority()
             my_node_id = Reality2.Bootstrap.get(:node_id)
-            peer_ids = Map.keys(peers)
-            lowest_id = Enum.min([my_node_id | peer_ids])
 
-            if my_node_id == lowest_id do
+            # Determine if we should host based on priority and node_id
+            should_host = should_we_host?(my_priority, my_node_id, peers)
+
+            if should_host do
               # We should be the host
               case AiReality2Transnet.Wifi.list_adapters() do
                 {:ok, [_ | _]} ->
-                  Logger.info("[ConnectionAssessor] No hosts available and we have lowest ID - starting hotspot...")
+                  reason_text = cond do
+                    my_priority >= 100 -> "wired internet + NAT capability (best host)"
+                    my_priority >= 75 -> "NAT capability (may lose internet)"
+                    my_priority >= 50 -> "internet access (single interface)"
+                    true -> "lowest ID (no internet)"
+                  end
+
+                  Logger.info("[ConnectionAssessor] Starting hotspot - #{reason_text} (priority: #{my_priority})")
 
                   Task.start(fn ->
                     case ConnectionManager.start_hosting() do
@@ -323,7 +331,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
               end
             else
               # We should be a client - try to find and connect to an R2 hotspot
-              Logger.info("[ConnectionAssessor] Lower ID node #{String.slice(lowest_id, 0..7)}... should host - scanning for R2 hotspots...")
+              Logger.info("[ConnectionAssessor] Another node should host - scanning for R2 hotspots...")
 
               Task.start(fn ->
                 try_connect_to_r2_hotspot()
@@ -336,6 +344,37 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
         _ ->
           :ok
+      end
+    end
+  end
+
+  # Determine if we should be the host based on priority and node_id
+  # Priority scoring:
+  # - 100: Wired internet + WiFi (can NAT, keeps internet) - BEST
+  # - 75: Can NAT but WiFi-only internet (will lose internet as host)
+  # - 50: Has internet but single interface
+  # - 10: No internet but has WiFi
+  # - 0: No WiFi capability
+  defp should_we_host?(my_priority, my_node_id, _peers) do
+    # Only nodes with WIRED internet should aggressively try to host
+    # This ensures the host can share internet without losing its own connection
+    if my_priority >= 100 do
+      Logger.debug("[ConnectionAssessor] High priority (#{my_priority}) - wired internet, best host candidate")
+      true
+    else
+      # For lower priorities, fall back to lowest node_id as tie-breaker
+      # Nodes with WiFi-only internet (priority 75) shouldn't aggressively host
+      # because they'll lose internet when they become a hotspot
+      # In the future, we could exchange priorities via BLE beacon for smarter selection
+      peer_ids = Map.keys(_peers)
+      lowest_id = Enum.min([my_node_id | peer_ids])
+
+      if my_node_id == lowest_id do
+        Logger.debug("[ConnectionAssessor] Lowest ID (#{String.slice(my_node_id, 0..7)}...) - becoming host (priority: #{my_priority})")
+        true
+      else
+        Logger.debug("[ConnectionAssessor] Node #{String.slice(lowest_id, 0..7)}... has lower ID")
+        false
       end
     end
   end
