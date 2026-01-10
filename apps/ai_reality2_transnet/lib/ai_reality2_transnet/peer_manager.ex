@@ -315,25 +315,36 @@ defmodule AiReality2Transnet.PeerManager do
     # Extract hosting priority from beacon (0-100, default 0 if not broadcast)
     hosting_priority = Map.get(info, :hosting_priority) || Map.get(info, "hosting_priority") || 0
 
-    # Build new peer record with defaults
-    # Start with BLE transport (will be upgraded to WiFi later if available)
-    peer = %{
-      node_id: node_id,
-      node_name: node_name,              # Human-readable node name
-      transport: :ble_gatt,              # Initially discovered via BLE beacon
-      address: Map.get(info, :address),  # BLE MAC address
-      rssi: Map.get(info, :rssi),        # Signal strength from beacon
-      hosting_priority: hosting_priority,# WiFi hosting priority (0-100)
-      sentants: [],                      # Will be populated after exchange
-      capabilities: capabilities,        # From beacon flags or GATT
-      discovered_at: System.system_time(:millisecond),
-      last_seen: System.system_time(:millisecond),
-      connection_state: :discovered      # Initial state in lifecycle
-    }
-
-    # If peer already exists, merge new data with existing record
-    # This preserves sentants list, capabilities, etc. while updating RSSI and last_seen
-    peer = if existing, do: Map.merge(existing, peer), else: peer
+    # Build peer record - handle existing vs new peers differently
+    peer = if existing do
+      # EXISTING PEER: Only update fields that change on BLE beacon reception
+      # PRESERVE: sentants, connection_state, transport, discovered_at, capabilities (unless new ones provided)
+      existing
+      |> Map.put(:rssi, Map.get(info, :rssi))
+      |> Map.put(:last_seen, System.system_time(:millisecond))
+      |> Map.put(:hosting_priority, hosting_priority)
+      |> Map.put(:address, Map.get(info, :address) || existing.address)
+      |> Map.put(:node_name, node_name || existing.node_name)
+      |> then(fn p ->
+        # Only update capabilities if new ones were provided
+        if map_size(capabilities) > 0, do: Map.put(p, :capabilities, capabilities), else: p
+      end)
+    else
+      # NEW PEER: Create full record with defaults
+      %{
+        node_id: node_id,
+        node_name: node_name,              # Human-readable node name
+        transport: :ble_gatt,              # Initially discovered via BLE beacon
+        address: Map.get(info, :address),  # BLE MAC address
+        rssi: Map.get(info, :rssi),        # Signal strength from beacon
+        hosting_priority: hosting_priority,# WiFi hosting priority (0-100)
+        sentants: [],                      # Will be populated after exchange
+        capabilities: capabilities,        # From beacon flags or GATT
+        discovered_at: System.system_time(:millisecond),
+        last_seen: System.system_time(:millisecond),
+        connection_state: :discovered      # Initial state in lifecycle
+      }
+    end
 
     # Store updated peer in state
     new_peers = Map.put(state.peers, node_id, peer)

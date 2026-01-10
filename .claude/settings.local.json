@@ -37,7 +37,10 @@
       "Bash(git stash show:*)",
       "Bash(git stash:*)",
       "Bash(git commit:*)",
-      "Bash(mix test:*)"
+      "Bash(mix test:*)",
+      "Bash(adb devices:*)",
+      "Bash(./gradlew installDebug:*)",
+      "Bash(JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew installDebug:*)"
     ]
   }
 }
