@@ -8,6 +8,7 @@
 //! - **beacon** - AltBeacon broadcasting for continuous presence advertisement
 //! - **discovery** - BLE scanning to detect nearby Reality2 nodes
 //! - **gatt** - GATT server for Android app and mesh coordination
+//! - **mesh** - BLE Mesh for scalable Sentant communication (future)
 //! - **common** - Shared utilities (adapter selection, constants)
 //! - **resources** - Rust resource handles for Elixir lifecycle management
 //! - **types** - Shared data structures and type definitions
@@ -15,12 +16,13 @@
 //! ## Design Philosophy
 //!
 //! **BLE is for discovery, WiFi is for data:**
-//! - BLE: Low power, always-on, "who's nearby?"
-//! - WiFi: High bandwidth, on-demand, "query sentants, send commands"
+//! - BLE Beacon: Low power, always-on, "who's nearby?"
+//! - BLE Mesh: Scalable, low-bandwidth Sentant events/signals
+//! - WiFi: High bandwidth, on-demand, "bulk data, definitions"
 //!
 //! ## Resource Management
 //!
-//! All long-running BLE operations (beacon, scan, GATT server) return resource handles
+//! All long-running BLE operations (beacon, scan, GATT server, mesh) return resource handles
 //! to Elixir. These handles provide graceful shutdown via oneshot channels and are
 //! automatically cleaned up when garbage collected.
 
@@ -28,6 +30,7 @@ pub mod beacon;
 pub mod common;
 pub mod discovery;
 pub mod gatt;
+pub mod mesh;
 pub mod resources;
 pub mod types;
 

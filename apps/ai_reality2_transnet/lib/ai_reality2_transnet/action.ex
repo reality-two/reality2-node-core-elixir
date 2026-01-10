@@ -290,4 +290,97 @@ The server typically exposes:
   # NOTE: WiFi mesh functionality is now implemented in pure Elixir.
   # See: AiReality2Transnet.Wifi module for WiFi operations.
   # The Rust NIFs were causing signal handler conflicts with the Erlang VM when spawning processes.
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # BLE Mesh NIFs (Sentant Mesh Communication)
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @doc """
+  Initializes the BLE Mesh stack.
+
+  ## Parameters
+  - `pid` - Elixir process to receive mesh events
+  - `node_uuid` - UUID for this node (typically Reality2 node_id)
+  - `adapter_name` - Bluetooth adapter (e.g., "hci0")
+
+  ## Events sent to `pid`
+  - `{:mesh_initialized, unicast_address}` - Mesh ready
+  - `{:mesh_sentant_event, sentant_hash, event_hash, params_json}` - Incoming event
+  - `{:mesh_sentant_signal, source, target, signal_hash, params_json}` - Incoming signal
+  - `{:mesh_sentant_presence, node_hash, count, sentant_hashes}` - Node announcement
+
+  ## Returns
+  - `{:ok, handle}` - Mesh initialized
+  - `{:error, reason}` - Failed to initialize
+  """
+  def mesh_init(_pid, _node_uuid, _adapter_name), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
+  Publishes a message to the mesh network.
+
+  ## Parameters
+  - `handle` - Mesh handle from mesh_init
+  - `dst_address` - Destination (unicast, group, or virtual)
+  - `opcode` - Message opcode
+  - `payload` - Message payload bytes
+
+  ## Returns
+  - `:ok` - Message queued
+  - `{:error, reason}` - Failed
+  """
+  def mesh_publish(_handle, _dst_address, _opcode, _payload), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
+  Subscribes to a group or virtual address.
+
+  ## Parameters
+  - `handle` - Mesh handle
+  - `address` - Address to subscribe to
+
+  ## Returns
+  - `:ok` - Subscribed
+  - `{:error, reason}` - Failed
+  """
+  def mesh_subscribe(_handle, _address), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
+  Unsubscribes from a group or virtual address.
+  """
+  def mesh_unsubscribe(_handle, _address), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
+  Gets the mesh node's unicast address.
+  """
+  def mesh_get_address(_handle), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
+  Shuts down the mesh stack.
+  """
+  def mesh_shutdown(_handle), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
+  Computes virtual address for a Sentant.
+
+  Uses consistent hashing to generate a 16-bit virtual address from
+  node_id and sentant_name. Same inputs always produce same address.
+
+  ## Parameters
+  - `node_id` - Node UUID
+  - `sentant_name` - Sentant name
+
+  ## Returns
+  - `{:ok, address}` - 16-bit virtual address (0x8000-0xBFFF)
+  """
+  def mesh_sentant_address(_node_id, _sentant_name), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
+  Computes group address from group name.
+
+  ## Parameters
+  - `group_name` - Name of the group
+
+  ## Returns
+  - `{:ok, address}` - 16-bit group address (0xC000-0xFEFF)
+  """
+  def mesh_group_address(_group_name), do: :erlang.nif_error(:nif_not_loaded)
 end

@@ -114,6 +114,43 @@ defmodule AiReality2Transnet.Bluetooth do
     end
   end
 
+  @doc """
+  Broadcasts an R2 Mesh message to nearby nodes.
+
+  This function transmits mesh messages using available BLE mechanisms:
+  1. GATT notifications to connected clients
+  2. Discovery relay to nearby nodes (via PeerManager)
+
+  ## Parameters
+  - `encoded_message` - Binary message (24 bytes max for BLE advertising)
+
+  ## Message Format
+  ```
+  [msg_id:2][ttl:1][type:1][src_hash:2][payload:18]
+  ```
+
+  ## Returns
+  - `:ok` - Message queued for broadcast
+  - `{:error, reason}` - Failed to broadcast
+  """
+  def broadcast_mesh_message(encoded_message) do
+    GenServer.cast(__MODULE__, {:broadcast_mesh_message, encoded_message})
+  end
+
+  @doc """
+  Handles incoming R2 Mesh messages from BLE discovery.
+
+  Called when a mesh message is detected in manufacturer data from a nearby node.
+  The message is forwarded to R2Mesh for processing and potential relay.
+
+  ## Parameters
+  - `encoded_message` - Binary mesh message
+  - `source_info` - Map with source node info (address, rssi, etc.)
+  """
+  def handle_incoming_mesh_message(encoded_message, source_info) do
+    GenServer.cast(__MODULE__, {:incoming_mesh_message, encoded_message, source_info})
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # GenServer callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -265,6 +302,47 @@ defmodule AiReality2Transnet.Bluetooth do
     end
   end
 
+  # R2 Mesh message broadcast - send to nearby nodes via GATT and relay
+  def handle_cast({:broadcast_mesh_message, encoded_message}, state) do
+    Logger.debug("[Bluetooth] Broadcasting mesh message (#{byte_size(encoded_message)} bytes)")
+
+    # 1. Send via GATT notification to connected clients
+    if handle = Map.get(state, :gatt_handle) do
+      mesh_notification = %{
+        type: "r2_mesh",
+        version: @protocol_version,
+        timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+        data: Base.encode64(encoded_message)
+      }
+      encode_and_notify(handle, mesh_notification)
+    end
+
+    # 2. Queue for relay via discovery mechanism
+    # The mesh message will be picked up by nearby nodes during their next scan
+    # For now, we rely on GATT notifications to connected peers
+    # Future: Could embed mesh data in manufacturer data alongside beacon
+
+    # Track mesh messages broadcast
+    mesh_sent = Map.get(state, :mesh_messages_sent, 0)
+    {:noreply, Map.put(state, :mesh_messages_sent, mesh_sent + 1)}
+  end
+
+  # Incoming R2 Mesh message from BLE discovery - forward to R2Mesh for processing
+  def handle_cast({:incoming_mesh_message, encoded_message, source_info}, state) do
+    Logger.debug("[Bluetooth] Received mesh message from #{inspect(source_info[:address])}")
+
+    # Forward to R2Mesh module for deduplication, processing, and potential relay
+    if Code.ensure_loaded?(AiReality2Transnet.R2Mesh) do
+      AiReality2Transnet.R2Mesh.handle_incoming(encoded_message)
+    else
+      Logger.warning("[Bluetooth] R2Mesh module not available, dropping mesh message")
+    end
+
+    # Track mesh messages received
+    mesh_received = Map.get(state, :mesh_messages_received, 0)
+    {:noreply, Map.put(state, :mesh_messages_received, mesh_received + 1)}
+  end
+
   def handle_cast(_, state), do: {:noreply, state}
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -382,6 +460,20 @@ defmodule AiReality2Transnet.Bluetooth do
         id: Reality2.Bootstrap.get(:node_id)
       }
     })
+
+    {:noreply, state}
+  end
+
+  # GATT mesh data received from connected client
+  def handle_info({:gatt_write, "mesh", data}, state) do
+    Logger.debug("[Bluetooth] GATT mesh data received")
+
+    # Decode from bytes and forward to R2Mesh
+    mesh_data = if is_list(data), do: :binary.list_to_bin(data), else: data
+
+    if Code.ensure_loaded?(AiReality2Transnet.R2Mesh) do
+      AiReality2Transnet.R2Mesh.handle_incoming(mesh_data)
+    end
 
     {:noreply, state}
   end

@@ -156,6 +156,12 @@ pub mod atoms {
         gatt_read,
         gatt_write_success,
         gatt_services_discovered,
+        // BLE Mesh atoms
+        mesh_initialized,
+        mesh_message,
+        mesh_sentant_event,
+        mesh_sentant_signal,
+        mesh_sentant_presence,
     }
 }
 

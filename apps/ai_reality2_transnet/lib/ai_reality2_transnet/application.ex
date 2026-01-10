@@ -35,6 +35,10 @@ defmodule AiReality2Transnet.Application do
       %{
         id: AiReality2Transnet.Bluetooth,
         start: {AiReality2Transnet.Bluetooth, :start_link, [AiReality2Transnet.Bluetooth]}
+      },
+      %{
+        id: AiReality2Transnet.R2Mesh,
+        start: {AiReality2Transnet.R2Mesh, :start_link, [[]]}
       }
       # NOTE: Legacy modules removed (preserved in git history):
       # - WifiServer: Port 8080/8081 HTTP server for mesh networking
