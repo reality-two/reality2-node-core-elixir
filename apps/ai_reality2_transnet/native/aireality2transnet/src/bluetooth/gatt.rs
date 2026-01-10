@@ -14,8 +14,8 @@ use crate::bluetooth::resources::GattServerHandle;
 
 const STARTUP_TIMEOUT_SECS: u64 = 3;
 
-// R2 GATT Service UUID - replace with your own
-const R2_SERVICE_UUID: Uuid = Uuid::from_u128(0x0000180A_0000_1000_8000_00805F9B34FB);
+// R2 GATT Service UUID - must match Android app's BleCharacteristics.R2_SERVICE_UUID
+const R2_SERVICE_UUID: Uuid = Uuid::from_u128(0x00001234_0000_1000_8000_00805F9B34FB);
 
 // Characteristic UUIDs - replace with your own
 const CHAR_COMMAND_UUID: Uuid = Uuid::from_u128(0x00002A57_0000_1000_8000_00805F9B34FB);
