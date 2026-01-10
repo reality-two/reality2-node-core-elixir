@@ -2,10 +2,33 @@
 
 ## Overview
 
-Reality2 Transient Networks use a **two-tier discovery and communication protocol**:
+Reality2 Transient Networks use a **multi-transport mesh architecture** with automatic transport selection:
 
-1. **BLE (Bluetooth Low Energy)** - For discovery and initial handshake
-2. **WiFi Mesh (IEEE 802.11s)** - For high-bandwidth data queries
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Sentants / PNS Router                        │
+│                 (transport agnostic routing)                    │
+├─────────────────────────────────────────────────────────────────┤
+│                     Transport Selection                         │
+├──────────┬──────────┬──────────┬──────────┬────────────────────┤
+│  R2Mesh  │   WiFi   │   LoRa   │  Thread  │      Matter        │
+│  (BLE)   │  Hotspot │   Mesh   │   Mesh   │   (smart home)     │
+│  ~10m    │  ~100m   │  ~15km   │  ~30m    │   device control   │
+│ ✓ ready  │ ✓ ready  │ ✓ ready  │  future  │      future        │
+└──────────┴──────────┴──────────┴──────────┴────────────────────┘
+```
+
+### Current Transports
+
+1. **BLE Discovery + R2Mesh** - Low power, always on, small messages (~24 bytes)
+2. **WiFi Hotspot** - High bandwidth, auto-created mesh via WPA2-PSK
+3. **LoRa Mesh** (optional) - Long range (~15km), USB dongle, medium messages (~200 bytes)
+
+### Future Transports
+
+4. **BLE Mesh** - Requires BlueZ 5.47+, code ready, waiting for OS support
+5. **WiFi Mesh (802.11s)** - Kernel-level mesh, for infrastructure deployments
+6. **Thread/Matter** - Smart home integration (see Future Enhancements)
 
 This architecture avoids the 512-byte GATT characteristic size limit while maintaining low-power discovery.
 
@@ -175,18 +198,24 @@ WiFi mesh (IEEE 802.11s) is used for:
 ## Code Structure
 
 ### BLE Layer
-- `AiReality2Transnet.Bluetooth` - BLE beacon and GATT server (for Android app)
-- `AiReality2Transnet.GattProtocol` - Minimal GATT protocol for device-to-device
+- `AiReality2Transnet.Bluetooth` - BLE beacon, GATT server, discovery
+- `AiReality2Transnet.GattProtocol` - GATT protocol for device-to-device
 - `AiReality2Transnet.Action` - Rust NIFs for BlueZ integration
+- `AiReality2Transnet.R2Mesh` - Simple BLE relay mesh (works on any BlueZ)
+- `AiReality2Transnet.BLEMesh` - Full BLE Mesh (requires BlueZ 5.47+, future)
 
 ### WiFi Layer
-- `AiReality2Transnet.Wifi` - Pure Elixir WiFi mesh operations (iw/ip commands)
-- `AiReality2Transnet.WifiServer` - WiFi mesh management (create/destroy mesh)
-- `Reality2Web.MeshController` - HTTP endpoints for mesh queries (/mesh/sentants, /mesh/info)
+- `AiReality2Transnet.Wifi` - WiFi hotspot/client operations via NetworkManager
+- `AiReality2Transnet.ConnectionManager` - Hotspot creation, client connections
+- `AiReality2Transnet.ConnectionAssessor` - Connection quality, handover decisions
+- `Reality2Web.MeshController` - HTTP endpoints for mesh queries
+
+### LoRa Layer (Optional)
+- `AiReality2Transnet.LoRaMesh` - LoRa mesh via USB dongle (auto-detects hardware)
 
 ### Management Layer
-- `AiReality2Transnet.PeerManager` - Track discovered peers
-- `AiReality2Transnet.TransportManager` - Decide when to upgrade BLE→WiFi
+- `AiReality2Transnet.PeerManager` - Track discovered peers across all transports
+- `AiReality2Transnet.Main` - Sentant plugin interface
 
 ### Integration Layer
 - `AiReality2Pns.Router` - Location-transparent Sentant routing
@@ -258,15 +287,73 @@ mix compile
 
 ## Future Enhancements
 
+### Near Term
 1. **mDNS Discovery** - Use mDNS instead of/in addition to BLE beaconing
 2. **WebSocket Subscriptions** - Stream Sentant signals over WebSocket
-3. **Mesh Routing** - Multi-hop queries through mesh network
-4. **Security** - Add TLS for HTTP, encryption for mesh
-5. **Android Integration** - Update reality2-android-devtool to use new protocol
+3. **Security Hardening** - TLS for HTTP, per-deployment PSK secrets
+4. **Android Integration** - Update reality2-android-devtool to use new protocol
+
+### Medium Term - Thread/Matter Integration
+
+Thread and Matter would enable Sentants to interact with smart home devices.
+
+#### Thread Mesh (802.15.4)
+- **What**: Low-power IPv6 mesh network, same radio as Zigbee
+- **Hardware**: ESP32-C6 (native), USB 802.15.4 dongle
+- **Use case**: Sentant-to-Sentant over Thread mesh
+- **Module**: `thread_mesh.ex` (same API as R2Mesh/LoRaMesh)
+
+#### Matter Bridge
+- **What**: Application layer for smart home interoperability
+- **Integration**: Reality2 as Matter controller
+- **Use cases**:
+  - Light Sentant → controls Philips Hue/IKEA bulbs
+  - Sensor events → trigger Sentant automations
+  - Sentant signals → control locks, thermostats
+- **Module**: `matter_bridge.ex`
+
+#### Protocol Comparison
+
+| Protocol | Frequency | Range | Power | Mesh | Best For |
+|----------|-----------|-------|-------|------|----------|
+| R2Mesh (BLE) | 2.4 GHz | ~10m | Very Low | Yes | Discovery, small msgs |
+| WiFi | 2.4/5 GHz | ~100m | High | Hotspot | Bulk data, GraphQL |
+| LoRa | Sub-GHz | ~15km | Low | Yes | Rural, outdoor |
+| Thread | 2.4 GHz | ~30m | Very Low | Yes | Smart home mesh |
+| Zigbee | 2.4 GHz | ~30m | Low | Yes | Legacy sensors |
+| Z-Wave | 868/908 MHz | ~100m | Low | Yes | Reliable automation |
+| Z-Wave LR | Sub-GHz | ~1km | Low | Yes | Large properties |
+
+#### Implementation Approach
+1. Add `thread_mesh.ex` following LoRaMesh pattern
+2. Add `matter_bridge.ex` for device control
+3. PNS Router selects transport based on message type/destination
+4. Sentant definitions unchanged - transport is transparent
+
+### Long Term
+5. **WiFi Mesh (802.11s)** - Kernel-level mesh for infrastructure
+6. **Signed Events** - Cryptographic verification of event sources
+7. **Sentant Access Control** - Per-Sentant authorization policies
 
 ## References
 
+### Current Implementation
 - [IEEE 802.11s WiFi Mesh](https://en.wikipedia.org/wiki/IEEE_802.11s)
 - [AltBeacon Specification](https://github.com/AltBeacon/spec)
-- [Plug.Router Documentation](https://hexdocs.pm/plug/Plug.Router.html)
+- [BlueZ Bluetooth Stack](http://www.bluez.org/)
 - [Rustler NIFs](https://github.com/rusterlium/rustler)
+
+### LoRa
+- [LoRa Alliance](https://lora-alliance.org/)
+- [Meshtastic](https://meshtastic.org/) - Open source LoRa mesh
+- [Circuits.UART](https://hexdocs.pm/circuits_uart/) - Elixir serial communication
+
+### Thread/Matter (Future)
+- [Thread Group](https://www.threadgroup.org/)
+- [Matter (CSA)](https://csa-iot.org/all-solutions/matter/)
+- [OpenThread](https://openthread.io/) - Open source Thread implementation
+- [Matter SDK](https://github.com/project-chip/connectedhomeip)
+
+### Smart Home Protocols
+- [Zigbee Alliance](https://zigbeealliance.org/)
+- [Z-Wave Alliance](https://z-wavealliance.org/)
