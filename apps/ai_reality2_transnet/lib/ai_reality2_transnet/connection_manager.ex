@@ -311,6 +311,22 @@ defmodule AiReality2Transnet.ConnectionManager do
     GenServer.cast(__MODULE__, {:wifi_connected, ssid})
   end
 
+  @doc """
+  Register a connected client (called by MeshController when client registers).
+
+  ## Parameters
+  - `node_id` - UUID of the client node
+  - `node_name` - Human-readable name of the client
+  - `client_ip` - IP address of the client
+
+  ## Returns
+  - `:ok`
+  """
+  @spec register_connected_client(String.t(), String.t(), String.t()) :: :ok
+  def register_connected_client(node_id, node_name, client_ip) do
+    GenServer.cast(__MODULE__, {:register_client, node_id, node_name, client_ip})
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # GenServer Callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -350,6 +366,9 @@ defmodule AiReality2Transnet.ConnectionManager do
         hosting_sessions: 0
       }
     }
+
+    # Subscribe to sentants topic to detect local sentant changes
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "sentants")
 
     Logger.info("[ConnectionManager] Started - WiFi interface: #{wifi_interface || "none"}")
     {:ok, state}
@@ -529,6 +548,119 @@ defmodule AiReality2Transnet.ConnectionManager do
     end)
 
     {:noreply, new_state}
+  end
+
+  # Handle client registration (from MeshController)
+  @impl true
+  def handle_cast({:register_client, node_id, node_name, client_ip}, state) do
+    Logger.info("[ConnectionManager] Client registered: #{node_name} (#{String.slice(node_id, 0..7)}...) at #{client_ip}")
+
+    # Add or update client in connected_clients list
+    client_info = %{node_id: node_id, node_name: node_name, ip: client_ip, registered_at: System.system_time(:millisecond)}
+    updated_clients = state.connected_clients
+      |> Enum.reject(fn c -> c.node_id == node_id end)  # Remove old entry if exists
+      |> Kernel.++([client_info])  # Add new entry
+
+    {:noreply, %{state | connected_clients: updated_clients}}
+  end
+
+  # Handle local sentant creation - re-register with host if connected as client
+  @impl true
+  def handle_info({:sentants, :created, %{id: id, name: name}}, state) do
+    Logger.debug("[ConnectionManager] Local sentant created: #{name} (#{String.slice(id, 0..7)}...)")
+    handle_sentant_change(state)
+  end
+
+  @impl true
+  def handle_info({:sentants, :updated, %{id: id, name: name}}, state) do
+    Logger.debug("[ConnectionManager] Local sentant updated: #{name} (#{String.slice(id, 0..7)}...)")
+    handle_sentant_change(state)
+  end
+
+  @impl true
+  def handle_info({:sentants, :deleted, %{id: id}}, state) do
+    Logger.debug("[ConnectionManager] Local sentant deleted: #{String.slice(id, 0..7)}...")
+    handle_sentant_change(state)
+  end
+
+  # Catch-all for other sentant events
+  @impl true
+  def handle_info({:sentants, _event, _data}, state) do
+    {:noreply, state}
+  end
+
+  defp handle_sentant_change(state) do
+    case state.connection_state do
+      :connected_as_client ->
+        # We're connected to a host - re-register our sentants
+        if state.current_host_ip do
+          Task.start(fn ->
+            Logger.info("[ConnectionManager] Re-registering sentants with host after local change")
+            register_with_host(state.current_host_ip, 4005)
+          end)
+        end
+
+      :hosting_ap ->
+        # We're hosting - notify connected clients
+        # Clients will need to re-query us or we push to them
+        notify_clients_of_sentant_change(state)
+
+      _ ->
+        :ok
+    end
+
+    {:noreply, state}
+  end
+
+  defp notify_clients_of_sentant_change(state) do
+    # Refresh local PNS topology
+    if Code.ensure_loaded?(AiReality2Pns.Router) do
+      AiReality2Pns.Router.refresh_topology()
+    end
+
+    # Push updated sentants to all connected clients
+    if length(state.connected_clients) > 0 do
+      my_node_id = Reality2.Bootstrap.get(:node_id)
+      my_node_name = Reality2.Bootstrap.get(:node_name)
+      my_sentants = get_local_sentants()
+
+      Logger.info("[ConnectionManager] Pushing #{length(my_sentants)} sentants to #{length(state.connected_clients)} connected client(s)")
+
+      Enum.each(state.connected_clients, fn client ->
+        Task.start(fn ->
+          push_sentants_to_client(client.ip, my_node_id, my_node_name, my_sentants)
+        end)
+      end)
+    else
+      Logger.debug("[ConnectionManager] Host sentant change - no connected clients to notify")
+    end
+
+    :ok
+  end
+
+  defp push_sentants_to_client(client_ip, my_node_id, my_node_name, my_sentants) do
+    register_request = %{
+      node_id: my_node_id,
+      node_name: my_node_name,
+      sentants: my_sentants
+    }
+
+    url = "https://#{client_ip}:4005/mesh/register"
+    headers = [{"content-type", "application/json"}]
+    body = Jason.encode!(register_request)
+
+    request = Finch.build(:post, url, headers, body)
+
+    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
+      {:ok, %Finch.Response{status: 200}} ->
+        Logger.debug("[ConnectionManager] Successfully pushed sentants to client #{client_ip}")
+
+      {:ok, %Finch.Response{status: status}} ->
+        Logger.warning("[ConnectionManager] Push to client #{client_ip} returned status #{status}")
+
+      {:error, reason} ->
+        Logger.warning("[ConnectionManager] Failed to push to client #{client_ip}: #{inspect(reason)}")
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------

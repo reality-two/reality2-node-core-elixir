@@ -82,6 +82,11 @@ defmodule Reality2Web.MeshController do
         apply(AiReality2Transnet.PeerManager, :update_peer_transport, [node_id, :wifi_hotspot])
       end
 
+      # Register client with ConnectionManager so host can push updates
+      if Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) do
+        apply(AiReality2Transnet.ConnectionManager, :register_connected_client, [node_id, node_name, client_ip])
+      end
+
       # Update PNS routing table with client's sentants
       update_pns_routes_for_peer(node_id, node_name, client_ip, sentants)
 
