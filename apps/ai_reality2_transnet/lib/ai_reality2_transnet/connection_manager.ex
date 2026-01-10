@@ -534,12 +534,25 @@ defmodule AiReality2Transnet.ConnectionManager do
     # External notification that WiFi was connected (e.g., by ConnectionAssessor auto-discovery)
     Logger.info("[ConnectionManager] WiFi connection reported: #{ssid}")
 
+    # Get the gateway IP (the hotspot host's IP) - needed for re-registration on sentant changes
+    host_ip = case get_gateway_ip() do
+      {:ok, ip} -> ip
+      {:error, _} -> nil
+    end
+
     new_state = %{state |
       connection_state: :connected_as_client,
       current_host_ssid: ssid,
+      current_host_ip: host_ip,
       connected_at: System.system_time(:millisecond),
       stats: Map.update!(state.stats, :connections_made, &(&1 + 1))
     }
+
+    if host_ip do
+      Logger.info("[ConnectionManager] Host IP: #{host_ip}")
+    else
+      Logger.warning("[ConnectionManager] Could not determine host IP - re-registration on sentant changes will fail")
+    end
 
     # Find the peer by SSID (the SSID is the node_name)
     # and perform sentantAll exchange
