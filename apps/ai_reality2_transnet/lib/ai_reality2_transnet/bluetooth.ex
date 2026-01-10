@@ -309,13 +309,16 @@ defmodule AiReality2Transnet.Bluetooth do
     address = Map.get(info, :address)
     # BLE discovery provides :name (device name), map it to :node_name for PeerManager
     node_name = Map.get(info, :name) || Map.get(info, :node_name) || "Unknown"
+    # Extract hosting priority from beacon (0-100, 0 means not broadcast/unknown)
+    hosting_priority = Map.get(info, :hosting_priority, 0)
 
-    Logger.info("R2 Node discovered: #{node_name} (#{String.slice(id, 0..7)}...)")
+    Logger.info("R2 Node discovered: #{node_name} (#{String.slice(id, 0..7)}...) priority: #{hosting_priority}")
 
     # Enrich info with properly named fields for downstream consumers
     enriched_info = info
       |> Map.put(:node_name, node_name)
       |> Map.put(:node_id, id)
+      |> Map.put(:hosting_priority, hosting_priority)
 
     # Notify all Sentants about the discovery
     Sentants.sendto_all(%{
@@ -325,7 +328,8 @@ defmodule AiReality2Transnet.Bluetooth do
         id: id,
         node_name: node_name,
         info: enriched_info,
-        address: address
+        address: address,
+        hosting_priority: hosting_priority
       }
     })
 
@@ -333,7 +337,7 @@ defmodule AiReality2Transnet.Bluetooth do
     # Sentant queries will happen via WiFi mesh HTTP after upgrade
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
       AiReality2Transnet.PeerManager.register_peer(id, enriched_info)
-      Logger.info("Peer #{node_name} (#{String.slice(id, 0..7)}...) registered with PeerManager")
+      Logger.info("Peer #{node_name} (#{String.slice(id, 0..7)}...) registered with PeerManager (priority: #{hosting_priority})")
     end
 
     {:noreply, state}
@@ -448,10 +452,14 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   # Start up the BLE beacon on the previously found given adapter. Uses the ALTBeacon format.
+  # Includes hosting_priority so other nodes can make informed host selection decisions.
   defp start_beacon({:ok, state}) do
     node_id = Reality2.Bootstrap.get(:node_id)
     node_name = Reality2.Bootstrap.get(:node_name)
     adapter_name = Map.get(state, :adapter_name, "hci0")
+
+    # Get current hosting priority (0-100) based on node capabilities
+    hosting_priority = get_hosting_priority()
 
     case AiReality2Transnet.Action.start_broadcast(
            @r2_company_id,
@@ -460,10 +468,11 @@ defmodule AiReality2Transnet.Bluetooth do
            2,
            -59,
            node_name,
+           hosting_priority,
            adapter_name
          ) do
       {:ok, h} ->
-        Logger.info("Node ID: #{node_id} beacon started on #{adapter_name}")
+        Logger.info("Node ID: #{node_id} beacon started on #{adapter_name} (priority: #{hosting_priority})")
         {:ok, Map.put(state, :r2_beacon, h)}
 
       {:error, reason} ->
@@ -473,6 +482,17 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   defp start_beacon({:error, reason}), do: {:error, reason}
+
+  # Get hosting priority from Wifi module if available, otherwise return basic priority
+  defp get_hosting_priority do
+    if Code.ensure_loaded?(AiReality2Transnet.Wifi) &&
+       function_exported?(AiReality2Transnet.Wifi, :get_hosting_priority, 0) do
+      AiReality2Transnet.Wifi.get_hosting_priority()
+    else
+      # Basic priority - can host but no special capabilities
+      10
+    end
+  end
 
   # Start the GATT server for Sentant access
   defp start_gatt_server({:ok, state}) do

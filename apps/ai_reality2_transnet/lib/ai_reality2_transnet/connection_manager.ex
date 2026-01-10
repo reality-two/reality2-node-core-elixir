@@ -857,6 +857,21 @@ defmodule AiReality2Transnet.ConnectionManager do
   defp perform_start_hosting(state) do
     Logger.info("[ConnectionManager] Starting hotspot hosting")
 
+    # Select the best WiFi adapter for hotspot mode
+    # This intelligently chooses an adapter that preserves internet access if possible:
+    # - Uses a different adapter than the one providing internet (if multi-WiFi)
+    # - Uses any WiFi adapter if we have wired internet
+    # - Falls back to only available adapter if necessary
+    hotspot_interface = case Wifi.select_adapter_for_hotspot() do
+      {:ok, %{interface: interface, preserves_internet: preserves}} ->
+        Logger.info("[ConnectionManager] Selected #{interface} for hotspot (preserves internet: #{preserves})")
+        interface
+
+      {:error, reason} ->
+        Logger.warning("[ConnectionManager] Could not select optimal adapter: #{reason}, using default")
+        state.wifi_interface
+    end
+
     # Generate unique credentials for this hotspot
     # SSID format: R2-<SITE_ID>-<HOST_SHORT_ID>
     # Example: R2-WAIROA-A3F7
@@ -869,10 +884,10 @@ defmodule AiReality2Transnet.ConnectionManager do
     psk = Wifi.generate_psk_for_node(ssid)
     channel = 6
 
-    case Wifi.start_hotspot(state.wifi_interface, ssid, psk, channel) do
+    case Wifi.start_hotspot(hotspot_interface, ssid, psk, channel) do
       {:ok, _uuid} ->
         # Get hotspot IP
-        case Wifi.get_hotspot_ip(state.wifi_interface) do
+        case Wifi.get_hotspot_ip(hotspot_interface) do
           {:ok, ip_address} ->
             hotspot_config = %{
               ssid: ssid,
@@ -880,6 +895,7 @@ defmodule AiReality2Transnet.ConnectionManager do
               channel: channel,
               ip_address: ip_address,
               port: 4005,  # HTTP/GraphQL server port (unified with Reality2Web)
+              interface: hotspot_interface,  # Store which interface is hosting
               active: true
             }
 
@@ -889,12 +905,12 @@ defmodule AiReality2Transnet.ConnectionManager do
               stats: Map.update!(state.stats, :hosting_sessions, &(&1 + 1))
             }
 
-            Logger.info("[ConnectionManager] Hotspot started: #{ssid} on #{ip_address}")
+            Logger.info("[ConnectionManager] Hotspot started: #{ssid} on #{ip_address} (#{hotspot_interface})")
             {:reply, {:ok, hotspot_config}, new_state}
 
           {:error, reason} ->
             Logger.error("[ConnectionManager] Failed to get hotspot IP: #{reason}")
-            Wifi.stop_hotspot(state.wifi_interface)
+            Wifi.stop_hotspot(hotspot_interface)
             {:reply, {:error, "hotspot_ip_failed: #{reason}"}, state}
         end
 
@@ -907,7 +923,11 @@ defmodule AiReality2Transnet.ConnectionManager do
   defp perform_stop_hosting(state) do
     Logger.info("[ConnectionManager] Stopping hotspot hosting")
 
-    case Wifi.stop_hotspot(state.wifi_interface) do
+    # Use the interface stored in hosting_config (set during start_hosting)
+    # Fall back to default wifi_interface if not set
+    hotspot_interface = Map.get(state.hosting_config, :interface, state.wifi_interface)
+
+    case Wifi.stop_hotspot(hotspot_interface) do
       :ok ->
         new_state = %{state |
           hosting_config: nil,

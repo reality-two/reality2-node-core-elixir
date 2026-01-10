@@ -518,6 +518,11 @@ async fn handle_device_added(
                     crate::atoms::address().encode(env),
                     ble_address_str.encode(env),
                 )
+                .unwrap()
+                .map_put(
+                    crate::atoms::hosting_priority().encode(env),
+                    (device_info.hosting_priority as i32).encode(env),
+                )
                 .unwrap();
 
             (crate::atoms::r2node_found(), node_id, info).encode(env)

@@ -127,20 +127,21 @@ defmodule AiReality2Transnet.Action do
   - `minor` - AltBeacon minor value
   - `rssi_at_1m` - Calibrated RSSI at 1 meter (typically -59)
   - `node_name` - Human-readable node name for BLE device name (e.g., "R2Node_A3F7")
+  - `hosting_priority` - WiFi hosting priority (0-100), stored in AltBeacon reserved byte
   - `adapter_name` - Bluetooth adapter name (e.g., "hci0")
 
   ## Returns
   - `{:ok, handle}` - Handle to use with `stop_broadcast/1`
   - `{:error, reason}` - Failed to start broadcasting
   """
-  def start_broadcast(_company_id, _uuid_str, _major, _minor, _rssi_at_1m, _node_name, _adapter_name),
+  def start_broadcast(_company_id, _uuid_str, _major, _minor, _rssi_at_1m, _node_name, _hosting_priority, _adapter_name),
     do: :erlang.nif_error(:nif_not_loaded)
 
   @doc """
   Stops broadcasting a Reality2 AltBeacon.
 
   ## Parameters
-  - `handle` - The handle returned from `start_broadcast/7`
+  - `handle` - The handle returned from `start_broadcast/8`
 
   ## Returns
   `:ok` on success

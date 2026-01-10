@@ -58,6 +58,7 @@ const STARTUP_TIMEOUT_SECS: u64 = 2;
 /// - `minor` - Minor version/node identifier (16-bit)
 /// - `rssi_at_1m` - Calibrated RSSI value at 1 meter distance (used for distance estimation)
 /// - `node_name` - Human-readable node name (e.g., "R2Node_A3F7") for BLE device name
+/// - `hosting_priority` - Node's WiFi hosting priority (0-100), stored in AltBeacon reserved byte
 /// - `adapter_name` - Optional Bluetooth adapter name (e.g., "hci0"), uses default if None
 ///
 /// ## Returns
@@ -82,6 +83,7 @@ const STARTUP_TIMEOUT_SECS: u64 = 2;
 ///   100,
 ///   -59,
 ///   "R2Node_A3F7",
+///   75,      # hosting priority (0-100)
 ///   "hci0"
 /// )
 /// ```
@@ -94,6 +96,7 @@ pub fn start_broadcast<'a>(
     minor: u16,
     rssi_at_1m: i8,
     node_name: String,
+    hosting_priority: u8,
     adapter_name: Option<String>,
 ) -> NifResult<Term<'a>> {
     // Parse UUID string into proper UUID type
@@ -135,6 +138,7 @@ pub fn start_broadcast<'a>(
                 minor,
                 rssi_at_1m,
                 node_name,
+                hosting_priority,
                 adapter_name,
                 shutdown_rx,
                 ready_tx,
@@ -218,6 +222,7 @@ pub fn stop_broadcast(handle: ResourceArc<BeaconHandle>) -> rustler::Atom {
 /// - `minor` - Minor version identifier
 /// - `rssi_at_1m` - Calibrated signal strength for distance calculation
 /// - `node_name` - Human-readable node name for BLE device name
+/// - `hosting_priority` - WiFi hosting priority (0-100), stored in reserved byte
 /// - `adapter_name` - Bluetooth adapter to use (e.g., "hci0")
 /// - `shutdown_rx` - Receives signal from Elixir to stop advertising
 /// - `ready_tx` - Sends signal to Elixir when advertising starts
@@ -233,12 +238,14 @@ async fn run_beacon_advertisement(
     minor: u16,
     rssi_at_1m: i8,
     node_name: String,
+    hosting_priority: u8,
     adapter_name: Option<String>,
     shutdown_rx: oneshot::Receiver<()>,
     ready_tx: std::sync::mpsc::Sender<Result<(), String>>,
 ) -> Result<(), String> {
     // Build 24-byte AltBeacon payload with node identification
-    let payload = build_altbeacon_payload(uuid, major, minor, rssi_at_1m, 0x00);
+    // Use hosting_priority as the reserved byte for peer selection decisions
+    let payload = build_altbeacon_payload(uuid, major, minor, rssi_at_1m, hosting_priority);
 
     // Manufacturer data is a BTreeMap of company_id -> payload
     // This is how custom data is advertised in BLE beacons
@@ -298,7 +305,7 @@ async fn run_beacon_advertisement(
 /// - Bytes 18-19: Major (big-endian u16)
 /// - Bytes 20-21: Minor (big-endian u16)
 /// - Byte 22: RSSI at 1 meter (signed byte, for distance calculation)
-/// - Byte 23: Reserved (typically 0x00)
+/// - Byte 23: Hosting priority (0-100) - used for WiFi mesh host selection
 ///
 /// ## Parameters
 ///
@@ -306,7 +313,7 @@ async fn run_beacon_advertisement(
 /// - `major` - Organization/group ID
 /// - `minor` - Node-specific ID
 /// - `rssi_at_1m` - Calibrated signal strength at 1m distance
-/// - `reserved` - Reserved byte (usually 0x00)
+/// - `hosting_priority` - WiFi hosting priority (0=cannot host, 100=best host candidate)
 ///
 /// ## Returns
 ///
@@ -316,7 +323,7 @@ fn build_altbeacon_payload(
     major: u16,
     minor: u16,
     rssi_at_1m: i8,
-    reserved: u8,
+    hosting_priority: u8,
 ) -> Vec<u8> {
     let mut payload = Vec::with_capacity(24);
 
@@ -335,8 +342,8 @@ fn build_altbeacon_payload(
     // Byte 22: RSSI @ 1m
     payload.push(rssi_at_1m as u8);
 
-    // Byte 23: Reserved
-    payload.push(reserved);
+    // Byte 23: Hosting priority (0-100 for WiFi mesh host selection)
+    payload.push(hosting_priority);
 
     payload
 }

@@ -271,12 +271,84 @@ defmodule AiReality2Transnet.ConnectionAssessor do
         # Current connection is still optimal, OR no candidates available
         Logger.debug("[ConnectionAssessor] No handover needed: #{reason}")
 
+        # Check if we should yield hosting to a better candidate
+        maybe_yield_hosting()
+
         # Check if we should start hosting (no one else is hosting and we're idle)
         maybe_start_hosting(new_state, reason)
 
         schedule_assessment()
         {:noreply, new_state}
     end
+  end
+
+  # If we're currently hosting, check if we should yield to a better host candidate
+  #
+  # Now uses peer priorities from BLE beacons for informed yield decisions:
+  # - If a peer has HIGHER priority than us, yield immediately
+  # - If peers have EQUAL priority, yield to lower node_id
+  # - If we have the HIGHEST priority, never yield
+  defp maybe_yield_hosting do
+    case ConnectionManager.get_connection_status() do
+      {:ok, %{state: :hosting_ap}} ->
+        my_priority = AiReality2Transnet.Wifi.get_hosting_priority()
+        my_node_id = Reality2.Bootstrap.get(:node_id)
+        peers = PeerManager.get_all_peers()
+
+        if map_size(peers) > 0 do
+          # Get the highest priority among peers (from BLE beacon data)
+          max_peer_priority = PeerManager.get_max_peer_priority()
+
+          cond do
+            # A peer has higher priority - yield to them
+            max_peer_priority > my_priority ->
+              # Find the peer with highest priority (and lowest ID if tied)
+              best_peer = peers
+                |> Enum.filter(fn {_id, peer} -> Map.get(peer, :hosting_priority, 0) == max_peer_priority end)
+                |> Enum.min_by(fn {id, _peer} -> id end)
+
+              {best_id, best_peer_info} = best_peer
+              best_name = Map.get(best_peer_info, :node_name, String.slice(best_id, 0..7))
+              Logger.info("[ConnectionAssessor] Yielding hosting to #{best_name} (priority #{max_peer_priority} > our #{my_priority})")
+              yield_hosting()
+
+            # Equal priority - use node_id as tie-breaker
+            max_peer_priority == my_priority && my_priority < 100 ->
+              peers_with_equal = peers
+                |> Enum.filter(fn {_id, peer} -> Map.get(peer, :hosting_priority, 0) == my_priority end)
+                |> Enum.map(fn {id, _peer} -> id end)
+
+              all_candidates = [my_node_id | peers_with_equal]
+              lowest_id = Enum.min(all_candidates)
+
+              if lowest_id != my_node_id do
+                Logger.info("[ConnectionAssessor] Yielding hosting to #{String.slice(lowest_id, 0..7)}... (same priority #{my_priority}, lower ID)")
+                yield_hosting()
+              end
+
+            # We have higher priority than all peers, or priority 100 - keep hosting
+            true ->
+              :ok
+          end
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp yield_hosting do
+    Task.start(fn ->
+      case ConnectionManager.stop_hosting() do
+        :ok ->
+          Logger.info("[ConnectionAssessor] Stopped hosting - waiting for better host to start...")
+          # Give the other node time to start hosting
+          Process.sleep(5_000)
+
+        {:error, reason} ->
+          Logger.warning("[ConnectionAssessor] Failed to stop hosting: #{inspect(reason)}")
+      end
+    end)
   end
 
   # If no candidates are available and we're not connected, consider becoming a host
@@ -348,34 +420,55 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     end
   end
 
-  # Determine if we should be the host based on priority and node_id
+  # Determine if we should be the host based on priority comparison with peers
   # Priority scoring:
   # - 100: Wired internet + WiFi (can NAT, keeps internet) - BEST
   # - 75: Can NAT but WiFi-only internet (will lose internet as host)
   # - 50: Has internet but single interface
   # - 10: No internet but has WiFi
   # - 0: No WiFi capability
-  defp should_we_host?(my_priority, my_node_id, _peers) do
-    # Only nodes with WIRED internet should aggressively try to host
-    # This ensures the host can share internet without losing its own connection
-    if my_priority >= 100 do
-      Logger.debug("[ConnectionAssessor] High priority (#{my_priority}) - wired internet, best host candidate")
-      true
-    else
-      # For lower priorities, fall back to lowest node_id as tie-breaker
-      # Nodes with WiFi-only internet (priority 75) shouldn't aggressively host
-      # because they'll lose internet when they become a hotspot
-      # In the future, we could exchange priorities via BLE beacon for smarter selection
-      peer_ids = Map.keys(_peers)
-      lowest_id = Enum.min([my_node_id | peer_ids])
+  #
+  # Now uses peer priorities from BLE beacons for informed decisions!
+  defp should_we_host?(my_priority, my_node_id, peers) do
+    # Get the highest priority among peers (from BLE beacon data)
+    max_peer_priority = PeerManager.get_max_peer_priority()
 
-      if my_node_id == lowest_id do
-        Logger.debug("[ConnectionAssessor] Lowest ID (#{String.slice(my_node_id, 0..7)}...) - becoming host (priority: #{my_priority})")
+    Logger.debug("[ConnectionAssessor] Host selection: my_priority=#{my_priority}, max_peer_priority=#{max_peer_priority}")
+
+    cond do
+      # We have the best possible priority (wired internet + NAT)
+      # Always become host regardless of peers
+      my_priority >= 100 ->
+        Logger.debug("[ConnectionAssessor] High priority (#{my_priority}) - wired internet, becoming host")
         true
-      else
-        Logger.debug("[ConnectionAssessor] Node #{String.slice(lowest_id, 0..7)}... has lower ID")
+
+      # We have higher priority than all peers - become host
+      my_priority > max_peer_priority ->
+        Logger.debug("[ConnectionAssessor] Higher priority than peers (#{my_priority} > #{max_peer_priority}) - becoming host")
+        true
+
+      # We have equal priority to highest peer - use node_id as tie-breaker
+      my_priority == max_peer_priority ->
+        # Find peer(s) with max priority
+        peers_with_max = peers
+          |> Enum.filter(fn {_id, peer} -> Map.get(peer, :hosting_priority, 0) == max_peer_priority end)
+          |> Enum.map(fn {id, _peer} -> id end)
+
+        all_candidates = [my_node_id | peers_with_max]
+        lowest_id = Enum.min(all_candidates)
+
+        if my_node_id == lowest_id do
+          Logger.debug("[ConnectionAssessor] Equal priority (#{my_priority}), lowest ID - becoming host")
+          true
+        else
+          Logger.debug("[ConnectionAssessor] Equal priority but node #{String.slice(lowest_id, 0..7)}... has lower ID")
+          false
+        end
+
+      # A peer has higher priority - let them host
+      true ->
+        Logger.debug("[ConnectionAssessor] Peer has higher priority (#{max_peer_priority} > #{my_priority}) - waiting for them to host")
         false
-      end
     end
   end
 

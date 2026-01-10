@@ -173,4 +173,21 @@ pub struct Device {
     /// - **Presence tracking**: Mark device as "lost" when RSSI drops below -95 dBm
     /// - **Sorting**: Show nearby devices first in UI
     pub rssi: i16,
+
+    /// WiFi hosting priority (0-100)
+    ///
+    /// Indicates how suitable this node is for hosting a WiFi hotspot.
+    /// Higher values indicate better hosting capability.
+    ///
+    /// ## Typical Values:
+    /// - **0**: Cannot host (no WiFi adapter)
+    /// - **10**: Basic hosting (single WiFi, no internet)
+    /// - **50**: Moderate (has internet but single WiFi interface)
+    /// - **75**: Good (can NAT but may lose internet when hosting)
+    /// - **100**: Best (wired internet or multiple WiFi adapters)
+    ///
+    /// ## Use Cases:
+    /// - **Host selection**: Node with highest priority should become WiFi host
+    /// - **Yield decisions**: Lower priority hosts should yield to higher priority nodes
+    pub hosting_priority: u8,
 }

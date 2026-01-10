@@ -48,7 +48,7 @@ pub const ALTBEACON_CODE: [u8; 2] = [0xBE, 0xAC];
 /// [18-19] Major (2 bytes)
 /// [20-21] Minor (2 bytes)
 /// [22]    RSSI @ 1m (1 byte)
-/// [23]    Reserved (1 byte)
+/// [23]    Hosting priority (1 byte) - WiFi mesh host selection (0-100)
 /// ```
 pub const ALTBEACON_MIN_LENGTH: usize = 24;
 
@@ -204,7 +204,7 @@ pub async fn process_discovered_device(
         return Ok(None);
     };
 
-    let Some(node_uuid) = extract_altbeacon_uuid(payload) else {
+    let Some((node_uuid, hosting_priority)) = extract_altbeacon_data(payload) else {
         return Ok(None);
     };
 
@@ -232,6 +232,7 @@ pub async fn process_discovered_device(
             name: device_name,
             id: node_id,
             rssi,
+            hosting_priority,
         },
     )))
 }
@@ -240,10 +241,11 @@ pub async fn process_discovered_device(
 // AltBeacon Parsing
 // -------------------------------------------------------------------------------------------
 
-/// Extracts the Reality2 node UUID from an AltBeacon manufacturer data payload
+/// Extracts the Reality2 node UUID and hosting priority from an AltBeacon payload
 ///
-/// Validates and parses AltBeacon format to extract the 16-byte UUID that identifies
-/// the Reality2 node. This UUID is bytes 2-17 of the payload.
+/// Validates and parses AltBeacon format to extract:
+/// - 16-byte UUID (bytes 2-17) - unique node identifier
+/// - Hosting priority (byte 23) - WiFi mesh host selection score (0-100)
 ///
 /// ## Parameters
 ///
@@ -251,7 +253,7 @@ pub async fn process_discovered_device(
 ///
 /// ## Returns
 ///
-/// - `Some(Uuid)` - Valid AltBeacon payload, here's the node UUID
+/// - `Some((Uuid, u8))` - Valid payload: (node UUID, hosting priority)
 /// - `None` - Invalid payload (too short, wrong beacon code, malformed UUID)
 ///
 /// ## Validation
@@ -259,6 +261,7 @@ pub async fn process_discovered_device(
 /// 1. Check length >= 24 bytes (minimum AltBeacon size)
 /// 2. Check bytes 0-1 == 0xBEAC (AltBeacon identifier)
 /// 3. Parse bytes 2-17 as UUID (16 bytes)
+/// 4. Extract byte 23 as hosting priority
 ///
 /// ## Example
 ///
@@ -266,13 +269,13 @@ pub async fn process_discovered_device(
 /// let payload = vec![
 ///     0xBE, 0xAC,                           // Beacon code
 ///     // UUID bytes here (16 bytes)
-///     // ... major, minor, rssi, reserved
+///     // ... major, minor, rssi, priority
 /// ];
-/// if let Some(uuid) = extract_altbeacon_uuid(&payload) {
-///     println!("Found Reality2 node: {}", uuid);
+/// if let Some((uuid, priority)) = extract_altbeacon_data(&payload) {
+///     println!("Found Reality2 node: {} with priority {}", uuid, priority);
 /// }
 /// ```
-pub fn extract_altbeacon_uuid(payload: &[u8]) -> Option<Uuid> {
+pub fn extract_altbeacon_data(payload: &[u8]) -> Option<(Uuid, u8)> {
     // Check minimum length
     if payload.len() < ALTBEACON_MIN_LENGTH {
         return None;
@@ -284,7 +287,20 @@ pub fn extract_altbeacon_uuid(payload: &[u8]) -> Option<Uuid> {
     }
 
     // Extract UUID from bytes 2-17 (16 bytes)
-    Uuid::from_slice(&payload[2..18]).ok()
+    let uuid = Uuid::from_slice(&payload[2..18]).ok()?;
+
+    // Extract hosting priority from byte 23
+    let hosting_priority = payload[23];
+
+    Some((uuid, hosting_priority))
+}
+
+/// Extracts just the Reality2 node UUID from an AltBeacon payload (legacy function)
+///
+/// Use `extract_altbeacon_data` instead to also get hosting priority.
+#[allow(dead_code)]
+pub fn extract_altbeacon_uuid(payload: &[u8]) -> Option<Uuid> {
+    extract_altbeacon_data(payload).map(|(uuid, _)| uuid)
 }
 
 // -------------------------------------------------------------------------------------------

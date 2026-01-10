@@ -148,6 +148,7 @@ pub mod atoms {
         address,
         adapters,
         devices_cleared,
+        hosting_priority,
         // GATT atoms
         gatt_server_started,
         gatt_connected,

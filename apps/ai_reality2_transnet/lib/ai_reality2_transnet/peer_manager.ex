@@ -54,6 +54,7 @@ defmodule AiReality2Transnet.PeerManager do
   - `transport` - Current transport method (`:ble_gatt` or `:wifi_hotspot`)
   - `address` - BLE MAC address (may be nil for WiFi-only peers)
   - `rssi` - Signal strength in dBm (may be nil)
+  - `hosting_priority` - WiFi hosting priority (0-100, from BLE beacon)
   - `sentants` - List of Sentant maps available on this peer (includes id and name)
   - `capabilities` - Map of peer capabilities (e.g., `%{wifi_hotspot: true}`)
   - `discovered_at` - Unix timestamp (milliseconds) when peer was first discovered
@@ -66,6 +67,7 @@ defmodule AiReality2Transnet.PeerManager do
     transport: :ble_gatt | :wifi_hotspot,
     address: binary() | nil,
     rssi: integer() | nil,
+    hosting_priority: integer(),
     sentants: [map()],
     capabilities: map(),
     discovered_at: integer(),
@@ -249,6 +251,31 @@ defmodule AiReality2Transnet.PeerManager do
     GenServer.call(__MODULE__, :get_stats)
   end
 
+  @doc """
+  Gets the peer with the highest hosting priority.
+
+  Used by ConnectionAssessor to determine which peer should become the WiFi host.
+
+  ## Returns
+  - `{:ok, peer}` - Peer with highest priority found
+  - `{:error, :no_peers}` - No peers tracked
+  """
+  @spec get_highest_priority_peer() :: {:ok, map()} | {:error, :no_peers}
+  def get_highest_priority_peer do
+    GenServer.call(__MODULE__, :get_highest_priority_peer)
+  end
+
+  @doc """
+  Gets the highest hosting priority among all tracked peers.
+
+  ## Returns
+  - `integer()` - Highest priority (0 if no peers)
+  """
+  @spec get_max_peer_priority() :: integer()
+  def get_max_peer_priority do
+    GenServer.call(__MODULE__, :get_max_peer_priority)
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # GenServer Callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -285,6 +312,9 @@ defmodule AiReality2Transnet.PeerManager do
     # Extract capabilities from info (may come from beacon decode or GATT)
     capabilities = Map.get(info, :capabilities) || Map.get(info, "capabilities") || %{}
 
+    # Extract hosting priority from beacon (0-100, default 0 if not broadcast)
+    hosting_priority = Map.get(info, :hosting_priority) || Map.get(info, "hosting_priority") || 0
+
     # Build new peer record with defaults
     # Start with BLE transport (will be upgraded to WiFi later if available)
     peer = %{
@@ -293,6 +323,7 @@ defmodule AiReality2Transnet.PeerManager do
       transport: :ble_gatt,              # Initially discovered via BLE beacon
       address: Map.get(info, :address),  # BLE MAC address
       rssi: Map.get(info, :rssi),        # Signal strength from beacon
+      hosting_priority: hosting_priority,# WiFi hosting priority (0-100)
       sentants: [],                      # Will be populated after exchange
       capabilities: capabilities,        # From beacon flags or GATT
       discovered_at: System.system_time(:millisecond),
@@ -473,6 +504,30 @@ defmodule AiReality2Transnet.PeerManager do
     })
 
     {:reply, stats, state}
+  end
+
+  @impl true
+  def handle_call(:get_highest_priority_peer, _from, state) do
+    # Find the peer with the highest hosting_priority
+    case Map.values(state.peers) do
+      [] ->
+        {:reply, {:error, :no_peers}, state}
+
+      peers ->
+        highest = Enum.max_by(peers, fn p -> Map.get(p, :hosting_priority, 0) end)
+        {:reply, {:ok, highest}, state}
+    end
+  end
+
+  @impl true
+  def handle_call(:get_max_peer_priority, _from, state) do
+    # Get the maximum hosting_priority among all peers
+    max_priority = state.peers
+      |> Map.values()
+      |> Enum.map(fn p -> Map.get(p, :hosting_priority, 0) end)
+      |> Enum.max(fn -> 0 end)
+
+    {:reply, max_priority, state}
   end
 
   @impl true

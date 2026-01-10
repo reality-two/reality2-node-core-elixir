@@ -1117,6 +1117,105 @@ defmodule AiReality2Transnet.Wifi do
   end
 
   @doc """
+  Selects the best WiFi adapter for hotspot mode.
+
+  The selection logic prioritizes preserving internet access:
+
+  1. If we have wired internet, any WiFi adapter can be used for hotspot
+     (wired connection stays up regardless of WiFi mode)
+  2. If we have 2+ WiFi adapters:
+     - Find which one is connected to internet (station mode)
+     - Use a DIFFERENT adapter for hotspot
+  3. If we have only 1 WiFi adapter, use it (will lose internet when hosting)
+
+  ## Returns
+  - `{:ok, %{interface: interface, preserves_internet: boolean}}` - Best adapter found
+  - `{:error, reason}` - No suitable adapter found
+
+  ## Examples
+
+      # Node with wired internet + 1 WiFi adapter
+      {:ok, %{interface: "wlan0", preserves_internet: true}}
+
+      # Node with 2 WiFi adapters, wlan0 connected to internet
+      {:ok, %{interface: "wlan1", preserves_internet: true}}
+
+      # Node with only 1 WiFi adapter, no wired internet
+      {:ok, %{interface: "wlan0", preserves_internet: false}}
+  """
+  @spec select_adapter_for_hotspot() :: {:ok, map()} | {:error, String.t()}
+  def select_adapter_for_hotspot do
+    require Logger
+
+    case list_adapters() do
+      {:ok, []} ->
+        {:error, "no_wifi_adapters"}
+
+      {:ok, adapters} ->
+        has_wired = has_wired_internet?()
+        wifi_interfaces = Enum.map(adapters, & &1.interface)
+
+        # Find which WiFi interface (if any) is providing internet
+        internet_wifi = find_internet_wifi_interface(wifi_interfaces)
+
+        cond do
+          # Case 1: Wired internet - use first available WiFi for hotspot
+          has_wired ->
+            adapter = List.first(adapters)
+            Logger.info("[Wifi] Wired internet detected - using #{adapter.interface} for hotspot")
+            {:ok, %{interface: adapter.interface, preserves_internet: true}}
+
+          # Case 2: Multiple WiFi adapters - use one NOT connected to internet
+          length(adapters) >= 2 && internet_wifi != nil ->
+            # Pick an adapter that's NOT the one providing internet
+            non_internet_adapter = Enum.find(adapters, fn a -> a.interface != internet_wifi end)
+
+            if non_internet_adapter do
+              Logger.info("[Wifi] Using #{non_internet_adapter.interface} for hotspot (#{internet_wifi} keeps internet)")
+              {:ok, %{interface: non_internet_adapter.interface, preserves_internet: true}}
+            else
+              # Shouldn't happen, but fallback to first adapter
+              adapter = List.first(adapters)
+              {:ok, %{interface: adapter.interface, preserves_internet: false}}
+            end
+
+          # Case 3: Multiple WiFi but no internet - randomly pick one
+          length(adapters) >= 2 ->
+            # Pick a random adapter (or first one for determinism)
+            adapter = Enum.random(adapters)
+            Logger.info("[Wifi] No internet connection - randomly selected #{adapter.interface} for hotspot")
+            {:ok, %{interface: adapter.interface, preserves_internet: false}}
+
+          # Case 4: Single WiFi adapter - use it (will lose any WiFi-based internet)
+          true ->
+            adapter = List.first(adapters)
+            Logger.info("[Wifi] Single WiFi adapter #{adapter.interface} - using for hotspot")
+            {:ok, %{interface: adapter.interface, preserves_internet: false}}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Find which WiFi interface (if any) is currently providing internet access
+  defp find_internet_wifi_interface(wifi_interfaces) do
+    # Get the interface that routes to 8.8.8.8
+    case get_internet_interface() do
+      {:ok, interface} ->
+        # Check if this interface is one of our WiFi interfaces
+        if interface in wifi_interfaces do
+          interface
+        else
+          nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  @doc """
   Checks if this node can provide NAT (has multiple network interfaces with one having internet).
 
   A node can provide NAT if:
@@ -1206,12 +1305,9 @@ defmodule AiReality2Transnet.Wifi do
   # NAT Configuration for Hotspot Internet Sharing
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  @doc """
-  Configures NAT to allow hotspot clients to access the internet through the host.
-
-  This enables IP forwarding and sets up iptables MASQUERADE rules so that
-  clients connected to the R2 hotspot can reach external networks.
-  """
+  # Configures NAT to allow hotspot clients to access the internet through the host.
+  # This enables IP forwarding and sets up iptables MASQUERADE rules so that
+  # clients connected to the R2 hotspot can reach external networks.
   defp configure_nat_for_hotspot(hotspot_interface) do
     # Find the upstream interface (the one with internet access)
     case find_upstream_interface(hotspot_interface) do
@@ -1275,9 +1371,7 @@ defmodule AiReality2Transnet.Wifi do
     end
   end
 
-  @doc """
-  Cleans up NAT rules when stopping the hotspot.
-  """
+  # Cleans up NAT rules when stopping the hotspot.
   defp cleanup_nat_for_hotspot(hotspot_interface) do
     case find_upstream_interface(hotspot_interface) do
       {:ok, upstream_interface} ->
