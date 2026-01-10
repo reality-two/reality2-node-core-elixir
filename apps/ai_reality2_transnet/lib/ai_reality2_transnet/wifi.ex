@@ -326,11 +326,6 @@ defmodule AiReality2Transnet.Wifi do
   @spec start_hotspot(String.t(), String.t(), String.t(), integer()) ::
           {:ok, String.t()} | {:error, String.t()}
   def start_hotspot(interface, ssid, psk, channel \\ 6) do
-    connection_name = "R2-Hotspot-#{ssid}"
-
-    # Clean up any existing R2 hotspot connection with this name
-    System.cmd("nmcli", ["connection", "delete", connection_name], stderr_to_stdout: true)
-
     # Disconnect from any current WiFi network on this interface
     # Most adapters can't be client + AP simultaneously
     Logger.info("[Wifi] Disconnecting #{interface} from current network to start hotspot...")
@@ -338,42 +333,26 @@ defmodule AiReality2Transnet.Wifi do
     # Brief pause to let the interface settle
     Process.sleep(500)
 
-    # Generate deterministic IP from SSID
-    subnet_octet = :erlang.phash2(ssid, 254) + 1
-    ip_address = "192.168.#{subnet_octet}.1"
-
-    # Use nmcli to create hotspot connection
+    # Use the simpler nmcli hotspot command - handles everything automatically
     args = [
-      "connection", "add",
-      "type", "wifi",
+      "device", "wifi", "hotspot",
       "ifname", interface,
-      "con-name", connection_name,
-      "autoconnect", "no",
       "ssid", ssid,
-      "mode", "ap",
-      "ipv4.method", "shared",
-      "ipv4.addresses", "#{ip_address}/24",
-      "wifi-sec.key-mgmt", "wpa-psk",
-      "wifi-sec.psk", psk,
-      "802-11-wireless.channel", to_string(channel)
+      "password", psk,
+      "channel", to_string(channel)
     ]
+
+    Logger.info("[Wifi] Starting hotspot: SSID=#{ssid}, Channel=#{channel}")
 
     case System.cmd("nmcli", args, stderr_to_stdout: true) do
       {output, 0} ->
-        # Extract connection UUID
-        uuid = extract_connection_uuid(output)
+        Logger.info("[Wifi] Hotspot started successfully: #{ssid}")
+        # Extract connection info from output if available
+        uuid = extract_connection_uuid(output) || "hotspot-#{ssid}"
+        {:ok, uuid}
 
-        # Activate the connection
-        case System.cmd("nmcli", ["connection", "up", connection_name], stderr_to_stdout: true) do
-          {_, 0} ->
-            Logger.info("[Wifi] Hotspot started: SSID=#{ssid}, Channel=#{channel}, IP=#{ip_address}")
-            {:ok, uuid}
-
-          {error, _} ->
-            {:error, "hotspot_activation_failed: #{error}"}
-        end
-
-      {error, _} ->
+      {error, exit_code} ->
+        Logger.error("[Wifi] Hotspot creation failed (exit #{exit_code}): #{error}")
         {:error, "hotspot_creation_failed: #{error}"}
     end
   rescue

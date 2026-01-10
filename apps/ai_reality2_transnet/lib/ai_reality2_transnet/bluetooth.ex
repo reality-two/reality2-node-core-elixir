@@ -318,9 +318,9 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
-  # GATT errors
+  # GATT errors (non-critical - we use default capabilities from beacon)
   def handle_info({:error, reason}, state) do
-    Logger.error("GATT error: #{reason}")
+    Logger.debug("[Bluetooth] GATT error (non-critical): #{reason}")
     {:noreply, state}
   end
 
