@@ -152,6 +152,9 @@ defmodule Reality2.Sentants do
                       parameters: %{id: id, name: name, activity: "created"}
                     })
 
+                    # Broadcast to sentants topic so listeners (e.g., Bluetooth GATT) can refresh
+                    Phoenix.PubSub.broadcast(Reality2.PubSub, "sentants", {:sentants, :created, %{id: id, name: name}})
+
                     {:ok, id}
 
                   error ->
@@ -172,6 +175,9 @@ defmodule Reality2.Sentants do
                   event: "__internal",
                   parameters: %{id: id, name: name, activity: "created"}
                 })
+
+                # Broadcast to sentants topic so listeners (e.g., Bluetooth GATT) can refresh
+                Phoenix.PubSub.broadcast(Reality2.PubSub, "sentants", {:sentants, :updated, %{id: existing_id, name: name}})
 
                 {:ok, existing_id}
             end
@@ -423,6 +429,9 @@ defmodule Reality2.Sentants do
                   event: "__internal",
                   parameters: %{id: id, name: name, activity: "deleted"}
                 })
+
+                # Broadcast to sentants topic so listeners (e.g., Bluetooth GATT) can refresh
+                Phoenix.PubSub.broadcast(Reality2.PubSub, "sentants", {:sentants, :deleted, %{id: id, name: name}})
 
                 {:ok, id}
             end

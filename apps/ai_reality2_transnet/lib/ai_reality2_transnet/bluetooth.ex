@@ -388,6 +388,19 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
+  # PubSub message: Sentants changed (created, updated, deleted)
+  # Refresh the query characteristic so clients see updated sentant list
+  def handle_info({:sentants, _action, _sentant_data}, %{gatt_handle: handle} = state) do
+    Logger.debug("Sentants changed - refreshing query characteristic")
+    update_query_characteristic(handle)
+    {:noreply, state}
+  end
+
+  def handle_info({:sentants, _action, _sentant_data}, state) do
+    # No GATT handle yet, ignore
+    {:noreply, state}
+  end
+
   # PubSub message: Sentant signal received (mirrors GraphQL awaitSignal subscription)
   def handle_info({:sentant_signal, signal_data}, state) do
     %{id: id, event: event, parameters: parameters, passthrough: passthrough} = signal_data
