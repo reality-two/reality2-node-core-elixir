@@ -335,10 +335,16 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
-  # GATT connection established
-  def handle_info({:gatt_connected, address}, state) do
+  # GATT connection established (with address)
+  def handle_info({:gatt_connected, address}, state) when is_binary(address) do
     Logger.debug("[Bluetooth] GATT connected to #{address}")
     # Service discovery should follow automatically in the NIF
+    {:noreply, state}
+  end
+
+  # GATT connection established (without address - older NIF format)
+  def handle_info(:gatt_connected, state) do
+    Logger.debug("[Bluetooth] GATT connected (address unknown)")
     {:noreply, state}
   end
 
