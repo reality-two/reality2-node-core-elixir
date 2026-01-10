@@ -334,15 +334,16 @@ defmodule AiReality2Transnet.Wifi do
     Process.sleep(500)
 
     # Use the simpler nmcli hotspot command - handles everything automatically
+    # Note: We don't specify channel to avoid "channel requires band" errors
+    # nmcli will auto-select an appropriate channel
     args = [
       "device", "wifi", "hotspot",
       "ifname", interface,
       "ssid", ssid,
-      "password", psk,
-      "channel", to_string(channel)
+      "password", psk
     ]
 
-    Logger.info("[Wifi] Starting hotspot: SSID=#{ssid}, Channel=#{channel}")
+    Logger.info("[Wifi] Starting hotspot: SSID=#{ssid}")
 
     case System.cmd("nmcli", args, stderr_to_stdout: true) do
       {output, 0} ->
