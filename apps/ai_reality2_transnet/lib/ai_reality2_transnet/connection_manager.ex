@@ -627,6 +627,13 @@ defmodule AiReality2Transnet.ConnectionManager do
     {:noreply, new_state}
   end
 
+  # Update host peer ID (called after successful exchange in auto-discovery flow)
+  @impl true
+  def handle_cast({:set_host_peer_id, peer_node_id}, state) do
+    Logger.debug("#{log_prefix()} Setting host peer ID: #{String.slice(peer_node_id, 0..7)}...")
+    {:noreply, %{state | current_host_peer_id: peer_node_id}}
+  end
+
   # Handle client registration (from MeshController)
   @impl true
   def handle_cast({:register_client, node_id, node_name, client_ip}, state) do
@@ -1374,6 +1381,12 @@ defmodule AiReality2Transnet.ConnectionManager do
         case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 10_000) do
           {:ok, %Finch.Response{status: 200, body: response_body}} ->
             case Jason.decode(response_body) do
+              {:ok, %{"status" => "ok", "registered_sentants" => count, "host_node_id" => host_node_id}} ->
+                Logger.info("#{log_prefix()} Successfully registered #{count} sentants with host #{String.slice(host_node_id, 0..7)}...")
+                # Update state with the confirmed host_node_id
+                GenServer.cast(__MODULE__, {:set_host_peer_id, host_node_id})
+                :ok
+
               {:ok, %{"status" => "ok", "registered_sentants" => count}} ->
                 Logger.info("#{log_prefix()} Successfully registered #{count} sentants with host")
                 :ok
@@ -1499,6 +1512,8 @@ defmodule AiReality2Transnet.ConnectionManager do
         case perform_sentant_exchange(peer_node_id, gateway_ip, 4005) do
           :ok ->
             Logger.info("#{log_prefix()} sentantAll exchange completed for #{ssid}")
+            # Update the state with the discovered peer_node_id
+            GenServer.cast(__MODULE__, {:set_host_peer_id, peer_node_id})
 
           {:error, reason} ->
             Logger.error("#{log_prefix()} sentantAll exchange failed for #{ssid}: #{reason}")
