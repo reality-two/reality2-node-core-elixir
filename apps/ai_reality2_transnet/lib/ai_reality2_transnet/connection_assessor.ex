@@ -76,6 +76,8 @@ defmodule AiReality2Transnet.ConnectionAssessor do
   @degraded_signal_threshold -75
   # Average last 5 RSSI readings
   @rssi_averaging_window 5
+  # Host election delay - wait before starting to host to allow higher-priority peers to claim
+  @host_election_delay_ms 5_000
 
   @type candidate :: %{
           peer_id: String.t(),
@@ -379,7 +381,8 @@ defmodule AiReality2Transnet.ConnectionAssessor do
             should_host = should_we_host?(my_priority, my_node_id, peers)
 
             if should_host do
-              # We should be the host
+              # We should be the host - but wait briefly to avoid race conditions
+              # This allows higher-priority peers to claim hosting first
               case AiReality2Transnet.Wifi.list_adapters() do
                 {:ok, [_ | _]} ->
                   reason_text = cond do
@@ -391,19 +394,37 @@ defmodule AiReality2Transnet.ConnectionAssessor do
                     true -> "reduced priority due to failures (will retry)"
                   end
 
-                  Logger.info("#{log_prefix()} Starting hotspot - #{reason_text} (priority: #{my_priority})")
+                  Logger.info("#{log_prefix()} Elected to host - #{reason_text} (priority: #{my_priority})")
+                  Logger.info("#{log_prefix()} Waiting #{div(@host_election_delay_ms, 1000)}s before starting (election delay)...")
 
                   Task.start(fn ->
-                    case ConnectionManager.start_hosting() do
-                      {:ok, config} ->
-                        Logger.info("#{log_prefix()} Now hosting: #{config.ssid}")
-                        # Clear any failure penalty on successful hotspot start
-                        AiReality2Transnet.Wifi.report_hotspot_success()
+                    # Election delay - give higher priority peers time to start hosting
+                    Process.sleep(@host_election_delay_ms)
 
-                      {:error, err} ->
-                        Logger.warning("#{log_prefix()} Failed to start hosting: #{inspect(err)}")
-                        # Record failure - reduces priority so other nodes can try
-                        AiReality2Transnet.Wifi.report_hotspot_failure()
+                    # Re-check: has someone else started hosting during the delay?
+                    case check_for_hosting_peer() do
+                      {:found, host_name} ->
+                        Logger.info("#{log_prefix()} Host election: #{host_name} is now hosting - will connect instead")
+                        try_connect_to_r2_hotspot()
+
+                      :not_found ->
+                        # Re-verify we should still host (priorities may have changed)
+                        updated_peers = PeerManager.get_all_peers()
+                        if should_we_host?(my_priority, my_node_id, updated_peers) do
+                          Logger.info("#{log_prefix()} Host election won - starting hotspot")
+                          case ConnectionManager.start_hosting() do
+                            {:ok, config} ->
+                              Logger.info("#{log_prefix()} Now hosting: #{config.ssid}")
+                              AiReality2Transnet.Wifi.report_hotspot_success()
+
+                            {:error, err} ->
+                              Logger.warning("#{log_prefix()} Failed to start hosting: #{inspect(err)}")
+                              AiReality2Transnet.Wifi.report_hotspot_failure()
+                          end
+                        else
+                          Logger.info("#{log_prefix()} Host election: lost to higher priority peer during delay")
+                          try_connect_to_r2_hotspot()
+                        end
                     end
                   end)
 
@@ -818,6 +839,37 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
   defp schedule_assessment do
     Process.send_after(self(), :assess, @assessment_interval_ms)
+  end
+
+  # Check if any peer is now hosting a hotspot (scan WiFi for R2 SSIDs)
+  defp check_for_hosting_peer do
+    # First check PeerManager for peers advertising as hosts
+    peers = PeerManager.get_all_peers()
+    hosting_peer = Enum.find(peers, fn {_id, peer} ->
+      caps = Map.get(peer, :capabilities, %{})
+      Map.get(caps, :can_host_ap, false)
+    end)
+
+    case hosting_peer do
+      {_id, peer} ->
+        {:found, Map.get(peer, :node_name, "unknown")}
+
+      nil ->
+        # Also scan WiFi for R2 hotspots
+        my_node_name = Reality2.Bootstrap.get(:node_name, "")
+        case AiReality2Transnet.Wifi.find_r2_hotspots(nil) do
+          {:ok, hotspots} ->
+            # Filter out our own hotspot
+            other_hotspots = Enum.reject(hotspots, fn h -> h.ssid == my_node_name end)
+            case other_hotspots do
+              [h | _] -> {:found, h.ssid}
+              [] -> :not_found
+            end
+
+          _ ->
+            :not_found
+        end
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------

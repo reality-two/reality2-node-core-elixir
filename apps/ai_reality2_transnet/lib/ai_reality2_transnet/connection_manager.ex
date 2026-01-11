@@ -129,6 +129,13 @@ defmodule AiReality2Transnet.ConnectionManager do
   @hotspot_health_check_interval_ms 15_000  # Check every 15 seconds
   @max_hotspot_restart_attempts 3
 
+  # WiFi connection verification - detect external disconnects
+  @wifi_verification_interval_ms 10_000  # Check every 10 seconds
+
+  # Host reachability check - detect when connected but host is unreachable
+  @host_reachability_check_interval_ms 30_000  # Check every 30 seconds
+  @max_unreachable_count 2  # Disconnect after 2 consecutive failures
+
   @typedoc """
   Connection manager state.
   """
@@ -317,6 +324,30 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   @doc """
+  Gets comprehensive health metrics for monitoring and debugging.
+
+  ## Returns
+  - `{:ok, metrics}` - Health metrics map
+
+  ## Example
+
+      {:ok, metrics} = ConnectionManager.get_health_metrics()
+      # => %{
+      #   uptime_ms: 3600000,
+      #   connection_state: :connected_as_client,
+      #   connections_made: 5,
+      #   connections_lost: 2,
+      #   handovers_completed: 1,
+      #   handovers_failed: 0,
+      #   ...
+      # }
+  """
+  @spec get_health_metrics() :: {:ok, map()}
+  def get_health_metrics do
+    GenServer.call(__MODULE__, :get_health_metrics)
+  end
+
+  @doc """
   Reports that WiFi connection to an R2 hotspot was established externally.
 
   Called by ConnectionAssessor when it successfully connects to an R2 hotspot
@@ -383,13 +414,24 @@ defmodule AiReality2Transnet.ConnectionManager do
       # Statistics for monitoring
       stats: %{
         connections_made: 0,
+        connections_lost: 0,
         handovers_completed: 0,
         handovers_failed: 0,
-        hosting_sessions: 0
+        hosting_sessions: 0,
+        registration_attempts: 0,
+        registration_successes: 0,
+        sentant_exchanges: 0,
+        host_unreachable_events: 0,
+        wifi_disconnects_detected: 0,
+        hotspot_recoveries: 0,
+        started_at: System.system_time(:millisecond)
       },
 
       # Hotspot health check state
-      hotspot_restart_attempts: 0
+      hotspot_restart_attempts: 0,
+
+      # Host reachability tracking
+      host_unreachable_count: 0
     }
 
     # Subscribe to sentants topic to detect local sentant changes
@@ -397,6 +439,12 @@ defmodule AiReality2Transnet.ConnectionManager do
 
     # Schedule hotspot health check
     Process.send_after(self(), :hotspot_health_check, @hotspot_health_check_interval_ms)
+
+    # Schedule WiFi connection verification
+    Process.send_after(self(), :verify_wifi_connection, @wifi_verification_interval_ms)
+
+    # Schedule host reachability check
+    Process.send_after(self(), :check_host_reachability, @host_reachability_check_interval_ms)
 
     Logger.info("#{log_prefix()} Started - WiFi interface: #{wifi_interface || "none"}")
     {:ok, state}
@@ -538,6 +586,7 @@ defmodule AiReality2Transnet.ConnectionManager do
       signal_strength: signal_strength,
       hosting: state.hosting_config != nil && state.hosting_config.active,
       hosting_config: state.hosting_config,
+      connected_clients: state.connected_clients,  # Full list for push notifications
       connected_clients_count: length(state.connected_clients),
       wifi_interface: state.wifi_interface,
       stats: state.stats
@@ -555,6 +604,64 @@ defmodule AiReality2Transnet.ConnectionManager do
     else
       {:reply, {:error, :not_hosting}, state}
     end
+  end
+
+  @impl true
+  def handle_call(:get_health_metrics, _from, state) do
+    now = System.system_time(:millisecond)
+    started_at = Map.get(state.stats, :started_at, now)
+    uptime_ms = now - started_at
+
+    # Compute connection duration if connected
+    connection_duration_ms = if state.connected_at do
+      now - state.connected_at
+    else
+      nil
+    end
+
+    # Build comprehensive health metrics
+    metrics = %{
+      # Runtime
+      uptime_ms: uptime_ms,
+      uptime_formatted: format_duration(uptime_ms),
+
+      # Current state
+      connection_state: state.connection_state,
+      connected_to_host: state.current_host_ssid,
+      connection_duration_ms: connection_duration_ms,
+      connected_clients_count: length(state.connected_clients),
+      hosting: state.hosting_config != nil && Map.get(state.hosting_config, :active, false),
+
+      # Health indicators
+      host_unreachable_count: state.host_unreachable_count,
+      hotspot_restart_attempts: state.hotspot_restart_attempts,
+      last_sentant_exchange: state.last_sentant_exchange,
+
+      # Counters from stats
+      connections_made: state.stats.connections_made,
+      connections_lost: Map.get(state.stats, :connections_lost, 0),
+      handovers_completed: state.stats.handovers_completed,
+      handovers_failed: state.stats.handovers_failed,
+      hosting_sessions: state.stats.hosting_sessions,
+      registration_attempts: Map.get(state.stats, :registration_attempts, 0),
+      registration_successes: Map.get(state.stats, :registration_successes, 0),
+      sentant_exchanges: Map.get(state.stats, :sentant_exchanges, 0),
+      host_unreachable_events: Map.get(state.stats, :host_unreachable_events, 0),
+      wifi_disconnects_detected: Map.get(state.stats, :wifi_disconnects_detected, 0),
+      hotspot_recoveries: Map.get(state.stats, :hotspot_recoveries, 0),
+
+      # Computed metrics
+      connection_success_rate: compute_success_rate(
+        state.stats.connections_made,
+        Map.get(state.stats, :connections_lost, 0)
+      ),
+      handover_success_rate: compute_success_rate(
+        state.stats.handovers_completed,
+        state.stats.handovers_failed
+      )
+    }
+
+    {:reply, {:ok, metrics}, state}
   end
 
   @impl true
@@ -682,6 +789,24 @@ defmodule AiReality2Transnet.ConnectionManager do
     {:noreply, state}
   end
 
+  # WiFi connection verification - detect external disconnects
+  @impl true
+  def handle_info(:verify_wifi_connection, state) do
+    state = verify_wifi_connection(state)
+    # Schedule next verification
+    Process.send_after(self(), :verify_wifi_connection, @wifi_verification_interval_ms)
+    {:noreply, state}
+  end
+
+  # Host reachability check - detect when WiFi is connected but host is unreachable
+  @impl true
+  def handle_info(:check_host_reachability, state) do
+    state = check_host_reachability(state)
+    # Schedule next check
+    Process.send_after(self(), :check_host_reachability, @host_reachability_check_interval_ms)
+    {:noreply, state}
+  end
+
   defp handle_sentant_change(state) do
     case state.connection_state do
       :connected_as_client ->
@@ -706,9 +831,9 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp notify_clients_of_sentant_change(state) do
-    # Refresh local PNS topology
-    if Code.ensure_loaded?(AiReality2Pns.Router) do
-      AiReality2Pns.Router.refresh_topology()
+    # Notify PNS router if available
+    if Code.ensure_loaded?(AiReality2Pns.Router) and function_exported?(AiReality2Pns.Router, :refresh_topology, 0) do
+      apply(AiReality2Pns.Router, :refresh_topology, [])
     end
 
     # Push updated sentants to all connected clients
@@ -1145,6 +1270,143 @@ defmodule AiReality2Transnet.ConnectionManager do
     end
   end
 
+  # Verify WiFi connection is still active when state says connected_as_client
+  # Detects external disconnects (user action, signal loss, host reboot)
+  defp verify_wifi_connection(%{connection_state: :connected_as_client} = state) do
+    case Wifi.get_connection_status(state.wifi_interface) do
+      {:ok, %{connected: true, ssid: current_ssid}} ->
+        # Verify we're still connected to the expected SSID
+        if current_ssid == state.current_host_ssid do
+          # Connection healthy - no state change needed
+          state
+        else
+          # Connected to a different network - unexpected state
+          Logger.warning("#{log_prefix()} WiFi connected to different network: #{current_ssid} (expected #{state.current_host_ssid})")
+          handle_wifi_connection_lost(state, "ssid_mismatch")
+        end
+
+      {:ok, %{connected: false}} ->
+        # WiFi disconnected externally
+        Logger.warning("#{log_prefix()} WiFi connection lost externally")
+        handle_wifi_connection_lost(state, "external_disconnect")
+
+      {:error, reason} ->
+        # Could not determine WiFi status - assume still connected to avoid false positives
+        Logger.debug("#{log_prefix()} Could not verify WiFi status: #{inspect(reason)}")
+        state
+    end
+  end
+
+  # No verification needed for other states
+  defp verify_wifi_connection(state), do: state
+
+  # Handle loss of WiFi connection - clean up state and trigger recovery
+  defp handle_wifi_connection_lost(state, reason) do
+    Logger.info("#{log_prefix()} Handling WiFi connection loss: #{reason}")
+
+    # Clean up PNS routes for the lost host
+    if state.current_host_peer_id do
+      cleanup_host_routes(state.current_host_peer_id)
+    end
+
+    # Update stats based on reason
+    updated_stats = state.stats
+      |> Map.update!(:connections_lost, &(&1 + 1))
+      |> then(fn stats ->
+        case reason do
+          "external_disconnect" -> Map.update(stats, :wifi_disconnects_detected, 1, &(&1 + 1))
+          "ssid_mismatch" -> Map.update(stats, :wifi_disconnects_detected, 1, &(&1 + 1))
+          "host_unreachable" -> Map.update(stats, :host_unreachable_events, 1, &(&1 + 1))
+          _ -> stats
+        end
+      end)
+
+    # Reset to disconnected state
+    new_state = %{state |
+      connection_state: :disconnected,
+      current_host_peer_id: nil,
+      current_host_ssid: nil,
+      current_host_ip: nil,
+      connected_at: nil,
+      last_sentant_exchange: nil,
+      host_unreachable_count: 0,
+      stats: updated_stats
+    }
+
+    # Trigger immediate assessment to find new host
+    Task.start(fn ->
+      # Small delay to let state settle
+      Process.sleep(1000)
+      AiReality2Transnet.ConnectionAssessor.assess_now()
+    end)
+
+    new_state
+  end
+
+  # Clean up PNS routes when host connection is lost
+  defp cleanup_host_routes(host_node_id) do
+    # Remove sentants from PeerManager
+    AiReality2Transnet.PeerManager.update_peer_sentants(host_node_id, [])
+
+    # Clean up PNS_Routes for this host
+    case Reality2.Metadata.all(:PNS_Routes) do
+      routes when is_map(routes) ->
+        Enum.each(routes, fn {key, route_info} ->
+          if Map.get(route_info, :peer_node_id) == host_node_id do
+            Reality2.Metadata.delete(:PNS_Routes, key)
+          end
+        end)
+
+      _ ->
+        :ok
+    end
+
+    # Remove from PNS_Peers
+    Reality2.Metadata.delete(:PNS_Peers, host_node_id)
+
+    Logger.debug("#{log_prefix()} Cleaned up routes for host #{String.slice(host_node_id, 0..7)}...")
+  end
+
+  # Check if host is reachable (WiFi connected but host may have rebooted/died)
+  defp check_host_reachability(%{connection_state: :connected_as_client, current_host_ip: host_ip} = state)
+       when not is_nil(host_ip) do
+    # Try to reach the host's /mesh/info endpoint
+    url = "https://#{host_ip}:4005/mesh/info"
+    request = Finch.build(:get, url, [{"accept", "application/json"}])
+
+    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
+      {:ok, %Finch.Response{status: 200}} ->
+        # Host is reachable - reset counter
+        if state.host_unreachable_count > 0 do
+          Logger.info("#{log_prefix()} Host reachable again after #{state.host_unreachable_count} failures")
+        end
+        %{state | host_unreachable_count: 0}
+
+      {:ok, %Finch.Response{status: status}} ->
+        Logger.warning("#{log_prefix()} Host returned unexpected status #{status}")
+        increment_unreachable_count(state)
+
+      {:error, reason} ->
+        Logger.warning("#{log_prefix()} Host unreachable: #{inspect(reason)}")
+        increment_unreachable_count(state)
+    end
+  end
+
+  # No check needed for other states
+  defp check_host_reachability(state), do: state
+
+  defp increment_unreachable_count(state) do
+    new_count = state.host_unreachable_count + 1
+
+    if new_count >= @max_unreachable_count do
+      Logger.warning("#{log_prefix()} Host unreachable for #{new_count} checks - disconnecting")
+      handle_wifi_connection_lost(state, "host_unreachable")
+    else
+      Logger.info("#{log_prefix()} Host unreachable count: #{new_count}/#{@max_unreachable_count}")
+      %{state | host_unreachable_count: new_count}
+    end
+  end
+
   defp perform_sentant_exchange(host_node_id, host_ip, host_port) do
     # Retry up to 3 times with delays to handle host startup race condition
     perform_sentant_exchange(host_node_id, host_ip, host_port, 3)
@@ -1381,9 +1643,33 @@ defmodule AiReality2Transnet.ConnectionManager do
         case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 10_000) do
           {:ok, %Finch.Response{status: 200, body: response_body}} ->
             case Jason.decode(response_body) do
-              {:ok, %{"status" => "ok", "registered_sentants" => count, "host_node_id" => host_node_id}} ->
-                Logger.info("#{log_prefix()} Successfully registered #{count} sentants with host #{String.slice(host_node_id, 0..7)}...")
+              {:ok, %{"status" => "ok", "stored_sentant_ids" => stored_ids} = response} ->
+                count = Map.get(response, "registered_sentants", 0)
+                host_node_id = Map.get(response, "host_node_id")
+                host_node_name = Map.get(response, "host_node_name", "")
+
+                # Verify all sentants were stored
+                my_ids = Enum.map(my_sentants, fn s -> Map.get(s, :id) end) |> Enum.reject(&is_nil/1)
+                stored_set = MapSet.new(stored_ids || [])
+                missing = Enum.reject(my_ids, fn id -> MapSet.member?(stored_set, id) end)
+
+                if length(missing) > 0 do
+                  Logger.warning("#{log_prefix()} Registration incomplete: #{length(missing)} sentants not stored on host")
+                  Logger.debug("#{log_prefix()} Missing IDs: #{inspect(Enum.map(missing, &String.slice(&1, 0..7)))}")
+                else
+                  Logger.info("#{log_prefix()} Successfully registered #{count} sentants with host #{host_node_name} - all confirmed")
+                end
+
                 # Update state with the confirmed host_node_id
+                if host_node_id do
+                  GenServer.cast(__MODULE__, {:set_host_peer_id, host_node_id})
+                end
+
+                :ok
+
+              {:ok, %{"status" => "ok", "registered_sentants" => count, "host_node_id" => host_node_id}} ->
+                # Legacy response without stored_sentant_ids
+                Logger.info("#{log_prefix()} Successfully registered #{count} sentants with host #{String.slice(host_node_id, 0..7)}...")
                 GenServer.cast(__MODULE__, {:set_host_peer_id, host_node_id})
                 :ok
 
@@ -1597,5 +1883,30 @@ defmodule AiReality2Transnet.ConnectionManager do
       {error, _} ->
         {:error, "ip_route_failed: #{error}"}
     end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Private Functions - Health Metrics Helpers
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Format duration in milliseconds to human-readable string
+  defp format_duration(ms) when ms < 1000, do: "#{ms}ms"
+  defp format_duration(ms) when ms < 60_000, do: "#{div(ms, 1000)}s"
+  defp format_duration(ms) when ms < 3_600_000 do
+    mins = div(ms, 60_000)
+    secs = rem(div(ms, 1000), 60)
+    "#{mins}m #{secs}s"
+  end
+  defp format_duration(ms) do
+    hours = div(ms, 3_600_000)
+    mins = rem(div(ms, 60_000), 60)
+    "#{hours}h #{mins}m"
+  end
+
+  # Compute success rate as percentage (0-100)
+  defp compute_success_rate(successes, failures) when successes + failures == 0, do: nil
+  defp compute_success_rate(successes, failures) do
+    total = successes + failures
+    Float.round(successes / total * 100, 1)
   end
 end

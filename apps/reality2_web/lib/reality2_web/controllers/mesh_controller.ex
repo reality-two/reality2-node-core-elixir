@@ -112,10 +112,19 @@ defmodule Reality2Web.MeshController do
       # This enables client-to-client discovery through the host
       notify_other_clients_of_new_registration(node_id, node_name, sentants)
 
+      # Build confirmation response with stored sentant IDs
+      # This allows client to verify all sentants were registered
+      stored_sentants = get_stored_sentants_for_peer(node_id)
+      stored_ids = Enum.map(stored_sentants, fn s ->
+        Map.get(s, "id") || Map.get(s, :id)
+      end) |> Enum.reject(&is_nil/1)
+
       response = %{
         status: "ok",
         registered_sentants: length(sentants),
-        host_node_id: Reality2.Bootstrap.get(:node_id)
+        stored_sentant_ids: stored_ids,
+        host_node_id: Reality2.Bootstrap.get(:node_id),
+        host_node_name: Reality2.Bootstrap.get(:node_name)
       }
 
       json(conn, response)
@@ -283,6 +292,18 @@ defmodule Reality2Web.MeshController do
   defp wifi_available? do
     Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) &&
       Process.whereis(AiReality2Transnet.ConnectionManager) != nil
+  end
+
+  # Get stored sentants for a peer from PeerManager (for confirmation)
+  defp get_stored_sentants_for_peer(peer_node_id) do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      case apply(AiReality2Transnet.PeerManager, :get_peer, [peer_node_id]) do
+        {:ok, peer} -> Map.get(peer, :sentants, [])
+        _ -> []
+      end
+    else
+      []
+    end
   end
 
   defp update_pns_routes_for_peer(peer_node_id, peer_node_name, peer_ip, peer_sentants) do
