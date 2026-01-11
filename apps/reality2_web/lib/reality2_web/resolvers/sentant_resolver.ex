@@ -73,7 +73,7 @@ defmodule Reality2Web.SentantResolver do
             # Only include sentants from peers connected via wifi_hotspot (registered clients)
             if Map.get(peer_info, :transport) == :wifi_hotspot do
               peer_sentants = Map.get(peer_info, :sentants, [])
-              peer_node_name = Map.get(peer_info, :node_name, "Unknown")
+              _peer_node_name = Map.get(peer_info, :node_name, "Unknown")
 
               # Convert string-keyed maps to atom-keyed for GraphQL compatibility
               Enum.map(peer_sentants, fn sentant ->
@@ -81,7 +81,6 @@ defmodule Reality2Web.SentantResolver do
                   id: Map.get(sentant, "id") || Map.get(sentant, :id),
                   name: Map.get(sentant, "name") || Map.get(sentant, :name),
                   description: Map.get(sentant, "description") || Map.get(sentant, :description) || "",
-                  owner: peer_node_name,  # Mark which node owns this sentant
                   events: normalize_events(Map.get(sentant, "events") || Map.get(sentant, :events) || []),
                   signals: normalize_signals(Map.get(sentant, "signals") || Map.get(sentant, :signals) || [])
                 }

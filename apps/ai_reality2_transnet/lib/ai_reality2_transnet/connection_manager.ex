@@ -1297,7 +1297,6 @@ defmodule AiReality2Transnet.ConnectionManager do
         id
         name
         description
-        owner
         events {
           event
           parameters
