@@ -44,6 +44,7 @@ defmodule Reality2Web.Router do
     get "/info", MeshController, :info
     get "/sentants", MeshController, :sentants
     post "/register", MeshController, :register
+    post "/peer_update", MeshController, :peer_update
   end
 
   if Mix.env() == :dev do

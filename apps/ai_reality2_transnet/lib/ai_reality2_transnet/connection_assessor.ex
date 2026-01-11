@@ -292,7 +292,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
   # - If peers have EQUAL priority, yield to lower node_id
   # - If we have the HIGHEST priority, never yield
   defp maybe_yield_hosting do
-    case ConnectionManager.get_connection_status() do
+    case safe_get_connection_status() do
       {:ok, %{state: :hosting_ap}} ->
         my_priority = AiReality2Transnet.Wifi.get_hosting_priority()
         my_node_id = Reality2.Bootstrap.get(:node_id)
@@ -364,7 +364,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     # 5. We "win" the selection (best hosting priority, then lowest node_id as tie-breaker)
 
     if reason in ["no_candidates_available", "no_better_candidate", "no_join_offer_available", "no_join_offer_for_candidate"] do
-      case ConnectionManager.get_connection_status() do
+      case safe_get_connection_status() do
         {:ok, %{state: :disconnected, hosting: hosting}} when hosting != true ->
           # We're disconnected and not hosting - check if we should start
           peers = PeerManager.get_all_peers()
@@ -615,8 +615,8 @@ defmodule AiReality2Transnet.ConnectionAssessor do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   defp evaluate_handover_decision(state) do
-    # Get current connection status
-    case ConnectionManager.get_connection_status() do
+    # Get current connection status (using safe wrapper to handle timeouts)
+    case safe_get_connection_status() do
       {:ok, status} when status.state == :connected_as_client ->
         evaluate_handover_for_connected(status, state)
 
@@ -810,5 +810,25 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
   defp schedule_assessment do
     Process.send_after(self(), :assess, @assessment_interval_ms)
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Private Functions - Safe Wrappers
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Safe wrapper for ConnectionManager.get_connection_status that handles timeouts
+  # This prevents assessment from crashing if ConnectionManager is blocked (e.g., starting hotspot)
+  defp safe_get_connection_status do
+    try do
+      ConnectionManager.get_connection_status()
+    catch
+      :exit, {:timeout, _} ->
+        Logger.warning("#{log_prefix()} ConnectionManager timeout - skipping assessment")
+        {:error, :timeout}
+
+      :exit, reason ->
+        Logger.warning("#{log_prefix()} ConnectionManager unavailable: #{inspect(reason)}")
+        {:error, :unavailable}
+    end
   end
 end

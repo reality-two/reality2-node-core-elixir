@@ -540,8 +540,9 @@ defmodule AiReality2Transnet.Wifi do
   end
 
   defp get_hotspot_ip_with_retry(interface, retries_left) when retries_left <= 0 do
-    Logger.error("#{log_prefix()} Failed to get hotspot IP for #{interface} after retries")
-    {:error, "no_ip_after_retries"}
+    # No IP auto-assigned - try to manually assign one (common for p2p0/WiFi Direct interfaces)
+    Logger.warning("#{log_prefix()} No IP auto-assigned to #{interface}, attempting manual assignment...")
+    assign_hotspot_ip(interface)
   end
 
   defp get_hotspot_ip_with_retry(interface, retries_left) do
@@ -551,11 +552,41 @@ defmodule AiReality2Transnet.Wifi do
 
       {:error, _} when retries_left > 1 ->
         Logger.debug("#{log_prefix()} Waiting for hotspot IP on #{interface}... (#{retries_left - 1} retries left)")
-        Process.sleep(1_000)
+        Process.sleep(500)  # Reduced from 1000ms for faster startup
         get_hotspot_ip_with_retry(interface, retries_left - 1)
 
-      error ->
-        error
+      _error ->
+        # Last retry failed - try manual assignment
+        Logger.warning("#{log_prefix()} No IP auto-assigned to #{interface}, attempting manual assignment...")
+        assign_hotspot_ip(interface)
+    end
+  end
+
+  # Manually assign a hotspot IP when NetworkManager doesn't auto-configure
+  # This is common for p2p0 (WiFi Direct) and some embedded platforms
+  @hotspot_ip "10.42.0.1"
+  @hotspot_netmask "24"
+
+  defp assign_hotspot_ip(interface) do
+    # First bring interface up
+    System.cmd("ip", ["link", "set", interface, "up"], stderr_to_stdout: true)
+
+    # Assign IP address
+    case System.cmd("ip", ["addr", "add", "#{@hotspot_ip}/#{@hotspot_netmask}", "dev", interface],
+           stderr_to_stdout: true) do
+      {_output, 0} ->
+        Logger.info("#{log_prefix()} Manually assigned #{@hotspot_ip} to #{interface}")
+        {:ok, @hotspot_ip}
+
+      {output, _} ->
+        # Check if IP already exists (RTNETLINK answers: File exists)
+        if String.contains?(output, "File exists") do
+          Logger.info("#{log_prefix()} IP #{@hotspot_ip} already assigned to #{interface}")
+          {:ok, @hotspot_ip}
+        else
+          Logger.error("#{log_prefix()} Failed to assign IP to #{interface}: #{output}")
+          {:error, :no_ip_address}
+        end
     end
   end
 

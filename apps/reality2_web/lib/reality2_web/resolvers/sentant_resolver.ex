@@ -50,11 +50,78 @@ defmodule Reality2Web.SentantResolver do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Get all the Sentants on this Node.  TODO: Search criteria and privacy / ownership
+  # When hosting a hotspot, also includes sentants registered by connected mesh clients.
+  # This enables client-to-client discovery through the host.
   # -----------------------------------------------------------------------------------------------------------------------------------------
   def all_sentants(_, _, _) do
-    {:ok, sentants} = Reality2.Sentants.read_all(:definition)
-    {:ok, Enum.map(sentants, fn sentant -> sentant end)}
+    {:ok, local_sentants} = Reality2.Sentants.read_all(:definition)
+
+    # If we're hosting, also include sentants from registered mesh clients
+    remote_sentants = get_registered_client_sentants()
+
+    all = local_sentants ++ remote_sentants
+    {:ok, Enum.map(all, fn sentant -> sentant end)}
   end
+
+  # Get sentants from mesh clients that have registered with us (when we're hosting)
+  defp get_registered_client_sentants do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      case apply(AiReality2Transnet.PeerManager, :get_all_peers, []) do
+        peers when is_map(peers) ->
+          peers
+          |> Enum.flat_map(fn {_peer_id, peer_info} ->
+            # Only include sentants from peers connected via wifi_hotspot (registered clients)
+            if Map.get(peer_info, :transport) == :wifi_hotspot do
+              peer_sentants = Map.get(peer_info, :sentants, [])
+              peer_node_name = Map.get(peer_info, :node_name, "Unknown")
+
+              # Convert string-keyed maps to atom-keyed for GraphQL compatibility
+              Enum.map(peer_sentants, fn sentant ->
+                %{
+                  id: Map.get(sentant, "id") || Map.get(sentant, :id),
+                  name: Map.get(sentant, "name") || Map.get(sentant, :name),
+                  description: Map.get(sentant, "description") || Map.get(sentant, :description) || "",
+                  owner: peer_node_name,  # Mark which node owns this sentant
+                  events: normalize_events(Map.get(sentant, "events") || Map.get(sentant, :events) || []),
+                  signals: normalize_signals(Map.get(sentant, "signals") || Map.get(sentant, :signals) || [])
+                }
+              end)
+            else
+              []
+            end
+          end)
+
+        _ ->
+          []
+      end
+    else
+      []
+    end
+  end
+
+  # Normalize events to the expected format
+  defp normalize_events(events) when is_list(events) do
+    Enum.map(events, fn
+      event when is_binary(event) -> %{event: event, parameters: []}
+      %{"event" => name} = e -> %{event: name, parameters: Map.get(e, "parameters", [])}
+      %{event: name} = e -> %{event: name, parameters: Map.get(e, :parameters, [])}
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+  defp normalize_events(_), do: []
+
+  # Normalize signals to expected format
+  defp normalize_signals(signals) when is_list(signals) do
+    Enum.map(signals, fn
+      signal when is_binary(signal) -> signal
+      %{"signal" => name} -> name
+      %{signal: name} -> name
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+  defp normalize_signals(_), do: []
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
 

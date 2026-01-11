@@ -302,6 +302,21 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   @doc """
+  Refreshes remote sentants by re-querying the host.
+
+  When connected as a client, this will query the host's sentantAll endpoint
+  to get updated sentants (including any newly registered clients).
+
+  ## Returns
+  - `:ok` - Refresh initiated
+  - `{:error, reason}` - Not connected or refresh failed
+  """
+  @spec refresh_remote_sentants() :: :ok | {:error, String.t()}
+  def refresh_remote_sentants do
+    GenServer.call(__MODULE__, :refresh_remote_sentants, 15_000)
+  end
+
+  @doc """
   Reports that WiFi connection to an R2 hotspot was established externally.
 
   Called by ConnectionAssessor when it successfully connects to an R2 hotspot
@@ -539,6 +554,33 @@ defmodule AiReality2Transnet.ConnectionManager do
       {:reply, {:ok, state.hosting_config}, state}
     else
       {:reply, {:error, :not_hosting}, state}
+    end
+  end
+
+  @impl true
+  def handle_call(:refresh_remote_sentants, _from, state) do
+    # Re-query host's sentants (including other registered clients)
+    case state.connection_state do
+      :connected_as_client when not is_nil(state.current_host_ip) ->
+        Logger.info("#{log_prefix()} Refreshing remote sentants from host #{state.current_host_ip}")
+
+        # Get the host's node_id from PeerManager if we have it
+        host_node_id = state.current_host_peer_id || "host"
+
+        case do_refresh_sentants(host_node_id, state.current_host_ip, 4005) do
+          {:ok, count} ->
+            new_state = %{state | last_sentant_exchange: System.system_time(:millisecond)}
+            {:reply, {:ok, count}, new_state}
+
+          {:error, reason} ->
+            {:reply, {:error, reason}, state}
+        end
+
+      :hosting_ap ->
+        {:reply, {:error, "cannot_refresh_when_hosting"}, state}
+
+      _ ->
+        {:reply, {:error, "not_connected"}, state}
     end
   end
 
@@ -1247,6 +1289,63 @@ defmodule AiReality2Transnet.ConnectionManager do
 
   defp get_signal_names(_), do: []
 
+  # Refresh sentants from host (for re-querying after other clients connect)
+  defp do_refresh_sentants(host_node_id, host_ip, host_port) do
+    graphql_query = """
+    {
+      sentantAll {
+        id
+        name
+        description
+        owner
+        events {
+          event
+          parameters
+        }
+        signals
+      }
+    }
+    """
+
+    graphql_request = %{query: graphql_query}
+    url = "https://#{host_ip}:#{host_port}/reality2"
+    headers = [{"content-type", "application/json"}]
+    body = Jason.encode!(graphql_request)
+
+    request = Finch.build(:post, url, headers, body)
+
+    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 10_000) do
+      {:ok, %Finch.Response{status: 200, body: response_body}} ->
+        case Jason.decode(response_body) do
+          {:ok, %{"data" => %{"sentantAll" => sentants}}} ->
+            Logger.info("#{log_prefix()} Refreshed: received #{length(sentants)} sentants from host")
+
+            # Update PeerManager with refreshed sentants
+            AiReality2Transnet.PeerManager.update_peer_sentants(host_node_id, sentants)
+
+            # Update PNS routing table
+            update_pns_routing_table(host_node_id, host_ip, sentants)
+
+            {:ok, length(sentants)}
+
+          {:ok, %{"errors" => errors}} ->
+            Logger.error("#{log_prefix()} Refresh GraphQL errors: #{inspect(errors)}")
+            {:error, "graphql_errors"}
+
+          _ ->
+            {:error, "invalid_response"}
+        end
+
+      {:ok, %Finch.Response{status: status}} ->
+        Logger.error("#{log_prefix()} Refresh failed with status #{status}")
+        {:error, "http_error_#{status}"}
+
+      {:error, reason} ->
+        Logger.error("#{log_prefix()} Refresh request failed: #{inspect(reason)}")
+        {:error, "connection_failed"}
+    end
+  end
+
   # Register our sentants with the host for bidirectional discovery
   defp register_with_host(host_ip, host_port) do
     my_node_id = Reality2.Bootstrap.get(:node_id)
@@ -1254,6 +1353,10 @@ defmodule AiReality2Transnet.ConnectionManager do
     my_sentants = get_local_sentants()
 
     Logger.info("#{log_prefix()} Registering #{length(my_sentants)} sentants with host at #{host_ip}:#{host_port}")
+
+    # Log sentant names for debugging
+    sentant_names = Enum.map(my_sentants, fn s -> Map.get(s, :name, "?") end)
+    Logger.debug("#{log_prefix()} Sentants to register: #{inspect(sentant_names)}")
 
     register_request = %{
       node_id: my_node_id,
@@ -1263,33 +1366,44 @@ defmodule AiReality2Transnet.ConnectionManager do
 
     url = "https://#{host_ip}:#{host_port}/mesh/register"
     headers = [{"content-type", "application/json"}]
-    body = Jason.encode!(register_request)
 
-    request = Finch.build(:post, url, headers, body)
+    case Jason.encode(register_request) do
+      {:ok, body} ->
+        Logger.debug("#{log_prefix()} Sending registration request to #{url}")
+        request = Finch.build(:post, url, headers, body)
 
-    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
-      {:ok, %Finch.Response{status: 200, body: response_body}} ->
-        case Jason.decode(response_body) do
-          {:ok, %{"status" => "ok", "registered_sentants" => count}} ->
-            Logger.info("#{log_prefix()} Successfully registered #{count} sentants with host")
-            :ok
+        case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 10_000) do
+          {:ok, %Finch.Response{status: 200, body: response_body}} ->
+            case Jason.decode(response_body) do
+              {:ok, %{"status" => "ok", "registered_sentants" => count}} ->
+                Logger.info("#{log_prefix()} Successfully registered #{count} sentants with host")
+                :ok
 
-          {:ok, response} ->
-            Logger.warning("#{log_prefix()} Unexpected register response: #{inspect(response)}")
-            :ok
+              {:ok, response} ->
+                Logger.warning("#{log_prefix()} Unexpected register response: #{inspect(response)}")
+                :ok
+
+              {:error, reason} ->
+                Logger.error("#{log_prefix()} Failed to decode register response: #{inspect(reason)}")
+                {:error, "invalid_response"}
+            end
+
+          {:ok, %Finch.Response{status: status, body: resp_body}} ->
+            Logger.error("#{log_prefix()} Register request failed with status #{status}: #{resp_body}")
+            {:error, "http_error_#{status}"}
+
+          {:error, %Mint.TransportError{reason: reason}} ->
+            Logger.error("#{log_prefix()} Register transport error: #{inspect(reason)}")
+            {:error, "transport_error"}
 
           {:error, reason} ->
-            Logger.error("#{log_prefix()} Failed to decode register response: #{inspect(reason)}")
-            {:error, "invalid_response"}
+            Logger.error("#{log_prefix()} Register request failed: #{inspect(reason)}")
+            {:error, "connection_failed"}
         end
 
-      {:ok, %Finch.Response{status: status, body: body}} ->
-        Logger.error("#{log_prefix()} Register request failed with status #{status}: #{body}")
-        {:error, "http_error_#{status}"}
-
       {:error, reason} ->
-        Logger.error("#{log_prefix()} Register request failed: #{inspect(reason)}")
-        {:error, "connection_failed"}
+        Logger.error("#{log_prefix()} Failed to encode registration request: #{inspect(reason)}")
+        {:error, "encode_failed"}
     end
   end
 
