@@ -52,26 +52,44 @@ defmodule Reality2Web.SentantResolver do
   # Get all the Sentants on this Node.  TODO: Search criteria and privacy / ownership
   # When hosting a hotspot, also includes sentants registered by connected mesh clients.
   # This enables client-to-client discovery through the host.
+  # Excludes the requesting peer's own sentants to prevent duplicates.
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  def all_sentants(_, _, _) do
+  def all_sentants(_, _, %{context: context}) do
     {:ok, local_sentants} = Reality2.Sentants.read_all(:definition)
 
+    # Get the requesting client's IP to filter out their own sentants
+    requesting_ip = Map.get(context, :remote_ip)
+
     # If we're hosting, also include sentants from registered mesh clients
-    remote_sentants = get_registered_client_sentants()
+    # but exclude sentants from the requesting peer
+    remote_sentants = get_registered_client_sentants(requesting_ip)
 
     all = local_sentants ++ remote_sentants
     {:ok, Enum.map(all, fn sentant -> sentant end)}
   end
 
+  # Fallback for when context is not available
+  def all_sentants(_, _, _) do
+    {:ok, local_sentants} = Reality2.Sentants.read_all(:definition)
+    remote_sentants = get_registered_client_sentants(nil)
+    all = local_sentants ++ remote_sentants
+    {:ok, Enum.map(all, fn sentant -> sentant end)}
+  end
+
   # Get sentants from mesh clients that have registered with us (when we're hosting)
-  defp get_registered_client_sentants do
+  # Optionally excludes sentants from a peer at the given IP address
+  defp get_registered_client_sentants(exclude_ip) do
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
       case apply(AiReality2Transnet.PeerManager, :get_all_peers, []) do
         peers when is_map(peers) ->
           peers
           |> Enum.flat_map(fn {_peer_id, peer_info} ->
+            peer_address = Map.get(peer_info, :address)
+
             # Only include sentants from peers connected via wifi_hotspot (registered clients)
-            if Map.get(peer_info, :transport) == :wifi_hotspot do
+            # AND exclude the requesting peer's own sentants (to prevent duplicates)
+            if Map.get(peer_info, :transport) == :wifi_hotspot and
+               (exclude_ip == nil or peer_address != exclude_ip) do
               peer_sentants = Map.get(peer_info, :sentants, [])
               _peer_node_name = Map.get(peer_info, :node_name, "Unknown")
 

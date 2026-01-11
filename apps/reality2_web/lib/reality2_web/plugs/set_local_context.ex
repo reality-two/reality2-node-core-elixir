@@ -6,6 +6,6 @@ defmodule Reality2Web.Plugs.SetLocalContext do
     remote_ip = Tuple.to_list(conn.remote_ip) |> Enum.join(".")
     is_local = remote_ip in ["127.0.0.1", "::1", "localhost"]
 
-    Absinthe.Plug.put_options(conn, context: %{local?: is_local})
+    Absinthe.Plug.put_options(conn, context: %{local?: is_local, remote_ip: remote_ip})
   end
 end
