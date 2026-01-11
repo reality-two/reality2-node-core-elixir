@@ -6,6 +6,21 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
+# Configure log level from environment variable
+# develop branch: :debug (show everything)
+# main branch: :info (normal production logging)
+log_level =
+  case System.get_env("LOG_LEVEL", "info") do
+    "debug" -> :debug
+    "info" -> :info
+    "warning" -> :warning
+    "warn" -> :warning
+    "error" -> :error
+    _ -> :info
+  end
+
+config :logger, level: log_level
+
 if config_env() == :prod do
   # database_url =
   #   System.get_env("DATABASE_URL") ||

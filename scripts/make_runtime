@@ -52,9 +52,11 @@ mix release
 
 cp "scripts/runtime_run" "_build/prod/rel/reality2/run"
 
-# Set BUILD_BRANCH in run script based on current git branch
+# Set BUILD_BRANCH and LOG_LEVEL in run script based on current git branch
 if [ "$(git rev-parse --abbrev-ref HEAD)" == "develop" ]; then
     sed -i 's/BUILD_BRANCH=main/BUILD_BRANCH=develop/' "_build/prod/rel/reality2/run"
+    sed -i 's/LOG_LEVEL=info/LOG_LEVEL=debug/' "_build/prod/rel/reality2/run"
+    echo "***** Development build: LOG_LEVEL=debug (verbose logging enabled)"
 fi
 
 if [ "$ARCH" == "aarch64" ]; then

@@ -6,6 +6,7 @@ export PORT=4005
 export POOLSIZE=10
 export MIX_ENV=prod
 export BUILD_BRANCH=main
+export LOG_LEVEL=info
 export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet, ai.reality2.versioncontrol"
 
 # The autostart directory is assumed to be in the same folder as where Reality2-Node is run.

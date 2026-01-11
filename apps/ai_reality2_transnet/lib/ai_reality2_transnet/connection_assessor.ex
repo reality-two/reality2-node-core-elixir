@@ -438,6 +438,8 @@ defmodule AiReality2Transnet.ConnectionAssessor do
   # - 0: No WiFi capability
   #
   # Now uses peer priorities from BLE beacons for informed decisions!
+  # IMPORTANT: If a higher-priority peer exists, wait for them to start hosting
+  # before deciding to host ourselves (they may still be starting up).
   defp should_we_host?(my_priority, my_node_id, peers) do
     # Get the highest priority among peers (from BLE beacon data)
     max_peer_priority = PeerManager.get_max_peer_priority()
@@ -445,6 +447,12 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     Logger.debug("#{log_prefix()} Host selection: my_priority=#{my_priority}, max_peer_priority=#{max_peer_priority}")
 
     cond do
+      # A peer has higher priority - DON'T host, wait for them
+      # They may still be starting their hotspot
+      max_peer_priority > my_priority ->
+        Logger.info("#{log_prefix()} Higher priority peer exists (#{max_peer_priority} > #{my_priority}) - waiting for them to host")
+        false
+
       # We have higher priority than all peers - become host
       my_priority > max_peer_priority ->
         Logger.debug("#{log_prefix()} Higher priority than peers (#{my_priority} > #{max_peer_priority}) - becoming host")
@@ -468,7 +476,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
           false
         end
 
-      # A peer has higher priority - let them host
+      # Fallback - shouldn't reach here
       true ->
         Logger.debug("#{log_prefix()} Peer has higher priority (#{max_peer_priority} > #{my_priority}) - waiting for them to host")
         false
