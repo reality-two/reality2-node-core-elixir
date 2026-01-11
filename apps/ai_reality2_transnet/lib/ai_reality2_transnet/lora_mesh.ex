@@ -74,6 +74,9 @@ defmodule AiReality2Transnet.LoRaMesh do
   use GenServer
   require Logger
 
+  # Helper to get node name for log messages
+  defp log_prefix, do: "[LoRaMesh:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Constants
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -271,15 +274,15 @@ defmodule AiReality2Transnet.LoRaMesh do
           schedule_cleanup()
           schedule_presence()
 
-          Logger.info("[LoRaMesh] Initialized on #{port_info.port}")
+          Logger.info("#{log_prefix()} Initialized on #{port_info.port}")
           {:ok, state}
 
         {:error, reason} ->
-          Logger.info("[LoRaMesh] No LoRa hardware detected: #{inspect(reason)} - running without LoRa")
+          Logger.info("#{log_prefix()} No LoRa hardware detected: #{inspect(reason)} - running without LoRa")
           {:ok, %{available: false, stats: %{available: false}}}
       end
     else
-      Logger.info("[LoRaMesh] Disabled by configuration")
+      Logger.info("#{log_prefix()} Disabled by configuration")
       {:ok, %{available: false, stats: %{available: false}}}
     end
   end
@@ -455,7 +458,7 @@ defmodule AiReality2Transnet.LoRaMesh do
 
   @impl true
   def handle_info(msg, state) do
-    Logger.debug("[LoRaMesh] Unhandled: #{inspect(msg)}")
+    Logger.debug("#{log_prefix()} Unhandled: #{inspect(msg)}")
     {:noreply, state}
   end
 
@@ -543,7 +546,7 @@ defmodule AiReality2Transnet.LoRaMesh do
               after
                 @serial_timeout_ms ->
                   # No response - might still work, some devices don't use AT commands
-                  Logger.warning("[LoRaMesh] No AT response from #{port_path}, assuming raw mode")
+                  Logger.warning("#{log_prefix()} No AT response from #{port_path}, assuming raw mode")
                   {:ok, pid}
               end
 
@@ -603,10 +606,10 @@ defmodule AiReality2Transnet.LoRaMesh do
         deliver_signal(message)
 
       @msg_type_presence ->
-        Logger.debug("[LoRaMesh] Presence from 0x#{Integer.to_string(message.src_hash, 16)}")
+        Logger.debug("#{log_prefix()} Presence from 0x#{Integer.to_string(message.src_hash, 16)}")
 
       _ ->
-        Logger.debug("[LoRaMesh] Unknown message type: #{message.type}")
+        Logger.debug("#{log_prefix()} Unknown message type: #{message.type}")
     end
   end
 
@@ -630,7 +633,7 @@ defmodule AiReality2Transnet.LoRaMesh do
         })
 
       _ ->
-        Logger.warning("[LoRaMesh] Malformed event payload")
+        Logger.warning("#{log_prefix()} Malformed event payload")
     end
   end
 
@@ -655,7 +658,7 @@ defmodule AiReality2Transnet.LoRaMesh do
         })
 
       _ ->
-        Logger.warning("[LoRaMesh] Malformed signal payload")
+        Logger.warning("#{log_prefix()} Malformed signal payload")
     end
   end
 

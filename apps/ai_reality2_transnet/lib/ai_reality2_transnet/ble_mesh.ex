@@ -61,6 +61,9 @@ defmodule AiReality2Transnet.BLEMesh do
   use GenServer
   require Logger
 
+  # Helper to get node name for log messages
+  defp log_prefix, do: "[BLEMesh:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
+
   alias AiReality2Transnet.Action
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -276,7 +279,7 @@ defmodule AiReality2Transnet.BLEMesh do
       }
     }
 
-    Logger.info("[BLEMesh] Started (mesh not yet initialized)")
+    Logger.info("#{log_prefix()} Started (mesh not yet initialized)")
     {:ok, state}
   end
 
@@ -286,7 +289,7 @@ defmodule AiReality2Transnet.BLEMesh do
 
     case Action.mesh_init(self(), node_id, adapter_name) do
       {:ok, handle} ->
-        Logger.info("[BLEMesh] Mesh initialized on #{adapter_name}")
+        Logger.info("#{log_prefix()} Mesh initialized on #{adapter_name}")
 
         # Schedule periodic presence announcements
         schedule_presence_announcement()
@@ -298,7 +301,7 @@ defmodule AiReality2Transnet.BLEMesh do
         {:reply, :ok, new_state}
 
       {:error, reason} ->
-        Logger.warning("[BLEMesh] Failed to initialize mesh: #{inspect(reason)}")
+        Logger.warning("#{log_prefix()} Failed to initialize mesh: #{inspect(reason)}")
         {:reply, {:error, reason}, state}
     end
   end
@@ -333,7 +336,7 @@ defmodule AiReality2Transnet.BLEMesh do
       case Action.mesh_subscribe(state.mesh_handle, address) do
         :ok ->
           new_subs = MapSet.put(state.subscriptions, address)
-          Logger.info("[BLEMesh] Subscribed to group #{group_name} (0x#{Integer.to_string(address, 16)})")
+          Logger.info("#{log_prefix()} Subscribed to group #{group_name} (0x#{Integer.to_string(address, 16)})")
           {:reply, :ok, %{state | subscriptions: new_subs}}
 
         {:error, reason} ->
@@ -383,7 +386,7 @@ defmodule AiReality2Transnet.BLEMesh do
 
   @impl true
   def handle_info({:mesh_sentant_event, sentant_hash, event_hash, params_json}, state) do
-    Logger.debug("[BLEMesh] Received event: sentant=0x#{Integer.to_string(sentant_hash, 16)}, event=0x#{Integer.to_string(event_hash, 16)}")
+    Logger.debug("#{log_prefix()} Received event: sentant=0x#{Integer.to_string(sentant_hash, 16)}, event=0x#{Integer.to_string(event_hash, 16)}")
 
     # Decode and route to local Sentants
     case Jason.decode(params_json) do
@@ -392,7 +395,7 @@ defmodule AiReality2Transnet.BLEMesh do
         route_incoming_event(sentant_hash, event_hash, params)
 
       {:error, _} ->
-        Logger.warning("[BLEMesh] Failed to decode event params")
+        Logger.warning("#{log_prefix()} Failed to decode event params")
     end
 
     new_stats = Map.update!(state.stats, :events_received, &(&1 + 1))
@@ -401,14 +404,14 @@ defmodule AiReality2Transnet.BLEMesh do
 
   @impl true
   def handle_info({:mesh_sentant_signal, source_hash, target_hash, signal_hash, params_json}, state) do
-    Logger.debug("[BLEMesh] Received signal: #{source_hash} -> #{target_hash}")
+    Logger.debug("#{log_prefix()} Received signal: #{source_hash} -> #{target_hash}")
 
     case Jason.decode(params_json) do
       {:ok, params} ->
         route_incoming_signal(source_hash, target_hash, signal_hash, params)
 
       {:error, _} ->
-        Logger.warning("[BLEMesh] Failed to decode signal params")
+        Logger.warning("#{log_prefix()} Failed to decode signal params")
     end
 
     new_stats = Map.update!(state.stats, :signals_received, &(&1 + 1))
@@ -417,7 +420,7 @@ defmodule AiReality2Transnet.BLEMesh do
 
   @impl true
   def handle_info({:mesh_sentant_presence, node_hash, sentant_count, _sentant_hashes}, state) do
-    Logger.debug("[BLEMesh] Presence from node 0x#{Integer.to_string(node_hash, 16)}: #{sentant_count} sentants")
+    Logger.debug("#{log_prefix()} Presence from node 0x#{Integer.to_string(node_hash, 16)}: #{sentant_count} sentants")
 
     # Could update peer tracking here with sentant_hashes
     # For now, just log
@@ -437,13 +440,13 @@ defmodule AiReality2Transnet.BLEMesh do
 
   @impl true
   def handle_info({:mesh_initialized, unicast_address}, state) do
-    Logger.info("[BLEMesh] Mesh provisioned, unicast address: 0x#{Integer.to_string(unicast_address, 16)}")
+    Logger.info("#{log_prefix()} Mesh provisioned, unicast address: 0x#{Integer.to_string(unicast_address, 16)}")
     {:noreply, %{state | unicast_address: unicast_address, active: true}}
   end
 
   @impl true
   def handle_info(msg, state) do
-    Logger.debug("[BLEMesh] Unhandled message: #{inspect(msg)}")
+    Logger.debug("#{log_prefix()} Unhandled message: #{inspect(msg)}")
     {:noreply, state}
   end
 

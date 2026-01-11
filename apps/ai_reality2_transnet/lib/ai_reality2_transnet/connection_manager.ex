@@ -80,6 +80,9 @@ defmodule AiReality2Transnet.ConnectionManager do
 
   alias AiReality2Transnet.{Wifi, PeerManager}
 
+  # Helper to get node name for log messages
+  defp log_prefix, do: "[ConnectionManager:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Type Definitions
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -370,7 +373,7 @@ defmodule AiReality2Transnet.ConnectionManager do
     # Subscribe to sentants topic to detect local sentant changes
     Phoenix.PubSub.subscribe(Reality2.PubSub, "sentants")
 
-    Logger.info("[ConnectionManager] Started - WiFi interface: #{wifi_interface || "none"}")
+    Logger.info("#{log_prefix()} Started - WiFi interface: #{wifi_interface || "none"}")
     {:ok, state}
   end
 
@@ -449,7 +452,7 @@ defmodule AiReality2Transnet.ConnectionManager do
         # Check if we're in cooldown period after a recent failed handover
         if handover_in_cooldown?(state) do
           cooldown_remaining = @handover_cooldown_ms - (System.system_time(:millisecond) - state.last_handover_failed_at)
-          Logger.warning("[ConnectionManager] Handover rejected - in cooldown period (#{div(cooldown_remaining, 1000)}s remaining)")
+          Logger.warning("#{log_prefix()} Handover rejected - in cooldown period (#{div(cooldown_remaining, 1000)}s remaining)")
           {:reply, {:error, "handover_cooldown_active"}, state}
         else
           # Only allow handover when actively connected to a host
@@ -532,7 +535,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   @impl true
   def handle_cast({:wifi_connected, ssid}, state) do
     # External notification that WiFi was connected (e.g., by ConnectionAssessor auto-discovery)
-    Logger.info("[ConnectionManager] WiFi connection reported: #{ssid}")
+    Logger.info("#{log_prefix()} WiFi connection reported: #{ssid}")
 
     # Get the gateway IP (the hotspot host's IP) - needed for re-registration on sentant changes
     host_ip = case get_gateway_ip() do
@@ -549,9 +552,9 @@ defmodule AiReality2Transnet.ConnectionManager do
     }
 
     if host_ip do
-      Logger.info("[ConnectionManager] Host IP: #{host_ip}")
+      Logger.info("#{log_prefix()} Host IP: #{host_ip}")
     else
-      Logger.warning("[ConnectionManager] Could not determine host IP - re-registration on sentant changes will fail")
+      Logger.warning("#{log_prefix()} Could not determine host IP - re-registration on sentant changes will fail")
     end
 
     # Find the peer by SSID (the SSID is the node_name)
@@ -566,7 +569,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   # Handle client registration (from MeshController)
   @impl true
   def handle_cast({:register_client, node_id, node_name, client_ip}, state) do
-    Logger.info("[ConnectionManager] Client registered: #{node_name} (#{String.slice(node_id, 0..7)}...) at #{client_ip}")
+    Logger.info("#{log_prefix()} Client registered: #{node_name} (#{String.slice(node_id, 0..7)}...) at #{client_ip}")
 
     # Add or update client in connected_clients list
     client_info = %{node_id: node_id, node_name: node_name, ip: client_ip, registered_at: System.system_time(:millisecond)}
@@ -580,19 +583,19 @@ defmodule AiReality2Transnet.ConnectionManager do
   # Handle local sentant creation - re-register with host if connected as client
   @impl true
   def handle_info({:sentants, :created, %{id: id, name: name}}, state) do
-    Logger.debug("[ConnectionManager] Local sentant created: #{name} (#{String.slice(id, 0..7)}...)")
+    Logger.debug("#{log_prefix()} Local sentant created: #{name} (#{String.slice(id, 0..7)}...)")
     handle_sentant_change(state)
   end
 
   @impl true
   def handle_info({:sentants, :updated, %{id: id, name: name}}, state) do
-    Logger.debug("[ConnectionManager] Local sentant updated: #{name} (#{String.slice(id, 0..7)}...)")
+    Logger.debug("#{log_prefix()} Local sentant updated: #{name} (#{String.slice(id, 0..7)}...)")
     handle_sentant_change(state)
   end
 
   @impl true
   def handle_info({:sentants, :deleted, %{id: id}}, state) do
-    Logger.debug("[ConnectionManager] Local sentant deleted: #{String.slice(id, 0..7)}...")
+    Logger.debug("#{log_prefix()} Local sentant deleted: #{String.slice(id, 0..7)}...")
     handle_sentant_change(state)
   end
 
@@ -608,7 +611,7 @@ defmodule AiReality2Transnet.ConnectionManager do
         # We're connected to a host - re-register our sentants
         if state.current_host_ip do
           Task.start(fn ->
-            Logger.info("[ConnectionManager] Re-registering sentants with host after local change")
+            Logger.info("#{log_prefix()} Re-registering sentants with host after local change")
             register_with_host(state.current_host_ip, 4005)
           end)
         end
@@ -637,7 +640,7 @@ defmodule AiReality2Transnet.ConnectionManager do
       my_node_name = Reality2.Bootstrap.get(:node_name)
       my_sentants = get_local_sentants()
 
-      Logger.info("[ConnectionManager] Pushing #{length(my_sentants)} sentants to #{length(state.connected_clients)} connected client(s)")
+      Logger.info("#{log_prefix()} Pushing #{length(my_sentants)} sentants to #{length(state.connected_clients)} connected client(s)")
 
       Enum.each(state.connected_clients, fn client ->
         Task.start(fn ->
@@ -645,7 +648,7 @@ defmodule AiReality2Transnet.ConnectionManager do
         end)
       end)
     else
-      Logger.debug("[ConnectionManager] Host sentant change - no connected clients to notify")
+      Logger.debug("#{log_prefix()} Host sentant change - no connected clients to notify")
     end
 
     :ok
@@ -666,13 +669,13 @@ defmodule AiReality2Transnet.ConnectionManager do
 
     case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
       {:ok, %Finch.Response{status: 200}} ->
-        Logger.debug("[ConnectionManager] Successfully pushed sentants to client #{client_ip}")
+        Logger.debug("#{log_prefix()} Successfully pushed sentants to client #{client_ip}")
 
       {:ok, %Finch.Response{status: status}} ->
-        Logger.warning("[ConnectionManager] Push to client #{client_ip} returned status #{status}")
+        Logger.warning("#{log_prefix()} Push to client #{client_ip} returned status #{status}")
 
       {:error, reason} ->
-        Logger.warning("[ConnectionManager] Failed to push to client #{client_ip}: #{inspect(reason)}")
+        Logger.warning("#{log_prefix()} Failed to push to client #{client_ip}: #{inspect(reason)}")
     end
   end
 
@@ -681,7 +684,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   defp perform_connection(peer_id, join_offer, state) do
-    Logger.info("[ConnectionManager] Connecting to host: #{String.slice(peer_id, 0..7)}...")
+    Logger.info("#{log_prefix()} Connecting to host: #{String.slice(peer_id, 0..7)}...")
 
     # Transition to :connecting state
     new_state = %{state | connection_state: :connecting}
@@ -690,7 +693,7 @@ defmodule AiReality2Transnet.ConnectionManager do
     # Offers typically expire 5 minutes after creation
     now = System.system_time(:second)
     if join_offer.offer_expiry < now do
-      Logger.error("[ConnectionManager] Join offer expired")
+      Logger.error("#{log_prefix()} Join offer expired")
       {:reply, {:error, "offer_expired"}, %{new_state | connection_state: :disconnected}}
     else
       # Step 1: Connect to WiFi hotspot using WPA2-PSK credentials
@@ -699,7 +702,7 @@ defmodule AiReality2Transnet.ConnectionManager do
           # Step 2: Wait for DHCP to assign IP address
           case Wifi.get_interface_ip(state.wifi_interface) do
             {:ok, my_ip} ->
-              Logger.info("[ConnectionManager] Connected - IP: #{my_ip}")
+              Logger.info("#{log_prefix()} Connected - IP: #{my_ip}")
 
               # Step 3: Exchange Sentant directories via GraphQL
               # This populates PNS routing table with host's available Sentants
@@ -726,11 +729,11 @@ defmodule AiReality2Transnet.ConnectionManager do
                     my_ip: my_ip
                   }
 
-                  Logger.info("[ConnectionManager] Connection established and sentantAll completed")
+                  Logger.info("#{log_prefix()} Connection established and sentantAll completed")
                   {:reply, {:ok, connection_info}, final_state}
 
                 {:error, reason} ->
-                  Logger.error("[ConnectionManager] sentantAll exchange failed: #{reason}")
+                  Logger.error("#{log_prefix()} sentantAll exchange failed: #{reason}")
                   # Disconnect
                   Wifi.disconnect_from_network(state.wifi_interface)
                   {:reply, {:error, "sentant_exchange_failed: #{reason}"},
@@ -738,14 +741,14 @@ defmodule AiReality2Transnet.ConnectionManager do
               end
 
             {:error, reason} ->
-              Logger.error("[ConnectionManager] Failed to get IP: #{reason}")
+              Logger.error("#{log_prefix()} Failed to get IP: #{reason}")
               Wifi.disconnect_from_network(state.wifi_interface)
               {:reply, {:error, "ip_assignment_failed: #{reason}"},
                %{new_state | connection_state: :disconnected}}
           end
 
         {:error, reason} ->
-          Logger.error("[ConnectionManager] Connection failed: #{reason}")
+          Logger.error("#{log_prefix()} Connection failed: #{reason}")
           {:reply, {:error, "wifi_connect_failed: #{reason}"},
            %{new_state | connection_state: :disconnected}}
       end
@@ -753,7 +756,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp perform_disconnection(state) do
-    Logger.info("[ConnectionManager] Disconnecting from host")
+    Logger.info("#{log_prefix()} Disconnecting from host")
 
     case Wifi.disconnect_from_network(state.wifi_interface) do
       :ok ->
@@ -773,7 +776,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp perform_handover(new_peer_id, new_join_offer, state) do
-    Logger.info("[ConnectionManager] Handover: #{String.slice(state.current_host_peer_id, 0..7)} -> #{String.slice(new_peer_id, 0..7)}")
+    Logger.info("#{log_prefix()} Handover: #{String.slice(state.current_host_peer_id, 0..7)} -> #{String.slice(new_peer_id, 0..7)}")
 
     # Store old host info for potential rollback
     old_host_peer_id = state.current_host_peer_id
@@ -807,11 +810,11 @@ defmodule AiReality2Transnet.ConnectionManager do
                 # Update PeerManager
                 PeerManager.update_peer_transport(new_peer_id, :wifi_hotspot)
 
-                Logger.info("[ConnectionManager] Handover completed successfully")
+                Logger.info("#{log_prefix()} Handover completed successfully")
                 {:reply, :ok, final_state}
 
               {:error, reason} ->
-                Logger.error("[ConnectionManager] Handover sentantAll failed: #{reason}")
+                Logger.error("#{log_prefix()} Handover sentantAll failed: #{reason}")
                 # Connected to new host but sentantAll failed - disconnect and set cooldown
                 Wifi.disconnect_from_network(state.wifi_interface)
 
@@ -827,7 +830,7 @@ defmodule AiReality2Transnet.ConnectionManager do
             end
 
           {:error, reason} ->
-            Logger.error("[ConnectionManager] Handover IP assignment failed: #{reason}")
+            Logger.error("#{log_prefix()} Handover IP assignment failed: #{reason}")
             # Connected but no IP - disconnect and set cooldown
             Wifi.disconnect_from_network(state.wifi_interface)
 
@@ -843,7 +846,7 @@ defmodule AiReality2Transnet.ConnectionManager do
         end
 
       {:error, reason} ->
-        Logger.error("[ConnectionManager] Handover connection failed: #{reason}")
+        Logger.error("#{log_prefix()} Handover connection failed: #{reason}")
         # Connection to new host failed - restore previous state completely
         {:reply, {:error, "handover_connect_failed"},
          %{new_state |
@@ -868,7 +871,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp perform_start_hosting(state) do
-    Logger.info("[ConnectionManager] Starting hotspot hosting")
+    Logger.info("#{log_prefix()} Starting hotspot hosting")
 
     # Select the best WiFi adapter for hotspot mode
     # This intelligently chooses an adapter that preserves internet access if possible:
@@ -877,11 +880,11 @@ defmodule AiReality2Transnet.ConnectionManager do
     # - Falls back to only available adapter if necessary
     hotspot_interface = case Wifi.select_adapter_for_hotspot() do
       {:ok, %{interface: interface, preserves_internet: preserves}} ->
-        Logger.info("[ConnectionManager] Selected #{interface} for hotspot (preserves internet: #{preserves})")
+        Logger.info("#{log_prefix()} Selected #{interface} for hotspot (preserves internet: #{preserves})")
         interface
 
       {:error, reason} ->
-        Logger.warning("[ConnectionManager] Could not select optimal adapter: #{reason}, using default")
+        Logger.warning("#{log_prefix()} Could not select optimal adapter: #{reason}, using default")
         state.wifi_interface
     end
 
@@ -918,23 +921,23 @@ defmodule AiReality2Transnet.ConnectionManager do
               stats: Map.update!(state.stats, :hosting_sessions, &(&1 + 1))
             }
 
-            Logger.info("[ConnectionManager] Hotspot started: #{ssid} on #{ip_address} (#{hotspot_interface})")
+            Logger.info("#{log_prefix()} Hotspot started: #{ssid} on #{ip_address} (#{hotspot_interface})")
             {:reply, {:ok, hotspot_config}, new_state}
 
           {:error, reason} ->
-            Logger.error("[ConnectionManager] Failed to get hotspot IP: #{reason}")
+            Logger.error("#{log_prefix()} Failed to get hotspot IP: #{reason}")
             Wifi.stop_hotspot(hotspot_interface)
             {:reply, {:error, "hotspot_ip_failed: #{reason}"}, state}
         end
 
       {:error, reason} ->
-        Logger.error("[ConnectionManager] Failed to start hotspot: #{reason}")
+        Logger.error("#{log_prefix()} Failed to start hotspot: #{reason}")
         {:reply, {:error, "hotspot_start_failed: #{reason}"}, state}
     end
   end
 
   defp perform_stop_hosting(state) do
-    Logger.info("[ConnectionManager] Stopping hotspot hosting")
+    Logger.info("#{log_prefix()} Stopping hotspot hosting")
 
     # Use the interface stored in hosting_config (set during start_hosting)
     # Fall back to default wifi_interface if not set
@@ -966,13 +969,13 @@ defmodule AiReality2Transnet.ConnectionManager do
         adapter.interface
 
       _ ->
-        Logger.warning("[ConnectionManager] No WiFi adapters found")
+        Logger.warning("#{log_prefix()} No WiFi adapters found")
         nil
     end
   end
 
   defp perform_sentant_exchange(host_node_id, host_ip, host_port) do
-    Logger.info("[ConnectionManager] Performing sentantAll exchange with #{host_ip}:#{host_port}")
+    Logger.info("#{log_prefix()} Performing sentantAll exchange with #{host_ip}:#{host_port}")
 
     # Store peer connection info for PNS Router lookup
     Reality2.Metadata.set(:PNS_Peers, host_node_id, %{
@@ -1009,7 +1012,7 @@ defmodule AiReality2Transnet.ConnectionManager do
     headers = [{"content-type", "application/json"}]
     body = Jason.encode!(graphql_request)
 
-    Logger.debug("[ConnectionManager] Querying GraphQL endpoint: #{url}")
+    Logger.debug("#{log_prefix()} Querying GraphQL endpoint: #{url}")
 
     # Build request with SSL options to accept self-signed certificates
     request = Finch.build(:post, url, headers, body)
@@ -1019,7 +1022,7 @@ defmodule AiReality2Transnet.ConnectionManager do
       {:ok, %Finch.Response{status: 200, body: response_body}} ->
         case Jason.decode(response_body) do
           {:ok, %{"data" => %{"sentantAll" => host_sentants}}} ->
-            Logger.info("[ConnectionManager] Received #{length(host_sentants)} sentants from host")
+            Logger.info("#{log_prefix()} Received #{length(host_sentants)} sentants from host")
 
             # Update PeerManager with host's sentants
             AiReality2Transnet.PeerManager.update_peer_sentants(host_node_id, host_sentants)
@@ -1030,24 +1033,24 @@ defmodule AiReality2Transnet.ConnectionManager do
             # Register our sentants with the host (bidirectional exchange)
             register_with_host(host_ip, host_port)
 
-            Logger.info("[ConnectionManager] sentantAll exchange completed successfully")
+            Logger.info("#{log_prefix()} sentantAll exchange completed successfully")
             :ok
 
           {:ok, %{"errors" => errors}} ->
-            Logger.error("[ConnectionManager] GraphQL errors: #{inspect(errors)}")
+            Logger.error("#{log_prefix()} GraphQL errors: #{inspect(errors)}")
             {:error, "graphql_errors"}
 
           {:error, reason} ->
-            Logger.error("[ConnectionManager] Failed to decode response: #{inspect(reason)}")
+            Logger.error("#{log_prefix()} Failed to decode response: #{inspect(reason)}")
             {:error, "invalid_response"}
         end
 
       {:ok, %Finch.Response{status: status}} ->
-        Logger.error("[ConnectionManager] HTTP request failed with status: #{status}")
+        Logger.error("#{log_prefix()} HTTP request failed with status: #{status}")
         {:error, "http_error_#{status}"}
 
       {:error, reason} ->
-        Logger.error("[ConnectionManager] HTTP request failed: #{inspect(reason)}")
+        Logger.error("#{log_prefix()} HTTP request failed: #{inspect(reason)}")
         {:error, "connection_failed"}
     end
   end
@@ -1105,7 +1108,7 @@ defmodule AiReality2Transnet.ConnectionManager do
     my_node_name = Reality2.Bootstrap.get(:node_name)
     my_sentants = get_local_sentants()
 
-    Logger.info("[ConnectionManager] Registering #{length(my_sentants)} sentants with host at #{host_ip}:#{host_port}")
+    Logger.info("#{log_prefix()} Registering #{length(my_sentants)} sentants with host at #{host_ip}:#{host_port}")
 
     register_request = %{
       node_id: my_node_id,
@@ -1123,24 +1126,24 @@ defmodule AiReality2Transnet.ConnectionManager do
       {:ok, %Finch.Response{status: 200, body: response_body}} ->
         case Jason.decode(response_body) do
           {:ok, %{"status" => "ok", "registered_sentants" => count}} ->
-            Logger.info("[ConnectionManager] Successfully registered #{count} sentants with host")
+            Logger.info("#{log_prefix()} Successfully registered #{count} sentants with host")
             :ok
 
           {:ok, response} ->
-            Logger.warning("[ConnectionManager] Unexpected register response: #{inspect(response)}")
+            Logger.warning("#{log_prefix()} Unexpected register response: #{inspect(response)}")
             :ok
 
           {:error, reason} ->
-            Logger.error("[ConnectionManager] Failed to decode register response: #{inspect(reason)}")
+            Logger.error("#{log_prefix()} Failed to decode register response: #{inspect(reason)}")
             {:error, "invalid_response"}
         end
 
       {:ok, %Finch.Response{status: status, body: body}} ->
-        Logger.error("[ConnectionManager] Register request failed with status #{status}: #{body}")
+        Logger.error("#{log_prefix()} Register request failed with status #{status}: #{body}")
         {:error, "http_error_#{status}"}
 
       {:error, reason} ->
-        Logger.error("[ConnectionManager] Register request failed: #{inspect(reason)}")
+        Logger.error("#{log_prefix()} Register request failed: #{inspect(reason)}")
         {:error, "connection_failed"}
     end
   end
@@ -1172,18 +1175,18 @@ defmodule AiReality2Transnet.ConnectionManager do
           discovered_at: System.system_time(:millisecond)
         })
 
-        Logger.debug("[ConnectionManager] PNS route added: #{peer_node_name}|#{sentant_name} -> #{peer_ip}")
+        Logger.debug("#{log_prefix()} PNS route added: #{peer_node_name}|#{sentant_name} -> #{peer_ip}")
       end
     end)
 
-    Logger.info("[ConnectionManager] PNS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
+    Logger.info("#{log_prefix()} PNS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
   end
 
   # Perform sentantAll exchange after auto-connecting to an R2 hotspot via SSID
   # Called when ConnectionAssessor discovers and connects to a hotspot
   # Includes retry logic to handle race condition where BLE discovery hasn't completed yet
   defp perform_sentant_exchange_by_ssid(ssid) do
-    Logger.info("[ConnectionManager] Performing sentantAll exchange for SSID: #{ssid}")
+    Logger.info("#{log_prefix()} Performing sentantAll exchange for SSID: #{ssid}")
 
     # Retry up to 5 times with 2 second delays to allow BLE discovery to complete
     perform_sentant_exchange_by_ssid(ssid, 5)
@@ -1191,7 +1194,7 @@ defmodule AiReality2Transnet.ConnectionManager do
 
   defp perform_sentant_exchange_by_ssid(ssid, retries_left) when retries_left <= 0 do
     # All retries exhausted - try exchange with gateway IP as last resort
-    Logger.warning("[ConnectionManager] Peer lookup exhausted for #{ssid}, attempting exchange with gateway")
+    Logger.warning("#{log_prefix()} Peer lookup exhausted for #{ssid}, attempting exchange with gateway")
     perform_exchange_with_gateway(ssid)
   end
 
@@ -1218,13 +1221,13 @@ defmodule AiReality2Transnet.ConnectionManager do
 
       nil when retries_left > 1 ->
         # Peer not found yet - wait and retry (BLE discovery may still be in progress)
-        Logger.debug("[ConnectionManager] Peer #{ssid} not found, waiting for BLE discovery (#{retries_left - 1} retries left)")
+        Logger.debug("#{log_prefix()} Peer #{ssid} not found, waiting for BLE discovery (#{retries_left - 1} retries left)")
         Process.sleep(2_000)
         perform_sentant_exchange_by_ssid(ssid, retries_left - 1)
 
       nil ->
         # Last retry failed
-        Logger.warning("[ConnectionManager] No peer found for SSID #{ssid} after retries")
+        Logger.warning("#{log_prefix()} No peer found for SSID #{ssid} after retries")
         perform_exchange_with_gateway(ssid)
     end
   end
@@ -1233,18 +1236,18 @@ defmodule AiReality2Transnet.ConnectionManager do
     # Get the gateway IP (the hotspot host's IP)
     case get_gateway_ip() do
       {:ok, gateway_ip} ->
-        Logger.info("[ConnectionManager] Found gateway IP: #{gateway_ip} for peer #{String.slice(peer_node_id, 0..7)}...")
+        Logger.info("#{log_prefix()} Found gateway IP: #{gateway_ip} for peer #{String.slice(peer_node_id, 0..7)}...")
 
         case perform_sentant_exchange(peer_node_id, gateway_ip, 4005) do
           :ok ->
-            Logger.info("[ConnectionManager] sentantAll exchange completed for #{ssid}")
+            Logger.info("#{log_prefix()} sentantAll exchange completed for #{ssid}")
 
           {:error, reason} ->
-            Logger.error("[ConnectionManager] sentantAll exchange failed for #{ssid}: #{reason}")
+            Logger.error("#{log_prefix()} sentantAll exchange failed for #{ssid}: #{reason}")
         end
 
       {:error, reason} ->
-        Logger.error("[ConnectionManager] Could not get gateway IP: #{reason}")
+        Logger.error("#{log_prefix()} Could not get gateway IP: #{reason}")
     end
   end
 
@@ -1252,38 +1255,38 @@ defmodule AiReality2Transnet.ConnectionManager do
     # Try to exchange with gateway IP even without knowing the peer_node_id
     case get_gateway_ip() do
       {:ok, gateway_ip} ->
-        Logger.info("[ConnectionManager] Attempting exchange with gateway: #{gateway_ip}")
+        Logger.info("#{log_prefix()} Attempting exchange with gateway: #{gateway_ip}")
 
         # Query /mesh/info to get the real node_id instead of using a placeholder
         # This ensures sentants are stored under the correct peer ID
         case query_mesh_info(gateway_ip) do
           {:ok, %{"node_id" => real_node_id}} ->
-            Logger.info("[ConnectionManager] Got real node_id from mesh/info: #{String.slice(real_node_id, 0..7)}...")
+            Logger.info("#{log_prefix()} Got real node_id from mesh/info: #{String.slice(real_node_id, 0..7)}...")
 
             case perform_sentant_exchange(real_node_id, gateway_ip, 4005) do
               :ok ->
-                Logger.info("[ConnectionManager] sentantAll exchange completed via gateway for #{ssid}")
+                Logger.info("#{log_prefix()} sentantAll exchange completed via gateway for #{ssid}")
 
               {:error, reason} ->
-                Logger.error("[ConnectionManager] sentantAll exchange failed via gateway: #{reason}")
+                Logger.error("#{log_prefix()} sentantAll exchange failed via gateway: #{reason}")
             end
 
           {:error, reason} ->
-            Logger.warning("[ConnectionManager] Could not get node_id from mesh/info: #{reason}, using placeholder")
+            Logger.warning("#{log_prefix()} Could not get node_id from mesh/info: #{reason}, using placeholder")
             # Fallback to placeholder (not ideal but better than failing completely)
             placeholder_node_id = "unknown-#{ssid}"
 
             case perform_sentant_exchange(placeholder_node_id, gateway_ip, 4005) do
               :ok ->
-                Logger.info("[ConnectionManager] sentantAll exchange completed via gateway for #{ssid} (placeholder)")
+                Logger.info("#{log_prefix()} sentantAll exchange completed via gateway for #{ssid} (placeholder)")
 
               {:error, reason} ->
-                Logger.error("[ConnectionManager] sentantAll exchange failed via gateway: #{reason}")
+                Logger.error("#{log_prefix()} sentantAll exchange failed via gateway: #{reason}")
             end
         end
 
       {:error, reason} ->
-        Logger.error("[ConnectionManager] Could not get gateway IP: #{reason}")
+        Logger.error("#{log_prefix()} Could not get gateway IP: #{reason}")
     end
   end
 

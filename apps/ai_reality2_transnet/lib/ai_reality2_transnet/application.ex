@@ -55,7 +55,8 @@ defmodule AiReality2Transnet.Application do
       #   - Reality2Web GraphQL (port 4005) for sentantAll exchange
     ]
 
-    Logger.info("[ai.reality2.transnet] started successfully")
+    node_name = Reality2.Bootstrap.get(:node_name, "unknown")
+    Logger.info("[ai.reality2.transnet:#{node_name}] started successfully")
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
   end
 end

@@ -27,7 +27,8 @@ defmodule AiReality2Transnet.Main do
   @doc false
   @impl true
   def init(state) do
-    Logger.info("[ai.reality2.transnet] Main GenServer initialized")
+    node_name = Reality2.Bootstrap.get(:node_name, "unknown")
+    Logger.info("[ai.reality2.transnet:#{node_name}] Main GenServer initialized")
     {:ok, state}
   end
 

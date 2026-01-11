@@ -161,6 +161,9 @@ defmodule AiReality2Transnet.Wifi do
 
   require Logger
 
+  # Helper to get node name for log messages
+  defp log_prefix, do: "[Wifi:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
+
   # Failure tracking: reduces hosting priority when hotspot start fails
   # This allows other nodes to become host instead
   # Failures are sticky - if hardware/software can't host, waiting won't fix it
@@ -214,7 +217,7 @@ defmodule AiReality2Transnet.Wifi do
 
     Agent.update(__MODULE__.FailureTracker, fn state ->
       new_count = min(state.failure_count + 1, div(@max_failure_penalty, @failure_penalty_per_attempt))
-      Logger.warning("[Wifi] Hotspot failure recorded (count: #{new_count}, penalty: #{new_count * @failure_penalty_per_attempt})")
+      Logger.warning("#{log_prefix()} Hotspot failure recorded (count: #{new_count}, penalty: #{new_count * @failure_penalty_per_attempt})")
       %{state | failure_count: new_count}
     end)
 
@@ -232,7 +235,7 @@ defmodule AiReality2Transnet.Wifi do
 
     Agent.update(__MODULE__.FailureTracker, fn state ->
       if state.failure_count > 0 do
-        Logger.info("[Wifi] Hotspot success - clearing failure penalty")
+        Logger.info("#{log_prefix()} Hotspot success - clearing failure penalty")
       end
       %{state | failure_count: 0}
     end)
@@ -252,7 +255,7 @@ defmodule AiReality2Transnet.Wifi do
 
     Agent.update(__MODULE__.FailureTracker, fn state ->
       if state.failure_count > 0 do
-        Logger.info("[Wifi] Connected as client - clearing failure penalty (another node is hosting)")
+        Logger.info("#{log_prefix()} Connected as client - clearing failure penalty (another node is hosting)")
       end
       %{state | failure_count: 0}
     end)
@@ -288,7 +291,7 @@ defmodule AiReality2Transnet.Wifi do
         case Agent.start_link(fn -> %{failure_count: 0} end, name: __MODULE__.FailureTracker) do
           {:ok, _pid} -> :ok
           {:error, {:already_started, _pid}} -> :ok
-          error -> Logger.warning("[Wifi] Failed to start failure tracker: #{inspect(error)}")
+          error -> Logger.warning("#{log_prefix()} Failed to start failure tracker: #{inspect(error)}")
         end
 
       _pid ->
@@ -441,7 +444,7 @@ defmodule AiReality2Transnet.Wifi do
   def start_hotspot(interface, ssid, psk, _channel \\ 6) do
     # Disconnect from any current WiFi network on this interface
     # Most adapters can't be client + AP simultaneously
-    Logger.info("[Wifi] Disconnecting #{interface} from current network to start hotspot...")
+    Logger.info("#{log_prefix()} Disconnecting #{interface} from current network to start hotspot...")
     System.cmd("nmcli", ["device", "disconnect", interface], stderr_to_stdout: true)
     # Brief pause to let the interface settle
     Process.sleep(500)
@@ -456,11 +459,11 @@ defmodule AiReality2Transnet.Wifi do
       "password", psk
     ]
 
-    Logger.info("[Wifi] Starting hotspot: SSID=#{ssid}")
+    Logger.info("#{log_prefix()} Starting hotspot: SSID=#{ssid}")
 
     case System.cmd("nmcli", args, stderr_to_stdout: true) do
       {output, 0} ->
-        Logger.info("[Wifi] Hotspot started successfully: #{ssid}")
+        Logger.info("#{log_prefix()} Hotspot started successfully: #{ssid}")
         # Extract connection info from output if available
         uuid = extract_connection_uuid(output) || "hotspot-#{ssid}"
 
@@ -470,7 +473,7 @@ defmodule AiReality2Transnet.Wifi do
         {:ok, uuid}
 
       {error, exit_code} ->
-        Logger.error("[Wifi] Hotspot creation failed (exit #{exit_code}): #{error}")
+        Logger.error("#{log_prefix()} Hotspot creation failed (exit #{exit_code}): #{error}")
         {:error, "hotspot_creation_failed: #{error}"}
     end
   rescue
@@ -499,7 +502,7 @@ defmodule AiReality2Transnet.Wifi do
           {_, 0} ->
             # Delete the connection profile
             System.cmd("nmcli", ["connection", "delete", connection_name], stderr_to_stdout: true)
-            Logger.info("[Wifi] Hotspot stopped on #{interface}")
+            Logger.info("#{log_prefix()} Hotspot stopped on #{interface}")
             :ok
 
           {error, _} ->
@@ -614,16 +617,16 @@ defmodule AiReality2Transnet.Wifi do
 
     case System.cmd("nmcli", args, stderr_to_stdout: true) do
       {_output, 0} ->
-        Logger.info("[Wifi] Connected to network: SSID=#{ssid}")
+        Logger.info("#{log_prefix()} Connected to network: SSID=#{ssid}")
 
         # Wait for IP assignment with retries
         case wait_for_ip_assignment(interface, 5) do
           {:ok, ip} ->
-            Logger.info("[Wifi] IP assigned: #{ip}")
+            Logger.info("#{log_prefix()} IP assigned: #{ip}")
             {:ok, ip}
 
           {:error, :timeout} ->
-            Logger.error("[Wifi] Connected but DHCP failed - no IP assigned after retries")
+            Logger.error("#{log_prefix()} Connected but DHCP failed - no IP assigned after retries")
             {:error, "dhcp_timeout"}
         end
 
@@ -650,7 +653,7 @@ defmodule AiReality2Transnet.Wifi do
       {:ok, connection_name} ->
         case System.cmd("nmcli", ["connection", "down", connection_name], stderr_to_stdout: true) do
           {_, 0} ->
-            Logger.info("[Wifi] Disconnected from #{connection_name}")
+            Logger.info("#{log_prefix()} Disconnected from #{connection_name}")
             :ok
 
           {error, _} ->
@@ -917,7 +920,7 @@ defmodule AiReality2Transnet.Wifi do
         {:ok, ip}
 
       {:error, _} ->
-        Logger.debug("[Wifi] Waiting for DHCP IP assignment (#{retries_left} retries left)...")
+        Logger.debug("#{log_prefix()} Waiting for DHCP IP assignment (#{retries_left} retries left)...")
         Process.sleep(2_000)
         wait_for_ip_assignment(interface, retries_left - 1)
     end
@@ -1275,7 +1278,7 @@ defmodule AiReality2Transnet.Wifi do
           # Case 1: Wired internet - use first available WiFi for hotspot
           has_wired ->
             adapter = List.first(adapters)
-            Logger.info("[Wifi] Wired internet detected - using #{adapter.interface} for hotspot")
+            Logger.info("#{log_prefix()} Wired internet detected - using #{adapter.interface} for hotspot")
             {:ok, %{interface: adapter.interface, preserves_internet: true}}
 
           # Case 2: Multiple WiFi adapters - use one NOT connected to internet
@@ -1284,7 +1287,7 @@ defmodule AiReality2Transnet.Wifi do
             non_internet_adapter = Enum.find(adapters, fn a -> a.interface != internet_wifi end)
 
             if non_internet_adapter do
-              Logger.info("[Wifi] Using #{non_internet_adapter.interface} for hotspot (#{internet_wifi} keeps internet)")
+              Logger.info("#{log_prefix()} Using #{non_internet_adapter.interface} for hotspot (#{internet_wifi} keeps internet)")
               {:ok, %{interface: non_internet_adapter.interface, preserves_internet: true}}
             else
               # Shouldn't happen, but fallback to first adapter
@@ -1296,13 +1299,13 @@ defmodule AiReality2Transnet.Wifi do
           length(adapters) >= 2 ->
             # Pick a random adapter (or first one for determinism)
             adapter = Enum.random(adapters)
-            Logger.info("[Wifi] No internet connection - randomly selected #{adapter.interface} for hotspot")
+            Logger.info("#{log_prefix()} No internet connection - randomly selected #{adapter.interface} for hotspot")
             {:ok, %{interface: adapter.interface, preserves_internet: false}}
 
           # Case 4: Single WiFi adapter - use it (will lose any WiFi-based internet)
           true ->
             adapter = List.first(adapters)
-            Logger.info("[Wifi] Single WiFi adapter #{adapter.interface} - using for hotspot")
+            Logger.info("#{log_prefix()} Single WiFi adapter #{adapter.interface} - using for hotspot")
             {:ok, %{interface: adapter.interface, preserves_internet: false}}
         end
 
@@ -1444,7 +1447,7 @@ defmodule AiReality2Transnet.Wifi do
     final_priority = max(min_priority, base_priority - failure_penalty)
 
     if failure_penalty > 0 do
-      Logger.debug("[Wifi] Priority #{base_priority} reduced to #{final_priority} due to hotspot failures (min: #{min_priority})")
+      Logger.debug("#{log_prefix()} Priority #{base_priority} reduced to #{final_priority} due to hotspot failures (min: #{min_priority})")
     end
 
     final_priority
@@ -1461,7 +1464,7 @@ defmodule AiReality2Transnet.Wifi do
     # Find the upstream interface (the one with internet access)
     case find_upstream_interface(hotspot_interface) do
       {:ok, upstream_interface} ->
-        Logger.info("[Wifi] Configuring NAT: #{hotspot_interface} -> #{upstream_interface}")
+        Logger.info("#{log_prefix()} Configuring NAT: #{hotspot_interface} -> #{upstream_interface}")
 
         # Get the hotspot subnet (typically 10.42.0.0/24 for NetworkManager hotspots)
         hotspot_subnet = get_hotspot_subnet(hotspot_interface)
@@ -1470,13 +1473,13 @@ defmodule AiReality2Transnet.Wifi do
         try do
           case System.cmd("sysctl", ["-w", "net.ipv4.ip_forward=1"], stderr_to_stdout: true) do
             {_, 0} ->
-              Logger.debug("[Wifi] IP forwarding enabled")
+              Logger.debug("#{log_prefix()} IP forwarding enabled")
 
             {error, _} ->
-              Logger.warning("[Wifi] Failed to enable IP forwarding: #{error}")
+              Logger.warning("#{log_prefix()} Failed to enable IP forwarding: #{error}")
           end
         rescue
-          _ -> Logger.warning("[Wifi] sysctl not available - skipping IP forwarding config")
+          _ -> Logger.warning("#{log_prefix()} sysctl not available - skipping IP forwarding config")
         end
 
         # Add iptables MASQUERADE rule for NAT (gracefully handle missing iptables)
@@ -1492,10 +1495,10 @@ defmodule AiReality2Transnet.Wifi do
 
           case System.cmd("iptables", iptables_args, stderr_to_stdout: true) do
             {_, 0} ->
-              Logger.info("[Wifi] NAT configured: clients on #{hotspot_subnet} can access internet via #{upstream_interface}")
+              Logger.info("#{log_prefix()} NAT configured: clients on #{hotspot_subnet} can access internet via #{upstream_interface}")
 
             {error, _} ->
-              Logger.warning("[Wifi] Failed to configure NAT iptables rule: #{error}")
+              Logger.warning("#{log_prefix()} Failed to configure NAT iptables rule: #{error}")
           end
 
           # Allow forwarding between interfaces
@@ -1517,13 +1520,13 @@ defmodule AiReality2Transnet.Wifi do
           ]
           System.cmd("iptables", reverse_forward_args, stderr_to_stdout: true)
         rescue
-          _ -> Logger.warning("[Wifi] iptables not available - NAT not configured (hotspot clients may not have internet)")
+          _ -> Logger.warning("#{log_prefix()} iptables not available - NAT not configured (hotspot clients may not have internet)")
         end
 
         :ok
 
       {:error, reason} ->
-        Logger.warning("[Wifi] Cannot configure NAT - no upstream interface: #{reason}")
+        Logger.warning("#{log_prefix()} Cannot configure NAT - no upstream interface: #{reason}")
         :ok
     end
   end
@@ -1534,7 +1537,7 @@ defmodule AiReality2Transnet.Wifi do
       {:ok, upstream_interface} ->
         hotspot_subnet = get_hotspot_subnet(hotspot_interface)
 
-        Logger.info("[Wifi] Cleaning up NAT rules for #{hotspot_interface}")
+        Logger.info("#{log_prefix()} Cleaning up NAT rules for #{hotspot_interface}")
 
         # Gracefully handle missing iptables
         try do
@@ -1567,7 +1570,7 @@ defmodule AiReality2Transnet.Wifi do
           ]
           System.cmd("iptables", reverse_forward_args, stderr_to_stdout: true)
         rescue
-          _ -> Logger.debug("[Wifi] iptables not available - skipping NAT cleanup")
+          _ -> Logger.debug("#{log_prefix()} iptables not available - skipping NAT cleanup")
         end
 
         :ok

@@ -27,6 +27,9 @@ defmodule AiReality2Transnet.Bluetooth do
   use GenServer, restart: :transient
   require Logger
 
+  # Helper to get node name for log messages
+  defp log_prefix, do: "[Bluetooth:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
+
   # Default Company ID for R2 manufacturer data.
   # TODO: Replace with an assigned company ID.
   @r2_company_id 0xFFFF
@@ -184,7 +187,7 @@ defmodule AiReality2Transnet.Bluetooth do
         {:ok, Map.put(final_state, :bluetooth_available, true)}
 
       {:error, reason} ->
-        Logger.warning("[Bluetooth] Bluetooth unavailable: #{inspect(reason)} - running in WiFi-only mode")
+        Logger.warning("#{log_prefix()} Bluetooth unavailable: #{inspect(reason)} - running in WiFi-only mode")
         # Subscribe to PubSub even without Bluetooth for future use
         Phoenix.PubSub.subscribe(Reality2.PubSub, "sentants")
         {:ok, initial_state}
@@ -304,7 +307,7 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # R2 Mesh message broadcast - send to nearby nodes via GATT and relay
   def handle_cast({:broadcast_mesh_message, encoded_message}, state) do
-    Logger.debug("[Bluetooth] Broadcasting mesh message (#{byte_size(encoded_message)} bytes)")
+    Logger.debug("#{log_prefix()} Broadcasting mesh message (#{byte_size(encoded_message)} bytes)")
 
     # 1. Send via GATT notification to connected clients
     if handle = Map.get(state, :gatt_handle) do
@@ -329,13 +332,13 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # Incoming R2 Mesh message from BLE discovery - forward to R2Mesh for processing
   def handle_cast({:incoming_mesh_message, encoded_message, source_info}, state) do
-    Logger.debug("[Bluetooth] Received mesh message from #{inspect(source_info[:address])}")
+    Logger.debug("#{log_prefix()} Received mesh message from #{inspect(source_info[:address])}")
 
     # Forward to R2Mesh module for deduplication, processing, and potential relay
     if Code.ensure_loaded?(AiReality2Transnet.R2Mesh) do
       AiReality2Transnet.R2Mesh.handle_incoming(encoded_message)
     else
-      Logger.warning("[Bluetooth] R2Mesh module not available, dropping mesh message")
+      Logger.warning("#{log_prefix()} R2Mesh module not available, dropping mesh message")
     end
 
     # Track mesh messages received
@@ -466,7 +469,7 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # GATT mesh data received from connected client
   def handle_info({:gatt_write, "mesh", data}, state) do
-    Logger.debug("[Bluetooth] GATT mesh data received")
+    Logger.debug("#{log_prefix()} GATT mesh data received")
 
     # Decode from bytes and forward to R2Mesh
     mesh_data = if is_list(data), do: :binary.list_to_bin(data), else: data

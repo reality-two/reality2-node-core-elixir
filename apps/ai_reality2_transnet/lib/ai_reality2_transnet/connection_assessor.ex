@@ -62,6 +62,9 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
   alias AiReality2Transnet.{PeerManager, ConnectionManager}
 
+  # Helper to get node name for log messages
+  defp log_prefix, do: "[ConnectionAssessor:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
+
   # Configuration
   # Check every 15 seconds
   @assessment_interval_ms 15_000
@@ -176,7 +179,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     }
 
     Logger.info(
-      "[ConnectionAssessor] Started - assessment interval: #{@assessment_interval_ms}ms"
+      "#{log_prefix()} Started - assessment interval: #{@assessment_interval_ms}ms"
     )
 
     {:ok, state}
@@ -239,7 +242,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     case evaluate_handover_decision(new_state) do
       {:yes, candidate, reason} ->
         Logger.info(
-          "[ConnectionAssessor] Handover recommended: #{String.slice(candidate.peer_id, 0..7)} (#{reason})"
+          "#{log_prefix()} Handover recommended: #{String.slice(candidate.peer_id, 0..7)} (#{reason})"
         )
 
         # Trigger handover via ConnectionManager
@@ -247,10 +250,10 @@ defmodule AiReality2Transnet.ConnectionAssessor do
           nil ->
             # No join offer cached - can't handover yet
             # This will be resolved on next assessment after GATT read
-            Logger.warning("[ConnectionAssessor] No join offer available for candidate")
+            Logger.warning("#{log_prefix()} No join offer available for candidate")
 
           join_offer ->
-            Logger.info("[ConnectionAssessor] Initiating handover...")
+            Logger.info("#{log_prefix()} Initiating handover...")
 
             # Run handover in background task to avoid blocking assessor
             # Assessor continues monitoring during handover
@@ -269,7 +272,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
       {:no, reason} ->
         # Current connection is still optimal, OR no candidates available
-        Logger.debug("[ConnectionAssessor] No handover needed: #{reason}")
+        Logger.debug("#{log_prefix()} No handover needed: #{reason}")
 
         # Check if we should yield hosting to a better candidate
         maybe_yield_hosting()
@@ -309,7 +312,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
               {best_id, best_peer_info} = best_peer
               best_name = Map.get(best_peer_info, :node_name, String.slice(best_id, 0..7))
-              Logger.info("[ConnectionAssessor] Yielding hosting to #{best_name} (priority #{max_peer_priority} > our #{my_priority})")
+              Logger.info("#{log_prefix()} Yielding hosting to #{best_name} (priority #{max_peer_priority} > our #{my_priority})")
               yield_hosting()
 
             # Equal priority - use node_id as tie-breaker
@@ -322,7 +325,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
               lowest_id = Enum.min(all_candidates)
 
               if lowest_id != my_node_id do
-                Logger.info("[ConnectionAssessor] Yielding hosting to #{String.slice(lowest_id, 0..7)}... (same priority #{my_priority}, lower ID)")
+                Logger.info("#{log_prefix()} Yielding hosting to #{String.slice(lowest_id, 0..7)}... (same priority #{my_priority}, lower ID)")
                 yield_hosting()
               end
 
@@ -341,12 +344,12 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     Task.start(fn ->
       case ConnectionManager.stop_hosting() do
         :ok ->
-          Logger.info("[ConnectionAssessor] Stopped hosting - waiting for better host to start...")
+          Logger.info("#{log_prefix()} Stopped hosting - waiting for better host to start...")
           # Give the other node time to start hosting
           Process.sleep(5_000)
 
         {:error, reason} ->
-          Logger.warning("[ConnectionAssessor] Failed to stop hosting: #{inspect(reason)}")
+          Logger.warning("#{log_prefix()} Failed to stop hosting: #{inspect(reason)}")
       end
     end)
   end
@@ -365,7 +368,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
         {:ok, %{state: :disconnected, hosting: hosting}} when hosting != true ->
           # We're disconnected and not hosting - check if we should start
           peers = PeerManager.get_all_peers()
-          Logger.debug("[ConnectionAssessor] Checking hosting: #{map_size(peers)} peers discovered")
+          Logger.debug("#{log_prefix()} Checking hosting: #{map_size(peers)} peers discovered")
 
           if map_size(peers) > 0 do
             # Check our hosting priority (internet + NAT capability)
@@ -388,28 +391,28 @@ defmodule AiReality2Transnet.ConnectionAssessor do
                     true -> "reduced priority due to failures (will retry)"
                   end
 
-                  Logger.info("[ConnectionAssessor] Starting hotspot - #{reason_text} (priority: #{my_priority})")
+                  Logger.info("#{log_prefix()} Starting hotspot - #{reason_text} (priority: #{my_priority})")
 
                   Task.start(fn ->
                     case ConnectionManager.start_hosting() do
                       {:ok, config} ->
-                        Logger.info("[ConnectionAssessor] Now hosting: #{config.ssid}")
+                        Logger.info("#{log_prefix()} Now hosting: #{config.ssid}")
                         # Clear any failure penalty on successful hotspot start
                         AiReality2Transnet.Wifi.report_hotspot_success()
 
                       {:error, err} ->
-                        Logger.warning("[ConnectionAssessor] Failed to start hosting: #{inspect(err)}")
+                        Logger.warning("#{log_prefix()} Failed to start hosting: #{inspect(err)}")
                         # Record failure - reduces priority so other nodes can try
                         AiReality2Transnet.Wifi.report_hotspot_failure()
                     end
                   end)
 
                 _ ->
-                  Logger.debug("[ConnectionAssessor] No WiFi adapter available for hosting")
+                  Logger.debug("#{log_prefix()} No WiFi adapter available for hosting")
               end
             else
               # We should be a client - try to find and connect to an R2 hotspot
-              Logger.info("[ConnectionAssessor] Another node should host - scanning for R2 hotspots...")
+              Logger.info("#{log_prefix()} Another node should host - scanning for R2 hotspots...")
 
               Task.start(fn ->
                 try_connect_to_r2_hotspot()
@@ -418,7 +421,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
           end
 
         {:ok, %{state: conn_state}} ->
-          Logger.debug("[ConnectionAssessor] Not starting host - current state: #{conn_state}")
+          Logger.debug("#{log_prefix()} Not starting host - current state: #{conn_state}")
 
         _ ->
           :ok
@@ -439,12 +442,12 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     # Get the highest priority among peers (from BLE beacon data)
     max_peer_priority = PeerManager.get_max_peer_priority()
 
-    Logger.debug("[ConnectionAssessor] Host selection: my_priority=#{my_priority}, max_peer_priority=#{max_peer_priority}")
+    Logger.debug("#{log_prefix()} Host selection: my_priority=#{my_priority}, max_peer_priority=#{max_peer_priority}")
 
     cond do
       # We have higher priority than all peers - become host
       my_priority > max_peer_priority ->
-        Logger.debug("[ConnectionAssessor] Higher priority than peers (#{my_priority} > #{max_peer_priority}) - becoming host")
+        Logger.debug("#{log_prefix()} Higher priority than peers (#{my_priority} > #{max_peer_priority}) - becoming host")
         true
 
       # We have equal priority to highest peer - use node_id as tie-breaker
@@ -458,16 +461,16 @@ defmodule AiReality2Transnet.ConnectionAssessor do
         lowest_id = Enum.min(all_candidates)
 
         if my_node_id == lowest_id do
-          Logger.debug("[ConnectionAssessor] Equal priority (#{my_priority}), lowest ID - becoming host")
+          Logger.debug("#{log_prefix()} Equal priority (#{my_priority}), lowest ID - becoming host")
           true
         else
-          Logger.debug("[ConnectionAssessor] Equal priority but node #{String.slice(lowest_id, 0..7)}... has lower ID")
+          Logger.debug("#{log_prefix()} Equal priority but node #{String.slice(lowest_id, 0..7)}... has lower ID")
           false
         end
 
       # A peer has higher priority - let them host
       true ->
-        Logger.debug("[ConnectionAssessor] Peer has higher priority (#{max_peer_priority} > #{my_priority}) - waiting for them to host")
+        Logger.debug("#{log_prefix()} Peer has higher priority (#{max_peer_priority} > #{my_priority}) - waiting for them to host")
         false
     end
   end
@@ -477,7 +480,7 @@ defmodule AiReality2Transnet.ConnectionAssessor do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   defp perform_assessment(state) do
-    Logger.debug("[ConnectionAssessor] Performing assessment...")
+    Logger.debug("#{log_prefix()} Performing assessment...")
 
     # Get all discovered peers
     peers = PeerManager.get_all_peers()
@@ -519,10 +522,10 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
     if best do
       Logger.debug(
-        "[ConnectionAssessor] Best candidate: #{String.slice(best.peer_id, 0..7)} (score: #{best.score})"
+        "#{log_prefix()} Best candidate: #{String.slice(best.peer_id, 0..7)} (score: #{best.score})"
       )
     else
-      Logger.debug("[ConnectionAssessor] No viable candidates")
+      Logger.debug("#{log_prefix()} No viable candidates")
     end
 
     new_state
@@ -751,22 +754,22 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     case AiReality2Transnet.Wifi.list_adapters() do
       {:ok, [adapter | _]} when is_map(adapter) ->
         interface = adapter.interface
-        Logger.info("[ConnectionAssessor] Scanning for R2 hotspots on #{interface}...")
+        Logger.info("#{log_prefix()} Scanning for R2 hotspots on #{interface}...")
 
         case AiReality2Transnet.Wifi.find_r2_hotspots(interface) do
           {:ok, []} ->
-            Logger.info("[ConnectionAssessor] No R2 hotspots found yet - will retry on next assessment")
+            Logger.info("#{log_prefix()} No R2 hotspots found yet - will retry on next assessment")
 
           {:ok, hotspots} ->
-            Logger.info("[ConnectionAssessor] Found #{length(hotspots)} R2 hotspot(s)")
+            Logger.info("#{log_prefix()} Found #{length(hotspots)} R2 hotspot(s)")
 
             # Try to connect to the first (strongest signal) R2 hotspot
             [best | _] = hotspots
-            Logger.info("[ConnectionAssessor] Attempting to connect to #{best.ssid} (signal: #{best.signal})")
+            Logger.info("#{log_prefix()} Attempting to connect to #{best.ssid} (signal: #{best.signal})")
 
             case AiReality2Transnet.Wifi.connect_to_network(interface, best.ssid, best.psk) do
               {:ok, _uuid} ->
-                Logger.info("[ConnectionAssessor] Successfully connected to #{best.ssid}!")
+                Logger.info("#{log_prefix()} Successfully connected to #{best.ssid}!")
 
                 # Update connection state
                 ConnectionManager.report_wifi_connected(best.ssid)
@@ -775,15 +778,15 @@ defmodule AiReality2Transnet.ConnectionAssessor do
                 AiReality2Transnet.Wifi.report_client_connected()
 
               {:error, reason} ->
-                Logger.warning("[ConnectionAssessor] Failed to connect to #{best.ssid}: #{reason}")
+                Logger.warning("#{log_prefix()} Failed to connect to #{best.ssid}: #{reason}")
             end
 
           {:error, reason} ->
-            Logger.warning("[ConnectionAssessor] Failed to scan for R2 hotspots: #{reason}")
+            Logger.warning("#{log_prefix()} Failed to scan for R2 hotspots: #{reason}")
         end
 
       _ ->
-        Logger.debug("[ConnectionAssessor] No WiFi adapter available for client connection")
+        Logger.debug("#{log_prefix()} No WiFi adapter available for client connection")
     end
   end
 

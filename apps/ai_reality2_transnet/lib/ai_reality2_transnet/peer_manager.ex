@@ -33,6 +33,9 @@ defmodule AiReality2Transnet.PeerManager do
   use GenServer
   require Logger
 
+  # Helper to get node name for log messages
+  defp log_prefix, do: "[PeerManager:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
+
   # Suppress warnings for optional PNS integration (runtime checks used)
   # PNS is a higher-level module that depends on transnet, not vice versa
   # We use Code.ensure_loaded?/1 to avoid circular dependency
@@ -297,7 +300,7 @@ defmodule AiReality2Transnet.PeerManager do
       }
     }
 
-    Logger.info("[PeerManager] Started - tracking transient network peers")
+    Logger.info("#{log_prefix()} Started - tracking transient network peers")
     {:ok, state}
   end
 
@@ -360,7 +363,7 @@ defmodule AiReality2Transnet.PeerManager do
     # Log new peer discovery (but not re-discoveries from beacons)
     unless existing do
       name_info = if peer.node_name, do: " (#{peer.node_name})", else: ""
-      Logger.info("[PeerManager] New peer discovered: #{String.slice(node_id, 0..7)}...#{name_info} (RSSI: #{peer.rssi})")
+      Logger.info("#{log_prefix()} New peer discovered: #{String.slice(node_id, 0..7)}...#{name_info} (RSSI: #{peer.rssi})")
     end
 
     {:noreply, %{state | peers: new_peers, stats: new_stats}}
@@ -371,7 +374,7 @@ defmodule AiReality2Transnet.PeerManager do
     case Map.get(state.peers, node_id) do
       nil ->
         # Peer not found - may have been removed or never registered
-        Logger.warning("[PeerManager] Cannot update sentants for unknown peer: #{node_id}")
+        Logger.warning("#{log_prefix()} Cannot update sentants for unknown peer: #{node_id}")
         {:noreply, state}
 
       peer ->
@@ -385,7 +388,7 @@ defmodule AiReality2Transnet.PeerManager do
 
         new_peers = Map.put(state.peers, node_id, updated_peer)
 
-        Logger.info("[PeerManager] Updated sentants for #{String.slice(node_id, 0..7)}...: #{length(sentants)} sentants")
+        Logger.info("#{log_prefix()} Updated sentants for #{String.slice(node_id, 0..7)}...: #{length(sentants)} sentants")
 
         # Notify PNS Router that new remote Sentants are available
         # This triggers routing table refresh so messages can be routed to this peer
@@ -414,7 +417,7 @@ defmodule AiReality2Transnet.PeerManager do
 
         new_peers = Map.put(state.peers, node_id, updated_peer)
 
-        Logger.debug("[PeerManager] Updated capabilities for #{String.slice(node_id, 0..7)}...: #{inspect(capabilities)}")
+        Logger.debug("#{log_prefix()} Updated capabilities for #{String.slice(node_id, 0..7)}...: #{inspect(capabilities)}")
 
         {:noreply, %{state | peers: new_peers}}
     end
@@ -442,7 +445,7 @@ defmodule AiReality2Transnet.PeerManager do
           do: Map.update!(state.stats, :wifi_upgrades, &(&1 + 1)),
           else: state.stats
 
-        Logger.info("[PeerManager] Transport upgraded to #{new_transport} for #{String.slice(node_id, 0..7)}...")
+        Logger.info("#{log_prefix()} Transport upgraded to #{new_transport} for #{String.slice(node_id, 0..7)}...")
 
         {:noreply, %{state | peers: new_peers, stats: new_stats}}
     end
@@ -465,7 +468,7 @@ defmodule AiReality2Transnet.PeerManager do
           Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
         end
 
-        Logger.info("[PeerManager] Peer removed: #{String.slice(node_id, 0..7)}...")
+        Logger.info("#{log_prefix()} Peer removed: #{String.slice(node_id, 0..7)}...")
 
         # Notify PNS Router that peer is gone
         # This removes routes to Sentants on this peer
@@ -563,7 +566,7 @@ defmodule AiReality2Transnet.PeerManager do
 
     # Log each removal and clean up PNS_NodeNames mapping
     Enum.each(stale_peers, fn {node_id, peer} ->
-      Logger.info("[PeerManager] Removing stale peer: #{String.slice(node_id, 0..7)}... (timeout)")
+      Logger.info("#{log_prefix()} Removing stale peer: #{String.slice(node_id, 0..7)}... (timeout)")
       if peer.node_name do
         Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
       end

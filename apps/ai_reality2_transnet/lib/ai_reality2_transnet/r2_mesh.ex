@@ -55,6 +55,9 @@ defmodule AiReality2Transnet.R2Mesh do
   use GenServer
   require Logger
 
+  # Helper to get node name for log messages
+  defp log_prefix, do: "[R2Mesh:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Constants
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -202,7 +205,7 @@ defmodule AiReality2Transnet.R2Mesh do
       }
     }
 
-    Logger.info("[R2Mesh] Started - simple relay protocol for Sentant communication")
+    Logger.info("#{log_prefix()} Started - simple relay protocol for Sentant communication")
     {:ok, state}
   end
 
@@ -328,7 +331,7 @@ defmodule AiReality2Transnet.R2Mesh do
 
   @impl true
   def handle_info(msg, state) do
-    Logger.debug("[R2Mesh] Unhandled: #{inspect(msg)}")
+    Logger.debug("#{log_prefix()} Unhandled: #{inspect(msg)}")
     {:noreply, state}
   end
 
@@ -373,10 +376,10 @@ defmodule AiReality2Transnet.R2Mesh do
 
       @msg_type_presence ->
         # Presence messages are informational - could update peer tracking
-        Logger.debug("[R2Mesh] Presence from 0x#{Integer.to_string(message.src_hash, 16)}")
+        Logger.debug("#{log_prefix()} Presence from 0x#{Integer.to_string(message.src_hash, 16)}")
 
       _ ->
-        Logger.debug("[R2Mesh] Unknown message type: #{message.type}")
+        Logger.debug("#{log_prefix()} Unknown message type: #{message.type}")
     end
   end
 
@@ -399,7 +402,7 @@ defmodule AiReality2Transnet.R2Mesh do
         })
 
       _ ->
-        Logger.warning("[R2Mesh] Malformed event payload")
+        Logger.warning("#{log_prefix()} Malformed event payload")
     end
   end
 
@@ -424,7 +427,7 @@ defmodule AiReality2Transnet.R2Mesh do
         })
 
       _ ->
-        Logger.warning("[R2Mesh] Malformed signal payload")
+        Logger.warning("#{log_prefix()} Malformed signal payload")
     end
   end
 
@@ -491,7 +494,7 @@ defmodule AiReality2Transnet.R2Mesh do
     if Code.ensure_loaded?(AiReality2Transnet.Bluetooth) do
       AiReality2Transnet.Bluetooth.broadcast_mesh_message(encoded)
     else
-      Logger.warning("[R2Mesh] Bluetooth module not available")
+      Logger.warning("#{log_prefix()} Bluetooth module not available")
     end
   end
 
