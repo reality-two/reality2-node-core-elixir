@@ -22,6 +22,10 @@ echo "***** Cleaning up the previous build..."
 rm -rf "_build/prod"
 rm -rf "builds/${BUILD_FOLDER}.zip"
 
+echo "***** Cleaning Rust NIF artifacts (forces recompilation for target arch)..."
+find apps -path "*/priv/native/*.so" -delete 2>/dev/null || true
+find apps -path "*/native/*/target" -type d -exec rm -rf {} + 2>/dev/null || true
+
 mkdir -p "builds/${BUILD_FOLDER}"
 
 echo "***** Clearing certificate files (will be generated on first run)..."

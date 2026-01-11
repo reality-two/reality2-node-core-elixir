@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reality2 Transient Network - How It Works</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2d3a4a 0%, #1e2a3a 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .visualization {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            position: relative;
+            height: 700px;
+            overflow: hidden;
+        }
+
+        .stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Nodes */
+        .node {
+            position: absolute;
+            width: 105px;
+            height: 105px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.8s ease;
+            cursor: pointer;
+        }
+
+        .node-icon {
+            font-size: 2.2em;
+            margin-bottom: 3px;
+        }
+
+        .node-name {
+            font-size: 0.75em;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .node-type {
+            font-size: 0.65em;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .node-status {
+            font-size: 0.65em;
+            color: #bbb;
+            margin-top: 2px;
+        }
+
+        .node-a {
+            background: linear-gradient(135deg, #7088ea 0%, #8660b0 100%);
+            left: 8%;
+            top: 35%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .node-b {
+            background: linear-gradient(135deg, #f5a0fb 0%, #f77080 100%);
+            left: 35%;
+            top: 10%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 25px rgba(240, 147, 251, 0.4);
+        }
+
+        .node-c {
+            background: linear-gradient(135deg, #60b8fe 0%, #20f4fe 100%);
+            left: 92%;
+            top: 35%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        .node-d {
+            background: linear-gradient(135deg, #55eb88 0%, #48fad8 100%);
+            left: 50%;
+            top: 90%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 25px rgba(67, 233, 123, 0.4);
+            opacity: 0;
+        }
+
+        /* Client devices (phone/tablet) */
+        .client {
+            position: absolute;
+            width: 75px;
+            height: 75px;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.8s ease;
+            opacity: 0;
+            border: 2px dashed rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .client-icon {
+            font-size: 2em;
+        }
+
+        .client-name {
+            font-size: 0.65em;
+            color: #bbb;
+            margin-top: 4px;
+        }
+
+        .client-e {
+            left: 70%;
+            top: 10%;
+            transform: translate(-50%, -50%);
+        }
+
+        .client-f {
+            left: 70%;
+            top: 90%;
+            transform: translate(-50%, -50%);
+        }
+
+        .client.active {
+            opacity: 1;
+            border-color: rgba(0, 255, 136, 0.6);
+            background: rgba(0, 255, 136, 0.15);
+        }
+
+        /* Internet cloud */
+        .internet {
+            position: absolute;
+            left: 50%;
+            top: 48%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transition: all 0.8s ease;
+        }
+
+        .internet.visible {
+            opacity: 1;
+        }
+
+        .internet-icon {
+            font-size: 3.5em;
+            filter: drop-shadow(0 0 12px rgba(100, 180, 255, 0.6));
+        }
+
+        .internet-label {
+            font-size: 0.75em;
+            color: #bbb;
+            margin-top: 4px;
+        }
+
+        /* AP badge for host */
+        .ap-badge {
+            position: absolute;
+            bottom: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #00d4ff, #0088ff);
+            color: #fff;
+            font-size: 0.5em;
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .ap-badge.visible {
+            opacity: 1;
+        }
+
+        .connection.internet-conn {
+            stroke: #64b4ff;
+            stroke-width: 3;
+            stroke-dasharray: 8 4;
+            filter: drop-shadow(0 0 3px #64b4ff);
+        }
+
+        /* New host node */
+        .node-g {
+            background: linear-gradient(135deg, #ff7878 0%, #f06838 100%);
+            left: 8%;
+            top: 90%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 25px rgba(255, 107, 107, 0.4);
+            opacity: 0;
+        }
+
+        .node.host {
+            transform: translate(-50%, -50%) scale(1.12);
+            box-shadow: 0 4px 40px rgba(255, 215, 0, 0.5);
+            border: 3px solid gold;
+        }
+
+        .node.host::after {
+            content: '👑';
+            position: absolute;
+            top: -20px;
+            font-size: 1.3em;
+        }
+
+        .node.yielding {
+            animation: yield-pulse 1s ease-in-out;
+        }
+
+        @keyframes yield-pulse {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 100, 100, 0.3); }
+            50% { box-shadow: 0 0 50px rgba(255, 100, 100, 0.8); }
+        }
+
+        .node.sending {
+            animation: pulse-send 0.5s ease-out;
+        }
+
+        .node.receiving {
+            animation: pulse-receive 0.5s ease-out;
+        }
+
+        @keyframes pulse-send {
+            0% { box-shadow: 0 0 30px rgba(255, 136, 0, 0.8); }
+            100% { box-shadow: 0 0 30px rgba(255, 136, 0, 0.3); }
+        }
+
+        @keyframes pulse-receive {
+            0% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.8); }
+            100% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.3); }
+        }
+
+        /* BLE Beacon Animation */
+        .beacon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border-radius: 50%;
+            border: 2px dashed rgba(255,255,255,0.3);
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        .beacon.active {
+            animation: beacon-pulse 2s ease-out infinite;
+        }
+
+        @keyframes beacon-pulse {
+            0% {
+                width: 100px;
+                height: 100px;
+                opacity: 0.8;
+                margin-left: -50px;
+                margin-top: -50px;
+            }
+            100% {
+                width: 280px;
+                height: 280px;
+                opacity: 0;
+                margin-left: -140px;
+                margin-top: -140px;
+            }
+        }
+
+        /* Connection Lines */
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .connection {
+            stroke: rgba(255,255,255,0.4);
+            stroke-width: 2;
+            stroke-dasharray: 10 5;
+            fill: none;
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+
+        .connection.discovering {
+            opacity: 0.8;
+            animation: dash 1s linear infinite;
+        }
+
+        .connection.connected {
+            opacity: 0.9;
+            stroke: #22ff99;
+            stroke-width: 3;
+            stroke-dasharray: none;
+            filter: drop-shadow(0 0 6px rgba(34, 255, 153, 0.5));
+        }
+
+        .connection.client-conn {
+            stroke-width: 2;
+            stroke-dasharray: 6 4;
+            stroke: #44ddff;
+            filter: drop-shadow(0 0 4px rgba(68, 221, 255, 0.4));
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -15;
+            }
+        }
+
+        /* Sentants */
+        .sentants {
+            position: absolute;
+            bottom: -38px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .sentants.visible {
+            opacity: 1;
+        }
+
+        .sentant {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .sentant-bee-icon {
+            width: 22px;
+            height: 22px;
+            transition: all 0.3s ease;
+        }
+
+        .sentant.local .sentant-bee-icon {
+            opacity: 0.7;
+        }
+
+        .sentant.remote .sentant-bee-icon {
+            filter: hue-rotate(90deg) brightness(1.2);
+        }
+
+        .sentant-label {
+            font-size: 0.5em;
+            margin-top: 1px;
+        }
+
+        .sentant.local .sentant-label {
+            color: rgba(255,255,255,0.6);
+        }
+
+        .sentant.remote .sentant-label {
+            color: #00ff88;
+        }
+
+        .sentant.active .sentant-bee-icon {
+            animation: sentant-pulse 0.8s ease-in-out infinite;
+            filter: drop-shadow(0 0 8px rgba(255, 200, 0, 0.8));
+        }
+
+        @keyframes sentant-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+
+        /* Message packets */
+        .packet {
+            position: absolute;
+            padding: 3px 7px;
+            background: linear-gradient(135deg, #ff8800, #ff4400);
+            border-radius: 10px;
+            font-size: 0.65em;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 0 15px rgba(255, 136, 0, 0.6);
+            z-index: 100;
+        }
+
+        .packet.signal {
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+        }
+
+        .packet.handover {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.6);
+        }
+
+        .packet.visible {
+            opacity: 1;
+        }
+
+        /* Priority badge */
+        .priority-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #000;
+            font-size: 0.55em;
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .priority-badge.visible {
+            opacity: 1;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Status Panel */
+        .status-panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .step-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active {
+            background: #00d4ff;
+            box-shadow: 0 0 10px #00d4ff;
+        }
+
+        .step-dot.complete {
+            background: #00ff88;
+        }
+
+        .status-text {
+            text-align: center;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            min-height: 28px;
+        }
+
+        .status-detail {
+            text-align: center;
+            color: #888;
+            font-size: 0.85em;
+            min-height: 40px;
+            line-height: 1.4;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75em;
+            color: #aaa;
+        }
+
+        .legend-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+
+        .legend-icon.beacon {
+            border: 2px dashed rgba(255,255,255,0.5);
+            background: transparent;
+        }
+
+        .legend-icon.wifi {
+            background: #00ff88;
+        }
+
+        .legend-icon.client-icon {
+            background: transparent;
+            border: 2px dashed rgba(0, 255, 136, 0.5);
+            border-radius: 5px;
+        }
+
+        .legend-icon.sentant-local {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .legend-icon.sentant-remote {
+            background: rgba(0,255,136,0.5);
+            border: 1px solid #00ff88;
+        }
+
+        .legend-icon.event {
+            background: linear-gradient(135deg, #ff8800, #ff4400);
+        }
+
+        .legend-icon.signal {
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+        }
+
+        /* Navigation */
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border-color: rgba(0, 212, 255, 0.5);
+        }
+
+        .nav-link.current {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.5);
+            color: #00d4ff;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .visualization {
+                height: 520px;
+            }
+            .node {
+                width: 70px;
+                height: 70px;
+            }
+            .node-icon {
+                font-size: 1.4em;
+            }
+            .node-name {
+                font-size: 0.6em;
+            }
+            .client {
+                width: 50px;
+                height: 50px;
+            }
+            h1 {
+                font-size: 1.4em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><img src="/images/bee_blue.png" alt="bee" style="height: 1.2em; vertical-align: middle; margin-right: 8px;">Reality2 Transient Network</h1>
+        <p class="subtitle">How Reality2 nodes discover each other and enable Sentants to communicate</p>
+
+        <div class="visualization">
+            <svg class="connections" id="connections">
+                <line id="line-ab" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-bc" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-bd" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-be" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-bf" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-bg" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-ga" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-gc" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-gd" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-ge" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-gf" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-b-inet" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+                <line id="line-g-inet" class="connection" x1="0" y1="0" x2="0" y2="0"/>
+            </svg>
+
+            <!-- Message packets -->
+            <div class="packet" id="packet-1">📤 turn_on</div>
+            <div class="packet signal" id="packet-2">📥 done</div>
+            <div class="packet handover" id="packet-3">👑 yield</div>
+
+            <div class="stage" id="stage">
+                <!-- Reality2 Nodes (Linux devices) -->
+                <div class="node node-a" id="node-a">
+                    <div class="beacon" id="beacon-a"></div>
+                    <span class="priority-badge" id="priority-a">P:50</span>
+                    <span class="node-icon">🍓</span>
+                    <span class="node-name">Pi Zero</span>
+                    <span class="node-type">Raspberry Pi</span>
+                    <span class="node-status" id="status-a">Idle</span>
+                    <div class="sentants" id="sentants-a">
+                        <div class="sentant local" id="sentant-sensor" title="Sensor">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">Sensor</span>
+                        </div>
+                        <div class="sentant local" title="GPIO">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">GPIO</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="node node-b" id="node-b">
+                    <div class="beacon" id="beacon-b"></div>
+                    <span class="priority-badge" id="priority-b">P:75</span>
+                    <span class="ap-badge" id="ap-b">📶 AP</span>
+                    <span class="node-icon">💻</span>
+                    <span class="node-name">DevBox</span>
+                    <span class="node-type">Laptop</span>
+                    <span class="node-status" id="status-b">Idle</span>
+                    <div class="sentants" id="sentants-b">
+                        <div class="sentant local" title="Logger">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">Logger</span>
+                        </div>
+                        <div class="sentant local" title="Dashboard">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">Dash</span>
+                        </div>
+                        <div class="sentant local" title="Storage">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">Store</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="node node-c" id="node-c">
+                    <div class="beacon" id="beacon-c"></div>
+                    <span class="priority-badge" id="priority-c">P:50</span>
+                    <span class="node-icon">🖥️</span>
+                    <span class="node-name">HomeServer</span>
+                    <span class="node-type">Desktop</span>
+                    <span class="node-status" id="status-c">Idle</span>
+                    <div class="sentants" id="sentants-c">
+                        <div class="sentant local" id="sentant-light" title="Light Control">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">Light</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="node node-d" id="node-d">
+                    <div class="beacon" id="beacon-d"></div>
+                    <span class="priority-badge" id="priority-d">P:50</span>
+                    <span class="node-icon">🔲</span>
+                    <span class="node-name">EdgeNode</span>
+                    <span class="node-type">Intel NUC</span>
+                    <span class="node-status" id="status-d">Idle</span>
+                    <div class="sentants" id="sentants-d">
+                        <div class="sentant local" title="Camera">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">Camera</span>
+                        </div>
+                        <div class="sentant local" title="AI">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">AI</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New high-priority node -->
+                <div class="node node-g" id="node-g">
+                    <div class="beacon" id="beacon-g"></div>
+                    <span class="priority-badge visible" id="priority-g">P:100</span>
+                    <span class="ap-badge" id="ap-g">📶 AP</span>
+                    <span class="node-icon">🖧</span>
+                    <span class="node-name">MainServer</span>
+                    <span class="node-type">Wired Server</span>
+                    <span class="node-status" id="status-g">Idle</span>
+                    <div class="sentants" id="sentants-g">
+                        <div class="sentant local" title="Database">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">DB</span>
+                        </div>
+                        <div class="sentant local" title="API">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                            <span class="sentant-label">API</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client devices (not nodes) -->
+                <div class="client client-e" id="client-e">
+                    <span class="client-icon">📱</span>
+                    <span class="client-name">Phone</span>
+                </div>
+
+                <div class="client client-f" id="client-f">
+                    <span class="client-icon">📟</span>
+                    <span class="client-name">Tablet</span>
+                </div>
+
+                <!-- Internet cloud -->
+                <div class="internet" id="internet">
+                    <span class="internet-icon">☁️</span>
+                    <span class="internet-label">Internet</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <div class="step-indicator" id="step-indicator">
+                <!-- Dots will be generated by JS -->
+            </div>
+            <div class="status-text" id="status-text">Reality2 nodes with Sentants are nearby</div>
+            <div class="status-detail" id="status-detail">Each node runs Reality2 with multiple Sentants (digital bees). Sentants send events and signals to each other.</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-secondary" id="btn-reset">↺ Reset</button>
+            <button class="btn btn-primary" id="btn-next">Next Step →</button>
+            <button class="btn btn-secondary" id="btn-auto">▶ Auto Play</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <img src="/images/bee_blue.png" alt="bee" style="height: 18px; width: 18px;">
+                <span>Reality2 Node</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon beacon"></div>
+                <span>BLE Beacon</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon wifi"></div>
+                <span>WiFi Link</span>
+            </div>
+            <div class="legend-item">
+                <span style="font-size: 1em;">☁️</span>
+                <span>Internet</span>
+            </div>
+            <div class="legend-item">
+                <span style="font-size: 0.8em; background: linear-gradient(135deg, #00d4ff, #0088ff); padding: 1px 4px; border-radius: 4px;">📶</span>
+                <span>WiFi AP</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon client-icon"></div>
+                <span>Client Device</span>
+            </div>
+            <div class="legend-item">
+                <img src="/images/bee_blue.png" alt="bee" style="height: 18px; width: 18px; opacity: 0.7;">
+                <span>Local Sentant</span>
+            </div>
+            <div class="legend-item">
+                <img src="/images/bee_blue.png" alt="bee" style="height: 18px; width: 18px; filter: hue-rotate(90deg) brightness(1.2);">
+                <span>Remote Sentant</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon event"></div>
+                <span>Event</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon signal"></div>
+                <span>Signal</span>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a href="/demos" class="nav-link">📚 All Demos</a>
+            <span class="nav-link current">🔗 Transient Network</span>
+            <a href="/lora-mesh-viz" class="nav-link">🌊 LoRa Emergency Mesh</a>
+        </div>
+    </div>
+
+    <script>
+        // Animation State
+        let currentStep = 0;
+        let autoPlayInterval = null;
+        const totalSteps = 13;
+
+        // Generate step dots
+        const stepIndicator = document.getElementById('step-indicator');
+        for (let i = 0; i < totalSteps; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'step-dot';
+            dot.id = `dot-${i}`;
+            stepIndicator.appendChild(dot);
+        }
+
+        // DOM Elements
+        const nodes = {
+            a: document.getElementById('node-a'),
+            b: document.getElementById('node-b'),
+            c: document.getElementById('node-c'),
+            d: document.getElementById('node-d'),
+            g: document.getElementById('node-g')
+        };
+
+        const clients = {
+            e: document.getElementById('client-e'),
+            f: document.getElementById('client-f')
+        };
+
+        const beacons = {
+            a: document.getElementById('beacon-a'),
+            b: document.getElementById('beacon-b'),
+            c: document.getElementById('beacon-c'),
+            d: document.getElementById('beacon-d'),
+            g: document.getElementById('beacon-g')
+        };
+
+        const priorities = {
+            a: document.getElementById('priority-a'),
+            b: document.getElementById('priority-b'),
+            c: document.getElementById('priority-c'),
+            d: document.getElementById('priority-d'),
+            g: document.getElementById('priority-g')
+        };
+
+        const statuses = {
+            a: document.getElementById('status-a'),
+            b: document.getElementById('status-b'),
+            c: document.getElementById('status-c'),
+            d: document.getElementById('status-d'),
+            g: document.getElementById('status-g')
+        };
+
+        const sentants = {
+            a: document.getElementById('sentants-a'),
+            b: document.getElementById('sentants-b'),
+            c: document.getElementById('sentants-c'),
+            d: document.getElementById('sentants-d'),
+            g: document.getElementById('sentants-g')
+        };
+
+        const lines = {
+            ab: document.getElementById('line-ab'),
+            bc: document.getElementById('line-bc'),
+            bd: document.getElementById('line-bd'),
+            be: document.getElementById('line-be'),
+            bf: document.getElementById('line-bf'),
+            bg: document.getElementById('line-bg'),
+            ga: document.getElementById('line-ga'),
+            gc: document.getElementById('line-gc'),
+            gd: document.getElementById('line-gd'),
+            ge: document.getElementById('line-ge'),
+            gf: document.getElementById('line-gf'),
+            bInet: document.getElementById('line-b-inet'),
+            gInet: document.getElementById('line-g-inet')
+        };
+
+        const internet = document.getElementById('internet');
+
+        const apBadges = {
+            b: document.getElementById('ap-b'),
+            g: document.getElementById('ap-g')
+        };
+
+        const packets = {
+            1: document.getElementById('packet-1'),
+            2: document.getElementById('packet-2'),
+            3: document.getElementById('packet-3')
+        };
+
+        const statusText = document.getElementById('status-text');
+        const statusDetail = document.getElementById('status-detail');
+
+        // Update connection lines positions
+        function updateLines() {
+            const svg = document.getElementById('connections');
+            const svgRect = svg.getBoundingClientRect();
+
+            function getCenter(el) {
+                const elRect = el.getBoundingClientRect();
+                return {
+                    x: elRect.left - svgRect.left + elRect.width / 2,
+                    y: elRect.top - svgRect.top + elRect.height / 2
+                };
+            }
+
+            const posA = getCenter(nodes.a);
+            const posB = getCenter(nodes.b);
+            const posC = getCenter(nodes.c);
+            const posD = getCenter(nodes.d);
+            const posE = getCenter(clients.e);
+            const posF = getCenter(clients.f);
+            const posG = getCenter(nodes.g);
+            const posInet = getCenter(internet);
+
+            lines.ab.setAttribute('x1', posA.x); lines.ab.setAttribute('y1', posA.y);
+            lines.ab.setAttribute('x2', posB.x); lines.ab.setAttribute('y2', posB.y);
+
+            lines.bc.setAttribute('x1', posB.x); lines.bc.setAttribute('y1', posB.y);
+            lines.bc.setAttribute('x2', posC.x); lines.bc.setAttribute('y2', posC.y);
+
+            lines.bd.setAttribute('x1', posB.x); lines.bd.setAttribute('y1', posB.y);
+            lines.bd.setAttribute('x2', posD.x); lines.bd.setAttribute('y2', posD.y);
+
+            lines.be.setAttribute('x1', posB.x); lines.be.setAttribute('y1', posB.y);
+            lines.be.setAttribute('x2', posE.x); lines.be.setAttribute('y2', posE.y);
+
+            lines.bf.setAttribute('x1', posB.x); lines.bf.setAttribute('y1', posB.y);
+            lines.bf.setAttribute('x2', posF.x); lines.bf.setAttribute('y2', posF.y);
+
+            lines.bg.setAttribute('x1', posB.x); lines.bg.setAttribute('y1', posB.y);
+            lines.bg.setAttribute('x2', posG.x); lines.bg.setAttribute('y2', posG.y);
+
+            lines.ga.setAttribute('x1', posG.x); lines.ga.setAttribute('y1', posG.y);
+            lines.ga.setAttribute('x2', posA.x); lines.ga.setAttribute('y2', posA.y);
+
+            lines.gc.setAttribute('x1', posG.x); lines.gc.setAttribute('y1', posG.y);
+            lines.gc.setAttribute('x2', posC.x); lines.gc.setAttribute('y2', posC.y);
+
+            lines.gd.setAttribute('x1', posG.x); lines.gd.setAttribute('y1', posG.y);
+            lines.gd.setAttribute('x2', posD.x); lines.gd.setAttribute('y2', posD.y);
+
+            lines.ge.setAttribute('x1', posG.x); lines.ge.setAttribute('y1', posG.y);
+            lines.ge.setAttribute('x2', posE.x); lines.ge.setAttribute('y2', posE.y);
+
+            lines.gf.setAttribute('x1', posG.x); lines.gf.setAttribute('y1', posG.y);
+            lines.gf.setAttribute('x2', posF.x); lines.gf.setAttribute('y2', posF.y);
+
+            lines.bInet.setAttribute('x1', posB.x); lines.bInet.setAttribute('y1', posB.y);
+            lines.bInet.setAttribute('x2', posInet.x); lines.bInet.setAttribute('y2', posInet.y);
+
+            lines.gInet.setAttribute('x1', posG.x); lines.gInet.setAttribute('y1', posG.y);
+            lines.gInet.setAttribute('x2', posInet.x); lines.gInet.setAttribute('y2', posInet.y);
+        }
+
+        // Animate a packet between two elements
+        function animatePacket(packetId, fromEl, toEl, duration = 1200) {
+            const stage = document.getElementById('stage');
+            const stageRect = stage.getBoundingClientRect();
+            const packet = packets[packetId];
+
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+
+            const startX = fromRect.left - stageRect.left + fromRect.width / 2;
+            const startY = fromRect.top - stageRect.top + fromRect.height / 2;
+            const endX = toRect.left - stageRect.left + toRect.width / 2;
+            const endY = toRect.top - stageRect.top + toRect.height / 2;
+
+            packet.style.left = startX + 'px';
+            packet.style.top = startY + 'px';
+            packet.style.transform = 'translate(-50%, -50%)';
+            packet.classList.add('visible');
+
+            const startTime = performance.now();
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                const x = startX + (endX - startX) * eased;
+                const y = startY + (endY - startY) * eased;
+
+                packet.style.left = x + 'px';
+                packet.style.top = y + 'px';
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    packet.classList.remove('visible');
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Step definitions
+        const steps = [
+            {
+                title: "Reality2 nodes with Sentants are nearby",
+                detail: "Each node runs Reality2 with multiple Sentants (digital bees). Sentants send events and signals to communicate.",
+                action: () => {
+                    Object.values(sentants).forEach(s => s.classList.add('visible'));
+                }
+            },
+            {
+                title: "📡 BLE Beacons broadcast presence and priority",
+                detail: "Each device broadcasts a beacon with its ID and hosting priority. Laptop has P:75 (WiFi internet), others have P:50.",
+                action: () => {
+                    beacons.a.classList.add('active');
+                    beacons.b.classList.add('active');
+                    beacons.c.classList.add('active');
+                    priorities.a.classList.add('visible');
+                    priorities.b.classList.add('visible');
+                    priorities.c.classList.add('visible');
+                    statuses.a.textContent = 'Beaconing';
+                    statuses.b.textContent = 'Beaconing';
+                    statuses.c.textContent = 'Beaconing';
+                }
+            },
+            {
+                title: "🔍 Discovery: Nodes detect each other",
+                detail: "Nodes discover peers via BLE. Priority comparison: Laptop (75) > Pi Zero (50) = Desktop (50)",
+                action: () => {
+                    lines.ab.classList.add('discovering');
+                    lines.bc.classList.add('discovering');
+                    statuses.a.textContent = 'Found 2';
+                    statuses.b.textContent = 'Found 2';
+                    statuses.c.textContent = 'Found 2';
+                }
+            },
+            {
+                title: "👑 Laptop becomes host (highest priority)",
+                detail: "The node with highest priority creates a WiFi hotspot (AP). Others connect to it. Internet traffic flows through the host.",
+                action: () => {
+                    nodes.b.classList.add('host');
+                    statuses.b.textContent = 'HOST';
+                    apBadges.b.classList.add('visible');
+                    internet.classList.add('visible');
+                    lines.bInet.classList.add('connected', 'internet-conn');
+                    beacons.a.classList.remove('active');
+                    beacons.c.classList.remove('active');
+                    lines.ab.classList.remove('discovering');
+                    lines.bc.classList.remove('discovering');
+                    lines.ab.classList.add('connected');
+                    lines.bc.classList.add('connected');
+                    statuses.a.textContent = 'Connected';
+                    statuses.c.textContent = 'Connected';
+                }
+            },
+            {
+                title: "🔄 Sentant Discovery: Bees find each other",
+                detail: "Each node shares its Sentants. Now all Sentants across the network can communicate with each other!",
+                action: () => {
+                    addRemoteSentants('a', ['📊', '📺', '💾', '💡']);
+                    addRemoteSentants('b', ['🌡️', '⚡', '💡']);
+                    addRemoteSentants('c', ['🌡️', '⚡', '📊', '📺', '💾']);
+                }
+            },
+            {
+                title: "📤 Sentant Event: Sensor triggers Light",
+                detail: "Sensor Sentant on Pi Zero detects motion → sends event to Light Sentant on Desktop → light turns on!",
+                action: () => {
+                    const sensor = document.getElementById('sentant-sensor');
+                    sensor.classList.add('active');
+                    nodes.a.classList.add('sending');
+
+                    setTimeout(() => animatePacket(1, nodes.a, nodes.c, 1000), 200);
+
+                    setTimeout(() => {
+                        sensor.classList.remove('active');
+                        nodes.a.classList.remove('sending');
+                        const light = document.getElementById('sentant-light');
+                        light.classList.add('active');
+                        nodes.c.classList.add('receiving');
+                    }, 1300);
+
+                    setTimeout(() => {
+                        document.getElementById('sentant-light').classList.remove('active');
+                        nodes.c.classList.remove('receiving');
+                    }, 2200);
+                }
+            },
+            {
+                title: "📥 Sentant Signal: Light confirms action",
+                detail: "Light Sentant sends a signal back: \"done\". Sensor Sentant receives confirmation that the action was completed.",
+                action: () => {
+                    const light = document.getElementById('sentant-light');
+                    light.classList.add('active');
+                    nodes.c.classList.add('sending');
+
+                    setTimeout(() => animatePacket(2, nodes.c, nodes.a, 1000), 200);
+
+                    setTimeout(() => {
+                        light.classList.remove('active');
+                        nodes.c.classList.remove('sending');
+                        document.getElementById('sentant-sensor').classList.add('active');
+                        nodes.a.classList.add('receiving');
+                    }, 1300);
+
+                    setTimeout(() => {
+                        document.getElementById('sentant-sensor').classList.remove('active');
+                        nodes.a.classList.remove('receiving');
+                    }, 2200);
+                }
+            },
+            {
+                title: "📱 Client devices connect to interact with Sentants",
+                detail: "Phones and tablets aren't nodes, but they can connect to view dashboards and send commands to Sentants.",
+                action: () => {
+                    clients.e.classList.add('active');
+                    clients.f.classList.add('active');
+                    lines.be.classList.add('connected');
+                    lines.be.classList.add('client-conn');
+                    lines.bf.classList.add('connected');
+                    lines.bf.classList.add('client-conn');
+                }
+            },
+            {
+                title: "🔲 New node joins with more Sentants",
+                detail: "Intel NUC appears with Camera and AI Sentants. It joins the network and its Sentants become accessible to all.",
+                action: () => {
+                    nodes.d.style.opacity = '1';
+                    beacons.d.classList.add('active');
+                    priorities.d.classList.add('visible');
+                    statuses.d.textContent = 'Joining...';
+
+                    setTimeout(() => {
+                        beacons.d.classList.remove('active');
+                        lines.bd.classList.add('connected');
+                        statuses.d.textContent = 'Connected';
+                        addRemoteSentants('a', ['📷', '🤖']);
+                        addRemoteSentants('b', ['📷', '🤖']);
+                        addRemoteSentants('c', ['📷', '🤖']);
+                        addRemoteSentants('d', ['🌡️', '⚡', '📊', '📺', '💾', '💡']);
+                    }, 1500);
+                }
+            },
+            {
+                title: "🖧 Higher priority node appears!",
+                detail: "A wired server (P:100) joins. It has better hosting capability than the Laptop (P:75).",
+                action: () => {
+                    nodes.g.style.opacity = '1';
+                    beacons.g.classList.add('active');
+                    statuses.g.textContent = 'Joining...';
+                    sentants.g.classList.add('visible');
+
+                    setTimeout(() => {
+                        beacons.g.classList.remove('active');
+                        lines.bg.classList.add('connected');
+                        statuses.g.textContent = 'P:100!';
+                    }, 1500);
+                }
+            },
+            {
+                title: "👑→🖧 Host handover: Laptop yields to Server",
+                detail: "Laptop detects higher priority node and yields hosting. Server becomes new AP host. Internet traffic moves to new host.",
+                action: () => {
+                    nodes.b.classList.add('yielding');
+
+                    setTimeout(() => animatePacket(3, nodes.b, nodes.g, 800), 300);
+
+                    setTimeout(() => {
+                        nodes.b.classList.remove('host', 'yielding');
+                        nodes.g.classList.add('host');
+                        statuses.b.textContent = 'Migrating...';
+                        statuses.g.textContent = 'HOST';
+
+                        // Switch AP badge and internet from B to G
+                        apBadges.b.classList.remove('visible');
+                        apBadges.g.classList.add('visible');
+                        lines.bInet.classList.remove('connected', 'internet-conn');
+                        lines.gInet.classList.add('connected', 'internet-conn');
+
+                        // Disconnect all from old host B
+                        lines.ab.classList.remove('connected');
+                        lines.bc.classList.remove('connected');
+                        lines.bd.classList.remove('connected');
+                        lines.be.classList.remove('connected', 'client-conn');
+                        lines.bf.classList.remove('connected', 'client-conn');
+                        lines.bg.classList.remove('connected');
+                    }, 1500);
+
+                    // Reconnect all to new host G
+                    setTimeout(() => {
+                        statuses.a.textContent = 'Reconnecting...';
+                        statuses.c.textContent = 'Reconnecting...';
+                        statuses.d.textContent = 'Reconnecting...';
+                        lines.ga.classList.add('connected');
+                    }, 2000);
+
+                    setTimeout(() => {
+                        lines.bg.classList.add('connected');
+                        lines.gc.classList.add('connected');
+                    }, 2400);
+
+                    setTimeout(() => {
+                        lines.gd.classList.add('connected');
+                        lines.ge.classList.add('connected', 'client-conn');
+                        lines.gf.classList.add('connected', 'client-conn');
+                    }, 2800);
+
+                    setTimeout(() => {
+                        addRemoteSentants('g', ['🌡️', '⚡', '📊', '📺', '💾', '💡', '📷', '🤖']);
+                    }, 3200);
+                }
+            },
+            {
+                title: "✅ All Sentants can now communicate",
+                detail: "The wired server is hosting. All Sentants across all nodes can send events and signals to each other!",
+                action: () => {
+                    // Final stable state
+                    statuses.a.textContent = 'Connected';
+                    statuses.b.textContent = 'Connected';
+                    statuses.c.textContent = 'Connected';
+                    statuses.d.textContent = 'Connected';
+                }
+            },
+            {
+                title: "📴 Node D goes offline - Sentants leave",
+                detail: "Intel NUC loses power. Its Sentants (Camera, AI) are no longer accessible. Other Sentants are notified.",
+                action: () => {
+                    // Node D fades out
+                    nodes.d.style.opacity = '0.3';
+                    lines.gd.classList.remove('connected');
+                    statuses.d.textContent = 'Offline';
+
+                    // Remove D's sentants from other nodes
+                    setTimeout(() => {
+                        ['a', 'b', 'c', 'g'].forEach(nodeKey => {
+                            const container = sentants[nodeKey];
+                            if (!container) return;
+                            container.querySelectorAll('.sentant.remote').forEach(s => {
+                                const label = s.querySelector('.sentant-label');
+                                if (label && (label.textContent === 'Camera' || label.textContent === 'AI')) {
+                                    s.style.opacity = '0';
+                                    s.style.transform = 'scale(0)';
+                                    setTimeout(() => s.remove(), 300);
+                                }
+                            });
+                        });
+                    }, 800);
+
+                    setTimeout(() => {
+                        statuses.a.textContent = 'Updated';
+                        statuses.b.textContent = 'Updated';
+                        statuses.c.textContent = 'Updated';
+                        statuses.g.textContent = 'HOST';
+                    }, 1500);
+                }
+            }
+        ];
+
+        const iconToLabel = {
+            '🌡️': 'Sensor', '⚡': 'GPIO', '📊': 'Logger', '📺': 'Dash',
+            '💾': 'Store', '💡': 'Light', '📷': 'Camera', '🤖': 'AI',
+            '🗄️': 'DB', '🔌': 'API'
+        };
+
+        function addRemoteSentants(nodeKey, icons) {
+            const container = sentants[nodeKey];
+            if (!container) return;
+
+            icons.forEach(icon => {
+                const label = iconToLabel[icon] || icon;
+                const existing = Array.from(container.querySelectorAll('.sentant')).find(s => {
+                    const labelEl = s.querySelector('.sentant-label');
+                    return labelEl && labelEl.textContent === label;
+                });
+                if (existing) return;
+
+                const sentant = document.createElement('div');
+                sentant.className = 'sentant remote';
+                sentant.innerHTML = `
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee-icon">
+                    <span class="sentant-label">${label}</span>
+                `;
+                sentant.style.opacity = '0';
+                sentant.style.transform = 'scale(0)';
+                container.appendChild(sentant);
+
+                setTimeout(() => {
+                    sentant.style.opacity = '1';
+                    sentant.style.transform = 'scale(1)';
+                }, Math.random() * 400);
+            });
+        }
+
+        function updateStepIndicator() {
+            for (let i = 0; i < totalSteps; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                dot.classList.remove('active', 'complete');
+                if (i < currentStep) {
+                    dot.classList.add('complete');
+                } else if (i === currentStep) {
+                    dot.classList.add('active');
+                }
+            }
+        }
+
+        function executeStep(step) {
+            if (step >= 0 && step < steps.length) {
+                statusText.textContent = steps[step].title;
+                statusDetail.textContent = steps[step].detail;
+                steps[step].action();
+                updateStepIndicator();
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps - 1) {
+                currentStep++;
+                executeStep(currentStep);
+                document.getElementById('btn-next').disabled = currentStep >= totalSteps - 1;
+            }
+        }
+
+        function reset() {
+            currentStep = 0;
+            stopAutoPlay();
+
+            // Reset nodes
+            Object.values(nodes).forEach(n => n.classList.remove('host', 'sending', 'receiving', 'yielding'));
+            nodes.d.style.opacity = '0';
+            nodes.g.style.opacity = '0';
+
+            // Reset clients
+            Object.values(clients).forEach(c => c.classList.remove('active'));
+
+            // Reset beacons
+            Object.values(beacons).forEach(b => b.classList.remove('active'));
+
+            // Reset priorities
+            Object.values(priorities).forEach(p => p.classList.remove('visible'));
+            priorities.g.classList.add('visible'); // Server always shows priority
+
+            // Reset statuses
+            Object.values(statuses).forEach(s => s.textContent = 'Idle');
+
+            // Reset connections
+            Object.values(lines).forEach(l => l.classList.remove('discovering', 'connected', 'client-conn', 'internet-conn'));
+
+            // Reset internet and AP badges
+            internet.classList.remove('visible');
+            Object.values(apBadges).forEach(a => a.classList.remove('visible'));
+
+            // Reset packets
+            Object.values(packets).forEach(p => p.classList.remove('visible'));
+
+            // Reset sentants
+            Object.values(sentants).forEach(container => {
+                if (!container) return;
+                container.classList.remove('visible');
+                container.querySelectorAll('.remote').forEach(r => r.remove());
+                container.querySelectorAll('.active').forEach(a => a.classList.remove('active'));
+            });
+
+            document.getElementById('btn-next').disabled = false;
+            executeStep(0);
+        }
+
+        function toggleAutoPlay() {
+            const btn = document.getElementById('btn-auto');
+            if (autoPlayInterval) {
+                stopAutoPlay();
+            } else {
+                btn.textContent = '⏸ Pause';
+                autoPlayInterval = setInterval(() => {
+                    if (currentStep >= totalSteps - 1) {
+                        stopAutoPlay();
+                    } else {
+                        nextStep();
+                    }
+                }, 3500);
+            }
+        }
+
+        function stopAutoPlay() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+            document.getElementById('btn-auto').textContent = '▶ Auto Play';
+        }
+
+        // Event listeners
+        document.getElementById('btn-next').addEventListener('click', nextStep);
+        document.getElementById('btn-reset').addEventListener('click', reset);
+        document.getElementById('btn-auto').addEventListener('click', toggleAutoPlay);
+
+        // Initialize
+        window.addEventListener('load', () => {
+            updateLines();
+            executeStep(0);
+        });
+
+        window.addEventListener('resize', updateLines);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reality2 LoRa Mesh - Emergency Flood Monitoring</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2d3a4a 0%, #1e2a3a 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.8em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+        }
+
+        .visualization {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            position: relative;
+            height: 780px;
+            overflow: hidden;
+        }
+
+        .stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Houses with Reality2 Mesh Nodes */
+        .house {
+            position: absolute;
+            width: 180px;
+            height: 130px;
+            border-radius: 15px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 10px;
+            transition: all 0.8s ease;
+        }
+
+        .house-node-label {
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6em;
+            color: rgba(140, 200, 255, 0.9);
+            white-space: nowrap;
+            border: 1px solid rgba(100, 180, 255, 0.4);
+            border-radius: 8px;
+            padding: 3px 10px;
+            background: rgba(0, 60, 120, 0.5);
+        }
+
+        .house.emergency {
+            border-color: rgba(255, 100, 100, 0.6);
+            background: rgba(255, 100, 100, 0.1);
+            animation: emergency-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes emergency-pulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 100, 100, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(255, 100, 100, 0.4); }
+        }
+
+        .house-label {
+            font-size: 0.7em;
+            color: rgba(255,255,255,0.6);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .house-label .icon {
+            font-size: 1.3em;
+        }
+
+        .house-a { left: 2%; top: 6%; }
+        .house-b { left: 82%; top: 6%; }
+        .house-c { left: 2%; top: 52%; }
+
+        /* Sentants - the main actors */
+        .sentant {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.5s ease;
+        }
+
+        .sentant-bee {
+            width: 45px;
+            height: 45px;
+            transition: all 0.3s ease;
+        }
+
+        .sentant.active .sentant-bee {
+            filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.8));
+            animation: bee-pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes bee-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .sentant-name {
+            font-size: 0.75em;
+            color: #fff;
+            margin-top: 4px;
+            font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .sentant-role {
+            font-size: 0.6em;
+            color: #bbb;
+        }
+
+        /* Sentant positions within houses - spread out more */
+        #sentant-gateway-a { left: 5%; top: 4%; }
+        #sentant-monitor-a { left: 13%; top: 17%; }
+        #sentant-gateway-b { left: 85%; top: 4%; }
+        #sentant-alarm-b { left: 93%; top: 17%; }
+        #sentant-gateway-c { left: 5%; top: 50%; }
+        #sentant-siren-c { left: 13%; top: 63%; }
+
+        /* River Sentants */
+        .river-sentant {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+
+        .river-sentant.visible {
+            opacity: 1;
+        }
+
+        .river-sentant .sentant-bee {
+            width: 35px;
+            height: 35px;
+        }
+
+        .river-sentant.alert .sentant-bee {
+            filter: drop-shadow(0 0 8px rgba(255, 100, 100, 0.8));
+        }
+
+        .river-sentant .reading {
+            font-size: 0.75em;
+            color: #00ff88;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+
+        .river-sentant.alert .reading {
+            color: #ff6b6b;
+            animation: blink 0.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        #river-sentant-1 { left: 25%; bottom: 12%; }
+        #river-sentant-2 { left: 50%; bottom: 12%; }
+        #river-sentant-3 { left: 75%; bottom: 12%; }
+
+        /* Reality2 Digital Twin */
+        .coordinator {
+            position: absolute;
+            left: 50%;
+            top: 40%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 35px;
+            background: rgba(20, 60, 100, 0.6);
+            border: 2px solid rgba(100, 180, 255, 0.6);
+            border-radius: 20px;
+            transition: all 0.8s ease;
+            box-shadow: 0 4px 20px rgba(0, 100, 200, 0.2);
+        }
+
+        .coordinator-title {
+            font-size: 0.7em;
+            color: #8cd4ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .coordinator-bees {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .coordinator-bees .sentant-bee {
+            width: 42px;
+            height: 42px;
+        }
+
+        .coordinator-bees .bee-label {
+            font-size: 0.55em;
+            color: #bbb;
+            text-align: center;
+        }
+
+        .coordinator-name {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .coordinator-status {
+            font-size: 0.85em;
+            color: #00ff88;
+            margin-top: 6px;
+        }
+
+        .coordinator-status.warning {
+            color: #ffaa00;
+        }
+
+        .coordinator-status.danger {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .coordinator-data {
+            font-size: 0.65em;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .coordinator.receiving {
+            box-shadow: 0 0 25px rgba(0, 200, 255, 0.5);
+        }
+
+        .coordinator.alert {
+            border-color: rgba(255, 100, 100, 0.8);
+            box-shadow: 0 0 25px rgba(255, 100, 100, 0.5);
+        }
+
+        /* Community Experts */
+        .expert {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+
+        .expert.visible {
+            opacity: 1;
+        }
+
+        .expert.consulted .expert-icon {
+            animation: pulse-expert 1s ease-in-out infinite;
+        }
+
+        .expert.approved .expert-icon {
+            animation: none;
+            filter: drop-shadow(0 0 10px #00ff88);
+        }
+
+        @keyframes pulse-expert {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .expert-icon {
+            font-size: 2.4em;
+            background: rgba(40, 50, 70, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .expert-label {
+            font-size: 0.65em;
+            color: #ccc;
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        #expert-1 { left: 28%; top: 26%; transform: translate(-50%, -50%); }
+        #expert-2 { left: 72%; top: 26%; transform: translate(-50%, -50%); }
+        #expert-3 { left: 50%; top: 12%; transform: translate(-50%, -50%); }
+
+        /* River */
+        .river {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 75px;
+            background: linear-gradient(180deg, rgba(0, 120, 200, 0.15) 0%, rgba(0, 150, 255, 0.35) 100%);
+            border-top: 3px solid rgba(0, 180, 255, 0.5);
+            transition: all 1s ease;
+        }
+
+        .river.flooding {
+            height: 115px;
+            background: linear-gradient(180deg, rgba(255, 100, 100, 0.2) 0%, rgba(0, 150, 255, 0.5) 100%);
+            border-top-color: rgba(255, 100, 100, 0.8);
+        }
+
+        .river-label {
+            position: absolute;
+            right: 20px;
+            top: 10px;
+            font-size: 0.75em;
+            color: rgba(100, 220, 255, 0.9);
+            font-weight: 500;
+        }
+
+        /* LoRa indicators */
+        .lora-indicator {
+            position: absolute;
+            font-size: 1.1em;
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+
+        .lora-indicator.visible {
+            opacity: 1;
+        }
+
+        .lora-indicator.transmitting {
+            animation: transmit 1s ease-in-out infinite;
+        }
+
+        @keyframes transmit {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); filter: drop-shadow(0 0 8px #ff8800); }
+        }
+
+        /* Connection Lines */
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .connection {
+            stroke: rgba(255,255,255,0.15);
+            stroke-width: 2;
+            fill: none;
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+
+        .connection.lora {
+            stroke: #ff9933;
+            stroke-width: 3;
+            stroke-dasharray: 12 6;
+            filter: drop-shadow(0 0 5px rgba(255, 150, 50, 0.6));
+            animation: lora-dash 1s linear infinite;
+        }
+
+        .connection.lora-sensor {
+            stroke: #44ccff;
+            stroke-width: 2;
+            stroke-dasharray: 8 4;
+            filter: drop-shadow(0 0 4px rgba(68, 204, 255, 0.5));
+        }
+
+        .connection.active {
+            opacity: 0.9;
+        }
+
+        @keyframes lora-dash {
+            to { stroke-dashoffset: -18; }
+        }
+
+        /* Message packets */
+        .packet {
+            position: absolute;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.6em;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .packet.lora-packet {
+            background: linear-gradient(135deg, #ff8800, #ff4400);
+            box-shadow: 0 0 12px rgba(255, 136, 0, 0.6);
+        }
+
+        .packet.alert-packet {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            box-shadow: 0 0 12px rgba(255, 107, 107, 0.6);
+        }
+
+        .packet.visible {
+            opacity: 1;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Status Panel */
+        .status-panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .step-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active {
+            background: #00d4ff;
+            box-shadow: 0 0 10px #00d4ff;
+        }
+
+        .step-dot.complete {
+            background: #00ff88;
+        }
+
+        .status-text {
+            text-align: center;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            min-height: 28px;
+        }
+
+        .status-detail {
+            text-align: center;
+            color: #888;
+            font-size: 0.85em;
+            min-height: 40px;
+            line-height: 1.4;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75em;
+            color: #aaa;
+        }
+
+        .legend-icon {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .legend-icon.lora {
+            background: repeating-linear-gradient(90deg, #ff8800, #ff8800 6px, transparent 6px, transparent 9px);
+        }
+
+        .legend-icon.lora-sensor {
+            background: repeating-linear-gradient(90deg, #00aaff, #00aaff 4px, transparent 4px, transparent 6px);
+        }
+
+        /* Navigation */
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border-color: rgba(0, 212, 255, 0.5);
+        }
+
+        .nav-link.current {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.5);
+            color: #00d4ff;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .visualization {
+                height: 600px;
+            }
+            .coordinator {
+                padding: 12px;
+            }
+            .coordinator .sentant-bee {
+                width: 50px;
+                height: 50px;
+            }
+            h1 {
+                font-size: 1.4em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><img src="/images/bee_blue.png" alt="bee" style="height: 1.2em; vertical-align: middle; margin-right: 8px;">Reality2 LoRa Mesh</h1>
+        <p class="subtitle">Each home has its own Reality2 Mesh Node running Sentants that coordinate for emergency flood monitoring</p>
+
+        <div class="visualization">
+            <svg class="connections" id="connections">
+                <!-- LoRa lines between houses -->
+                <line id="line-lora-ab" class="connection" />
+                <line id="line-lora-bc" class="connection" />
+                <line id="line-lora-ac" class="connection" />
+                <!-- Lines from river sentants to coordinator -->
+                <line id="line-sensor-1" class="connection" />
+                <line id="line-sensor-2" class="connection" />
+                <line id="line-sensor-3" class="connection" />
+                <!-- Lines from houses to coordinator -->
+                <line id="line-coord-a" class="connection" />
+                <line id="line-coord-b" class="connection" />
+                <line id="line-coord-c" class="connection" />
+                <!-- Lines to experts -->
+                <line id="line-expert-1" class="connection" />
+                <line id="line-expert-2" class="connection" />
+                <line id="line-expert-3" class="connection" />
+            </svg>
+
+            <!-- Message packets -->
+            <div class="packet lora-packet" id="packet-1">📡 reading</div>
+            <div class="packet alert-packet" id="packet-2">🚨 ALERT</div>
+            <div class="packet lora-packet" id="packet-3">❓ Confirm?</div>
+            <div class="packet lora-packet" id="packet-4">✅ Approved</div>
+
+            <div class="stage" id="stage">
+                <!-- House A with Reality2 Mesh Node -->
+                <div class="house house-a" id="house-a">
+                    <span class="house-node-label">Reality2 Mesh Node</span>
+                    <span class="house-label"><span class="icon">🏠</span> Smith Home</span>
+                </div>
+
+                <!-- House B with Reality2 Mesh Node -->
+                <div class="house house-b" id="house-b">
+                    <span class="house-node-label">Reality2 Mesh Node</span>
+                    <span class="house-label"><span class="icon">🏡</span> Jones Home</span>
+                </div>
+
+                <!-- House C with Reality2 Mesh Node -->
+                <div class="house house-c" id="house-c">
+                    <span class="house-node-label">Reality2 Mesh Node</span>
+                    <span class="house-label"><span class="icon">🏘️</span> Wilson Home</span>
+                </div>
+
+                <!-- Sentants in House A -->
+                <div class="sentant" id="sentant-gateway-a">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Gateway</span>
+                    <span class="sentant-role">LoRa + WiFi</span>
+                </div>
+                <div class="sentant" id="sentant-monitor-a">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Monitor</span>
+                    <span class="sentant-role">Dashboard</span>
+                </div>
+
+                <!-- Sentants in House B -->
+                <div class="sentant" id="sentant-gateway-b">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Gateway</span>
+                    <span class="sentant-role">LoRa + WiFi</span>
+                </div>
+                <div class="sentant" id="sentant-alarm-b">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Alarm</span>
+                    <span class="sentant-role">Alert System</span>
+                </div>
+
+                <!-- Sentants in House C -->
+                <div class="sentant" id="sentant-gateway-c">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Gateway</span>
+                    <span class="sentant-role">LoRa + WiFi</span>
+                </div>
+                <div class="sentant" id="sentant-siren-c">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Siren</span>
+                    <span class="sentant-role">Local Alert</span>
+                </div>
+
+                <!-- LoRa indicators on gateway sentants -->
+                <span class="lora-indicator" id="lora-a" style="left: 10%; top: 3%;">📡</span>
+                <span class="lora-indicator" id="lora-b" style="left: 87%; top: 3%;">📡</span>
+                <span class="lora-indicator" id="lora-c" style="left: 10%; top: 53%;">📡</span>
+
+                <!-- Community Experts -->
+                <div class="expert" id="expert-1">
+                    <span class="expert-icon">👨‍🔬</span>
+                    <span class="expert-label">Hydrologist</span>
+                </div>
+                <div class="expert" id="expert-2">
+                    <span class="expert-icon">👩‍🚒</span>
+                    <span class="expert-label">Emergency<br>Services</span>
+                </div>
+                <div class="expert" id="expert-3">
+                    <span class="expert-icon">🧓🏾</span>
+                    <span class="expert-label">Local Iwi<br>Expert</span>
+                </div>
+
+                <!-- Reality2 Digital Twin (runs multiple sentants) -->
+                <div class="coordinator" id="coordinator">
+                    <div class="coordinator-title">Reality2 Digital Twin</div>
+                    <div class="coordinator-bees">
+                        <div style="display:flex; flex-direction:column; align-items:center;">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                            <span class="bee-label">Aggregator</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; align-items:center;">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                            <span class="bee-label">Analyser</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; align-items:center;">
+                            <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                            <span class="bee-label">Alerter</span>
+                        </div>
+                    </div>
+                    <div class="coordinator-name">River Watch</div>
+                    <div class="coordinator-status" id="coord-status">Waiting for data...</div>
+                    <div class="coordinator-data" id="coord-data">No sensors connected</div>
+                </div>
+
+                <!-- River -->
+                <div class="river" id="river">
+                    <span class="river-label">Waikato River</span>
+                </div>
+
+                <!-- River Monitoring Sentants -->
+                <div class="river-sentant" id="river-sentant-1">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Upstream</span>
+                    <span class="reading" id="reading-1">1.2m</span>
+                </div>
+                <div class="river-sentant" id="river-sentant-2">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Midstream</span>
+                    <span class="reading" id="reading-2">1.4m</span>
+                </div>
+                <div class="river-sentant" id="river-sentant-3">
+                    <img src="/images/bee_blue.png" alt="Sentant" class="sentant-bee">
+                    <span class="sentant-name">Downstream</span>
+                    <span class="reading" id="reading-3">1.1m</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <div class="step-indicator" id="step-indicator"></div>
+            <div class="status-text" id="status-text">Reality2 Mesh Nodes in homes along the river</div>
+            <div class="status-detail" id="status-detail">Each home has a Reality2 Mesh Node running Sentants (digital bees). Each node has its own notification system and can communicate via LoRa.</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-secondary" id="btn-reset">↺ Reset</button>
+            <button class="btn btn-primary" id="btn-next">Next Step →</button>
+            <button class="btn btn-secondary" id="btn-auto">▶ Auto Play</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <img src="/images/bee_blue.png" alt="bee" style="height: 18px; width: 18px;">
+                <span>Sentant (Digital Bee)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon lora"></div>
+                <span>LoRa Link</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon lora-sensor"></div>
+                <span>Sensor Data</span>
+            </div>
+            <div class="legend-item">
+                <span style="font-size: 1em;">👥</span>
+                <span>Human Experts</span>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a href="/demos" class="nav-link">📚 All Demos</a>
+            <a href="/transnet-viz" class="nav-link">🔗 Transient Network</a>
+            <span class="nav-link current">🌊 LoRa Emergency Mesh</span>
+        </div>
+    </div>
+
+    <script>
+        // Animation State
+        let currentStep = 0;
+        let autoPlayInterval = null;
+        const totalSteps = 11;
+
+        // Generate step dots
+        const stepIndicator = document.getElementById('step-indicator');
+        for (let i = 0; i < totalSteps; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'step-dot';
+            dot.id = `dot-${i}`;
+            stepIndicator.appendChild(dot);
+        }
+
+        // DOM Elements
+        const houses = {
+            a: document.getElementById('house-a'),
+            b: document.getElementById('house-b'),
+            c: document.getElementById('house-c')
+        };
+
+        const sentants = {
+            gatewayA: document.getElementById('sentant-gateway-a'),
+            monitorA: document.getElementById('sentant-monitor-a'),
+            gatewayB: document.getElementById('sentant-gateway-b'),
+            alarmB: document.getElementById('sentant-alarm-b'),
+            gatewayC: document.getElementById('sentant-gateway-c'),
+            sirenC: document.getElementById('sentant-siren-c')
+        };
+
+        const loraIndicators = {
+            a: document.getElementById('lora-a'),
+            b: document.getElementById('lora-b'),
+            c: document.getElementById('lora-c')
+        };
+
+        const riverSentants = {
+            1: document.getElementById('river-sentant-1'),
+            2: document.getElementById('river-sentant-2'),
+            3: document.getElementById('river-sentant-3')
+        };
+
+        const readings = {
+            1: document.getElementById('reading-1'),
+            2: document.getElementById('reading-2'),
+            3: document.getElementById('reading-3')
+        };
+
+        const coordinator = document.getElementById('coordinator');
+        const coordStatus = document.getElementById('coord-status');
+        const coordData = document.getElementById('coord-data');
+        const river = document.getElementById('river');
+
+        const experts = {
+            1: document.getElementById('expert-1'),
+            2: document.getElementById('expert-2'),
+            3: document.getElementById('expert-3')
+        };
+
+        const packets = {
+            1: document.getElementById('packet-1'),
+            2: document.getElementById('packet-2'),
+            3: document.getElementById('packet-3'),
+            4: document.getElementById('packet-4')
+        };
+
+        const statusText = document.getElementById('status-text');
+        const statusDetail = document.getElementById('status-detail');
+
+        // Update connection lines
+        function updateLines() {
+            const svg = document.getElementById('connections');
+            const svgRect = svg.getBoundingClientRect();
+
+            function getCenter(el) {
+                if (!el) return { x: 0, y: 0 };
+                const rect = el.getBoundingClientRect();
+                return {
+                    x: rect.left - svgRect.left + rect.width / 2,
+                    y: rect.top - svgRect.top + rect.height / 2
+                };
+            }
+
+            function setLine(id, from, to) {
+                const line = document.getElementById(id);
+                if (line && from && to) {
+                    line.setAttribute('x1', from.x);
+                    line.setAttribute('y1', from.y);
+                    line.setAttribute('x2', to.x);
+                    line.setAttribute('y2', to.y);
+                }
+            }
+
+            const posGatewayA = getCenter(sentants.gatewayA);
+            const posGatewayB = getCenter(sentants.gatewayB);
+            const posGatewayC = getCenter(sentants.gatewayC);
+            const posCoord = getCenter(coordinator);
+
+            // LoRa between gateway sentants
+            setLine('line-lora-ab', posGatewayA, posGatewayB);
+            setLine('line-lora-bc', posGatewayB, posGatewayC);
+            setLine('line-lora-ac', posGatewayA, posGatewayC);
+
+            // Gateway sentants to coordinator
+            setLine('line-coord-a', posGatewayA, posCoord);
+            setLine('line-coord-b', posGatewayB, posCoord);
+            setLine('line-coord-c', posGatewayC, posCoord);
+
+            // River sentants to coordinator
+            const posRiver1 = getCenter(riverSentants[1]);
+            const posRiver2 = getCenter(riverSentants[2]);
+            const posRiver3 = getCenter(riverSentants[3]);
+            setLine('line-sensor-1', posRiver1, posCoord);
+            setLine('line-sensor-2', posRiver2, posCoord);
+            setLine('line-sensor-3', posRiver3, posCoord);
+
+            // Experts to coordinator
+            const posExpert1 = getCenter(experts[1]);
+            const posExpert2 = getCenter(experts[2]);
+            const posExpert3 = getCenter(experts[3]);
+            setLine('line-expert-1', posCoord, posExpert1);
+            setLine('line-expert-2', posCoord, posExpert2);
+            setLine('line-expert-3', posCoord, posExpert3);
+        }
+
+        // Animate packet
+        function animatePacket(packetId, fromEl, toEl, duration = 1500) {
+            const stage = document.getElementById('stage');
+            const stageRect = stage.getBoundingClientRect();
+            const packet = packets[packetId];
+
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+
+            const startX = fromRect.left - stageRect.left + fromRect.width / 2;
+            const startY = fromRect.top - stageRect.top + fromRect.height / 2;
+            const endX = toRect.left - stageRect.left + toRect.width / 2;
+            const endY = toRect.top - stageRect.top + toRect.height / 2;
+
+            packet.style.left = startX + 'px';
+            packet.style.top = startY + 'px';
+            packet.style.transform = 'translate(-50%, -50%)';
+            packet.classList.add('visible');
+
+            const startTime = performance.now();
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                const x = startX + (endX - startX) * eased;
+                const y = startY + (endY - startY) * eased;
+
+                packet.style.left = x + 'px';
+                packet.style.top = y + 'px';
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    packet.classList.remove('visible');
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Step definitions
+        const steps = [
+            {
+                title: "🏠 Reality2 Mesh Nodes in homes along the river",
+                detail: "Each home has a Reality2 Mesh Node running Sentants (digital bees). Each node has its own notification system and can communicate via LoRa.",
+                action: () => {
+                    // Initial state
+                }
+            },
+            {
+                title: "🐝 River Monitoring Sentants deployed",
+                detail: "Specialist Sentants are placed along the river to monitor water levels. They're solar-powered with LoRa radios.",
+                action: () => {
+                    riverSentants[1].classList.add('visible');
+                    riverSentants[2].classList.add('visible');
+                    riverSentants[3].classList.add('visible');
+                    setTimeout(updateLines, 100);
+                }
+            },
+            {
+                title: "📡 River Sentants connect to Coordinator",
+                detail: "The monitoring Sentants send their readings to the Coordinator Sentant via LoRa links.",
+                action: () => {
+                    document.getElementById('line-sensor-1').classList.add('active', 'lora-sensor');
+                    document.getElementById('line-sensor-2').classList.add('active', 'lora-sensor');
+                    document.getElementById('line-sensor-3').classList.add('active', 'lora-sensor');
+                    coordinator.classList.add('receiving');
+                    coordStatus.textContent = 'Receiving';
+                    coordData.textContent = 'Avg: 1.23m | Stable';
+                }
+            },
+            {
+                title: "📡 Reality2 Nodes form LoRa mesh network",
+                detail: "The Gateway Sentants on each Reality2 Node connect via LoRa, creating a resilient mesh that works without internet.",
+                action: () => {
+                    loraIndicators.a.classList.add('visible', 'transmitting');
+                    loraIndicators.b.classList.add('visible', 'transmitting');
+                    loraIndicators.c.classList.add('visible', 'transmitting');
+                    document.getElementById('line-lora-ab').classList.add('active', 'lora');
+                    document.getElementById('line-lora-bc').classList.add('active', 'lora');
+                    document.getElementById('line-lora-ac').classList.add('active', 'lora');
+                    document.getElementById('line-coord-a').classList.add('active', 'lora-sensor');
+                    document.getElementById('line-coord-b').classList.add('active', 'lora-sensor');
+                    document.getElementById('line-coord-c').classList.add('active', 'lora-sensor');
+                    coordStatus.textContent = 'Network Ready';
+                }
+            },
+            {
+                title: "⚠️ Upstream Sentant detects rising water",
+                detail: "Heavy rain upstream. The Upstream Sentant detects the change and alerts the Coordinator.",
+                action: () => {
+                    readings[1].textContent = '2.1m';
+                    riverSentants[1].classList.add('alert');
+                    animatePacket(1, riverSentants[1], coordinator, 1200);
+                    setTimeout(() => {
+                        coordStatus.textContent = 'Warning';
+                        coordStatus.classList.add('warning');
+                        coordData.textContent = 'Upstream: 2.1m ⬆️ Rising';
+                    }, 1300);
+                }
+            },
+            {
+                title: "👥 Coordinator consults human experts",
+                detail: "Before triggering an alert, the Coordinator Sentant consults local experts via their mobile devices.",
+                action: () => {
+                    readings[1].textContent = '2.8m';
+                    readings[2].textContent = '2.2m';
+
+                    experts[1].classList.add('visible');
+                    experts[2].classList.add('visible');
+                    experts[3].classList.add('visible');
+                    document.getElementById('line-expert-1').classList.add('active', 'lora-sensor');
+                    document.getElementById('line-expert-2').classList.add('active', 'lora-sensor');
+                    document.getElementById('line-expert-3').classList.add('active', 'lora-sensor');
+
+                    coordData.textContent = 'Consulting experts...';
+
+                    setTimeout(() => {
+                        animatePacket(3, coordinator, experts[1], 700);
+                        experts[1].classList.add('consulted');
+                    }, 300);
+                    setTimeout(() => {
+                        animatePacket(3, coordinator, experts[2], 700);
+                        experts[2].classList.add('consulted');
+                    }, 600);
+                    setTimeout(() => {
+                        animatePacket(3, coordinator, experts[3], 700);
+                        experts[3].classList.add('consulted');
+                    }, 900);
+
+                    setTimeout(() => {
+                        experts[1].classList.remove('consulted');
+                        experts[1].classList.add('approved');
+                        animatePacket(4, experts[1], coordinator, 500);
+                    }, 2000);
+                    setTimeout(() => {
+                        experts[3].classList.remove('consulted');
+                        experts[3].classList.add('approved');
+                        animatePacket(4, experts[3], coordinator, 500);
+                    }, 2400);
+                    setTimeout(() => {
+                        experts[2].classList.remove('consulted');
+                        experts[2].classList.add('approved');
+                        animatePacket(4, experts[2], coordinator, 500);
+                        coordData.textContent = 'Experts confirm: Alert';
+                    }, 2800);
+                }
+            },
+            {
+                title: "🚨 Coordinator triggers FLOOD ALERT",
+                detail: "With expert approval, the Coordinator Sentant broadcasts an emergency alert to all Gateway Sentants.",
+                action: () => {
+                    readings[1].textContent = '3.2m';
+                    readings[2].textContent = '2.8m';
+                    riverSentants[2].classList.add('alert');
+
+                    coordStatus.textContent = 'FLOOD ALERT';
+                    coordStatus.classList.remove('warning');
+                    coordStatus.classList.add('danger');
+                    coordData.textContent = 'EVACUATE LOW AREAS';
+                    coordinator.classList.add('alert');
+
+                    setTimeout(() => animatePacket(2, coordinator, sentants.gatewayA, 600), 200);
+                    setTimeout(() => animatePacket(2, coordinator, sentants.gatewayB, 600), 400);
+                    setTimeout(() => animatePacket(2, coordinator, sentants.gatewayC, 600), 600);
+                }
+            },
+            {
+                title: "🐝 Each home's Reality2 Node activates locally",
+                detail: "Each Reality2 Mesh Node triggers its own Sentants: Alarms sound, Monitors display warnings, Sirens activate - all independently.",
+                action: () => {
+                    houses.a.classList.add('emergency');
+                    houses.b.classList.add('emergency');
+                    houses.c.classList.add('emergency');
+
+                    Object.values(sentants).forEach(s => s.classList.add('active'));
+                }
+            },
+            {
+                title: "🌊 River rises - Siren Sentant sounds alarm",
+                detail: "The Wilson home's Siren Sentant sounds the local alarm as water levels continue rising.",
+                action: () => {
+                    river.classList.add('flooding');
+                    readings[3].textContent = '2.4m';
+                    riverSentants[3].classList.add('alert');
+
+                    sentants.sirenC.classList.add('active');
+                    setTimeout(() => animatePacket(1, sentants.gatewayA, sentants.gatewayB, 800), 300);
+                    setTimeout(() => animatePacket(1, sentants.gatewayB, sentants.gatewayC, 800), 700);
+                }
+            },
+            {
+                title: "🐝 Reality2 Nodes coordinate across homes",
+                detail: "Gateway Sentants share status between nodes. Each home's notification system works independently yet stays coordinated.",
+                action: () => {
+                    coordData.textContent = 'All homes alerted | Sirens active';
+                    sentants.alarmB.classList.add('active');
+                    sentants.monitorA.classList.add('active');
+                }
+            },
+            {
+                title: "✅ Resilient response - no single point of failure",
+                detail: "Each home's Reality2 Mesh Node operates independently. They coordinate via LoRa mesh. No internet required. Community protected.",
+                action: () => {
+                    coordData.textContent = 'Community protected';
+                }
+            }
+        ];
+
+        function updateStepIndicator() {
+            for (let i = 0; i < totalSteps; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                dot.classList.remove('active', 'complete');
+                if (i < currentStep) {
+                    dot.classList.add('complete');
+                } else if (i === currentStep) {
+                    dot.classList.add('active');
+                }
+            }
+        }
+
+        function executeStep(step) {
+            if (step >= 0 && step < steps.length) {
+                statusText.textContent = steps[step].title;
+                statusDetail.textContent = steps[step].detail;
+                steps[step].action();
+                updateStepIndicator();
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps - 1) {
+                currentStep++;
+                executeStep(currentStep);
+                document.getElementById('btn-next').disabled = currentStep >= totalSteps - 1;
+            }
+        }
+
+        function reset() {
+            currentStep = 0;
+            stopAutoPlay();
+
+            // Reset houses
+            Object.values(houses).forEach(h => h.classList.remove('emergency'));
+
+            // Reset sentants
+            Object.values(sentants).forEach(s => s.classList.remove('active'));
+
+            // Reset LoRa indicators
+            Object.values(loraIndicators).forEach(l => l.classList.remove('visible', 'transmitting'));
+
+            // Reset river sentants
+            Object.values(riverSentants).forEach(s => s.classList.remove('visible', 'alert'));
+            readings[1].textContent = '1.2m';
+            readings[2].textContent = '1.4m';
+            readings[3].textContent = '1.1m';
+
+            // Reset coordinator
+            coordinator.classList.remove('receiving', 'alert');
+            coordStatus.textContent = 'Waiting for data...';
+            coordStatus.classList.remove('warning', 'danger');
+            coordData.textContent = 'No sensors connected';
+
+            // Reset experts
+            Object.values(experts).forEach(e => e.classList.remove('visible', 'consulted', 'approved'));
+
+            // Reset river
+            river.classList.remove('flooding');
+
+            // Reset connections
+            document.querySelectorAll('.connection').forEach(c => c.classList.remove('active', 'lora', 'lora-sensor'));
+
+            // Reset packets
+            Object.values(packets).forEach(p => p.classList.remove('visible'));
+
+            document.getElementById('btn-next').disabled = false;
+            executeStep(0);
+        }
+
+        function toggleAutoPlay() {
+            const btn = document.getElementById('btn-auto');
+            if (autoPlayInterval) {
+                stopAutoPlay();
+            } else {
+                btn.textContent = '⏸ Pause';
+                autoPlayInterval = setInterval(() => {
+                    if (currentStep >= totalSteps - 1) {
+                        stopAutoPlay();
+                    } else {
+                        nextStep();
+                    }
+                }, 4000);
+            }
+        }
+
+        function stopAutoPlay() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+            document.getElementById('btn-auto').textContent = '▶ Auto Play';
+        }
+
+        // Event listeners
+        document.getElementById('btn-next').addEventListener('click', nextStep);
+        document.getElementById('btn-reset').addEventListener('click', reset);
+        document.getElementById('btn-auto').addEventListener('click', toggleAutoPlay);
+
+        // Initialize
+        window.addEventListener('load', () => {
+            updateLines();
+            executeStep(0);
+        });
+
+        window.addEventListener('resize', updateLines);
+    </script>
+</body>
+</html>
