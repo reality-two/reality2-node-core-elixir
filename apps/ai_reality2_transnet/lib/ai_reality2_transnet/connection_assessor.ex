@@ -751,42 +751,56 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     # Try to find and connect to an R2 hotspot
     # This runs when we determine another node should be hosting
 
-    case AiReality2Transnet.Wifi.list_adapters() do
-      {:ok, [adapter | _]} when is_map(adapter) ->
-        interface = adapter.interface
-        Logger.info("#{log_prefix()} Scanning for R2 hotspots on #{interface}...")
+    # Use select_adapter_for_client to get the correct adapter
+    # For dual-WiFi nodes, this returns the non-internet adapter
+    case AiReality2Transnet.Wifi.select_adapter_for_client() do
+      {:ok, %{interface: interface, preserves_internet: preserves}} ->
+        if preserves do
+          Logger.info("#{log_prefix()} Scanning for R2 hotspots on #{interface} (internet preserved on other adapter)...")
+        else
+          Logger.info("#{log_prefix()} Scanning for R2 hotspots on #{interface}...")
+        end
+
+        # Get our own node name to filter out our own hotspot from scan results
+        my_node_name = Reality2.Bootstrap.get(:node_name, "")
 
         case AiReality2Transnet.Wifi.find_r2_hotspots(interface) do
           {:ok, []} ->
             Logger.info("#{log_prefix()} No R2 hotspots found yet - will retry on next assessment")
 
           {:ok, hotspots} ->
-            Logger.info("#{log_prefix()} Found #{length(hotspots)} R2 hotspot(s)")
+            # Filter out our own hotspot (don't try to connect to ourselves!)
+            other_hotspots = Enum.reject(hotspots, fn h -> h.ssid == my_node_name end)
 
-            # Try to connect to the first (strongest signal) R2 hotspot
-            [best | _] = hotspots
-            Logger.info("#{log_prefix()} Attempting to connect to #{best.ssid} (signal: #{best.signal})")
+            case other_hotspots do
+              [] ->
+                Logger.info("#{log_prefix()} No R2 hotspots found (only saw our own) - will retry on next assessment")
 
-            case AiReality2Transnet.Wifi.connect_to_network(interface, best.ssid, best.psk) do
-              {:ok, _uuid} ->
-                Logger.info("#{log_prefix()} Successfully connected to #{best.ssid}!")
+              [best | _] ->
+                Logger.info("#{log_prefix()} Found #{length(other_hotspots)} R2 hotspot(s)")
+                Logger.info("#{log_prefix()} Attempting to connect to #{best.ssid} (signal: #{best.signal})")
 
-                # Update connection state
-                ConnectionManager.report_wifi_connected(best.ssid)
+                case AiReality2Transnet.Wifi.connect_to_network(interface, best.ssid, best.psk) do
+                  {:ok, _uuid} ->
+                    Logger.info("#{log_prefix()} Successfully connected to #{best.ssid}!")
 
-                # Clear any hosting failure penalty - another node is successfully hosting
-                AiReality2Transnet.Wifi.report_client_connected()
+                    # Update connection state
+                    ConnectionManager.report_wifi_connected(best.ssid)
 
-              {:error, reason} ->
-                Logger.warning("#{log_prefix()} Failed to connect to #{best.ssid}: #{reason}")
+                    # Clear any hosting failure penalty - another node is successfully hosting
+                    AiReality2Transnet.Wifi.report_client_connected()
+
+                  {:error, reason} ->
+                    Logger.warning("#{log_prefix()} Failed to connect to #{best.ssid}: #{reason}")
+                end
             end
 
           {:error, reason} ->
             Logger.warning("#{log_prefix()} Failed to scan for R2 hotspots: #{reason}")
         end
 
-      _ ->
-        Logger.debug("#{log_prefix()} No WiFi adapter available for client connection")
+      {:error, reason} ->
+        Logger.debug("#{log_prefix()} No WiFi adapter available for client connection: #{reason}")
     end
   end
 

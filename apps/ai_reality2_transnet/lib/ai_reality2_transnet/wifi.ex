@@ -1295,12 +1295,14 @@ defmodule AiReality2Transnet.Wifi do
               {:ok, %{interface: adapter.interface, preserves_internet: false}}
             end
 
-          # Case 3: Multiple WiFi but no internet - randomly pick one
+          # Case 3: Multiple WiFi adapters, both might be connected to same AP or no clear internet route
+          # Pick the second adapter (first one is more likely to be the "main" one on AP)
           length(adapters) >= 2 ->
-            # Pick a random adapter (or first one for determinism)
-            adapter = Enum.random(adapters)
-            Logger.info("#{log_prefix()} No internet connection - randomly selected #{adapter.interface} for hotspot")
-            {:ok, %{interface: adapter.interface, preserves_internet: false}}
+            # Sort by interface name for consistency, use second one for R2 mesh
+            sorted = Enum.sort_by(adapters, & &1.interface)
+            [_keep_on_ap, use_for_mesh | _] = sorted
+            Logger.info("#{log_prefix()} Multiple WiFi adapters - using #{use_for_mesh.interface} for R2 mesh (#{List.first(sorted).interface} stays on AP)")
+            {:ok, %{interface: use_for_mesh.interface, preserves_internet: true}}
 
           # Case 4: Single WiFi adapter - use it (will lose any WiFi-based internet)
           true ->
@@ -1312,6 +1314,22 @@ defmodule AiReality2Transnet.Wifi do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  @doc """
+  Selects the best WiFi adapter for client mode (connecting to another R2 hotspot).
+
+  Uses the same logic as `select_adapter_for_hotspot/0` - for dual-WiFi nodes,
+  this returns the adapter NOT connected to the AP, so internet is preserved.
+
+  ## Returns
+  - `{:ok, %{interface: interface, preserves_internet: boolean}}` - Best adapter found
+  - `{:error, reason}` - No suitable adapter found
+  """
+  @spec select_adapter_for_client() :: {:ok, map()} | {:error, String.t()}
+  def select_adapter_for_client do
+    # Same logic as hotspot selection - use the non-internet adapter
+    select_adapter_for_hotspot()
   end
 
   # Find which WiFi interface (if any) is currently providing internet access
@@ -1405,7 +1423,8 @@ defmodule AiReality2Transnet.Wifi do
   """
   @spec get_hosting_priority() :: integer()
   def get_hosting_priority do
-    has_wifi = case list_adapters() do
+    adapters_result = list_adapters()
+    has_wifi = case adapters_result do
       {:ok, [_ | _]} -> true
       _ -> false
     end
@@ -1419,6 +1438,13 @@ defmodule AiReality2Transnet.Wifi do
     # - Has wired internet (Ethernet stays connected)
     # - Has 2+ WiFi adapters (one for internet, one for hotspot)
     can_host_with_internet = (has_wired || has_multi_wifi) && has_internet
+
+    # Log capability detection for debugging
+    adapter_count = case adapters_result do
+      {:ok, adapters} -> length(adapters)
+      _ -> 0
+    end
+    Logger.debug("#{log_prefix()} Priority calc: wifi_adapters=#{adapter_count}, has_wired=#{has_wired}, has_multi_wifi=#{has_multi_wifi}, has_internet=#{has_internet}, can_nat=#{can_nat}, can_host_with_internet=#{can_host_with_internet}")
 
     # Priority levels (higher = better host candidate):
     # 100: Can host AND keep internet (wired or dual-WiFi) + NAT
