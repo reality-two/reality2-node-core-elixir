@@ -346,10 +346,14 @@ defmodule AiReality2Transnet.Wifi do
           |> String.split("\n", trim: true)
           |> Enum.filter(fn line ->
             parts = String.split(line, ":")
+            interface = Enum.at(parts, 0)
             device_type = Enum.at(parts, 1)
             # Include both regular wifi and wifi-p2p (WiFi Direct) interfaces
             # wifi-p2p interfaces like p2p0 can be used for hotspots
-            device_type == "wifi" or device_type == "wifi-p2p"
+            # BUT exclude p2p-dev-* which are control devices, not real adapters
+            is_wifi = device_type == "wifi" or device_type == "wifi-p2p"
+            is_control_device = String.starts_with?(interface, "p2p-dev-")
+            is_wifi and not is_control_device
           end)
           |> Enum.map(fn line ->
             [interface, device_type, state] = String.split(line, ":")
