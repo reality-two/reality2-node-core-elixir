@@ -58,6 +58,15 @@
             height: 100%;
         }
 
+        /* Z-index layering for proper visibility */
+        .connections { z-index: 1; }
+        .house { z-index: 5; }
+        .sentant { z-index: 10; }
+        .river-sentant { z-index: 10; }
+        .coordinator { z-index: 15; }
+        .expert { z-index: 20; }
+        .packet { z-index: 100; }
+
         /* Houses with Reality2 Mesh Nodes */
         .house {
             position: absolute;
@@ -111,9 +120,9 @@
             font-size: 1.3em;
         }
 
-        .house-a { left: 2%; top: 6%; }
-        .house-b { left: 82%; top: 6%; }
-        .house-c { left: 2%; top: 52%; }
+        .house-a { left: 2%; top: 5%; }
+        .house-b { left: 80%; top: 5%; }
+        .house-c { left: 2%; top: 48%; }
 
         /* Sentants - the main actors */
         .sentant {
@@ -154,12 +163,12 @@
         }
 
         /* Sentant positions within houses - spread out more */
-        #sentant-gateway-a { left: 5%; top: 4%; }
-        #sentant-monitor-a { left: 13%; top: 17%; }
-        #sentant-gateway-b { left: 85%; top: 4%; }
-        #sentant-alarm-b { left: 93%; top: 17%; }
-        #sentant-gateway-c { left: 5%; top: 50%; }
-        #sentant-siren-c { left: 13%; top: 63%; }
+        #sentant-gateway-a { left: 5%; top: 3%; }
+        #sentant-monitor-a { left: 13%; top: 16%; }
+        #sentant-gateway-b { left: 83%; top: 3%; }
+        #sentant-alarm-b { left: 91%; top: 16%; }
+        #sentant-gateway-c { left: 5%; top: 46%; }
+        #sentant-siren-c { left: 13%; top: 59%; }
 
         /* River Sentants */
         .river-sentant {
@@ -330,9 +339,10 @@
             text-align: center;
         }
 
-        #expert-1 { left: 28%; top: 26%; transform: translate(-50%, -50%); }
-        #expert-2 { left: 72%; top: 26%; transform: translate(-50%, -50%); }
-        #expert-3 { left: 50%; top: 12%; transform: translate(-50%, -50%); }
+        /* Experts positioned to avoid main connection lines */
+        #expert-1 { left: 30%; top: 6%; transform: translate(-50%, -50%); }
+        #expert-2 { left: 70%; top: 6%; transform: translate(-50%, -50%); }
+        #expert-3 { left: 50%; top: 6%; transform: translate(-50%, -50%); }
 
         /* River */
         .river {
@@ -721,11 +731,11 @@
 
                 <!-- Community Experts -->
                 <div class="expert" id="expert-1">
-                    <span class="expert-icon">👨‍🔬</span>
+                    <span class="expert-icon">👨🏾‍🔬</span>
                     <span class="expert-label">Hydrologist</span>
                 </div>
                 <div class="expert" id="expert-2">
-                    <span class="expert-icon">👩‍🚒</span>
+                    <span class="expert-icon">👩🏾‍🚒</span>
                     <span class="expert-label">Emergency<br>Services</span>
                 </div>
                 <div class="expert" id="expert-3">

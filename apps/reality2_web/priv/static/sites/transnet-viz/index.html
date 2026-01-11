@@ -57,6 +57,14 @@
             height: 100%;
         }
 
+        /* Z-index layering for proper visibility */
+        .connections { z-index: 1; }
+        .node { z-index: 10; }
+        .client { z-index: 10; }
+        .internet { z-index: 5; }
+        .sentants { z-index: 15; }
+        .packet { z-index: 100; }
+
         /* Nodes */
         .node {
             position: absolute;
@@ -69,6 +77,7 @@
             justify-content: center;
             transition: all 0.8s ease;
             cursor: pointer;
+            overflow: visible;
         }
 
         .node-icon {
@@ -154,14 +163,14 @@
         }
 
         .client-e {
-            left: 70%;
-            top: 10%;
+            left: 72%;
+            top: 12%;
             transform: translate(-50%, -50%);
         }
 
         .client-f {
-            left: 70%;
-            top: 90%;
+            left: 72%;
+            top: 68%;
             transform: translate(-50%, -50%);
         }
 
@@ -174,8 +183,8 @@
         /* Internet cloud */
         .internet {
             position: absolute;
-            left: 50%;
-            top: 48%;
+            left: 52%;
+            top: 45%;
             transform: translate(-50%, -50%);
             display: flex;
             flex-direction: column;
@@ -355,13 +364,14 @@
         /* Sentants */
         .sentants {
             position: absolute;
-            bottom: -38px;
+            bottom: -45px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 4px;
             opacity: 0;
             transition: opacity 0.5s ease;
+            z-index: 10;
         }
 
         .sentants.visible {

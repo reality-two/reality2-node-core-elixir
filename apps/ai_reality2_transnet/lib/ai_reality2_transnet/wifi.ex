@@ -161,6 +161,12 @@ defmodule AiReality2Transnet.Wifi do
 
   require Logger
 
+  # Failure tracking: reduces hosting priority when hotspot start fails
+  # This allows other nodes to become host instead
+  # Failures are sticky - if hardware/software can't host, waiting won't fix it
+  @failure_penalty_per_attempt 25
+  @max_failure_penalty 75
+
   @type wifi_adapter :: %{
           transport: String.t(),
           interface: String.t(),
@@ -185,6 +191,110 @@ defmodule AiReality2Transnet.Wifi do
           ip_address: String.t() | nil,
           signal_strength: integer() | nil
         }
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Failure Tracking - Priority Reduction on Hotspot Failures
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  @doc """
+  Reports a hotspot start failure.
+
+  Each failure reduces the node's hosting priority by #{@failure_penalty_per_attempt} points,
+  up to a maximum penalty of #{@max_failure_penalty} points. This allows other nodes
+  with better capability to become hosts.
+
+  Failures are **sticky** - if hardware/software can't host, waiting won't fix it.
+  The penalty only clears when:
+  - Successfully connecting as a client (another node is hosting)
+  - Node restart
+  """
+  @spec report_hotspot_failure() :: :ok
+  def report_hotspot_failure do
+    ensure_failure_tracker_started()
+
+    Agent.update(__MODULE__.FailureTracker, fn state ->
+      new_count = min(state.failure_count + 1, div(@max_failure_penalty, @failure_penalty_per_attempt))
+      Logger.warning("[Wifi] Hotspot failure recorded (count: #{new_count}, penalty: #{new_count * @failure_penalty_per_attempt})")
+      %{state | failure_count: new_count}
+    end)
+
+    :ok
+  end
+
+  @doc """
+  Reports a successful hotspot start.
+
+  Clears any accumulated failure penalty, restoring full hosting priority.
+  """
+  @spec report_hotspot_success() :: :ok
+  def report_hotspot_success do
+    ensure_failure_tracker_started()
+
+    Agent.update(__MODULE__.FailureTracker, fn state ->
+      if state.failure_count > 0 do
+        Logger.info("[Wifi] Hotspot success - clearing failure penalty")
+      end
+      %{state | failure_count: 0}
+    end)
+
+    :ok
+  end
+
+  @doc """
+  Reports successful connection as a client to another node's hotspot.
+
+  Clears any accumulated failure penalty since another node is successfully
+  hosting. This node doesn't need to try hosting anymore.
+  """
+  @spec report_client_connected() :: :ok
+  def report_client_connected do
+    ensure_failure_tracker_started()
+
+    Agent.update(__MODULE__.FailureTracker, fn state ->
+      if state.failure_count > 0 do
+        Logger.info("[Wifi] Connected as client - clearing failure penalty (another node is hosting)")
+      end
+      %{state | failure_count: 0}
+    end)
+
+    :ok
+  end
+
+  @doc """
+  Gets the current failure penalty to subtract from hosting priority.
+
+  Returns 0 if no failures, or a penalty value based on failure count.
+
+  Failures are **sticky** - the penalty persists until:
+  - Successfully connecting as a client (another node is hosting)
+  - Node restart (fresh state)
+
+  This reflects reality: if hardware/software can't host, waiting won't fix it.
+  """
+  @spec get_failure_penalty() :: integer()
+  def get_failure_penalty do
+    ensure_failure_tracker_started()
+
+    Agent.get(__MODULE__.FailureTracker, fn state ->
+      state.failure_count * @failure_penalty_per_attempt
+    end)
+  end
+
+  # Ensures the failure tracker Agent is started (lazy initialization)
+  defp ensure_failure_tracker_started do
+    case Process.whereis(__MODULE__.FailureTracker) do
+      nil ->
+        # Start the agent if not running
+        case Agent.start_link(fn -> %{failure_count: 0} end, name: __MODULE__.FailureTracker) do
+          {:ok, _pid} -> :ok
+          {:error, {:already_started, _pid}} -> :ok
+          error -> Logger.warning("[Wifi] Failed to start failure tracker: #{inspect(error)}")
+        end
+
+      _pid ->
+        :ok
+    end
+  end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Public API - Adapter Management
@@ -233,13 +343,16 @@ defmodule AiReality2Transnet.Wifi do
           |> String.split("\n", trim: true)
           |> Enum.filter(fn line ->
             parts = String.split(line, ":")
-            Enum.at(parts, 1) == "wifi"
+            device_type = Enum.at(parts, 1)
+            # Include both regular wifi and wifi-p2p (WiFi Direct) interfaces
+            # wifi-p2p interfaces like p2p0 can be used for hotspots
+            device_type == "wifi" or device_type == "wifi-p2p"
           end)
           |> Enum.map(fn line ->
-            [interface, _type, state] = String.split(line, ":")
+            [interface, device_type, state] = String.split(line, ":")
 
             %{
-              transport: "wifi",
+              transport: if(device_type == "wifi-p2p", do: "wifi-p2p", else: "wifi"),
               interface: interface,
               address: get_mac_address(interface),
               mode: parse_device_mode(state),
@@ -1262,8 +1375,9 @@ defmodule AiReality2Transnet.Wifi do
   ## Scoring:
   - 100: Has WIRED internet + WiFi, OR has 2+ WiFi adapters with internet - BEST
          (can NAT and keeps internet as host)
-  - 75: Has internet + multiple interfaces but single WiFi (may lose internet)
-  - 50: Has internet but single interface (will lose internet as host)
+  - 90: Has internet + NAT (will lose internet while hosting, but can share it)
+  - 75: Can NAT but no internet currently
+  - 50: Has internet but can't NAT
   - 10: No internet but has WiFi (can still host locally)
   - 0: No WiFi capability
 
@@ -1272,8 +1386,19 @@ defmodule AiReality2Transnet.Wifi do
   - Multiple WiFi adapters: one for internet, one for hotspot
   - Single WiFi: loses internet when it becomes a hotspot
 
+  ## Failure Penalty
+
+  If hotspot start has failed, the priority is reduced:
+  - Each failure reduces priority by #{@failure_penalty_per_attempt} points
+  - Maximum penalty is #{@max_failure_penalty} points
+  - Failures are **sticky** (hardware/software issues don't self-resolve)
+  - Reset only on: client connection success, or node restart
+  - Minimum floor of 5 for any node with WiFi (ensures mesh can always form)
+
+  This allows other nodes to become hosts if this one can't start a hotspot.
+
   ## Returns
-  - Integer score (0-100)
+  - Integer score (5-100 for WiFi nodes, reduced by failure penalty)
   """
   @spec get_hosting_priority() :: integer()
   def get_hosting_priority do
@@ -1292,13 +1417,37 @@ defmodule AiReality2Transnet.Wifi do
     # - Has 2+ WiFi adapters (one for internet, one for hotspot)
     can_host_with_internet = (has_wired || has_multi_wifi) && has_internet
 
-    cond do
+    # Priority levels (higher = better host candidate):
+    # 100: Can host AND keep internet (wired or dual-WiFi) + NAT
+    #  90: Has internet + NAT (will lose internet while hosting, but can share it)
+    #  75: Can NAT but no internet currently
+    #  50: Has internet but can't NAT
+    #  10: Can host but no internet and no NAT
+    base_priority = cond do
       !has_wifi -> 0
       can_host_with_internet && can_nat -> 100  # Best: keeps internet while hosting
-      can_nat -> 75                              # Good: can NAT but may lose internet
-      has_internet -> 50                         # OK: has internet but single interface
+      has_internet && can_nat -> 90              # Has internet to share (but loses it while hosting)
+      can_nat -> 75                              # Can NAT but no internet to share
+      has_internet -> 50                         # Has internet but can't NAT
       true -> 10                                 # Basic: can host but no internet
     end
+
+    # Apply failure penalty: reduces priority when hotspot start has failed recently
+    # This allows other nodes to become hosts if this one can't start a hotspot
+    failure_penalty = get_failure_penalty()
+
+    # Minimum priority floor: nodes with WiFi should always be able to host
+    # This ensures mesh can still form even if all nodes have had failures
+    # (uses node_id tiebreaker when all at minimum)
+    min_priority = if has_wifi, do: 5, else: 0
+
+    final_priority = max(min_priority, base_priority - failure_penalty)
+
+    if failure_penalty > 0 do
+      Logger.debug("[Wifi] Priority #{base_priority} reduced to #{final_priority} due to hotspot failures (min: #{min_priority})")
+    end
+
+    final_priority
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -1317,51 +1466,59 @@ defmodule AiReality2Transnet.Wifi do
         # Get the hotspot subnet (typically 10.42.0.0/24 for NetworkManager hotspots)
         hotspot_subnet = get_hotspot_subnet(hotspot_interface)
 
-        # Enable IP forwarding
-        case System.cmd("sysctl", ["-w", "net.ipv4.ip_forward=1"], stderr_to_stdout: true) do
-          {_, 0} ->
-            Logger.debug("[Wifi] IP forwarding enabled")
+        # Enable IP forwarding (gracefully handle missing sysctl)
+        try do
+          case System.cmd("sysctl", ["-w", "net.ipv4.ip_forward=1"], stderr_to_stdout: true) do
+            {_, 0} ->
+              Logger.debug("[Wifi] IP forwarding enabled")
 
-          {error, _} ->
-            Logger.warning("[Wifi] Failed to enable IP forwarding: #{error}")
+            {error, _} ->
+              Logger.warning("[Wifi] Failed to enable IP forwarding: #{error}")
+          end
+        rescue
+          _ -> Logger.warning("[Wifi] sysctl not available - skipping IP forwarding config")
         end
 
-        # Add iptables MASQUERADE rule for NAT
+        # Add iptables MASQUERADE rule for NAT (gracefully handle missing iptables)
         # This allows hotspot clients to access the internet through the upstream interface
-        iptables_args = [
-          "-t", "nat",
-          "-A", "POSTROUTING",
-          "-s", hotspot_subnet,
-          "-o", upstream_interface,
-          "-j", "MASQUERADE"
-        ]
+        try do
+          iptables_args = [
+            "-t", "nat",
+            "-A", "POSTROUTING",
+            "-s", hotspot_subnet,
+            "-o", upstream_interface,
+            "-j", "MASQUERADE"
+          ]
 
-        case System.cmd("iptables", iptables_args, stderr_to_stdout: true) do
-          {_, 0} ->
-            Logger.info("[Wifi] NAT configured: clients on #{hotspot_subnet} can access internet via #{upstream_interface}")
+          case System.cmd("iptables", iptables_args, stderr_to_stdout: true) do
+            {_, 0} ->
+              Logger.info("[Wifi] NAT configured: clients on #{hotspot_subnet} can access internet via #{upstream_interface}")
 
-          {error, _} ->
-            Logger.warning("[Wifi] Failed to configure NAT iptables rule: #{error}")
+            {error, _} ->
+              Logger.warning("[Wifi] Failed to configure NAT iptables rule: #{error}")
+          end
+
+          # Allow forwarding between interfaces
+          forward_args = [
+            "-A", "FORWARD",
+            "-i", hotspot_interface,
+            "-o", upstream_interface,
+            "-j", "ACCEPT"
+          ]
+          System.cmd("iptables", forward_args, stderr_to_stdout: true)
+
+          reverse_forward_args = [
+            "-A", "FORWARD",
+            "-i", upstream_interface,
+            "-o", hotspot_interface,
+            "-m", "state",
+            "--state", "RELATED,ESTABLISHED",
+            "-j", "ACCEPT"
+          ]
+          System.cmd("iptables", reverse_forward_args, stderr_to_stdout: true)
+        rescue
+          _ -> Logger.warning("[Wifi] iptables not available - NAT not configured (hotspot clients may not have internet)")
         end
-
-        # Allow forwarding between interfaces
-        forward_args = [
-          "-A", "FORWARD",
-          "-i", hotspot_interface,
-          "-o", upstream_interface,
-          "-j", "ACCEPT"
-        ]
-        System.cmd("iptables", forward_args, stderr_to_stdout: true)
-
-        reverse_forward_args = [
-          "-A", "FORWARD",
-          "-i", upstream_interface,
-          "-o", hotspot_interface,
-          "-m", "state",
-          "--state", "RELATED,ESTABLISHED",
-          "-j", "ACCEPT"
-        ]
-        System.cmd("iptables", reverse_forward_args, stderr_to_stdout: true)
 
         :ok
 
@@ -1379,34 +1536,39 @@ defmodule AiReality2Transnet.Wifi do
 
         Logger.info("[Wifi] Cleaning up NAT rules for #{hotspot_interface}")
 
-        # Remove MASQUERADE rule
-        iptables_args = [
-          "-t", "nat",
-          "-D", "POSTROUTING",
-          "-s", hotspot_subnet,
-          "-o", upstream_interface,
-          "-j", "MASQUERADE"
-        ]
-        System.cmd("iptables", iptables_args, stderr_to_stdout: true)
+        # Gracefully handle missing iptables
+        try do
+          # Remove MASQUERADE rule
+          iptables_args = [
+            "-t", "nat",
+            "-D", "POSTROUTING",
+            "-s", hotspot_subnet,
+            "-o", upstream_interface,
+            "-j", "MASQUERADE"
+          ]
+          System.cmd("iptables", iptables_args, stderr_to_stdout: true)
 
-        # Remove FORWARD rules
-        forward_args = [
-          "-D", "FORWARD",
-          "-i", hotspot_interface,
-          "-o", upstream_interface,
-          "-j", "ACCEPT"
-        ]
-        System.cmd("iptables", forward_args, stderr_to_stdout: true)
+          # Remove FORWARD rules
+          forward_args = [
+            "-D", "FORWARD",
+            "-i", hotspot_interface,
+            "-o", upstream_interface,
+            "-j", "ACCEPT"
+          ]
+          System.cmd("iptables", forward_args, stderr_to_stdout: true)
 
-        reverse_forward_args = [
-          "-D", "FORWARD",
-          "-i", upstream_interface,
-          "-o", hotspot_interface,
-          "-m", "state",
-          "--state", "RELATED,ESTABLISHED",
-          "-j", "ACCEPT"
-        ]
-        System.cmd("iptables", reverse_forward_args, stderr_to_stdout: true)
+          reverse_forward_args = [
+            "-D", "FORWARD",
+            "-i", upstream_interface,
+            "-o", hotspot_interface,
+            "-m", "state",
+            "--state", "RELATED,ESTABLISHED",
+            "-j", "ACCEPT"
+          ]
+          System.cmd("iptables", reverse_forward_args, stderr_to_stdout: true)
+        rescue
+          _ -> Logger.debug("[Wifi] iptables not available - skipping NAT cleanup")
+        end
 
         :ok
 

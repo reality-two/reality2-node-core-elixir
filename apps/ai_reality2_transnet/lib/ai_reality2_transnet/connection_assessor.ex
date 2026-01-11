@@ -380,10 +380,12 @@ defmodule AiReality2Transnet.ConnectionAssessor do
               case AiReality2Transnet.Wifi.list_adapters() do
                 {:ok, [_ | _]} ->
                   reason_text = cond do
-                    my_priority >= 100 -> "wired internet + NAT capability (best host)"
-                    my_priority >= 75 -> "NAT capability (may lose internet)"
-                    my_priority >= 50 -> "internet access (single interface)"
-                    true -> "lowest ID (no internet)"
+                    my_priority >= 100 -> "dual-interface + internet + NAT (best host)"
+                    my_priority >= 90 -> "internet + NAT (will share internet)"
+                    my_priority >= 75 -> "NAT capability (no internet to share)"
+                    my_priority >= 50 -> "internet access (can't NAT)"
+                    my_priority >= 10 -> "basic WiFi (no internet)"
+                    true -> "reduced priority due to failures (will retry)"
                   end
 
                   Logger.info("[ConnectionAssessor] Starting hotspot - #{reason_text} (priority: #{my_priority})")
@@ -392,9 +394,13 @@ defmodule AiReality2Transnet.ConnectionAssessor do
                     case ConnectionManager.start_hosting() do
                       {:ok, config} ->
                         Logger.info("[ConnectionAssessor] Now hosting: #{config.ssid}")
+                        # Clear any failure penalty on successful hotspot start
+                        AiReality2Transnet.Wifi.report_hotspot_success()
 
                       {:error, err} ->
                         Logger.warning("[ConnectionAssessor] Failed to start hosting: #{inspect(err)}")
+                        # Record failure - reduces priority so other nodes can try
+                        AiReality2Transnet.Wifi.report_hotspot_failure()
                     end
                   end)
 
@@ -436,12 +442,6 @@ defmodule AiReality2Transnet.ConnectionAssessor do
     Logger.debug("[ConnectionAssessor] Host selection: my_priority=#{my_priority}, max_peer_priority=#{max_peer_priority}")
 
     cond do
-      # We have the best possible priority (wired internet + NAT)
-      # Always become host regardless of peers
-      my_priority >= 100 ->
-        Logger.debug("[ConnectionAssessor] High priority (#{my_priority}) - wired internet, becoming host")
-        true
-
       # We have higher priority than all peers - become host
       my_priority > max_peer_priority ->
         Logger.debug("[ConnectionAssessor] Higher priority than peers (#{my_priority} > #{max_peer_priority}) - becoming host")
@@ -770,6 +770,9 @@ defmodule AiReality2Transnet.ConnectionAssessor do
 
                 # Update connection state
                 ConnectionManager.report_wifi_connected(best.ssid)
+
+                # Clear any hosting failure penalty - another node is successfully hosting
+                AiReality2Transnet.Wifi.report_client_connected()
 
               {:error, reason} ->
                 Logger.warning("[ConnectionAssessor] Failed to connect to #{best.ssid}: #{reason}")
