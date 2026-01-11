@@ -125,6 +125,10 @@ defmodule AiReality2Transnet.ConnectionManager do
   # Cooldown period after a failed handover to prevent thrashing (30 seconds)
   @handover_cooldown_ms 30_000
 
+  # Hotspot health check settings - aggressive for wearable responsiveness
+  @hotspot_health_check_interval_ms 15_000  # Check every 15 seconds
+  @max_hotspot_restart_attempts 3
+
   @typedoc """
   Connection manager state.
   """
@@ -367,11 +371,17 @@ defmodule AiReality2Transnet.ConnectionManager do
         handovers_completed: 0,
         handovers_failed: 0,
         hosting_sessions: 0
-      }
+      },
+
+      # Hotspot health check state
+      hotspot_restart_attempts: 0
     }
 
     # Subscribe to sentants topic to detect local sentant changes
     Phoenix.PubSub.subscribe(Reality2.PubSub, "sentants")
+
+    # Schedule hotspot health check
+    Process.send_after(self(), :hotspot_health_check, @hotspot_health_check_interval_ms)
 
     Logger.info("#{log_prefix()} Started - WiFi interface: #{wifi_interface || "none"}")
     {:ok, state}
@@ -611,6 +621,15 @@ defmodule AiReality2Transnet.ConnectionManager do
   # Catch-all for other sentant events
   @impl true
   def handle_info({:sentants, _event, _data}, state) do
+    {:noreply, state}
+  end
+
+  # Hotspot health check - detect when state says hosting but hotspot died
+  @impl true
+  def handle_info(:hotspot_health_check, state) do
+    state = check_hotspot_health(state)
+    # Schedule next health check
+    Process.send_after(self(), :hotspot_health_check, @hotspot_health_check_interval_ms)
     {:noreply, state}
   end
 
@@ -980,6 +999,100 @@ defmodule AiReality2Transnet.ConnectionManager do
       _ ->
         Logger.warning("#{log_prefix()} No WiFi adapters found")
         nil
+    end
+  end
+
+  # Check if hotspot is actually running when state says it should be
+  defp check_hotspot_health(%{connection_state: :hosting_ap, hosting_config: config} = state)
+       when not is_nil(config) do
+    interface = Map.get(config, :interface, state.wifi_interface)
+    ssid = Map.get(config, :ssid)
+
+    case verify_hotspot_running(interface, ssid) do
+      :running ->
+        # Hotspot is healthy
+        Logger.debug("#{log_prefix()} Hotspot health check: OK (#{ssid} on #{interface})")
+        %{state | hotspot_restart_attempts: 0}
+
+      :not_running ->
+        # Hotspot died but state thinks it's hosting - try to restart
+        Logger.warning("#{log_prefix()} Hotspot health check: hotspot not running but state says hosting!")
+        attempt_hotspot_recovery(state)
+    end
+  end
+
+  defp check_hotspot_health(state) do
+    # Not hosting - nothing to check
+    state
+  end
+
+  # Verify the hotspot is actually running via nmcli
+  defp verify_hotspot_running(interface, expected_ssid) do
+    case System.cmd("nmcli", ["-t", "-f", "NAME,DEVICE,TYPE", "connection", "show", "--active"],
+           stderr_to_stdout: true) do
+      {output, 0} ->
+        # Parse output lines like "Hotspot:wlan0:wifi"
+        lines = String.split(output, "\n", trim: true)
+
+        hotspot_active =
+          Enum.any?(lines, fn line ->
+            parts = String.split(line, ":")
+            # Check if this is a hotspot on our interface
+            # The connection name is often the SSID or "Hotspot"
+            length(parts) >= 2 &&
+              (Enum.at(parts, 1) == interface &&
+                 (String.contains?(Enum.at(parts, 0), expected_ssid) ||
+                    String.contains?(Enum.at(parts, 0), "Hotspot")))
+          end)
+
+        if hotspot_active, do: :running, else: :not_running
+
+      {_error, _} ->
+        # nmcli failed - can't determine, assume running
+        Logger.warning("#{log_prefix()} nmcli failed during hotspot health check")
+        :running
+    end
+  end
+
+  # Try to restart the hotspot after detecting it died
+  defp attempt_hotspot_recovery(%{hotspot_restart_attempts: attempts} = state)
+       when attempts >= @max_hotspot_restart_attempts do
+    Logger.error(
+      "#{log_prefix()} Hotspot recovery failed after #{attempts} attempts, giving up"
+    )
+
+    # Clear hosting state since we can't recover
+    %{state |
+      connection_state: :disconnected,
+      hosting_config: nil,
+      connected_clients: [],
+      hotspot_restart_attempts: 0
+    }
+  end
+
+  defp attempt_hotspot_recovery(state) do
+    config = state.hosting_config
+    interface = Map.get(config, :interface, state.wifi_interface)
+    ssid = config.ssid
+    psk = config.psk
+    channel = config.channel
+    attempts = state.hotspot_restart_attempts + 1
+
+    Logger.warning("#{log_prefix()} Attempting hotspot recovery (attempt #{attempts}/#{@max_hotspot_restart_attempts})")
+
+    # Try to stop any stale hotspot first
+    Wifi.stop_hotspot(interface)
+    Process.sleep(1000)
+
+    # Restart hotspot with same credentials
+    case Wifi.start_hotspot(interface, ssid, psk, channel) do
+      {:ok, _uuid} ->
+        Logger.info("#{log_prefix()} Hotspot recovered successfully")
+        %{state | hotspot_restart_attempts: 0}
+
+      {:error, reason} ->
+        Logger.error("#{log_prefix()} Hotspot recovery failed: #{reason}")
+        %{state | hotspot_restart_attempts: attempts}
     end
   end
 

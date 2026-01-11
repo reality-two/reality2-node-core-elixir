@@ -37,6 +37,11 @@ defmodule AiReality2Transnet.Bluetooth do
   @max_characteristic_size 4096
   @protocol_version "1.0"
 
+  # BLE Watchdog settings - detect and recover from stale discovery
+  # Aggressive timeouts for wearable responsiveness
+  @watchdog_interval_ms 15_000        # Check every 15 seconds
+  @ble_stale_threshold_ms 45_000      # Consider stale after 45 seconds without peers
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Client API
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -170,7 +175,11 @@ defmodule AiReality2Transnet.Bluetooth do
         signals_broadcast: 0,
         queries_processed: 0,
         connected_peers: %{},
-        bluetooth_available: false
+        bluetooth_available: false,
+        # BLE watchdog state
+        last_peer_seen: nil,
+        has_ever_seen_peers: false,
+        watchdog_restarts: 0
       })
 
     # Try to initialize Bluetooth, but continue in degraded mode if unavailable
@@ -184,6 +193,9 @@ defmodule AiReality2Transnet.Bluetooth do
 
     case result do
       {:ok, final_state} ->
+        # Schedule the BLE watchdog timer
+        Process.send_after(self(), :ble_watchdog, @watchdog_interval_ms)
+        Logger.info("#{log_prefix()} BLE watchdog started (check every #{div(@watchdog_interval_ms, 1000)}s)")
         {:ok, Map.put(final_state, :bluetooth_available, true)}
 
       {:error, reason} ->
@@ -386,6 +398,11 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # The details of a Reality2 node that has been found nearby.
   def handle_info({:r2node_found, id, info}, state) do
+    # Update watchdog state - we're seeing peers, discovery is working
+    state = state
+      |> Map.put(:last_peer_seen, System.monotonic_time(:millisecond))
+      |> Map.put(:has_ever_seen_peers, true)
+
     # Extract BLE address and node name from info
     address = Map.get(info, :address)
     # BLE discovery provides :name (device name), map it to :node_name for PeerManager
@@ -515,10 +532,108 @@ defmodule AiReality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
+  # BLE Watchdog - detect and recover from stale discovery after standby/resume
+  def handle_info(:ble_watchdog, state) do
+    state = check_ble_health(state)
+    # Schedule next watchdog check
+    Process.send_after(self(), :ble_watchdog, @watchdog_interval_ms)
+    {:noreply, state}
+  end
+
   # Catchall
   def handle_info(msg, state) do
     Logger.debug("Unhandled Bluetooth message: #{inspect(msg)}")
     {:noreply, state}
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Private Functions - BLE Watchdog
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Check BLE discovery health and restart if stale
+  defp check_ble_health(%{bluetooth_available: false} = state), do: state
+  defp check_ble_health(%{has_ever_seen_peers: false} = state) do
+    # Haven't seen any peers yet - this is normal if device is alone
+    # Just log periodically for visibility
+    Logger.debug("#{log_prefix()} BLE watchdog: no peers discovered yet (this is normal if alone)")
+    state
+  end
+  defp check_ble_health(state) do
+    last_seen = Map.get(state, :last_peer_seen)
+    now = System.monotonic_time(:millisecond)
+    time_since_peer = if last_seen, do: now - last_seen, else: nil
+
+    cond do
+      # Recently seen peers - all good
+      time_since_peer && time_since_peer < @ble_stale_threshold_ms ->
+        Logger.debug("#{log_prefix()} BLE watchdog: healthy (last peer #{div(time_since_peer, 1000)}s ago)")
+        state
+
+      # No peers seen for a while - check with PeerManager if we should have peers
+      true ->
+        check_and_maybe_restart_discovery(state, time_since_peer)
+    end
+  end
+
+  # Check if we should expect to see peers and restart discovery if needed
+  defp check_and_maybe_restart_discovery(state, time_since_peer) do
+    # Get peer count from PeerManager
+    peer_count = if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      AiReality2Transnet.PeerManager.get_all_peers() |> map_size()
+    else
+      0
+    end
+
+    if peer_count == 0 && time_since_peer && time_since_peer > @ble_stale_threshold_ms do
+      # Had peers before but now gone and no new discoveries - likely stale
+      Logger.warning("#{log_prefix()} BLE watchdog: discovery appears stale (#{div(time_since_peer, 1000)}s since last peer, 0 current peers)")
+      restart_ble_discovery(state)
+    else
+      # Either we have peers or we're just in a quiet period
+      Logger.debug("#{log_prefix()} BLE watchdog: #{peer_count} peers tracked, waiting for discoveries")
+      state
+    end
+  end
+
+  # Restart BLE discovery (r2_watch) to recover from stale NIF handles
+  defp restart_ble_discovery(state) do
+    restarts = Map.get(state, :watchdog_restarts, 0)
+    Logger.warning("#{log_prefix()} BLE watchdog: restarting discovery (restart ##{restarts + 1})")
+
+    # Stop the old watcher
+    if handle = Map.get(state, :r2_watch) do
+      try do
+        AiReality2Transnet.Action.stop_watching(handle)
+      rescue
+        _ -> Logger.debug("#{log_prefix()} stop_watching raised (handle may already be invalid)")
+      catch
+        _, _ -> Logger.debug("#{log_prefix()} stop_watching threw (handle may already be invalid)")
+      end
+    end
+
+    # Start a new watcher
+    adapter_name = Map.get(state, :adapter_name, "hci0")
+    company_id = @r2_company_id
+    lost_after_ms = 30_000
+
+    case AiReality2Transnet.Action.start_watching(self(), company_id, adapter_name, lost_after_ms) do
+      {:ok, new_handle} ->
+        Logger.info("#{log_prefix()} BLE discovery restarted successfully")
+        state
+        |> Map.put(:r2_watch, new_handle)
+        |> Map.put(:watchdog_restarts, restarts + 1)
+        |> Map.put(:last_peer_seen, nil)  # Reset so we don't immediately restart again
+
+      {:error, reason} ->
+        Logger.error("#{log_prefix()} BLE watchdog: failed to restart discovery: #{inspect(reason)}")
+        # Try a full module restart on next failure
+        if restarts >= 2 do
+          Logger.error("#{log_prefix()} BLE watchdog: multiple restart failures, requesting supervisor restart")
+          # Exit abnormally to trigger supervisor restart
+          Process.exit(self(), :ble_watchdog_failed)
+        end
+        Map.put(state, :watchdog_restarts, restarts + 1)
+    end
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
