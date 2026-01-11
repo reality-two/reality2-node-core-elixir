@@ -560,7 +560,16 @@ defmodule AiReality2Transnet.ConnectionManager do
     # Find the peer by SSID (the SSID is the node_name)
     # and perform sentantAll exchange
     Task.start(fn ->
-      perform_sentant_exchange_by_ssid(ssid)
+      try do
+        perform_sentant_exchange_by_ssid(ssid)
+      rescue
+        e ->
+          Logger.error("#{log_prefix()} Sentant exchange crashed: #{Exception.message(e)}")
+          Logger.error("#{log_prefix()} Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}")
+      catch
+        kind, reason ->
+          Logger.error("#{log_prefix()} Sentant exchange failed: #{kind} - #{inspect(reason)}")
+      end
     end)
 
     {:noreply, new_state}
@@ -975,7 +984,12 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp perform_sentant_exchange(host_node_id, host_ip, host_port) do
-    Logger.info("#{log_prefix()} Performing sentantAll exchange with #{host_ip}:#{host_port}")
+    # Retry up to 3 times with delays to handle host startup race condition
+    perform_sentant_exchange(host_node_id, host_ip, host_port, 3)
+  end
+
+  defp perform_sentant_exchange(host_node_id, host_ip, host_port, retries_left) do
+    Logger.info("#{log_prefix()} Performing sentantAll exchange with #{host_ip}:#{host_port} (retries: #{retries_left})")
 
     # Store peer connection info for PNS Router lookup
     Reality2.Metadata.set(:PNS_Peers, host_node_id, %{
@@ -1034,6 +1048,14 @@ defmodule AiReality2Transnet.ConnectionManager do
             register_with_host(host_ip, host_port)
 
             Logger.info("#{log_prefix()} sentantAll exchange completed successfully")
+
+            # Log current remote sentant count for debugging
+            all_peers = AiReality2Transnet.PeerManager.get_all_peers()
+            total_remote = Enum.reduce(all_peers, 0, fn {_id, peer}, acc ->
+              acc + length(peer.sentants)
+            end)
+            Logger.info("#{log_prefix()} Total remote sentants now: #{total_remote} (across #{map_size(all_peers)} peers)")
+
             :ok
 
           {:ok, %{"errors" => errors}} ->
@@ -1045,9 +1067,19 @@ defmodule AiReality2Transnet.ConnectionManager do
             {:error, "invalid_response"}
         end
 
+      {:ok, %Finch.Response{status: status}} when retries_left > 0 ->
+        Logger.warning("#{log_prefix()} HTTP request failed with status: #{status}, retrying in 3s...")
+        Process.sleep(3_000)
+        perform_sentant_exchange(host_node_id, host_ip, host_port, retries_left - 1)
+
       {:ok, %Finch.Response{status: status}} ->
         Logger.error("#{log_prefix()} HTTP request failed with status: #{status}")
         {:error, "http_error_#{status}"}
+
+      {:error, reason} when retries_left > 0 ->
+        Logger.warning("#{log_prefix()} HTTP request failed: #{inspect(reason)}, retrying in 3s...")
+        Process.sleep(3_000)
+        perform_sentant_exchange(host_node_id, host_ip, host_port, retries_left - 1)
 
       {:error, reason} ->
         Logger.error("#{log_prefix()} HTTP request failed: #{inspect(reason)}")

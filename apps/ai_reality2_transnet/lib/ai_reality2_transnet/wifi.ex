@@ -535,7 +535,28 @@ defmodule AiReality2Transnet.Wifi do
   """
   @spec get_hotspot_ip(String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def get_hotspot_ip(interface) do
-    get_interface_ip(interface)
+    # Hotspot IP may take a moment to be assigned after hotspot starts - retry a few times
+    get_hotspot_ip_with_retry(interface, 5)
+  end
+
+  defp get_hotspot_ip_with_retry(interface, retries_left) when retries_left <= 0 do
+    Logger.error("#{log_prefix()} Failed to get hotspot IP for #{interface} after retries")
+    {:error, "no_ip_after_retries"}
+  end
+
+  defp get_hotspot_ip_with_retry(interface, retries_left) do
+    case get_interface_ip(interface) do
+      {:ok, ip} ->
+        {:ok, ip}
+
+      {:error, _} when retries_left > 1 ->
+        Logger.debug("#{log_prefix()} Waiting for hotspot IP on #{interface}... (#{retries_left - 1} retries left)")
+        Process.sleep(1_000)
+        get_hotspot_ip_with_retry(interface, retries_left - 1)
+
+      error ->
+        error
+    end
   end
 
   @doc """
