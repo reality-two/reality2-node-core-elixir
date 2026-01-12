@@ -131,6 +131,8 @@ defmodule Reality2Web.MeshController do
       {existing, previous_count} = is_existing_peer
       event_name = if existing, do: "mesh_peer_sentants_changed", else: "mesh_peer_connected"
 
+      Logger.info("[MeshController] *** EMITTING EVENT: #{event_name} for peer #{node_name} (#{length(sentants)} sentants) ***")
+
       Reality2.Sentants.sendto_all(%{
         event: "__internal",
         parameters: %{
@@ -141,6 +143,8 @@ defmodule Reality2Web.MeshController do
           previous_count: previous_count
         }
       })
+
+      Logger.info("[MeshController] *** EVENT SENT via sendto_all ***")
 
       # Build confirmation response with stored sentant IDs
       # This allows client to verify all sentants were registered
