@@ -368,12 +368,20 @@
     function updateSentants(updates: GraphQLResponse): void {
         if (name_query == null && id_query == null) {
             // Check for mesh peer events (requires full refresh)
+            // Mesh events use parameters.event, BLE events use parameters.activity
             var mesh_event = R2.JSONPath(updates, "parameters.event");
-            if (mesh_event === "mesh_peer_connected" ||
+            var ble_activity = R2.JSONPath(updates, "parameters.activity");
+
+            var needs_refresh =
+                mesh_event === "mesh_peer_connected" ||
                 mesh_event === "mesh_peer_disconnected" ||
-                mesh_event === "mesh_peer_sentants_changed") {
+                mesh_event === "mesh_peer_sentants_changed" ||
+                ble_activity === "r2_node_found" ||
+                ble_activity === "r2_node_lost";
+
+            if (needs_refresh) {
                 // Full refresh when mesh topology or remote sentants change
-                console.log("Mesh event received:", mesh_event, R2.JSONPath(updates, "parameters"));
+                console.log("Network event received:", mesh_event || ble_activity, R2.JSONPath(updates, "parameters"));
                 r2_node
                     .sentantAll(
                         {},
