@@ -384,14 +384,14 @@
             }
 
             // For new peer or sentant changes - need to fetch updated data
-            // This will refresh but only for remote sentants joining
+            // Note: r2_node_found fires before WiFi registration, so we skip it
+            // mesh_peer_connected fires AFTER registration when sentants are available
             var needs_refresh =
                 mesh_event === "mesh_peer_connected" ||
-                mesh_event === "mesh_peer_sentants_changed" ||
-                ble_activity === "r2_node_found";
+                mesh_event === "mesh_peer_sentants_changed";
 
             if (needs_refresh) {
-                console.log("Network event received:", mesh_event || ble_activity, R2.JSONPath(updates, "parameters"));
+                console.log("Mesh event - fetching sentants:", mesh_event, R2.JSONPath(updates, "parameters"));
                 r2_node
                     .sentantAll(
                         {},
@@ -399,17 +399,30 @@
                     )
                     .then((data) => {
                         let result = R2.JSONPath(data, "data.sentantAll");
-                        if (result != null) {
-                            // Merge: keep existing local sentants (preserves messages), add/update remote
-                            const localSentants = sentantData.filter(s => s.nodeId === localNodeId);
-                            const remoteSentants = result.filter((s: Sentant) => s.nodeId !== localNodeId);
-                            loadedData = [...localSentants, ...remoteSentants];
+                        console.log("sentantAll returned", result?.length, "sentants");
+                        if (result != null && result.length > 0) {
+                            // Log all unique node IDs in the result to see what we received
+                            const nodeIds = [...new Set(result.map((s: Sentant) => s.nodeId))];
+                            console.log("Unique nodeIds in result:", nodeIds);
+                            console.log("Current localNodeId:", localNodeId);
 
-                            // Update localNodeId if we don't have it yet
-                            if (!localNodeId && result.length > 0 && result[0].nodeId) {
+                            // First load - just use full result
+                            if (!localNodeId && result[0].nodeId) {
                                 localNodeId = result[0].nodeId;
-                                loadedData = result; // First load, use full result
+                                loadedData = result;
+                                console.log("First load, set localNodeId:", localNodeId);
+                                return;
                             }
+
+                            // Merge: keep existing local sentants (preserves messages), add/update remote from server
+                            // Use loadedData (not sentantData) since we're in an async callback
+                            const existingLocal = loadedData.filter(s => s.nodeId === localNodeId);
+                            const newRemote = result.filter((s: Sentant) => s.nodeId !== localNodeId);
+                            console.log("Merge: existingLocal=", existingLocal.length, "newRemote=", newRemote.length);
+
+                            // Combine: existing local sentants (with their message state) + all remote from server
+                            loadedData = [...existingLocal, ...newRemote];
+                            console.log("Updated loadedData to", loadedData.length, "sentants");
                         }
                     });
                 return;
