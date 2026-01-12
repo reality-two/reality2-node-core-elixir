@@ -1512,7 +1512,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp get_local_sentants do
-    # Get all local sentants with full public info
+    # Get all local sentants with full public info including event parameters
     case Reality2.Sentants.read_all(:definition) do
       {:ok, sentants} ->
         Enum.map(sentants, fn sentant ->
@@ -1520,7 +1520,7 @@ defmodule AiReality2Transnet.ConnectionManager do
             id: Map.get(sentant, :id),
             name: Map.get(sentant, :name),
             description: Map.get(sentant, :description),
-            events: get_event_names(Map.get(sentant, :events, [])),
+            events: get_events_with_parameters(Map.get(sentant, :events, [])),
             signals: get_signal_names(Map.get(sentant, :signals, []))
           }
         end)
@@ -1530,19 +1530,19 @@ defmodule AiReality2Transnet.ConnectionManager do
     end
   end
 
-  defp get_event_names(events) when is_list(events) do
+  defp get_events_with_parameters(events) when is_list(events) do
     Enum.map(events, fn
-      %{event: name} -> name
-      %{name: name} -> name
-      %{"event" => name} -> name
-      %{"name" => name} -> name
-      name when is_binary(name) -> name
+      %{event: name, parameters: params} -> %{event: name, parameters: params}
+      %{event: name} -> %{event: name, parameters: %{}}
+      %{"event" => name, "parameters" => params} -> %{event: name, parameters: params}
+      %{"event" => name} -> %{event: name, parameters: %{}}
+      name when is_binary(name) -> %{event: name, parameters: %{}}
       _ -> nil
     end)
     |> Enum.reject(&is_nil/1)
   end
 
-  defp get_event_names(_), do: []
+  defp get_events_with_parameters(_), do: []
 
   defp get_signal_names(signals) when is_list(signals) do
     Enum.map(signals, fn

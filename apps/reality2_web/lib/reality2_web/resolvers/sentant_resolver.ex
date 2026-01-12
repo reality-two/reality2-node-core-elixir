@@ -154,17 +154,21 @@ defmodule Reality2Web.SentantResolver do
     end
   end
 
-  # Normalize events to the expected format
+  # Normalize events to the expected format with parameters as a map
   defp normalize_events(events) when is_list(events) do
     Enum.map(events, fn
-      event when is_binary(event) -> %{event: event, parameters: []}
-      %{"event" => name} = e -> %{event: name, parameters: Map.get(e, "parameters", [])}
-      %{event: name} = e -> %{event: name, parameters: Map.get(e, :parameters, [])}
+      event when is_binary(event) -> %{event: event, parameters: %{}}
+      %{"event" => name} = e -> %{event: name, parameters: normalize_parameters(Map.get(e, "parameters"))}
+      %{event: name} = e -> %{event: name, parameters: normalize_parameters(Map.get(e, :parameters))}
       _ -> nil
     end)
     |> Enum.reject(&is_nil/1)
   end
   defp normalize_events(_), do: []
+
+  # Ensure parameters is a map (not a list or nil)
+  defp normalize_parameters(params) when is_map(params), do: params
+  defp normalize_parameters(_), do: %{}
 
   # Normalize signals to expected format
   defp normalize_signals(signals) when is_list(signals) do

@@ -553,7 +553,7 @@ Layout
                     />
                 </Input>
                 {#if availableNodes.length > 0}
-                    <select class="ui selection dropdown compact" style="min-width: 180px;" bind:value={selectedNodeId}>
+                    <select class="ui selection dropdown" style="min-width: 180px; padding: 0.67857143em 1em; font-size: 1.14285714em;" bind:value={selectedNodeId}>
                         {#each availableNodes as node}
                             <option value={node.nodeId}>{node.nodeName} ({node.sentantCount}){node.isLocal ? " - local" : ""}</option>
                         {/each}
