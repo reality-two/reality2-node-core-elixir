@@ -370,12 +370,17 @@
     // Update the list of sentants when something changes (can either be create or delete)
     // -------------------------------------------------------------------------------------------------
     function updateSentants(updates: GraphQLResponse): void {
+        // Log ALL incoming events for debugging
+        console.log("updateSentants received:", JSON.stringify(updates));
+
         if (name_query == null && id_query == null) {
             // Check for mesh peer events
             // Mesh events use parameters.event, BLE events use parameters.activity
             var mesh_event = R2.JSONPath(updates, "parameters.event");
             var ble_activity = R2.JSONPath(updates, "parameters.activity");
             var peer_id = R2.JSONPath(updates, "parameters.peer_id") || R2.JSONPath(updates, "parameters.id");
+
+            console.log("Event parsed - mesh_event:", mesh_event, "ble_activity:", ble_activity);
 
             // For peer disconnected/lost - just remove that peer's sentants locally
             // This preserves message history on remaining sentants
