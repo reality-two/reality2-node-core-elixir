@@ -469,16 +469,18 @@ defmodule Reality2Web.SentantResolver do
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
       case apply(AiReality2Transnet.PeerManager, :get_peer, [node_id]) do
         {:ok, peer} ->
-          peer_ip = Map.get(peer, :address)
+          peer_address = Map.get(peer, :address)
           peer_name = Map.get(peer, :node_name, "Unknown")
 
-          if peer_ip && peer_ip != "via_host" do
-            Logger.info("[SentantResolver] Forwarding event '#{event}' to remote sentant #{String.slice(sentant_id, 0..7)}... on #{peer_name} (#{peer_ip})")
-            forward_event_via_http(peer_ip, sentant_id, event, parameters, passthrough)
-          else
-            # Peer connected via host - try to route through host
-            Logger.warning("[SentantResolver] Peer #{peer_name} connected via host, direct routing not available")
-            {:error, :peer_not_directly_reachable}
+          # Determine the best IP to use for HTTP communication
+          case get_http_address_for_peer(peer_address) do
+            {:ok, ip_address} ->
+              Logger.info("[SentantResolver] Forwarding event '#{event}' to remote sentant #{String.slice(sentant_id, 0..7)}... on #{peer_name} (#{ip_address})")
+              forward_event_via_http(ip_address, sentant_id, event, parameters, passthrough)
+
+            {:error, reason} ->
+              Logger.warning("[SentantResolver] Cannot reach peer #{peer_name}: #{reason}")
+              {:error, :peer_not_directly_reachable}
           end
 
         {:error, _} ->
@@ -489,6 +491,43 @@ defmodule Reality2Web.SentantResolver do
       {:error, :transnet_not_loaded}
     end
   end
+
+  # Determine the HTTP address to use for a peer
+  # Returns {:ok, ip_address} or {:error, reason}
+  defp get_http_address_for_peer(peer_address) do
+    cond do
+      # Already an IP address
+      is_ip_address?(peer_address) ->
+        {:ok, peer_address}
+
+      # "via_host" means route through host (not directly reachable)
+      peer_address == "via_host" ->
+        {:error, "peer connected via host"}
+
+      # Likely a BLE MAC address - try to use gateway IP if we're connected to a hotspot
+      true ->
+        # Try to get gateway IP from ConnectionManager (we're likely connected to their hotspot)
+        if Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) do
+          case apply(AiReality2Transnet.ConnectionManager, :get_gateway_ip, []) do
+            {:ok, gateway_ip} ->
+              {:ok, gateway_ip}
+            _ ->
+              {:error, "no IP address available (peer has BLE MAC: #{peer_address})"}
+          end
+        else
+          {:error, "no IP address available"}
+        end
+    end
+  end
+
+  # Check if a string looks like an IP address
+  defp is_ip_address?(str) when is_binary(str) do
+    case :inet.parse_address(String.to_charlist(str)) do
+      {:ok, _} -> true
+      _ -> false
+    end
+  end
+  defp is_ip_address?(_), do: false
 
   # Forward event to remote node via HTTPS GraphQL endpoint
   defp forward_event_via_http(peer_ip, sentant_id, event, parameters, passthrough) do
