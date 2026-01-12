@@ -393,15 +393,18 @@
             }
 
             // For new peer or sentant changes - need to fetch updated data
-            // Note: r2_node_found fires before WiFi registration, so we skip it
-            // mesh_peer_connected fires AFTER registration when sentants are available
             var needs_refresh =
                 mesh_event === "mesh_peer_connected" ||
                 mesh_event === "mesh_peer_sentants_changed";
 
-            if (needs_refresh) {
-                console.log("Mesh event - fetching sentants:", mesh_event, R2.JSONPath(updates, "parameters"));
-                // Small delay to ensure peer registration is complete on server
+            // r2_node_found fires on BLE discovery, before WiFi registration
+            // Use a longer delay to allow time for WiFi connection and HTTP registration
+            var ble_discovery = ble_activity === "r2_node_found";
+
+            if (needs_refresh || ble_discovery) {
+                const delay = ble_discovery ? 2000 : 200; // 2s for BLE discovery, 200ms for mesh events
+                console.log("Mesh/BLE event - fetching sentants in", delay, "ms:", mesh_event || ble_activity, R2.JSONPath(updates, "parameters"));
+                // Delay to ensure peer registration is complete on server
                 setTimeout(() => {
                     r2_node
                         .sentantAll(
