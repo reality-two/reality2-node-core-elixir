@@ -67,6 +67,54 @@
     // Local node identity (captured from first sentant loaded)
     let localNodeId: string = "";
 
+    // Node filter for dropdown
+    let selectedNodeId: string = "all";  // "all" or a specific nodeId
+
+    // Available nodes derived from sentant data
+    $: availableNodes = getAvailableNodes(sentantData, localNodeId);
+
+    interface NodeInfo {
+        nodeId: string;
+        nodeName: string;
+        isLocal: boolean;
+        sentantCount: number;
+    }
+
+    function getAvailableNodes(sentants: Sentant[], localId: string): NodeInfo[] {
+        const nodeMap: Record<string, NodeInfo> = {};
+
+        for (const s of sentants) {
+            if (s.name === RESERVED_SENTANT_NAMES.MONITOR ||
+                s.name === RESERVED_SENTANT_NAMES.DELETED ||
+                s.name === RESERVED_SENTANT_NAMES.VIEW) continue;
+
+            const nodeId = s.nodeId || "local";
+            const nodeName = s.nodeName || "Local";
+
+            if (!nodeMap[nodeId]) {
+                nodeMap[nodeId] = {
+                    nodeId,
+                    nodeName,
+                    isLocal: nodeId === localId,
+                    sentantCount: 0
+                };
+            }
+            nodeMap[nodeId].sentantCount++;
+        }
+
+        // Sort: local first, then by name
+        return Object.values(nodeMap).sort((a, b) => {
+            if (a.isLocal && !b.isLocal) return -1;
+            if (!a.isLocal && b.isLocal) return 1;
+            return a.nodeName.localeCompare(b.nodeName);
+        });
+    }
+
+    // Filtered sentants based on selected node
+    $: filteredSentantData = selectedNodeId === "all"
+        ? sentantData
+        : sentantData.filter(s => (s.nodeId || "local") === selectedNodeId);
+
     // -------------------------------------------------------------------------------------------------
     // Query Strings
     // -------------------------------------------------------------------------------------------------
@@ -178,10 +226,19 @@
     // -------------------------------------------------------------------------------------------------
     // The Path of this page
     // -------------------------------------------------------------------------------------------------
+    $: selectedNodeName = selectedNodeId === "all"
+        ? null
+        : availableNodes.find(n => n.nodeId === selectedNodeId)?.nodeName;
+
     $: path =
         window.location.hostname +
+        (selectedNodeName ? " → " + selectedNodeName : "") +
         (name_query ? "|" + name_query : "") +
         (id_query ? "|" + id_query : "");
+
+    function selectNode(nodeId: string) {
+        selectedNodeId = nodeId;
+    }
     // -------------------------------------------------------------------------------------------------
 
     // -------------------------------------------------------------------------------------------------
@@ -497,8 +554,8 @@ Layout
                     </Button>
                 </Buttons>
             </Item>
-            <Item style={"margin: auto; width:" + (windowWidth - 260) + "px;"}>
-                <Input ui big style={"width:100%;"}>
+            <Item style={"margin: auto; width:" + (windowWidth - 260) + "px; display: flex; gap: 5px;"}>
+                <Input ui big style={"flex: 1;"}>
                     <Input
                         id="path"
                         text
@@ -506,6 +563,34 @@ Layout
                         bind:value={path}
                     />
                 </Input>
+                {#if availableNodes.length > 0}
+                    <Dropdown ui selection compact style="min-width: 150px;">
+                        <Icon dropdown />
+                        <div class="text">
+                            {selectedNodeId === "all" ? "All Nodes" : (availableNodes.find(n => n.nodeId === selectedNodeId)?.nodeName || "Select")}
+                        </div>
+                        <Menu>
+                            <Item
+                                data-value="all"
+                                _={selectedNodeId === "all" ? "active" : ""}
+                                on:click={() => selectNode("all")}
+                            >
+                                <Icon globe />
+                                All Nodes ({sentantData.filter(s => s.name !== "monitor" && s.name !== "deleted" && s.name !== "__view").length})
+                            </Item>
+                            {#each availableNodes as node}
+                                <Item
+                                    data-value={node.nodeId}
+                                    _={selectedNodeId === node.nodeId ? "active" : ""}
+                                    on:click={() => selectNode(node.nodeId)}
+                                >
+                                    <Icon _={node.isLocal ? "home" : "server"} />
+                                    {node.nodeName} ({node.sentantCount}){node.isLocal ? " (local)" : ""}
+                                </Item>
+                            {/each}
+                        </Menu>
+                    </Dropdown>
+                {/if}
             </Item>
             <Menu right>
                 <Dropdown ui item style="position: relative; z-index:1010">
@@ -642,7 +727,7 @@ Layout
                 <!--------------------------------------------------------------------------------------------->
             {:else if state == "view"}
                 <!--------------------------------------------------------------------------------------------->
-                <SentantCards {r2_node} {sentantData} {variables} {localNodeId} />
+                <SentantCards {r2_node} sentantData={filteredSentantData} {variables} {localNodeId} />
                 <!--------------------------------------------------------------------------------------------->
             {:else if state == "mr"}
                 <!--------------------------------------------------------------------------------------------->
