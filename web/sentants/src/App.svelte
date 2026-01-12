@@ -381,6 +381,10 @@
                 console.log("Peer disconnected:", peer_id);
                 if (peer_id) {
                     loadedData = loadedData.filter(s => s.nodeId !== peer_id);
+                    // If we were viewing the disconnected node, switch back to local
+                    if (selectedNodeId === peer_id) {
+                        selectedNodeId = localNodeId;
+                    }
                     dataVersion++; // Force reactive update
                 }
                 return;
@@ -395,12 +399,14 @@
 
             if (needs_refresh) {
                 console.log("Mesh event - fetching sentants:", mesh_event, R2.JSONPath(updates, "parameters"));
-                r2_node
-                    .sentantAll(
-                        {},
-                        "name id description events { event parameters } signals nodeId nodeName",
-                    )
-                    .then((data) => {
+                // Small delay to ensure peer registration is complete on server
+                setTimeout(() => {
+                    r2_node
+                        .sentantAll(
+                            {},
+                            "name id description events { event parameters } signals nodeId nodeName",
+                        )
+                        .then((data) => {
                         let result = R2.JSONPath(data, "data.sentantAll");
                         console.log("sentantAll returned", result?.length, "sentants");
                         if (result != null && result.length > 0) {
@@ -430,6 +436,7 @@
                             console.log("Updated loadedData to", loadedData.length, "sentants, dataVersion:", dataVersion);
                         }
                     });
+                }, 200); // 200ms delay for server to complete registration
                 return;
             }
 
