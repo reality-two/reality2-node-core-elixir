@@ -136,7 +136,7 @@ defmodule Reality2Web.MeshController do
       Reality2.Sentants.sendto_all(%{
         event: "__internal",
         parameters: %{
-          event: event_name,
+          mesh_event: event_name,  # Use mesh_event to avoid collision with signal action's 'event' parameter
           peer_id: node_id,
           peer_name: node_name || "Unknown",
           sentant_count: length(sentants),

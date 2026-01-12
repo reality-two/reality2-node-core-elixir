@@ -375,8 +375,8 @@
 
         if (name_query == null && id_query == null) {
             // Check for mesh peer events
-            // Mesh events use parameters.event, BLE events use parameters.activity
-            var mesh_event = R2.JSONPath(updates, "parameters.event");
+            // Mesh events use parameters.mesh_event, BLE events use parameters.activity
+            var mesh_event = R2.JSONPath(updates, "parameters.mesh_event");
             var ble_activity = R2.JSONPath(updates, "parameters.activity");
             var peer_id = R2.JSONPath(updates, "parameters.peer_id") || R2.JSONPath(updates, "parameters.id");
 
