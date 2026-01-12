@@ -367,20 +367,30 @@
     // -------------------------------------------------------------------------------------------------
     function updateSentants(updates: GraphQLResponse): void {
         if (name_query == null && id_query == null) {
-            // Check for mesh peer events (requires full refresh)
+            // Check for mesh peer events
             // Mesh events use parameters.event, BLE events use parameters.activity
             var mesh_event = R2.JSONPath(updates, "parameters.event");
             var ble_activity = R2.JSONPath(updates, "parameters.activity");
+            var peer_id = R2.JSONPath(updates, "parameters.peer_id") || R2.JSONPath(updates, "parameters.id");
 
+            // For peer disconnected/lost - just remove that peer's sentants locally
+            // This preserves message history on remaining sentants
+            if (mesh_event === "mesh_peer_disconnected" || ble_activity === "r2_node_lost") {
+                console.log("Peer disconnected:", peer_id);
+                if (peer_id) {
+                    loadedData = sentantData.filter(s => s.nodeId !== peer_id);
+                }
+                return;
+            }
+
+            // For new peer or sentant changes - need to fetch updated data
+            // This will refresh but only for remote sentants joining
             var needs_refresh =
                 mesh_event === "mesh_peer_connected" ||
-                mesh_event === "mesh_peer_disconnected" ||
                 mesh_event === "mesh_peer_sentants_changed" ||
-                ble_activity === "r2_node_found" ||
-                ble_activity === "r2_node_lost";
+                ble_activity === "r2_node_found";
 
             if (needs_refresh) {
-                // Full refresh when mesh topology or remote sentants change
                 console.log("Network event received:", mesh_event || ble_activity, R2.JSONPath(updates, "parameters"));
                 r2_node
                     .sentantAll(
@@ -390,10 +400,15 @@
                     .then((data) => {
                         let result = R2.JSONPath(data, "data.sentantAll");
                         if (result != null) {
-                            loadedData = result;
+                            // Merge: keep existing local sentants (preserves messages), add/update remote
+                            const localSentants = sentantData.filter(s => s.nodeId === localNodeId);
+                            const remoteSentants = result.filter((s: Sentant) => s.nodeId !== localNodeId);
+                            loadedData = [...localSentants, ...remoteSentants];
+
                             // Update localNodeId if we don't have it yet
                             if (!localNodeId && result.length > 0 && result[0].nodeId) {
                                 localNodeId = result[0].nodeId;
+                                loadedData = result; // First load, use full result
                             }
                         }
                     });
