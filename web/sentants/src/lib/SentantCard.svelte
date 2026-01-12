@@ -100,7 +100,10 @@
         }
         // Always use nodeId|sentantId format - server handles routing
         let targetId = sentant.nodeId ? `${sentant.nodeId}|${id}` : id;
-        r2_node.sentantSend(targetId, event, params);
+        console.log(`Sending event '${event}' to ${targetId} with params:`, params);
+        r2_node.sentantSend(targetId, event, params)
+            .then((result: any) => console.log("sentantSend result:", result))
+            .catch((err: any) => console.error("sentantSend error:", err));
     }
 
     function unload_sentant() {

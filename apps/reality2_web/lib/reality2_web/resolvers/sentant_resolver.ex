@@ -337,6 +337,8 @@ defmodule Reality2Web.SentantResolver do
         {:error, :id}
 
       raw_id ->
+        Logger.info("[SentantResolver] send_event called with raw_id: #{raw_id}")
+
         # Get the event
         case Map.get(args, :event) do
           nil ->
@@ -347,13 +349,16 @@ defmodule Reality2Web.SentantResolver do
             passthrough = Map.get(args, :passthrough, %{})
 
             # Check if this is a remote sentant (nodeId|sentantId format)
-            case parse_remote_id(raw_id) do
+            parsed = parse_remote_id(raw_id)
+            Logger.info("[SentantResolver] Parsed ID: #{inspect(parsed)}")
+
+            case parsed do
               {:remote, node_id, sentant_id} ->
-                # Route to remote node
+                Logger.info("[SentantResolver] Routing to REMOTE node #{String.slice(node_id, 0..7)}...")
                 send_event_to_remote(node_id, sentant_id, event, parameters, passthrough)
 
               {:local, sentant_id} ->
-                # Local sentant - use existing logic
+                Logger.info("[SentantResolver] Routing to LOCAL sentant #{String.slice(sentant_id, 0..7)}...")
                 send_event_to_local(sentant_id, event, parameters, passthrough)
             end
         end
@@ -361,21 +366,71 @@ defmodule Reality2Web.SentantResolver do
   end
 
   # Parse ID to determine if local or remote
-  # Returns {:remote, node_id, sentant_id} or {:local, sentant_id}
+  # Accepts: UUID, name, nodeId|sentantId, nodeName|sentantName, or any combination
+  # Returns {:remote, node_id, sentant_id_or_name} or {:local, sentant_id_or_name}
   defp parse_remote_id(raw_id) do
+    require Logger
     local_node_id = Reality2.Bootstrap.get(:node_id)
 
     case String.split(raw_id, "|", parts: 2) do
-      [node_id, sentant_id] when node_id != local_node_id ->
-        {:remote, node_id, sentant_id}
+      [node_ref, sentant_ref] ->
+        # Resolve node reference to ID (could be UUID or name)
+        resolved_node_id = resolve_node_ref(node_ref)
 
-      [_local_node_id, sentant_id] ->
-        # nodeId matches local - treat as local
-        {:local, sentant_id}
+        if resolved_node_id == local_node_id do
+          # Local node - resolve sentant ref
+          {:local, resolve_sentant_ref(sentant_ref)}
+        else
+          # Remote node
+          {:remote, resolved_node_id || node_ref, sentant_ref}
+        end
 
-      [sentant_id] ->
-        # No separator - local ID
-        {:local, sentant_id}
+      [sentant_ref] ->
+        # No separator - local sentant (could be UUID or name)
+        {:local, sentant_ref}
+    end
+  end
+
+  # Resolve a node reference (UUID or name) to node ID
+  defp resolve_node_ref(ref) do
+    local_node_id = Reality2.Bootstrap.get(:node_id)
+    local_node_name = Reality2.Bootstrap.get(:node_name)
+
+    cond do
+      ref == local_node_id -> local_node_id
+      ref == local_node_name -> local_node_id
+      is_uuid?(ref) -> ref
+      true ->
+        # Try to look up by name in PeerManager
+        if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+          case apply(AiReality2Transnet.PeerManager, :get_peer_by_name, [ref]) do
+            {:ok, peer} -> Map.get(peer, :node_id)
+            _ -> nil
+          end
+        else
+          nil
+        end
+    end
+  end
+
+  # Resolve a sentant reference (UUID or name) to sentant ID
+  defp resolve_sentant_ref(ref) do
+    if is_uuid?(ref) do
+      ref
+    else
+      # Try to look up by name locally
+      case Reality2.Metadata.get(:SentantIDs, ref) do
+        nil -> ref  # Return as-is, let downstream handle it
+        id -> id
+      end
+    end
+  end
+
+  # Check if a string looks like a UUID
+  defp is_uuid?(str) do
+    case UUID.info(str) do
+      {:ok, _} -> true
+      _ -> false
     end
   end
 
