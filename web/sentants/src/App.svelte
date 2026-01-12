@@ -19,6 +19,9 @@
         Header,
         Input,
         Dropdown,
+        Text,
+        Select,
+        Option,
     } from "svelte-fomantic-ui";
 
     import R2 from "./lib/reality2";
@@ -67,8 +70,8 @@
     // Local node identity (captured from first sentant loaded)
     let localNodeId: string = "";
 
-    // Node filter for dropdown
-    let selectedNodeId: string = "all";  // "all" or a specific nodeId
+    // Node filter for dropdown - defaults to local node
+    let selectedNodeId: string = "";
 
     // Available nodes derived from sentant data
     $: availableNodes = getAvailableNodes(sentantData, localNodeId);
@@ -110,10 +113,16 @@
         });
     }
 
+    // When localNodeId is set, default selectedNodeId to it
+    $: if (localNodeId && !selectedNodeId) {
+        selectedNodeId = localNodeId;
+    }
+
     // Filtered sentants based on selected node
-    $: filteredSentantData = selectedNodeId === "all"
-        ? sentantData
-        : sentantData.filter(s => (s.nodeId || "local") === selectedNodeId);
+    // If no selection yet, show local sentants (filter by localNodeId)
+    $: filteredSentantData = selectedNodeId
+        ? sentantData.filter(s => (s.nodeId || localNodeId) === selectedNodeId)
+        : sentantData.filter(s => (s.nodeId || localNodeId) === localNodeId);
 
     // -------------------------------------------------------------------------------------------------
     // Query Strings
@@ -226,19 +235,10 @@
     // -------------------------------------------------------------------------------------------------
     // The Path of this page
     // -------------------------------------------------------------------------------------------------
-    $: selectedNodeName = selectedNodeId === "all"
-        ? null
-        : availableNodes.find(n => n.nodeId === selectedNodeId)?.nodeName;
-
     $: path =
         window.location.hostname +
-        (selectedNodeName ? " → " + selectedNodeName : "") +
         (name_query ? "|" + name_query : "") +
         (id_query ? "|" + id_query : "");
-
-    function selectNode(nodeId: string) {
-        selectedNodeId = nodeId;
-    }
     // -------------------------------------------------------------------------------------------------
 
     // -------------------------------------------------------------------------------------------------
@@ -485,41 +485,30 @@
         if (event.key === "Enter" && event.target.id === "path") {
             let elements = path.split("|");
             if (elements.length > 0) {
-                if (elements.length > 1) {
-                    new_location =
-                        "https://" +
-                        (use_default_url ? "localhost" : elements[0]) +
-                        ":" +
-                        (use_default_url ? "4005" : window.location.port) +
-                        "/?name=" +
-                        elements[1] +
-                        "&variables=" +
-                        encodeURIComponent(JSON.stringify(variables));
-                } else {
-                    new_location =
-                        "https://" +
-                        (use_default_url ? "localhost" : elements[0]) +
-                        ":" +
-                        (use_default_url ? "4005" : window.location.port) +
-                        "/?variables=" +
-                        encodeURIComponent(JSON.stringify(variables));
+                // Extract hostname/IP - might include port already
+                let host = elements[0].trim();
+                let port = window.location.port || "4005";
+
+                // Check if host already includes a port
+                if (host.includes(":")) {
+                    const parts = host.split(":");
+                    host = parts[0];
+                    port = parts[1];
                 }
 
-                if (elements[0] == "localhost" || elements[0] == "127.0.0.1") {
-                    window.location.href = new_location;
+                if (elements.length > 1) {
+                    new_location =
+                        "https://" + host + ":" + port +
+                        "/?name=" + elements[1] +
+                        "&variables=" + encodeURIComponent(JSON.stringify(variables));
                 } else {
-                    isServerReachable(new_location).then((reachable) => {
-                        if (reachable) {
-                            window.location.href = new_location;
-                        } else {
-                            alert(
-                                "Reality2 server " +
-                                    new_location +
-                                    " is not reachable.",
-                            );
-                        }
-                    });
+                    new_location =
+                        "https://" + host + ":" + port +
+                        "/?variables=" + encodeURIComponent(JSON.stringify(variables));
                 }
+
+                // Navigate directly - let browser handle connection errors
+                window.location.href = new_location;
             }
         }
     }
@@ -564,32 +553,11 @@ Layout
                     />
                 </Input>
                 {#if availableNodes.length > 0}
-                    <Dropdown ui selection compact style="min-width: 150px;">
-                        <Icon dropdown />
-                        <div class="text">
-                            {selectedNodeId === "all" ? "All Nodes" : (availableNodes.find(n => n.nodeId === selectedNodeId)?.nodeName || "Select")}
-                        </div>
-                        <Menu>
-                            <Item
-                                data-value="all"
-                                _={selectedNodeId === "all" ? "active" : ""}
-                                on:click={() => selectNode("all")}
-                            >
-                                <Icon globe />
-                                All Nodes ({sentantData.filter(s => s.name !== "monitor" && s.name !== "deleted" && s.name !== "__view").length})
-                            </Item>
-                            {#each availableNodes as node}
-                                <Item
-                                    data-value={node.nodeId}
-                                    _={selectedNodeId === node.nodeId ? "active" : ""}
-                                    on:click={() => selectNode(node.nodeId)}
-                                >
-                                    <Icon _={node.isLocal ? "home" : "server"} />
-                                    {node.nodeName} ({node.sentantCount}){node.isLocal ? " (local)" : ""}
-                                </Item>
-                            {/each}
-                        </Menu>
-                    </Dropdown>
+                    <select class="ui selection dropdown compact" style="min-width: 180px;" bind:value={selectedNodeId}>
+                        {#each availableNodes as node}
+                            <option value={node.nodeId}>{node.nodeName} ({node.sentantCount}){node.isLocal ? " - local" : ""}</option>
+                        {/each}
+                    </select>
                 {/if}
             </Item>
             <Menu right>

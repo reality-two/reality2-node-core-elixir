@@ -45,7 +45,16 @@
       "Bash(unzip:*)",
       "Bash(./build_webapp.sh:*)",
       "Bash(npm run build:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(scripts/build_webapp)",
+      "WebFetch(domain:roycdaviesuoa.github.io)",
+      "Bash(npm show:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir add web/sentants/src/App.svelte apps/reality2_web/priv/static/sites/sentants/)",
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir status)",
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir add web/sentants/src/lib/SentantCards.svelte web/sentants/src/App.svelte apps/reality2_web/priv/static/sites/sentants/)",
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir add web/sentants/src/App.svelte web/sentants/src/lib/SentantCards.svelte apps/reality2_web/priv/static/sites/sentants/)"
     ]
   }
 }
