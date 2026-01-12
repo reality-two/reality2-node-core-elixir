@@ -78,6 +78,11 @@ defmodule Reality2.Automation do
         {:noreply, {name, id, sentant_name, automation_map, keys, state}}
 
       event ->
+        # Debug: log when automation receives __internal events
+        if event == "__internal" do
+          Logger.info("[Automation:#{sentant_name}] Received __internal event with parameters: #{inspect(parameters)}")
+        end
+
         case R2Map.get(automation_map, "transitions") do
           nil ->
             {:noreply, {name, id, sentant_name, automation_map, keys, state}}
@@ -618,20 +623,25 @@ defmodule Reality2.Automation do
     # Send off a signal to any listening device
     case R2Map.get(combined_parameters, :event) do
       nil ->
+        Logger.debug("[Automation] Signal action: no event in parameters")
         nil
 
       event ->
         case R2Process.whereis(id <> "|comms") do
           nil ->
+            Logger.debug("[Automation] Signal action: comms process not found for #{id}")
             nil
 
           _pid ->
             event_parameters = R2Map.get(action_parameters, :parameters, %{})
+            merged_params = Map.merge(event_parameters, accumulated_parameters) |> interpret()
+
+            Logger.info("[Automation] Broadcasting signal '#{event}' with params: #{inspect(Map.keys(merged_params))}")
 
             Reality2.Signals.broadcast(
               id,
               event,
-              Map.merge(event_parameters, accumulated_parameters) |> interpret(),
+              merged_params,
               passthrough
             )
         end
