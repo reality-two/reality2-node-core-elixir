@@ -1819,6 +1819,9 @@ defmodule AiReality2Transnet.ConnectionManager do
       {:ok, gateway_ip} ->
         Logger.info("#{log_prefix()} Found gateway IP: #{gateway_ip} for peer #{String.slice(peer_node_id, 0..7)}...")
 
+        # Update transport BEFORE exchange so sentants are associated with wifi_hotspot
+        PeerManager.update_peer_transport(peer_node_id, :wifi_hotspot)
+
         case perform_sentant_exchange(peer_node_id, gateway_ip, 4005) do
           :ok ->
             Logger.info("#{log_prefix()} sentantAll exchange completed for #{ssid}")
@@ -1849,6 +1852,9 @@ defmodule AiReality2Transnet.ConnectionManager do
           {:ok, %{"node_id" => real_node_id}} ->
             Logger.info("#{log_prefix()} Got real node_id from mesh/info: #{String.slice(real_node_id, 0..7)}...")
 
+            # Update transport BEFORE exchange so sentants are associated with wifi_hotspot
+            PeerManager.update_peer_transport(real_node_id, :wifi_hotspot)
+
             case perform_sentant_exchange(real_node_id, gateway_ip, 4005) do
               :ok ->
                 Logger.info("#{log_prefix()} sentantAll exchange completed via gateway for #{ssid}")
@@ -1863,6 +1869,9 @@ defmodule AiReality2Transnet.ConnectionManager do
             Logger.warning("#{log_prefix()} Could not get node_id from mesh/info: #{reason}, using placeholder")
             # Fallback to placeholder (not ideal but better than failing completely)
             placeholder_node_id = "unknown-#{ssid}"
+
+            # Update transport BEFORE exchange so sentants are associated with wifi_hotspot
+            PeerManager.update_peer_transport(placeholder_node_id, :wifi_hotspot)
 
             case perform_sentant_exchange(placeholder_node_id, gateway_ip, 4005) do
               :ok ->
