@@ -940,7 +940,7 @@ defmodule AiReality2Transnet.ConnectionManager do
                     Reality2.Sentants.sendto_all(%{
                       event: "__internal",
                       parameters: %{
-                        event: "mesh_host_connected",
+                        mesh_event: "mesh_host_connected",  # Use mesh_event to avoid signal name collision
                         peer_id: peer_id,
                         peer_name: host_name,
                         sentant_count: host_sentant_count
