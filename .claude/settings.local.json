@@ -42,7 +42,9 @@
       "Bash(./gradlew installDebug:*)",
       "Bash(JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew installDebug:*)",
       "Bash(./build_webapp:*)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(./build_webapp.sh:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

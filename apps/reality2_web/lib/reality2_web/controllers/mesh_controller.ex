@@ -112,6 +112,17 @@ defmodule Reality2Web.MeshController do
       # This enables client-to-client discovery through the host
       notify_other_clients_of_new_registration(node_id, node_name, sentants)
 
+      # Emit __internal event for local monitor sentant to trigger webapp refresh
+      Reality2.Sentants.sendto_all(%{
+        event: "__internal",
+        parameters: %{
+          event: "mesh_peer_connected",
+          peer_id: node_id,
+          peer_name: node_name || "Unknown",
+          sentant_count: length(sentants)
+        }
+      })
+
       # Build confirmation response with stored sentant IDs
       # This allows client to verify all sentants were registered
       stored_sentants = get_stored_sentants_for_peer(node_id)

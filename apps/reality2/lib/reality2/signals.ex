@@ -38,9 +38,15 @@ defmodule Reality2.Signals do
   def broadcast(id, event, parameters, passthrough) do
     case Reality2.Sentants.read(%{id: id}, :definition) do
       {:ok, sentant} ->
+        # Add node attribution to the sentant
+        sentant_with_node = Map.merge(sentant, %{
+          node_id: Reality2.Bootstrap.get(:node_id),
+          node_name: Reality2.Bootstrap.get(:node_name)
+        })
+
         signal_data = %{
           id: id,
-          sentant: sentant,
+          sentant: sentant_with_node,
           event: event,
           parameters: parameters,
           passthrough: passthrough

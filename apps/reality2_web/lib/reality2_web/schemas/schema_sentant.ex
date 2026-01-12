@@ -81,11 +81,10 @@ defmodule Reality2Web.Schema.Sentant do
         id: UUID!                                   # The UUID of the sentant
         name: String!                               # The name of the sentant
         description: String                         # The description of the sentant
-        owner: User!                                # The owner of the sentant
-        data: JSON!                                 # The data on the sentant
-        automations: [Automation]!                  # The automations on the sentant
-        plugins: [Plugin]!                          # The plugins used by the sentant
-        node: Node                                  # The node the sentant is on
+        events: [SentantEvent]                      # Public events
+        signals: [String]                           # Public signals
+        nodeId: UUID                                # The ID of the R2 node that owns this sentant
+        nodeName: String                            # Human-readable name of the R2 node
     }
   ```
   """
@@ -98,6 +97,10 @@ defmodule Reality2Web.Schema.Sentant do
     field(:description, :string, description: "Sentant description")
     field(:events, list_of(:sentant_event), description: "Public events")
     field(:signals, list_of(:string), description: "Public signals")
+
+    # Node attribution - identifies which R2 node owns this sentant
+    field(:node_id, :uuid4, description: "ID of the R2 node that owns this sentant")
+    field(:node_name, :string, description: "Human-readable name of the R2 node (e.g., R2Node_A0BC)")
   end
 
   # ------------------------------------------------------------------------------------------------------

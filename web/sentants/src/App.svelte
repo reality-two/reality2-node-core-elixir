@@ -64,6 +64,9 @@
     // Error state
     let errorMessage: string = "";
 
+    // Local node identity (captured from first sentant loaded)
+    let localNodeId: string = "";
+
     // -------------------------------------------------------------------------------------------------
     // Query Strings
     // -------------------------------------------------------------------------------------------------
@@ -196,6 +199,10 @@
             loadSentants().then((result) => {
                 set_state = result.state;
                 loadedData = result.data;
+                // Capture local node ID from first sentant (local sentants come first)
+                if (result.data.length > 0 && result.data[0].nodeId) {
+                    localNodeId = result.data[0].nodeId;
+                }
             });
         }, MONITOR_INIT_DELAY_MS);
     }
@@ -212,7 +219,7 @@
                     .sentantGet(
                         id_query,
                         {},
-                        "name id description events { event parameters } signals",
+                        "name id description events { event parameters } signals nodeId nodeName",
                     )
                     .then((data) => {
                         let result = R2.JSONPath(data, "data.sentantGet");
@@ -233,7 +240,7 @@
                     .sentantGetByName(
                         name_query,
                         {},
-                        "name id description events { event parameters } signals",
+                        "name id description events { event parameters } signals nodeId nodeName",
                     )
                     .then((data) => {
                         let result = R2.JSONPath(data, "data.sentantGet");
@@ -258,7 +265,7 @@
                 r2_node
                     .sentantAll(
                         {},
-                        "name id description events { event parameters } signals",
+                        "name id description events { event parameters } signals nodeId nodeName",
                     )
                     .then((data) => {
                         let result = R2.JSONPath(data, "data.sentantAll");
@@ -312,7 +319,7 @@
                             .sentantGet(
                                 sentant_id,
                                 {},
-                                "name id description events { event parameters } signals",
+                                "name id description events { event parameters } signals nodeId nodeName",
                             )
                             .then((data) => {
                                 // Go through the loaded data and add the new Sentant.
@@ -612,7 +619,7 @@ Layout
                 <!--------------------------------------------------------------------------------------------->
             {:else if state == "view"}
                 <!--------------------------------------------------------------------------------------------->
-                <SentantCards {r2_node} {sentantData} {variables} />
+                <SentantCards {r2_node} {sentantData} {variables} {localNodeId} />
                 <!--------------------------------------------------------------------------------------------->
             {:else if state == "mr"}
                 <!--------------------------------------------------------------------------------------------->

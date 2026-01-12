@@ -17,6 +17,7 @@ defmodule Reality2Web.SentantResolver do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Get the details of a single Sentant by ID or name.
+  # Includes node_id and node_name for attribution.
   # -----------------------------------------------------------------------------------------------------------------------------------------
   def get_sentant(_, args, _) do
     case Map.get(args, :name) do
@@ -28,7 +29,7 @@ defmodule Reality2Web.SentantResolver do
           sentantid ->
             case Reality2.Sentants.read(%{id: sentantid}, :definition) do
               {:ok, sentant} ->
-                {:ok, sentant}
+                {:ok, add_node_attribution(sentant)}
 
               {:error, reason} ->
                 {:error, reason}
@@ -38,12 +39,20 @@ defmodule Reality2Web.SentantResolver do
       name ->
         case Reality2.Sentants.read(%{name: name}, :definition) do
           {:ok, sentant} ->
-            {:ok, sentant}
+            {:ok, add_node_attribution(sentant)}
 
           {:error, reason} ->
             {:error, reason}
         end
     end
+  end
+
+  # Add node_id and node_name to a sentant for attribution
+  defp add_node_attribution(sentant) do
+    Map.merge(sentant, %{
+      node_id: Reality2.Bootstrap.get(:node_id),
+      node_name: Reality2.Bootstrap.get(:node_name)
+    })
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -53,9 +62,22 @@ defmodule Reality2Web.SentantResolver do
   # When hosting a hotspot, also includes sentants registered by connected mesh clients.
   # This enables client-to-client discovery through the host.
   # Excludes the requesting peer's own sentants to prevent duplicates.
+  # Each sentant includes node_id and node_name for attribution.
   # -----------------------------------------------------------------------------------------------------------------------------------------
   def all_sentants(_, _, %{context: context}) do
     {:ok, local_sentants} = Reality2.Sentants.read_all(:definition)
+
+    # Get this node's identity for attribution
+    this_node_id = Reality2.Bootstrap.get(:node_id)
+    this_node_name = Reality2.Bootstrap.get(:node_name)
+
+    # Add node attribution to local sentants
+    local_with_node = Enum.map(local_sentants, fn sentant ->
+      Map.merge(sentant, %{
+        node_id: this_node_id,
+        node_name: this_node_name
+      })
+    end)
 
     # Get the requesting client's IP to filter out their own sentants
     requesting_ip = Map.get(context, :remote_ip)
@@ -64,26 +86,38 @@ defmodule Reality2Web.SentantResolver do
     # but exclude sentants from the requesting peer
     remote_sentants = get_registered_client_sentants(requesting_ip)
 
-    all = local_sentants ++ remote_sentants
-    {:ok, Enum.map(all, fn sentant -> sentant end)}
+    {:ok, local_with_node ++ remote_sentants}
   end
 
   # Fallback for when context is not available
   def all_sentants(_, _, _) do
     {:ok, local_sentants} = Reality2.Sentants.read_all(:definition)
+
+    # Get this node's identity for attribution
+    this_node_id = Reality2.Bootstrap.get(:node_id)
+    this_node_name = Reality2.Bootstrap.get(:node_name)
+
+    # Add node attribution to local sentants
+    local_with_node = Enum.map(local_sentants, fn sentant ->
+      Map.merge(sentant, %{
+        node_id: this_node_id,
+        node_name: this_node_name
+      })
+    end)
+
     remote_sentants = get_registered_client_sentants(nil)
-    all = local_sentants ++ remote_sentants
-    {:ok, Enum.map(all, fn sentant -> sentant end)}
+    {:ok, local_with_node ++ remote_sentants}
   end
 
   # Get sentants from mesh clients that have registered with us (when we're hosting)
   # Optionally excludes sentants from a peer at the given IP address
+  # Includes node_id and node_name for each sentant's origin node
   defp get_registered_client_sentants(exclude_ip) do
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
       case apply(AiReality2Transnet.PeerManager, :get_all_peers, []) do
         peers when is_map(peers) ->
           peers
-          |> Enum.flat_map(fn {_peer_id, peer_info} ->
+          |> Enum.flat_map(fn {peer_id, peer_info} ->
             peer_address = Map.get(peer_info, :address)
 
             # Only include sentants from peers connected via wifi_hotspot (registered clients)
@@ -91,16 +125,20 @@ defmodule Reality2Web.SentantResolver do
             if Map.get(peer_info, :transport) == :wifi_hotspot and
                (exclude_ip == nil or peer_address != exclude_ip) do
               peer_sentants = Map.get(peer_info, :sentants, [])
-              _peer_node_name = Map.get(peer_info, :node_name, "Unknown")
+              peer_node_name = Map.get(peer_info, :node_name, "Unknown")
 
               # Convert string-keyed maps to atom-keyed for GraphQL compatibility
+              # Include node attribution from the peer
               Enum.map(peer_sentants, fn sentant ->
                 %{
                   id: Map.get(sentant, "id") || Map.get(sentant, :id),
                   name: Map.get(sentant, "name") || Map.get(sentant, :name),
                   description: Map.get(sentant, "description") || Map.get(sentant, :description) || "",
                   events: normalize_events(Map.get(sentant, "events") || Map.get(sentant, :events) || []),
-                  signals: normalize_signals(Map.get(sentant, "signals") || Map.get(sentant, :signals) || [])
+                  signals: normalize_signals(Map.get(sentant, "signals") || Map.get(sentant, :signals) || []),
+                  # Node attribution from the peer
+                  node_id: peer_id,
+                  node_name: peer_node_name
                 }
               end)
             else
@@ -165,8 +203,8 @@ defmodule Reality2Web.SentantResolver do
             # Read the sentant details from the Sentant
             case Reality2.Sentants.read(%{id: sentantid}, :definition) do
               {:ok, sentant} ->
-                # Send back the sentant details
-                {:ok, sentant}
+                # Send back the sentant details with node attribution
+                {:ok, add_node_attribution(sentant)}
 
               {:error, reason} ->
                 # Something went wrong
@@ -202,8 +240,8 @@ defmodule Reality2Web.SentantResolver do
           {:ok, sentant} ->
             case Reality2.Sentants.delete(%{id: sentantid}, local) do
               {:ok, _} ->
-                # Send back the sentant details
-                {:ok, sentant}
+                # Send back the sentant details with node attribution
+                {:ok, add_node_attribution(sentant)}
 
               {:error, reason} ->
                 # Something went wrong
@@ -247,12 +285,12 @@ defmodule Reality2Web.SentantResolver do
             description = R2Map.get(swarm, "description", "")
             sentant_ids = R2Map.get(swarm, "sentants", [])
 
-            # Create a list of the sentants' details
+            # Create a list of the sentants' details with node attribution
             sentants =
               Enum.map(sentant_ids, fn id ->
                 case Reality2.Sentants.read(%{id: id}, :definition) do
                   {:ok, sentant} ->
-                    sentant
+                    add_node_attribution(sentant)
 
                   {:error, _reason} ->
                     # Something went wrong
@@ -303,7 +341,7 @@ defmodule Reality2Web.SentantResolver do
                          passthrough: passthrough
                        }) do
                     {:ok, _} ->
-                      {:ok, sentant}
+                      {:ok, add_node_attribution(sentant)}
 
                     {:error, reason} ->
                       # Something went wrong

@@ -36,11 +36,14 @@
         description: "",
         events: [],
         signals: [],
+        node_id: undefined,
+        nodeName: undefined,
     };
     export let r2_node: R2;
     export let mini: boolean = false;
     export let height: string = "1000px";
     export let variables = {};
+    export let isLocal: boolean = true;
 
     type input_text_type = { [key: string]: any };
     type params_type = { [key: string]: string };
@@ -144,6 +147,14 @@
                     : "height:150px; text-align: center; padding-top: 10px; padding-left: 10px; padding-right:10px;"}
             >
                 <Header ui>{sentant.name}</Header>
+                {#if sentant.nodeName}
+                    <p style="margin-top: -5px; margin-bottom: 6px;">
+                        <Text ui small grey>
+                            <Icon server />
+                            {sentant.nodeName}
+                        </Text>
+                    </p>
+                {/if}
                 <p><Text ui small blue>{sentant.id}</Text></p>
                 <p>
                     <Text ui
@@ -204,7 +215,7 @@
                     "&variables=" +
                     encodeURIComponent(JSON.stringify(variables))}
             >
-                <Image ui large src="/images/bee_blue.png" />
+                <Image ui large src={isLocal ? "/images/bee_blue.png" : "/images/bee_grey.png"} />
             </Link>
             <Div
                 style={mini
@@ -212,6 +223,14 @@
                     : "height:130px; text-align: center; padding-top:10px; padding-left: 10px; padding-right:10px;"}
             >
                 <Header ui>{sentant.name}</Header>
+                {#if sentant.nodeName}
+                    <p style="margin-top: -5px; margin-bottom: 6px;">
+                        <Text ui small grey>
+                            <Icon server />
+                            {sentant.nodeName}
+                        </Text>
+                    </p>
+                {/if}
                 <p><Text ui small blue>{sentant.id}</Text></p>
                 <p>{sentant.description}</p>
             </Div>

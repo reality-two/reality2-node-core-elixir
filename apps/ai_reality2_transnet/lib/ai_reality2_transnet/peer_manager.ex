@@ -459,6 +459,18 @@ defmodule AiReality2Transnet.PeerManager do
         {:noreply, state}
 
       peer ->
+        # Emit __internal event for monitor sentant before removal
+        if Code.ensure_loaded?(Reality2.Sentants) do
+          Reality2.Sentants.sendto_all(%{
+            event: "__internal",
+            parameters: %{
+              event: "mesh_peer_disconnected",
+              peer_id: node_id,
+              peer_name: peer.node_name || "Unknown"
+            }
+          })
+        end
+
         # Remove peer from tracking (e.g., user request or connection lost)
         new_peers = Map.delete(state.peers, node_id)
         new_stats = Map.update!(state.stats, :total_removed, &(&1 + 1))
@@ -564,9 +576,22 @@ defmodule AiReality2Transnet.PeerManager do
         is_stale && !is_protected
       end)
 
-    # Log each removal and clean up PNS_NodeNames mapping
+    # Log each removal, emit event, and clean up PNS_NodeNames mapping
     Enum.each(stale_peers, fn {node_id, peer} ->
       Logger.info("#{log_prefix()} Removing stale peer: #{String.slice(node_id, 0..7)}... (timeout)")
+
+      # Emit __internal event for monitor sentant to trigger webapp refresh
+      if Code.ensure_loaded?(Reality2.Sentants) do
+        Reality2.Sentants.sendto_all(%{
+          event: "__internal",
+          parameters: %{
+            event: "mesh_peer_disconnected",
+            peer_id: node_id,
+            peer_name: peer.node_name || "Unknown"
+          }
+        })
+      end
+
       if peer.node_name do
         Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
       end

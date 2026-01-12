@@ -11,6 +11,10 @@ export type Sentant = {
   description: string;
   events: Event[];
   signals: string[];
+  // Node attribution - identifies which R2 node owns this sentant
+  // Note: Uses camelCase to match GraphQL response (Absinthe converts snake_case to camelCase)
+  nodeId?: string;   // UUID of the owning node
+  nodeName?: string; // Human-readable name (e.g., "R2Node_A0BC")
 };
 
 export type Location = {

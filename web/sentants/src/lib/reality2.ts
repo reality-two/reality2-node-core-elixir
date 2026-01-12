@@ -82,7 +82,7 @@ export default class R2 {
    * const sentants = result.data.sentantAll;
    * ```
    */
-  sentantAll(passthrough = {}, details: string = "id name"): Promise<object> {
+  sentantAll(passthrough = {}, details: string = "id name nodeId nodeName"): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._sentantAll(details), {}).then(
         (data: GraphQLResponse) => {
