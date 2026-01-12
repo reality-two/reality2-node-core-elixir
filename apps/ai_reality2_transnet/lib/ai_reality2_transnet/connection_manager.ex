@@ -906,11 +906,14 @@ defmodule AiReality2Transnet.ConnectionManager do
             {:ok, my_ip} ->
               Logger.info("#{log_prefix()} Connected - IP: #{my_ip}")
 
-              # Step 3: Exchange Sentant directories via GraphQL
+              # Step 3: Set transport BEFORE sentant exchange so sentants are associated correctly
+              PeerManager.update_peer_transport(peer_id, :wifi_hotspot)
+
+              # Step 4: Exchange Sentant directories via GraphQL
               # This populates PNS routing table with host's available Sentants
               case perform_sentant_exchange(peer_id, join_offer.rendezvous_ip, join_offer.rendezvous_port) do
                 :ok ->
-                  # Step 4: Update state to :connected_as_client
+                  # Step 5: Update state to :connected_as_client
                   final_state = %{new_state |
                     connection_state: :connected_as_client,
                     current_host_peer_id: peer_id,
@@ -921,8 +924,29 @@ defmodule AiReality2Transnet.ConnectionManager do
                     stats: Map.update!(new_state.stats, :connections_made, &(&1 + 1))
                   }
 
-                  # Step 5: Notify PeerManager of transport upgrade (BLE → WiFi)
-                  PeerManager.update_peer_transport(peer_id, :wifi_hotspot)
+                  # Step 6: Emit event so client webapp updates to show host's sentants
+                  if Code.ensure_loaded?(Reality2.Sentants) do
+                    host_name = PeerManager.get_peer(peer_id)
+                      |> case do
+                        {:ok, peer} -> Map.get(peer, :node_name, "Unknown")
+                        _ -> "Unknown"
+                      end
+                    host_sentant_count = PeerManager.get_peer(peer_id)
+                      |> case do
+                        {:ok, peer} -> length(Map.get(peer, :sentants, []))
+                        _ -> 0
+                      end
+
+                    Reality2.Sentants.sendto_all(%{
+                      event: "__internal",
+                      parameters: %{
+                        event: "mesh_host_connected",
+                        peer_id: peer_id,
+                        peer_name: host_name,
+                        sentant_count: host_sentant_count
+                      }
+                    })
+                  end
 
                   connection_info = %{
                     peer_id: peer_id,

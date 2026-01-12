@@ -395,14 +395,15 @@
             // For new peer or sentant changes - need to fetch updated data
             var needs_refresh =
                 mesh_event === "mesh_peer_connected" ||
-                mesh_event === "mesh_peer_sentants_changed";
+                mesh_event === "mesh_peer_sentants_changed" ||
+                mesh_event === "mesh_host_connected";  // Client connected to host
 
             // r2_node_found fires on BLE discovery, before WiFi registration
             // Use a longer delay to allow time for WiFi connection and HTTP registration
             var ble_discovery = ble_activity === "r2_node_found";
 
             if (needs_refresh || ble_discovery) {
-                const delay = ble_discovery ? 2000 : 200; // 2s for BLE discovery, 200ms for mesh events
+                const delay = ble_discovery ? 5000 : 200; // 5s for BLE discovery (WiFi takes time), 200ms for mesh events
                 console.log("Mesh/BLE event - fetching sentants in", delay, "ms:", mesh_event || ble_activity, R2.JSONPath(updates, "parameters"));
                 // Delay to ensure peer registration is complete on server
                 setTimeout(() => {
