@@ -1825,6 +1825,9 @@ defmodule AiReality2Transnet.ConnectionManager do
             # Update the state with the discovered peer_node_id
             GenServer.cast(__MODULE__, {:set_host_peer_id, peer_node_id})
 
+            # Emit mesh_host_connected event so client webapp updates
+            emit_mesh_host_connected_event(peer_node_id)
+
           {:error, reason} ->
             Logger.error("#{log_prefix()} sentantAll exchange failed for #{ssid}: #{reason}")
         end
@@ -1849,6 +1852,8 @@ defmodule AiReality2Transnet.ConnectionManager do
             case perform_sentant_exchange(real_node_id, gateway_ip, 4005) do
               :ok ->
                 Logger.info("#{log_prefix()} sentantAll exchange completed via gateway for #{ssid}")
+                # Emit mesh_host_connected event so client webapp updates
+                emit_mesh_host_connected_event(real_node_id)
 
               {:error, reason} ->
                 Logger.error("#{log_prefix()} sentantAll exchange failed via gateway: #{reason}")
@@ -1862,6 +1867,8 @@ defmodule AiReality2Transnet.ConnectionManager do
             case perform_sentant_exchange(placeholder_node_id, gateway_ip, 4005) do
               :ok ->
                 Logger.info("#{log_prefix()} sentantAll exchange completed via gateway for #{ssid} (placeholder)")
+                # Emit mesh_host_connected event so client webapp updates
+                emit_mesh_host_connected_event(placeholder_node_id)
 
               {:error, reason} ->
                 Logger.error("#{log_prefix()} sentantAll exchange failed via gateway: #{reason}")
@@ -1906,6 +1913,39 @@ defmodule AiReality2Transnet.ConnectionManager do
 
       {error, _} ->
         {:error, "ip_route_failed: #{error}"}
+    end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Private Functions - Event Helpers
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Emit mesh_host_connected event for client webapp to refresh
+  # Called after sentant exchange completes in auto-connect paths
+  defp emit_mesh_host_connected_event(peer_node_id) do
+    if Code.ensure_loaded?(Reality2.Sentants) do
+      host_name = PeerManager.get_peer(peer_node_id)
+        |> case do
+          {:ok, peer} -> Map.get(peer, :node_name, "Unknown")
+          _ -> "Unknown"
+        end
+      host_sentant_count = PeerManager.get_peer(peer_node_id)
+        |> case do
+          {:ok, peer} -> length(Map.get(peer, :sentants, []))
+          _ -> 0
+        end
+
+      Logger.info("#{log_prefix()} Emitting mesh_host_connected event for #{host_name} (#{host_sentant_count} sentants)")
+
+      Reality2.Sentants.sendto_all(%{
+        event: "__internal",
+        parameters: %{
+          mesh_event: "mesh_host_connected",
+          peer_id: peer_node_id,
+          peer_name: host_name,
+          sentant_count: host_sentant_count
+        }
+      })
     end
   end
 
