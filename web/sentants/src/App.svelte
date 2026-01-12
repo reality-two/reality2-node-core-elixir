@@ -50,8 +50,10 @@
     let monitorTimeoutId: number | undefined;
 
     // Set up the sentant loading
+    // Using a version counter to force Svelte reactivity in async callbacks
+    let dataVersion = 0;
     var loadedData: Sentant[] = [];
-    $: sentantData = loadedData;
+    $: sentantData = (dataVersion, loadedData); // dataVersion forces re-evaluation
 
     // Set up the state
     var set_state: LoadState = "loading";
@@ -378,7 +380,8 @@
             if (mesh_event === "mesh_peer_disconnected" || ble_activity === "r2_node_lost") {
                 console.log("Peer disconnected:", peer_id);
                 if (peer_id) {
-                    loadedData = sentantData.filter(s => s.nodeId !== peer_id);
+                    loadedData = loadedData.filter(s => s.nodeId !== peer_id);
+                    dataVersion++; // Force reactive update
                 }
                 return;
             }
@@ -410,6 +413,7 @@
                             if (!localNodeId && result[0].nodeId) {
                                 localNodeId = result[0].nodeId;
                                 loadedData = result;
+                                dataVersion++; // Force reactive update
                                 console.log("First load, set localNodeId:", localNodeId);
                                 return;
                             }
@@ -422,7 +426,8 @@
 
                             // Combine: existing local sentants (with their message state) + all remote from server
                             loadedData = [...existingLocal, ...newRemote];
-                            console.log("Updated loadedData to", loadedData.length, "sentants");
+                            dataVersion++; // Force reactive update
+                            console.log("Updated loadedData to", loadedData.length, "sentants, dataVersion:", dataVersion);
                         }
                     });
                 return;
