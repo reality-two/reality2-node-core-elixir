@@ -531,7 +531,14 @@ defmodule Reality2.Sentants do
   ```
   """
   def sendto_all(message_map) do
+    require Logger
     sentants = get_all_sentant_comms()
+
+    # Debug: log how many sentants will receive this event
+    event = Map.get(message_map, :event)
+    inner_event = get_in(message_map, [:parameters, :event]) || get_in(message_map, [:parameters, :activity])
+    Logger.info("[Sentants.sendto_all] Sending '#{event}' (#{inner_event}) to #{length(sentants)} sentants")
+
     Enum.each(sentants, fn pid -> GenServer.cast(pid, message_map) end)
 
     {:ok, length(sentants)}
