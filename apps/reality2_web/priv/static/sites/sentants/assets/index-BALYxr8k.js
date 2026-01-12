@@ -27,7 +27,7 @@ var Jg=Object.defineProperty;var Zf=n=>{throw TypeError(n)};var Zg=(n,o,s)=>o in
                     ${o}
                 }
             }
-        }`}_sentandSend(o){return`mutation SentantSend($id: UUID4!, $event: String!, $parameters: Json, $passthrough: Json) {
+        }`}_sentandSend(o){return`mutation SentantSend($id: String!, $event: String!, $parameters: Json, $passthrough: Json) {
             sentantSend(id: $id, event: $event, parameters: $parameters, passthrough: $passthrough) {
                 ${o}
             }

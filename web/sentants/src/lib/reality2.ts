@@ -599,7 +599,7 @@ export default class R2 {
   }
 
   _sentandSend(details: string): string {
-    return `mutation SentantSend($id: UUID4!, $event: String!, $parameters: Json, $passthrough: Json) {
+    return `mutation SentantSend($id: String!, $event: String!, $parameters: Json, $passthrough: Json) {
             sentantSend(id: $id, event: $event, parameters: $parameters, passthrough: $passthrough) {
                 ${details}
             }
