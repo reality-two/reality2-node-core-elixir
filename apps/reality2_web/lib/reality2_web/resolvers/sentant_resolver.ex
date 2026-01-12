@@ -113,9 +113,21 @@ defmodule Reality2Web.SentantResolver do
   # Optionally excludes sentants from a peer at the given IP address
   # Includes node_id and node_name for each sentant's origin node
   defp get_registered_client_sentants(exclude_ip) do
+    require Logger
+
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
       case apply(AiReality2Transnet.PeerManager, :get_all_peers, []) do
         peers when is_map(peers) ->
+          # Debug: log all peers and their transport status
+          Logger.info("[SentantResolver] get_registered_client_sentants called, exclude_ip: #{inspect(exclude_ip)}")
+          Logger.info("[SentantResolver] Found #{map_size(peers)} peers in PeerManager")
+          Enum.each(peers, fn {peer_id, peer_info} ->
+            transport = Map.get(peer_info, :transport)
+            sentant_count = length(Map.get(peer_info, :sentants, []))
+            node_name = Map.get(peer_info, :node_name, "?")
+            Logger.info("[SentantResolver] Peer #{node_name} (#{String.slice(peer_id, 0..7)}...): transport=#{inspect(transport)}, sentants=#{sentant_count}")
+          end)
+
           peers
           |> Enum.flat_map(fn {peer_id, peer_info} ->
             peer_address = Map.get(peer_info, :address)
