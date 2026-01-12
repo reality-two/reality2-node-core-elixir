@@ -51,7 +51,7 @@
 <div style="width: 100%; height: {height}; overflow-y:scroll; margin-top: 10px;">
     {#if filteredSentants.length > 0}
         <Cards ui centered style="margin: 0 14px 10px 14px; padding-top: 10px; {isLocal ? '' : 'opacity: 0.7;'}">
-            {#each filteredSentants as sentant}
+            {#each filteredSentants as sentant (sentant.nodeId + '|' + sentant.id)}
                 <SentantCard {sentant} {r2_node} {variables} {isLocal} />
             {/each}
         </Cards>

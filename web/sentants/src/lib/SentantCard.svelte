@@ -7,7 +7,7 @@
   Contact: roycdavies.github.io
 ------------------------------------------------------------------------------------------------------->
 <script lang="ts">
-    import { onMount, tick } from "svelte";
+    import { onMount, onDestroy, tick } from "svelte";
     // @ts-ignore - svelte-fomantic-ui@0.3.9 doesn't provide TypeScript type definitions
     import {
         Card,
@@ -113,7 +113,8 @@
     }
 
     onMount(() => {
-        if (sentant.name == "monitor") return;
+        // Only subscribe to signals for local sentants (remote sentants require connecting to their node)
+        if (sentant.name == "monitor" || !isLocal) return;
         for (let i = 0; i < sentant.signals.length; i++) {
             r2_node.awaitSignal(sentant.id, sentant.signals[i], (data: any) => {
                 if (data.hasOwnProperty("event")) {
@@ -134,6 +135,14 @@
                     updatePopup(sentant.id);
                 }
             });
+        }
+    });
+
+    onDestroy(() => {
+        // Clean up signal subscriptions when component is destroyed
+        if (sentant.name == "monitor" || !isLocal) return;
+        for (let i = 0; i < sentant.signals.length; i++) {
+            r2_node.unsubscribe(sentant.id, sentant.signals[i]);
         }
     });
 </script>

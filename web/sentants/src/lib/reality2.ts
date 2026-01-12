@@ -230,6 +230,29 @@ export default class R2 {
   }
 
   /**
+   * Unsubscribe from a signal subscription
+   *
+   * Closes the websocket connection and cleans up resources for the specified
+   * sentant/signal combination.
+   *
+   * @param id - The sentant UUID to unsubscribe from
+   * @param signal - The signal name to unsubscribe from
+   */
+  unsubscribe(id: string, signal: string): void {
+    const key = id + "|" + signal;
+    if (this._sockets[key]) {
+      if (this._sockets[key].timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+      if (this._sockets[key].ws) {
+        this._sockets[key].ws.close();
+      }
+      delete this._sockets[key];
+    }
+  }
+
+  /**
    * Monitor the Reality2 node for sentant lifecycle events
    *
    * Sets up monitoring for sentant creation/deletion events at the node level.
