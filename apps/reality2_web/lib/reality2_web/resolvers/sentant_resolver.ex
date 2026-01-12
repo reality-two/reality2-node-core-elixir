@@ -536,7 +536,7 @@ defmodule Reality2Web.SentantResolver do
     url = "https://#{peer_ip}:4005/reality2"
 
     query = """
-    mutation SendEvent($id: UUID4!, $event: String!, $parameters: Json, $passthrough: Json) {
+    mutation SendEvent($id: String!, $event: String!, $parameters: Json, $passthrough: Json) {
       sentantSend(id: $id, event: $event, parameters: $parameters, passthrough: $passthrough) {
         id
         name
@@ -544,13 +544,17 @@ defmodule Reality2Web.SentantResolver do
     }
     """
 
+    # Parameters and passthrough need to be JSON strings for the Json scalar type
+    params_json = if is_map(parameters), do: Jason.encode!(parameters), else: parameters
+    passthrough_json = if is_map(passthrough), do: Jason.encode!(passthrough), else: passthrough
+
     body = Jason.encode!(%{
       query: query,
       variables: %{
         id: sentant_id,
         event: event,
-        parameters: parameters,
-        passthrough: passthrough
+        parameters: params_json,
+        passthrough: passthrough_json
       }
     })
 
