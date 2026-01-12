@@ -310,6 +310,29 @@
     // -------------------------------------------------------------------------------------------------
     function updateSentants(updates: GraphQLResponse): void {
         if (name_query == null && id_query == null) {
+            // Check for mesh peer events (requires full refresh)
+            var mesh_event = R2.JSONPath(updates, "parameters.event");
+            if (mesh_event === "mesh_peer_connected" || mesh_event === "mesh_peer_disconnected") {
+                // Full refresh when mesh topology changes
+                r2_node
+                    .sentantAll(
+                        {},
+                        "name id description events { event parameters } signals nodeId nodeName",
+                    )
+                    .then((data) => {
+                        let result = R2.JSONPath(data, "data.sentantAll");
+                        if (result != null) {
+                            loadedData = result;
+                            // Update localNodeId if we don't have it yet
+                            if (!localNodeId && result.length > 0 && result[0].nodeId) {
+                                localNodeId = result[0].nodeId;
+                            }
+                        }
+                    });
+                return;
+            }
+
+            // Handle local sentant create/delete events
             var sentant_id = R2.JSONPath(updates, "parameters.id");
             var sentant_name = R2.JSONPath(updates, "parameters.name");
             if (sentant_id !== null && sentant_name !== RESERVED_SENTANT_NAMES.VIEW) {

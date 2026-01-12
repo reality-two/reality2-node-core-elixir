@@ -459,36 +459,43 @@ defmodule AiReality2Transnet.PeerManager do
         {:noreply, state}
 
       peer ->
-        # Emit __internal event for monitor sentant before removal
-        if Code.ensure_loaded?(Reality2.Sentants) do
-          Reality2.Sentants.sendto_all(%{
-            event: "__internal",
-            parameters: %{
-              event: "mesh_peer_disconnected",
-              peer_id: node_id,
-              peer_name: peer.node_name || "Unknown"
-            }
-          })
+        # Protect peers with active WiFi hotspot connections from BLE lost events
+        # They should only be removed via explicit unregistration or timeout
+        if peer.transport == :wifi_hotspot do
+          Logger.debug("#{log_prefix()} Ignoring remove request for WiFi-connected peer: #{String.slice(node_id, 0..7)}...")
+          {:noreply, state}
+        else
+          # Emit __internal event for monitor sentant before removal
+          if Code.ensure_loaded?(Reality2.Sentants) do
+            Reality2.Sentants.sendto_all(%{
+              event: "__internal",
+              parameters: %{
+                event: "mesh_peer_disconnected",
+                peer_id: node_id,
+                peer_name: peer.node_name || "Unknown"
+              }
+            })
+          end
+
+          # Remove peer from tracking (e.g., user request or connection lost)
+          new_peers = Map.delete(state.peers, node_id)
+          new_stats = Map.update!(state.stats, :total_removed, &(&1 + 1))
+
+          # Clean up PNS_NodeNames mapping
+          if peer.node_name do
+            Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
+          end
+
+          Logger.info("#{log_prefix()} Peer removed: #{String.slice(node_id, 0..7)}...")
+
+          # Notify PNS Router that peer is gone
+          # This removes routes to Sentants on this peer
+          if Code.ensure_loaded?(AiReality2Pns.Router) do
+            AiReality2Pns.Router.refresh_topology()
+          end
+
+          {:noreply, %{state | peers: new_peers, stats: new_stats}}
         end
-
-        # Remove peer from tracking (e.g., user request or connection lost)
-        new_peers = Map.delete(state.peers, node_id)
-        new_stats = Map.update!(state.stats, :total_removed, &(&1 + 1))
-
-        # Clean up PNS_NodeNames mapping
-        if peer.node_name do
-          Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
-        end
-
-        Logger.info("#{log_prefix()} Peer removed: #{String.slice(node_id, 0..7)}...")
-
-        # Notify PNS Router that peer is gone
-        # This removes routes to Sentants on this peer
-        if Code.ensure_loaded?(AiReality2Pns.Router) do
-          AiReality2Pns.Router.refresh_topology()
-        end
-
-        {:noreply, %{state | peers: new_peers, stats: new_stats}}
     end
   end
 
