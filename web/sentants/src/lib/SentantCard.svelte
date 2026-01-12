@@ -98,7 +98,9 @@
                 }
             }
         }
-        r2_node.sentantSend(id, event, params);
+        // For remote sentants, use nodeId|sentantId format for PNS routing
+        let targetId = isLocal ? id : `${sentant.nodeId}|${id}`;
+        r2_node.sentantSend(targetId, event, params);
     }
 
     function unload_sentant() {
