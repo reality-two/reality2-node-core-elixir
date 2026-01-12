@@ -77,6 +77,8 @@
 
     // Available nodes derived from sentant data
     $: availableNodes = getAvailableNodes(sentantData, localNodeId);
+    // Debug: log when availableNodes changes
+    $: console.log("availableNodes updated:", availableNodes.length, "nodes:", availableNodes.map(n => n.nodeName));
 
     interface NodeInfo {
         nodeId: string;
@@ -605,7 +607,7 @@ Layout
                 </Input>
                 {#if availableNodes.length > 0}
                     <select class="ui selection dropdown" style="min-width: 180px; padding: 0.67857143em 1em; font-size: 1.14285714em;" bind:value={selectedNodeId}>
-                        {#each availableNodes as node}
+                        {#each availableNodes as node (node.nodeId)}
                             <option value={node.nodeId}>{node.nodeName} ({node.sentantCount}){node.isLocal ? " - local" : ""}</option>
                         {/each}
                     </select>
