@@ -72,6 +72,20 @@ defmodule Reality2Web.MeshController do
     Logger.debug("[MeshController] Sentants being registered: #{inspect(sentant_names)}")
 
     if node_id do
+      # Check if this is an existing peer (update) or new peer
+      is_existing_peer = if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+        case apply(AiReality2Transnet.PeerManager, :get_peer, [node_id]) do
+          {:ok, existing_peer} ->
+            # Get previous sentant count for comparison
+            previous_count = length(Map.get(existing_peer, :sentants, []))
+            {true, previous_count}
+          _ ->
+            {false, 0}
+        end
+      else
+        {false, 0}
+      end
+
       # Register the peer if not already known
       if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
         # Use synchronous call to ensure peer is registered before updating sentants
@@ -113,13 +127,18 @@ defmodule Reality2Web.MeshController do
       notify_other_clients_of_new_registration(node_id, node_name, sentants)
 
       # Emit __internal event for local monitor sentant to trigger webapp refresh
+      # Differentiate between new peer and existing peer updating sentants
+      {existing, previous_count} = is_existing_peer
+      event_name = if existing, do: "mesh_peer_sentants_changed", else: "mesh_peer_connected"
+
       Reality2.Sentants.sendto_all(%{
         event: "__internal",
         parameters: %{
-          event: "mesh_peer_connected",
+          event: event_name,
           peer_id: node_id,
           peer_name: node_name || "Unknown",
-          sentant_count: length(sentants)
+          sentant_count: length(sentants),
+          previous_count: previous_count
         }
       })
 

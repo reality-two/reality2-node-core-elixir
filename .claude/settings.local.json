@@ -56,7 +56,12 @@
       "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir add web/sentants/src/lib/SentantCards.svelte web/sentants/src/App.svelte apps/reality2_web/priv/static/sites/sentants/)",
       "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir add web/sentants/src/App.svelte web/sentants/src/lib/SentantCards.svelte apps/reality2_web/priv/static/sites/sentants/)",
       "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir add:*)",
-      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir diff web/sentants/src/lib/SentantCards.svelte)"
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir diff web/sentants/src/lib/SentantCards.svelte)",
+      "Bash(./scripts/build_webapp:*)",
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir diff apps/ai_reality2_transnet/lib/ai_reality2_transnet/connection_manager.ex apps/reality2_web/lib/reality2_web/resolvers/sentant_resolver.ex)",
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir diff --cached apps/ai_reality2_transnet/lib/ai_reality2_transnet/connection_manager.ex apps/reality2_web/lib/reality2_web/resolvers/sentant_resolver.ex)",
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir diff HEAD -- apps/ai_reality2_transnet/lib/ai_reality2_transnet/connection_manager.ex)",
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir log --oneline -5)"
     ]
   }
 }

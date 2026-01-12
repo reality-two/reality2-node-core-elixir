@@ -369,8 +369,11 @@
         if (name_query == null && id_query == null) {
             // Check for mesh peer events (requires full refresh)
             var mesh_event = R2.JSONPath(updates, "parameters.event");
-            if (mesh_event === "mesh_peer_connected" || mesh_event === "mesh_peer_disconnected") {
-                // Full refresh when mesh topology changes
+            if (mesh_event === "mesh_peer_connected" ||
+                mesh_event === "mesh_peer_disconnected" ||
+                mesh_event === "mesh_peer_sentants_changed") {
+                // Full refresh when mesh topology or remote sentants change
+                console.log("Mesh event received:", mesh_event, R2.JSONPath(updates, "parameters"));
                 r2_node
                     .sentantAll(
                         {},
