@@ -67,7 +67,8 @@
       "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir diff HEAD -- apps/reality2_web/lib/reality2_web/controllers/mesh_controller.ex)",
       "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir log --oneline -3)",
       "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir commit -m \"$\\(cat <<''EOF''\nHandle BLE discovery events in webapp for auto-refresh\n\n- Add handling for r2_node_found and r2_node_lost events\n- These use parameters.activity \\(vs parameters.event for mesh events\\)\n- Webapp now refreshes on both mesh and BLE network events\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir commit -m \"$\\(cat <<''EOF''\nPreserve local sentant messages on network events\n\n- Peer disconnected/lost: filter out peer''s sentants locally \\(no refresh\\)\n- Peer connected/found: merge remote sentants while keeping local ones\n- This preserves message history on local sentant cards\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git -C /home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir commit -m \"$\\(cat <<''EOF''\nPreserve local sentant messages on network events\n\n- Peer disconnected/lost: filter out peer''s sentants locally \\(no refresh\\)\n- Peer connected/found: merge remote sentants while keeping local ones\n- This preserves message history on local sentant cards\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(/home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir/scripts/build_webapp:*)"
     ]
   }
 }
