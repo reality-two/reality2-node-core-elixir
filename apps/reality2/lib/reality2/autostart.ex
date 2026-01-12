@@ -53,7 +53,11 @@ defmodule Reality2.Autostart do
 
   # Check if the core system and all plugins are ready
   defp system_ready? do
-    Process.whereis(Reality2.HTTPClient) != nil and plugins_ready?()
+    http_ready = Process.whereis(Reality2.HTTPClient) != nil
+    sentants_ready = PartitionSupervisor.which_children(Reality2.Sentants) != []
+    metadata_ready = Process.whereis(:SentantNames) != nil and Process.whereis(:SentantIDs) != nil
+
+    http_ready and sentants_ready and metadata_ready and plugins_ready?()
   end
 
   # Check if all configured plugin applications have started
@@ -117,8 +121,13 @@ defmodule Reality2.Autostart do
     if File.dir?(autostart) do
       Logger.info("Loading from autostart directory: #{autostart}")
 
-      File.ls!(autostart)
-      |> Enum.each(&load_file/1)
+      files = File.ls!(autostart) |> Enum.sort()
+
+      Enum.each(files, fn file ->
+        load_file(file)
+        # Small delay between files to avoid race conditions
+        Process.sleep(100)
+      end)
     else
       Logger.debug("Autostart directory not found")
     end
