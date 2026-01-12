@@ -324,53 +324,169 @@ defmodule Reality2Web.SentantResolver do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Send an event to a Sentant
+  # Supports both local IDs and remote IDs in "nodeId|sentantId" format
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @spec send_event(any(), map(), any()) ::
           {:error, :event | :existance | :id | :invalid_event | :name}
   def send_event(_root, args, _info) do
-    # Get the Sentant ID
+    require Logger
+
+    # Get the Sentant ID (may be "nodeId|sentantId" for remote sentants)
     case Map.get(args, :id) do
       nil ->
         {:error, :id}
 
-      sentantid ->
+      raw_id ->
         # Get the event
         case Map.get(args, :event) do
           nil ->
             {:error, :event}
 
           event ->
-            # Get the parameters
             parameters = Map.get(args, :parameters, %{})
             passthrough = Map.get(args, :passthrough, %{})
-            # Send the event to the Sentant
-            # Check if this is a valid event that can be sent from outside, and if so, send it.
-            case Reality2.Sentants.read(%{id: sentantid}, :definition) do
-              {:ok, sentant} ->
-                # sentant |> R2Map.get(:automations, []) |> find_events_in_automations(false)
-                events = get_event_list(R2Map.get(sentant, :events, []))
 
-                if Enum.member?(events, event) do
-                  case Reality2.Sentants.sendto(%{id: sentantid}, %{
-                         event: event,
-                         parameters: parameters,
-                         passthrough: passthrough
-                       }) do
-                    {:ok, _} ->
-                      {:ok, add_node_attribution(sentant)}
+            # Check if this is a remote sentant (nodeId|sentantId format)
+            case parse_remote_id(raw_id) do
+              {:remote, node_id, sentant_id} ->
+                # Route to remote node
+                send_event_to_remote(node_id, sentant_id, event, parameters, passthrough)
 
-                    {:error, reason} ->
-                      # Something went wrong
-                      {:error, reason}
-                  end
-                else
-                  {:error, :invalid_event}
-                end
-
-              {:error, reason} ->
-                {:error, reason}
+              {:local, sentant_id} ->
+                # Local sentant - use existing logic
+                send_event_to_local(sentant_id, event, parameters, passthrough)
             end
         end
+    end
+  end
+
+  # Parse ID to determine if local or remote
+  # Returns {:remote, node_id, sentant_id} or {:local, sentant_id}
+  defp parse_remote_id(raw_id) do
+    local_node_id = Reality2.Bootstrap.get(:node_id)
+
+    case String.split(raw_id, "|", parts: 2) do
+      [node_id, sentant_id] when node_id != local_node_id ->
+        {:remote, node_id, sentant_id}
+
+      [_local_node_id, sentant_id] ->
+        # nodeId matches local - treat as local
+        {:local, sentant_id}
+
+      [sentant_id] ->
+        # No separator - local ID
+        {:local, sentant_id}
+    end
+  end
+
+  # Send event to a local sentant
+  defp send_event_to_local(sentant_id, event, parameters, passthrough) do
+    case Reality2.Sentants.read(%{id: sentant_id}, :definition) do
+      {:ok, sentant} ->
+        events = get_event_list(R2Map.get(sentant, :events, []))
+
+        if Enum.member?(events, event) do
+          case Reality2.Sentants.sendto(%{id: sentant_id}, %{
+                 event: event,
+                 parameters: parameters,
+                 passthrough: passthrough
+               }) do
+            {:ok, _} ->
+              {:ok, add_node_attribution(sentant)}
+
+            {:error, reason} ->
+              {:error, reason}
+          end
+        else
+          {:error, :invalid_event}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Send event to a remote sentant via HTTP
+  defp send_event_to_remote(node_id, sentant_id, event, parameters, passthrough) do
+    require Logger
+
+    # Look up the peer's IP address from PeerManager
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      case apply(AiReality2Transnet.PeerManager, :get_peer, [node_id]) do
+        {:ok, peer} ->
+          peer_ip = Map.get(peer, :address)
+          peer_name = Map.get(peer, :node_name, "Unknown")
+
+          if peer_ip && peer_ip != "via_host" do
+            Logger.info("[SentantResolver] Forwarding event '#{event}' to remote sentant #{String.slice(sentant_id, 0..7)}... on #{peer_name} (#{peer_ip})")
+            forward_event_via_http(peer_ip, sentant_id, event, parameters, passthrough)
+          else
+            # Peer connected via host - try to route through host
+            Logger.warning("[SentantResolver] Peer #{peer_name} connected via host, direct routing not available")
+            {:error, :peer_not_directly_reachable}
+          end
+
+        {:error, _} ->
+          Logger.warning("[SentantResolver] Peer #{String.slice(node_id, 0..7)}... not found in PeerManager")
+          {:error, :peer_not_found}
+      end
+    else
+      {:error, :transnet_not_loaded}
+    end
+  end
+
+  # Forward event to remote node via HTTPS GraphQL endpoint
+  defp forward_event_via_http(peer_ip, sentant_id, event, parameters, passthrough) do
+    require Logger
+
+    url = "https://#{peer_ip}:4005/reality2"
+
+    query = """
+    mutation SendEvent($id: UUID4!, $event: String!, $parameters: Json, $passthrough: Json) {
+      sentantSend(id: $id, event: $event, parameters: $parameters, passthrough: $passthrough) {
+        id
+        name
+      }
+    }
+    """
+
+    body = Jason.encode!(%{
+      query: query,
+      variables: %{
+        id: sentant_id,
+        event: event,
+        parameters: parameters,
+        passthrough: passthrough
+      }
+    })
+
+    headers = [{"content-type", "application/json"}]
+    request = Finch.build(:post, url, headers, body)
+
+    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
+      {:ok, %Finch.Response{status: 200, body: response_body}} ->
+        case Jason.decode(response_body) do
+          {:ok, %{"data" => %{"sentantSend" => sentant_data}}} when not is_nil(sentant_data) ->
+            Logger.info("[SentantResolver] Successfully forwarded event to remote sentant")
+            # Return a minimal response indicating success
+            {:ok, %{id: sentant_id, name: Map.get(sentant_data, "name", "remote")}}
+
+          {:ok, %{"errors" => errors}} ->
+            error_msg = errors |> Enum.map(& &1["message"]) |> Enum.join(", ")
+            Logger.warning("[SentantResolver] Remote node returned error: #{error_msg}")
+            {:error, :remote_error}
+
+          _ ->
+            {:error, :invalid_response}
+        end
+
+      {:ok, %Finch.Response{status: status}} ->
+        Logger.warning("[SentantResolver] Remote node returned HTTP #{status}")
+        {:error, :http_error}
+
+      {:error, reason} ->
+        Logger.warning("[SentantResolver] Failed to reach remote node: #{inspect(reason)}")
+        {:error, :connection_failed}
     end
   end
 

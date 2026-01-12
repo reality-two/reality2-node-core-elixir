@@ -98,8 +98,8 @@
                 }
             }
         }
-        // For remote sentants, use nodeId|sentantId format for PNS routing
-        let targetId = isLocal ? id : `${sentant.nodeId}|${id}`;
+        // Always use nodeId|sentantId format - server handles routing
+        let targetId = sentant.nodeId ? `${sentant.nodeId}|${id}` : id;
         r2_node.sentantSend(targetId, event, params);
     }
 
