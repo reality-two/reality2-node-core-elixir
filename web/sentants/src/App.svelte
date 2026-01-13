@@ -89,6 +89,7 @@
 
     function getAvailableNodes(sentants: Sentant[], localId: string): NodeInfo[] {
         const nodeMap: Record<string, NodeInfo> = {};
+        const seenNodeNames: Set<string> = new Set();
 
         for (const s of sentants) {
             if (s.name === RESERVED_SENTANT_NAMES.MONITOR ||
@@ -97,14 +98,24 @@
 
             const nodeId = s.nodeId || "local";
             const nodeName = s.nodeName || "Local";
+            const isLocal = nodeId === localId;
 
+            // Check if we already have this nodeId
             if (!nodeMap[nodeId]) {
+                // Also check if we've seen this nodeName before (prevents duplicates from different nodeIds)
+                // But always allow local node even if name collision
+                if (seenNodeNames.has(nodeName) && !isLocal) {
+                    console.log("Skipping duplicate node by name:", nodeName, "nodeId:", nodeId);
+                    continue;
+                }
+
                 nodeMap[nodeId] = {
                     nodeId,
                     nodeName,
-                    isLocal: nodeId === localId,
+                    isLocal,
                     sentantCount: 0
                 };
+                seenNodeNames.add(nodeName);
             }
             nodeMap[nodeId].sentantCount++;
         }
