@@ -32,6 +32,10 @@ defmodule AiReality2Transnet.Transports.WiFiTransport do
   # WiFi can handle much larger payloads
   @max_payload_size 1_000_000  # 1MB
 
+  # Short timeout for ConnectionManager calls to avoid blocking MeshRouter
+  # If ConnectionManager is busy, we report as disconnected rather than crash
+  @connection_status_timeout 500
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Transport Behaviour Implementation
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -110,17 +114,21 @@ defmodule AiReality2Transnet.Transports.WiFiTransport do
   @impl true
   def get_stats do
     if Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) do
-      case AiReality2Transnet.ConnectionManager.get_health_metrics() do
-        {:ok, metrics} ->
-          %{
-            available: available?(),
-            connections_made: Map.get(metrics, :connections_made, 0),
-            connected_clients: Map.get(metrics, :connected_clients_count, 0),
-            connection_state: Map.get(metrics, :connection_state)
-          }
+      try do
+        case GenServer.call(AiReality2Transnet.ConnectionManager, :get_health_metrics, @connection_status_timeout) do
+          {:ok, metrics} ->
+            %{
+              available: available?(),
+              connections_made: Map.get(metrics, :connections_made, 0),
+              connected_clients: Map.get(metrics, :connected_clients_count, 0),
+              connection_state: Map.get(metrics, :connection_state)
+            }
 
-        _ ->
-          %{available: false}
+          _ ->
+            %{available: false}
+        end
+      catch
+        :exit, _ -> %{available: false}
       end
     else
       %{available: false}
@@ -130,13 +138,17 @@ defmodule AiReality2Transnet.Transports.WiFiTransport do
   @impl true
   def get_peers do
     if Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) do
-      case AiReality2Transnet.ConnectionManager.get_connection_status() do
-        {:ok, status} ->
-          clients = Map.get(status, :connected_clients, [])
-          Enum.map(clients, fn c -> c.node_id end)
+      try do
+        case GenServer.call(AiReality2Transnet.ConnectionManager, :get_status, @connection_status_timeout) do
+          {:ok, status} ->
+            clients = Map.get(status, :connected_clients, [])
+            Enum.map(clients, fn c -> c.node_id end)
 
-        _ ->
-          []
+          _ ->
+            []
+        end
+      catch
+        :exit, _ -> []
       end
     else
       []
@@ -156,28 +168,42 @@ defmodule AiReality2Transnet.Transports.WiFiTransport do
   end
 
   defp get_connection_state do
-    case AiReality2Transnet.ConnectionManager.get_connection_status() do
-      {:ok, %{state: state}} -> state
-      _ -> :disconnected
+    # First check if the process is alive
+    case Process.whereis(AiReality2Transnet.ConnectionManager) do
+      nil ->
+        :disconnected
+
+      pid when is_pid(pid) ->
+        try do
+          case GenServer.call(AiReality2Transnet.ConnectionManager, :get_status, @connection_status_timeout) do
+            {:ok, %{state: state}} -> state
+            _ -> :disconnected
+          end
+        catch
+          :exit, {:timeout, _} ->
+            # ConnectionManager is busy - report as disconnected to avoid cascading failures
+            Logger.debug("[WiFiTransport] ConnectionManager timeout, reporting disconnected")
+            :disconnected
+
+          :exit, _ ->
+            :disconnected
+        end
     end
   rescue
     _ -> :disconnected
   end
 
   defp get_peer_ip(peer_id) do
-    # Check if peer is a connected client
-    case AiReality2Transnet.ConnectionManager.get_connection_status() do
-      {:ok, %{connected_clients: clients}} ->
-        case Enum.find(clients, fn c -> c.node_id == peer_id end) do
+    # Check if peer is a connected client - use safe call with timeout
+    case safe_get_connection_status() do
+      {:ok, %{connected_clients: clients, host_ip: host_ip, host_peer_id: host_peer_id}} ->
+        case Enum.find(clients || [], fn c -> c.node_id == peer_id end) do
           nil ->
             # Check if it's our host
-            case AiReality2Transnet.ConnectionManager.get_connection_status() do
-              {:ok, %{host_ip: host_ip, host_peer_id: host_peer_id}}
-                when host_peer_id == peer_id and not is_nil(host_ip) ->
-                {:ok, host_ip}
-
-              _ ->
-                {:error, :peer_not_found}
+            if host_peer_id == peer_id and not is_nil(host_ip) do
+              {:ok, host_ip}
+            else
+              {:error, :peer_not_found}
             end
 
           client ->
@@ -189,12 +215,21 @@ defmodule AiReality2Transnet.Transports.WiFiTransport do
     end
   end
 
+  # Safe wrapper for get_connection_status with short timeout
+  defp safe_get_connection_status do
+    try do
+      GenServer.call(AiReality2Transnet.ConnectionManager, :get_status, @connection_status_timeout)
+    catch
+      :exit, _ -> {:error, :timeout}
+    end
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Private - Message Sending
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   defp push_to_clients(message) do
-    case AiReality2Transnet.ConnectionManager.get_connection_status() do
+    case safe_get_connection_status() do
       {:ok, %{connected_clients: clients}} when is_list(clients) ->
         Enum.each(clients, fn client ->
           Task.start(fn ->
@@ -209,7 +244,7 @@ defmodule AiReality2Transnet.Transports.WiFiTransport do
   end
 
   defp send_to_host(message) do
-    case AiReality2Transnet.ConnectionManager.get_connection_status() do
+    case safe_get_connection_status() do
       {:ok, %{host_ip: host_ip}} when not is_nil(host_ip) ->
         send_http_message(host_ip, message)
 
