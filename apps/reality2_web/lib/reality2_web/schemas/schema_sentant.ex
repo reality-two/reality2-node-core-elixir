@@ -168,10 +168,10 @@ defmodule Reality2Web.Schema.Sentant do
     end
 
     # ----------------------------------------------------------------------------------------------------
-    @desc "Send a message event and parameters to a sentant. ID can be UUID or nodeId|sentantId for remote routing."
+    @desc "Send a message event and parameters to a sentant. Path can be: name, UUID, node|sentant (using names or UUIDs)."
     # ----------------------------------------------------------------------------------------------------
     field :sentant_send, non_null(:sentant) do
-      arg(:id, non_null(:string))
+      arg(:path, non_null(:string))
       arg(:event, non_null(:string))
       arg(:parameters, :json)
       arg(:passthrough, :json)

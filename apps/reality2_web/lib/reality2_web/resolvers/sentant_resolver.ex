@@ -324,20 +324,20 @@ defmodule Reality2Web.SentantResolver do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Send an event to a Sentant
-  # Supports both local IDs and remote IDs in "nodeId|sentantId" format
+  # Path can be: name, UUID, or node|sentant (using names or UUIDs in either position)
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @spec send_event(any(), map(), any()) ::
-          {:error, :event | :existance | :id | :invalid_event | :name}
+          {:error, :event | :existance | :path | :invalid_event | :name}
   def send_event(_root, args, _info) do
     require Logger
 
-    # Get the Sentant ID (may be "nodeId|sentantId" for remote sentants)
-    case Map.get(args, :id) do
+    # Get the path (can be name, UUID, or node|sentant format)
+    case Map.get(args, :path) do
       nil ->
-        {:error, :id}
+        {:error, :path}
 
-      raw_id ->
-        Logger.info("[SentantResolver] send_event called with raw_id: #{raw_id}")
+      path ->
+        Logger.info("[SentantResolver] send_event called with path: #{path}")
 
         # Get the event
         case Map.get(args, :event) do
@@ -348,31 +348,31 @@ defmodule Reality2Web.SentantResolver do
             parameters = Map.get(args, :parameters, %{})
             passthrough = Map.get(args, :passthrough, %{})
 
-            # Check if this is a remote sentant (nodeId|sentantId format)
-            parsed = parse_remote_id(raw_id)
-            Logger.info("[SentantResolver] Parsed ID: #{inspect(parsed)}")
+            # Parse the path to determine if local or remote
+            parsed = parse_path(path)
+            Logger.info("[SentantResolver] Parsed path: #{inspect(parsed)}")
 
             case parsed do
-              {:remote, node_id, sentant_id} ->
-                Logger.info("[SentantResolver] Routing to REMOTE node #{String.slice(node_id, 0..7)}...")
-                send_event_to_remote(node_id, sentant_id, event, parameters, passthrough)
+              {:remote, node_ref, sentant_ref} ->
+                Logger.info("[SentantResolver] Routing to REMOTE node #{String.slice(node_ref, 0..7)}...")
+                send_event_to_remote(node_ref, sentant_ref, event, parameters, passthrough)
 
-              {:local, sentant_id} ->
-                Logger.info("[SentantResolver] Routing to LOCAL sentant #{String.slice(sentant_id, 0..7)}...")
-                send_event_to_local(sentant_id, event, parameters, passthrough)
+              {:local, sentant_ref} ->
+                Logger.info("[SentantResolver] Routing to LOCAL sentant #{String.slice(sentant_ref, 0..7)}...")
+                send_event_to_local(sentant_ref, event, parameters, passthrough)
             end
         end
     end
   end
 
-  # Parse ID to determine if local or remote
-  # Accepts: UUID, name, nodeId|sentantId, nodeName|sentantName, or any combination
-  # Returns {:remote, node_id, sentant_id_or_name} or {:local, sentant_id_or_name}
-  defp parse_remote_id(raw_id) do
+  # Parse path to determine if local or remote
+  # Accepts: UUID, name, node|sentant (using names or UUIDs in either position)
+  # Returns {:remote, node_ref, sentant_ref} or {:local, sentant_ref}
+  defp parse_path(path) do
     require Logger
     local_node_id = Reality2.Bootstrap.get(:node_id)
 
-    case String.split(raw_id, "|", parts: 2) do
+    case String.split(path, "|", parts: 2) do
       [node_ref, sentant_ref] ->
         # Resolve node reference to ID (could be UUID or name)
         resolved_node_id = resolve_node_ref(node_ref)
@@ -434,14 +434,17 @@ defmodule Reality2Web.SentantResolver do
     end
   end
 
-  # Send event to a local sentant
-  defp send_event_to_local(sentant_id, event, parameters, passthrough) do
-    case Reality2.Sentants.read(%{id: sentant_id}, :definition) do
+  # Send event to a local sentant (sentant_ref can be UUID or name)
+  defp send_event_to_local(sentant_ref, event, parameters, passthrough) do
+    # Determine if we have a UUID or a name
+    sentant_key = if is_uuid?(sentant_ref), do: %{id: sentant_ref}, else: %{name: sentant_ref}
+
+    case Reality2.Sentants.read(sentant_key, :definition) do
       {:ok, sentant} ->
         events = get_event_list(R2Map.get(sentant, :events, []))
 
         if Enum.member?(events, event) do
-          case Reality2.Sentants.sendto(%{id: sentant_id}, %{
+          case Reality2.Sentants.sendto(sentant_key, %{
                  event: event,
                  parameters: parameters,
                  passthrough: passthrough

@@ -194,14 +194,14 @@ export default class R2 {
     });
   }
   sentantSend(
-    id: string,
+    path: string,
     event: string,
     params: object,
     passthrough: object = {},
     details: string = "id name",
   ): Promise<object> {
     return this._graphql_post(this._sentandSend(details), {
-      id: id,
+      path: path,
       event: event,
       parameters: JSON.stringify(params),
       passthrough: JSON.stringify(passthrough),
@@ -599,8 +599,8 @@ export default class R2 {
   }
 
   _sentandSend(details: string): string {
-    return `mutation SentantSend($id: String!, $event: String!, $parameters: Json, $passthrough: Json) {
-            sentantSend(id: $id, event: $event, parameters: $parameters, passthrough: $passthrough) {
+    return `mutation SentantSend($path: String!, $event: String!, $parameters: Json, $passthrough: Json) {
+            sentantSend(path: $path, event: $event, parameters: $parameters, passthrough: $passthrough) {
                 ${details}
             }
         }`;

@@ -2227,12 +2227,11 @@ svelte-check@4.1.4:
     picocolors "^1.0.0"
     sade "^1.7.4"
 
-svelte-fomantic-ui@^0.3.9:
-  version "0.3.9"
-  resolved "https://registry.yarnpkg.com/svelte-fomantic-ui/-/svelte-fomantic-ui-0.3.9.tgz#782bfd7924efdcdaef5e716dc903232a1538d2a9"
-  integrity sha512-HfMZJViFGs4iCgOEswa0IZTuSxLwdeUqtgC0wEnUZzG3rEvZAp73F1ZJh/CNKN5mFQk8YtqooxZcEQCqed4Ubw==
+svelte-fomantic-ui@0.4.0:
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/svelte-fomantic-ui/-/svelte-fomantic-ui-0.4.0.tgz#1e0068ce699673389adaf07cde65e1debe0f54aa"
+  integrity sha512-GdCIxi+mcT08VYLzIqffkXMyr0Qn0gDqG5ityLMNd5f7pUd7XrIC3FuBrYW6qMtbem+kJsQ6WGp7atvr6lbxtg==
   dependencies:
-    "@sveltejs/vite-plugin-svelte" "5.0.3"
     browser-polyfill "^3.20.2"
     svelte-preprocess "6.0.3"
     svelte-prism "1.1.6"
