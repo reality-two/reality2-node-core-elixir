@@ -71,7 +71,9 @@
       "Bash(/home/roycdavies/Drives/Data/Development/Reality2/reality2-node-core-elixir/scripts/build_webapp:*)",
       "Bash(scripts/build_webapp:*)",
       "Bash(git remote set-url:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(yarn add:*)",
+      "Bash(MIX_ENV=prod mix compile:*)"
     ]
   }
 }

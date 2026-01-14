@@ -446,6 +446,9 @@ defmodule AiReality2Transnet.ConnectionManager do
     # Schedule host reachability check
     Process.send_after(self(), :check_host_reachability, @host_reachability_check_interval_ms)
 
+    # Check for existing R2 hotspot connection at startup (delayed to allow system to settle)
+    Process.send_after(self(), :check_existing_r2_connection, 10_000)
+
     Logger.info("#{log_prefix()} Started - WiFi interface: #{wifi_interface || "none"}")
     {:ok, state}
   end
@@ -804,6 +807,48 @@ defmodule AiReality2Transnet.ConnectionManager do
     state = check_host_reachability(state)
     # Schedule next check
     Process.send_after(self(), :check_host_reachability, @host_reachability_check_interval_ms)
+    {:noreply, state}
+  end
+
+  # Check for existing R2 hotspot connection at startup
+  # This handles the case where WiFi was already connected to an R2 hotspot before this node started
+  @impl true
+  def handle_info(:check_existing_r2_connection, %{connection_state: :disconnected} = state) do
+    Logger.info("#{log_prefix()} Checking for existing R2 hotspot connection...")
+
+    case state.wifi_interface do
+      nil ->
+        Logger.debug("#{log_prefix()} No WiFi interface available")
+        {:noreply, state}
+
+      interface ->
+        case Wifi.get_connection_status(interface) do
+          {:ok, %{connected: true, ssid: ssid}} when is_binary(ssid) ->
+            # Check if connected to an R2 hotspot (SSID starts with R2Node_ or R2-)
+            if String.starts_with?(ssid, "R2Node_") or String.starts_with?(ssid, "R2-") do
+              Logger.info("#{log_prefix()} Found existing R2 hotspot connection: #{ssid}")
+              # Trigger the same flow as if we just connected
+              report_wifi_connected(ssid)
+            else
+              Logger.debug("#{log_prefix()} Connected to non-R2 network: #{ssid}")
+            end
+            {:noreply, state}
+
+          {:ok, %{connected: false}} ->
+            Logger.debug("#{log_prefix()} Not connected to any WiFi network")
+            {:noreply, state}
+
+          {:error, reason} ->
+            Logger.debug("#{log_prefix()} Could not check WiFi status: #{inspect(reason)}")
+            {:noreply, state}
+        end
+    end
+  end
+
+  # If not in disconnected state, we're already handling the connection
+  @impl true
+  def handle_info(:check_existing_r2_connection, state) do
+    Logger.debug("#{log_prefix()} Already in state #{state.connection_state}, skipping R2 hotspot check")
     {:noreply, state}
   end
 
@@ -1321,7 +1366,26 @@ defmodule AiReality2Transnet.ConnectionManager do
     end
   end
 
-  # No verification needed for other states
+  # When disconnected, check if we're actually connected to an R2 hotspot
+  # This handles reconnects that happen without going through report_wifi_connected
+  defp verify_wifi_connection(%{connection_state: :disconnected, wifi_interface: interface} = state)
+       when not is_nil(interface) do
+    case Wifi.get_connection_status(interface) do
+      {:ok, %{connected: true, ssid: ssid}} when is_binary(ssid) ->
+        # Check if connected to an R2 hotspot
+        if String.starts_with?(ssid, "R2Node_") or String.starts_with?(ssid, "R2-") do
+          Logger.info("#{log_prefix()} Detected R2 hotspot connection during verification: #{ssid}")
+          # Trigger mesh registration
+          report_wifi_connected(ssid)
+        end
+        state
+
+      _ ->
+        state
+    end
+  end
+
+  # No verification needed for hosting or other states
   defp verify_wifi_connection(state), do: state
 
   # Handle loss of WiFi connection - clean up state and trigger recovery
