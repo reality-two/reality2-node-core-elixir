@@ -56,8 +56,11 @@ defmodule Reality2.Autostart do
     http_ready = Process.whereis(Reality2.HTTPClient) != nil
     sentants_ready = PartitionSupervisor.which_children(Reality2.Sentants) != []
     metadata_ready = Process.whereis(:SentantNames) != nil and Process.whereis(:SentantIDs) != nil
+    plugins_ok = plugins_ready?()
 
-    http_ready and sentants_ready and metadata_ready and plugins_ready?()
+    Logger.debug("[Autostart] Ready check: http=#{http_ready}, sentants=#{sentants_ready}, metadata=#{metadata_ready}, plugins=#{plugins_ok}")
+
+    http_ready and sentants_ready and metadata_ready and plugins_ok
   end
 
   # Check if all configured plugin applications have started
@@ -66,6 +69,11 @@ defmodule Reality2.Autostart do
                    |> Enum.map(fn {app, _, _} -> app end)
 
     plugin_apps = get_plugin_app_names()
+
+    missing = Enum.filter(plugin_apps, fn app -> app not in started_apps end)
+    if missing != [] do
+      Logger.debug("[Autostart] Waiting for plugins: #{inspect(missing)}")
+    end
 
     Enum.all?(plugin_apps, fn app -> app in started_apps end)
   end
@@ -117,11 +125,14 @@ defmodule Reality2.Autostart do
   # ---------------------------------------------------------------------------------------------------------------------------------------------
   defp load_autostart_files do
     autostart = autostart_dir()
+    Logger.info("[Autostart] Checking directory: #{autostart}")
+    Logger.info("[Autostart] Current working directory: #{File.cwd!()}")
 
     if File.dir?(autostart) do
-      Logger.info("Loading from autostart directory: #{autostart}")
+      Logger.info("[Autostart] Loading from autostart directory: #{autostart}")
 
       files = File.ls!(autostart) |> Enum.sort()
+      Logger.info("[Autostart] Found #{length(files)} files: #{inspect(files)}")
 
       Enum.each(files, fn file ->
         load_file(file)
@@ -129,7 +140,7 @@ defmodule Reality2.Autostart do
         Process.sleep(100)
       end)
     else
-      Logger.debug("Autostart directory not found")
+      Logger.warning("[Autostart] Autostart directory not found: #{autostart}")
     end
   end
 
@@ -140,28 +151,32 @@ defmodule Reality2.Autostart do
   # ---------------------------------------------------------------------------------------------------------------------------------------------
   defp load_file(file_name) do
     full_path = Path.join(autostart_dir(), file_name)
+    Logger.debug("[Autostart] Attempting to load: #{full_path}")
 
     if File.dir?(full_path) do
+      Logger.debug("[Autostart] Skipping directory: #{file_name}")
       :ok
     else
       case File.read(full_path) do
         {:ok, content} ->
+          Logger.debug("[Autostart] Read file #{file_name}, #{byte_size(content)} bytes")
           case Reality2.Swarm.create(content, true, true) do
-            {:ok, _} ->
-              Logger.info("Swarm file loaded: #{file_name}")
+            {:ok, swarm} ->
+              Logger.info("[Autostart] Swarm file loaded: #{file_name} -> #{inspect(swarm)}")
 
-            _ ->
+            swarm_error ->
+              Logger.debug("[Autostart] Not a swarm (#{inspect(swarm_error)}), trying as sentant...")
               case Reality2.Sentants.create(content, true, true) do
-                {:ok, _} ->
-                  Logger.info("Sentant file loaded: #{file_name}")
+                {:ok, id} ->
+                  Logger.info("[Autostart] Sentant file loaded: #{file_name} -> #{id}")
 
-                _ ->
-                  Logger.warning("Error loading file: #{full_path}")
+                sentant_error ->
+                  Logger.warning("[Autostart] Error loading file #{full_path}: swarm_error=#{inspect(swarm_error)}, sentant_error=#{inspect(sentant_error)}")
               end
           end
 
         {:error, reason} ->
-          Logger.error("Error reading file #{full_path}: #{reason}")
+          Logger.error("[Autostart] Error reading file #{full_path}: #{reason}")
       end
     end
   end

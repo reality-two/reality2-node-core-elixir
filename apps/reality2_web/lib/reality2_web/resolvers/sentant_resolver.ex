@@ -539,8 +539,8 @@ defmodule Reality2Web.SentantResolver do
     url = "https://#{peer_ip}:4005/reality2"
 
     query = """
-    mutation SendEvent($id: String!, $event: String!, $parameters: Json, $passthrough: Json) {
-      sentantSend(id: $id, event: $event, parameters: $parameters, passthrough: $passthrough) {
+    mutation SendEvent($path: String!, $event: String!, $parameters: Json, $passthrough: Json) {
+      sentantSend(path: $path, event: $event, parameters: $parameters, passthrough: $passthrough) {
         id
         name
       }
@@ -554,7 +554,7 @@ defmodule Reality2Web.SentantResolver do
     body = Jason.encode!(%{
       query: query,
       variables: %{
-        id: sentant_id,
+        path: sentant_id,
         event: event,
         parameters: params_json,
         passthrough: passthrough_json
