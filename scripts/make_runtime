@@ -4,6 +4,22 @@ set -e
 # Navigate to project root (works regardless of where script is called from)
 cd "$(dirname "$0")/.."
 
+# Parse build mode from first argument
+BUILD_MODE="${1:-quick}"
+DEPLOY_TARGET="${2:-}"
+
+# If first arg looks like a hostname (contains . or no special keyword), treat as deploy target
+case "$BUILD_MODE" in
+    quick|rust|beam|all)
+        # Valid build mode
+        ;;
+    *)
+        # Assume it's a deploy target, use quick mode
+        DEPLOY_TARGET="$BUILD_MODE"
+        BUILD_MODE="quick"
+        ;;
+esac
+
 ARCH=$(uname -m)
 OS=$(uname -o | sed 's/\//_/g')
 if [ "$(git rev-parse --abbrev-ref HEAD)" == "develop" ]; then
@@ -15,17 +31,46 @@ else
 fi
 
 echo "********************************************************************"
-echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} ..."
+echo "Building Reality2 Node version ${RELEASE} for ${BUILD_FOLDER}"
+echo "Build mode: ${BUILD_MODE}"
 echo "********************************************************************"
 
-echo "***** Cleaning up the previous build..."
-rm -rf "_build/prod"
+# Clean based on build mode
+case "$BUILD_MODE" in
+    all)
+        echo "***** Full rebuild: Cleaning everything..."
+        rm -rf "_build/prod"
+        echo "***** Cleaning Rust NIF artifacts..."
+        find apps -path "*/priv/native/*.so" -delete 2>/dev/null || true
+        find apps -path "*/native/*/target" -type d -exec rm -rf {} + 2>/dev/null || true
+        ;;
+    beam)
+        echo "***** BEAM rebuild: Cleaning compiled Elixir (preserving Rust NIFs and deps)..."
+        # Remove only the app ebin directories, not deps or Rust
+        for app in apps/*/; do
+            app_name=$(basename "$app")
+            rm -rf "_build/prod/lib/${app_name}/ebin" 2>/dev/null || true
+            rm -rf "_build/prod/lib/${app_name}/.mix" 2>/dev/null || true
+            rm -rf "_build/prod/lib/${app_name}/consolidated" 2>/dev/null || true
+        done
+        # Also remove the release to force regeneration
+        rm -rf "_build/prod/rel" 2>/dev/null || true
+        ;;
+    rust)
+        echo "***** Rust rebuild: Cleaning Rust NIF artifacts only..."
+        find apps -path "*/priv/native/*.so" -delete 2>/dev/null || true
+        find apps -path "*/native/*/target" -type d -exec rm -rf {} + 2>/dev/null || true
+        # Remove the release to force regeneration
+        rm -rf "_build/prod/rel" 2>/dev/null || true
+        ;;
+    quick|*)
+        echo "***** Quick rebuild: Incremental compilation (preserving everything)..."
+        # Only remove the release assembly, keep all compiled artifacts
+        rm -rf "_build/prod/rel" 2>/dev/null || true
+        ;;
+esac
+
 rm -rf "builds/${BUILD_FOLDER}.zip"
-
-echo "***** Cleaning Rust NIF artifacts (forces recompilation for target arch)..."
-find apps -path "*/priv/native/*.so" -delete 2>/dev/null || true
-find apps -path "*/native/*/target" -type d -exec rm -rf {} + 2>/dev/null || true
-
 mkdir -p "builds/${BUILD_FOLDER}"
 
 echo "***** Clearing certificate files (will be generated on first run)..."
@@ -43,7 +88,7 @@ export MIX_ENV=prod
 export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet, ai.reality2.versioncontrol"
 export LOCKED="remote"
 
-# Get any new deps
+# Get any new deps (only fetches if needed)
 mix deps.get
 
 # Build the Reality2 Node
@@ -84,12 +129,13 @@ rm -rf "${BUILD_FOLDER}"
 
 echo "********************************************************************"
 echo "Reality2 Node version ${RELEASE} for ${BUILD_FOLDER} has been built."
+echo "Build mode was: ${BUILD_MODE}"
 echo "********************************************************************"
 
-if [ $# -eq 0 ]; then
+if [ -z "$DEPLOY_TARGET" ]; then
     exit 0
 else
-    echo "***** Copying to $1"
-    scp "${BUILD_FOLDER}.zip" "root@$1:/root/"
-    ssh "root@$1" "(killall beam.smp || true) && rm -rf /root/${BUILD_FOLDER} && unzip /root/${BUILD_FOLDER}.zip && cd ${BUILD_FOLDER} && tar -zxvf reality2*.gz && cd reality2 && ./run"
+    echo "***** Copying to $DEPLOY_TARGET"
+    scp "${BUILD_FOLDER}.zip" "root@$DEPLOY_TARGET:/root/"
+    ssh "root@$DEPLOY_TARGET" "(killall beam.smp || true) && rm -rf /root/${BUILD_FOLDER} && unzip /root/${BUILD_FOLDER}.zip && cd ${BUILD_FOLDER} && tar -zxvf reality2*.gz && cd reality2 && ./run"
 fi
