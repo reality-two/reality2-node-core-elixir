@@ -51,52 +51,17 @@ defmodule Reality2.Autostart do
     {:noreply, state}
   end
 
-  # Check if the core system and all plugins are ready
+  # Check if the core system is ready
+  # Note: Plugins are started as supervised children within the main app,
+  # not as separate OTP applications, so we don't check for them here.
   defp system_ready? do
     http_ready = Process.whereis(Reality2.HTTPClient) != nil
     sentants_ready = PartitionSupervisor.which_children(Reality2.Sentants) != []
     metadata_ready = Process.whereis(:SentantNames) != nil and Process.whereis(:SentantIDs) != nil
-    plugins_ok = plugins_ready?()
 
-    Logger.debug("[Autostart] Ready check: http=#{http_ready}, sentants=#{sentants_ready}, metadata=#{metadata_ready}, plugins=#{plugins_ok}")
+    Logger.debug("[Autostart] Ready check: http=#{http_ready}, sentants=#{sentants_ready}, metadata=#{metadata_ready}")
 
-    http_ready and sentants_ready and metadata_ready and plugins_ok
-  end
-
-  # Check if all configured plugin applications have started
-  defp plugins_ready? do
-    started_apps = Application.started_applications()
-                   |> Enum.map(fn {app, _, _} -> app end)
-
-    plugin_apps = get_plugin_app_names()
-
-    missing = Enum.filter(plugin_apps, fn app -> app not in started_apps end)
-    if missing != [] do
-      Logger.debug("[Autostart] Waiting for plugins: #{inspect(missing)}")
-    end
-
-    Enum.all?(plugin_apps, fn app -> app in started_apps end)
-  end
-
-  # Convert plugin names from env var to application atom names
-  # e.g., "ai.reality2.vars" -> :ai_reality2_vars
-  defp get_plugin_app_names do
-    case System.get_env("PLUGINS") do
-      nil -> []
-      "" -> []
-      plugins_str ->
-        plugins_str
-        |> String.split(",")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&plugin_to_app_name/1)
-    end
-  end
-
-  defp plugin_to_app_name(plugin_name) do
-    # Convert "ai.reality2.vars" to :ai_reality2_vars
-    plugin_name
-    |> String.replace(".", "_")
-    |> String.to_atom()
+    http_ready and sentants_ready and metadata_ready
   end
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------
