@@ -7,6 +7,22 @@ Generated: 2026-01-17
 
 ---
 
+## Platform and Runtime Licenses
+
+These are the core platforms and runtimes used for building and running web applications.
+
+| Component | License | Notes | URL |
+|-----------|---------|-------|-----|
+| Node.js | MIT | Runtime for build tools and development | https://nodejs.org |
+| V8 Engine | BSD | JavaScript engine (bundled in Node.js) | https://v8.dev |
+| Svelte | MIT | Compiled away at build time | https://svelte.dev |
+| Vite | MIT | Build tool, not shipped to users | https://vite.dev |
+
+Note: The compiled web applications run in users' browsers. The JavaScript engines
+(V8, SpiderMonkey, JavaScriptCore) are part of the browser, not your distribution.
+
+---
+
 ## Web App: sentants
 
 The main Svelte-based web application for Reality2.

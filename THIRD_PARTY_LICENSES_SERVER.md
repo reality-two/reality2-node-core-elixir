@@ -7,6 +7,27 @@ Generated: 2026-01-17
 
 ---
 
+## Platform and Runtime Licenses
+
+These are the core platforms and language runtimes the server depends on.
+
+| Component | License | Notes | URL |
+|-----------|---------|-------|-----|
+| Linux Kernel | GPL-2.0-only | Syscall exception means user programs are NOT affected | https://kernel.org |
+| Erlang/OTP | Apache-2.0 | Since OTP 18.0 (2015) | https://www.erlang.org |
+| Elixir | Apache-2.0 | OpenChain (ISO/IEC 5230) compliant | https://elixir-lang.org |
+| Rust | MIT OR Apache-2.0 | Dual licensed, choose either | https://rust-lang.org |
+| PostgreSQL | PostgreSQL License | BSD-like, very permissive | https://www.postgresql.org |
+
+### Linux GPL-2.0 and Your Application
+
+The Linux kernel's GPL-2.0 license includes an explicit **syscall exception**. This means:
+- Applications that only interact with the kernel via system calls are NOT derivative works
+- Your proprietary/commercial application can run on Linux without GPL obligations
+- This is the standard interpretation used by all commercial software on Linux
+
+---
+
 ## Elixir Dependencies
 
 | Package | Version | License | URL |
