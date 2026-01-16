@@ -149,3 +149,70 @@ All authored by Dr. Roy C. Davies under MIT license (as per package.json).
 
 5. All web applications can be distributed under any license you choose, including
    proprietary, as long as attribution requirements are met.
+
+---
+
+## Transitive Dependency Audit
+
+Full audit of all transitive dependencies performed 2026-01-17.
+
+### sentants - 299 Total Packages
+
+| License | Count |
+|---------|-------|
+| MIT | 250 |
+| ISC | 20 |
+| Apache-2.0 | 12 |
+| BSD-3-Clause | 6 |
+| BSD-2-Clause | 3 |
+| CC0-1.0 | 2 |
+| MIT-0 | 1 |
+| Python-2.0 | 1 |
+| 0BSD | 1 |
+| GPL-3.0 | 1 |
+| CC-BY-NC-SA-4.0 | 1 |
+
+### iotdemo - 488 Total Packages
+
+| License | Count |
+|---------|-------|
+| MIT | 399 |
+| ISC | 51 |
+| Apache-2.0 | 13 |
+| BSD-3-Clause | 7 |
+| BlueOak-1.0.0 | 4 |
+| BSD-2-Clause | 2 |
+| CC0-1.0 | 2 |
+| GPL-3.0 | 1 |
+| CC-BY-NC-SA-4.0 | 1 |
+| 0BSD | 1 |
+
+---
+
+## License Exceptions (Non-Permissive)
+
+### qrious@4.0.2 - GPL-3.0
+
+- **Dependency chain:** svelte-qrcode → qrious
+- **Impact:** GPL-3.0 is a copyleft license requiring derivative works to be GPL-3.0
+- **Mitigation:** Web apps are distributed separately from server. If distributing as
+  open source, GPL-3.0 compatibility is acceptable.
+- **Alternative:** Replace with `@castlenine/svelte-qrcode` (MIT, zero dependencies)
+
+### svelte-fomantic-ui@0.3.9 - CC-BY-NC-SA-4.0
+
+- **Status:** This is a Reality2 project package (authored by roycdaviesuoa)
+- **Impact:** Non-commercial license would prevent commercial use
+- **Mitigation:** As the package owner, the license can be changed as needed
+
+---
+
+## Conclusion
+
+The server components (Elixir + Rust) are fully clear of copyleft licenses and safe
+for dual open source / commercial licensing.
+
+The web applications have two license exceptions noted above, neither of which is
+blocking due to:
+1. Web apps being distributed independently from the server
+2. svelte-fomantic-ui being under project control

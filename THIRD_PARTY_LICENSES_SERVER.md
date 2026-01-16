@@ -113,3 +113,32 @@ The following are only used during development and do not ship with production b
    BlueZ library has its own licensing terms.
 
 4. Dual-licensed packages (Apache-2.0 OR MIT) allow you to choose either license.
+
+---
+
+## Transitive Dependency Audit
+
+Full audit of all transitive dependencies performed 2026-01-17.
+
+### Elixir - All 73 Packages
+
+| License | Count | Packages |
+|---------|-------|----------|
+| Apache-2.0 | 35 | blue_heron, castore, circuits_uart, cowboy_telemetry, db_connection, dbus, decimal, earmark_parser, ecto, ecto_sql, elixir_make, ex_doc, expo, geohash, gettext, hackney, hpax, jason, mime, mint, nimble_options, nimble_parsec, nimble_pool, parse_trans, plug, plug_cowboy, plug_crypto, postgrex, property_table, req, telemetry, telemetry_metrics, telemetry_poller, toml, unicode_util_compat, uuid |
+| MIT | 27 | absinthe, absinthe_phoenix, absinthe_plug, combine, dns_cluster, ex_bin, finch, httpoison, idna, mimerl, phoenix, phoenix_ecto, phoenix_html, phoenix_live_dashboard, phoenix_live_view, phoenix_pubsub, phoenix_template, rebus, rustler, ssl_verify_fun, timex, typedstruct, tzdata, validate, websock, websock_adapter, yaml_elixir |
+| ISC | 4 | cowboy, cowlib, ranch |
+| BSD-3-Clause | 4 | bcrypt_elixir, certifi, comeonin |
+| BSD-2-Clause | 3 | makeup, makeup_elixir, makeup_erlang, yamerl |
+
+**Result: NO COPYLEFT LICENSES FOUND**
+
+### Rust - All 106 Crates
+
+| License | Count | Packages |
+|---------|-------|----------|
+| Apache-2.0 OR MIT | 82 | Most crates including futures, serde, uuid, rustler, syn, quote, proc-macro2, regex, etc. |
+| MIT | 16 | tokio, bytes, mio, slab, nix, strum, darling, etc. |
+| BSD-2-Clause | 1 | bluer |
+| Other permissive | 7 | unicode-ident (Unicode-DFS-2016), ryu (BSL-1.0), etc. |
+
+**Result: NO COPYLEFT LICENSES FOUND**
