@@ -53,6 +53,9 @@ case "$BUILD_MODE" in
             rm -rf "_build/prod/lib/${app_name}/.mix" 2>/dev/null || true
             rm -rf "_build/prod/lib/${app_name}/consolidated" 2>/dev/null || true
         done
+        # Remove root-level compiler state and protocol consolidation
+        rm -rf "_build/prod/.mix" 2>/dev/null || true
+        rm -rf "_build/prod/consolidated" 2>/dev/null || true
         # Also remove the release to force regeneration
         rm -rf "_build/prod/rel" 2>/dev/null || true
         ;;
