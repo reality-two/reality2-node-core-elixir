@@ -224,6 +224,44 @@ defmodule Reality2Web.MeshController do
   end
 
   @doc """
+  POST /mesh/message - Receive a mesh message from a peer via WiFi transport.
+
+  This endpoint receives mesh-routed messages (events, signals, presence)
+  from peers connected over the WiFi hotspot network.
+  """
+  def message(conn, params) do
+    require Logger
+
+    msg_id = Map.get(params, "msg_id")
+    ttl = Map.get(params, "ttl", 5)
+    type_str = Map.get(params, "type", "event")
+    src_node_id = Map.get(params, "src_node_id")
+    payload = Map.get(params, "payload", "{}")
+
+    type = try do
+      String.to_existing_atom(type_str)
+    rescue
+      _ -> :event
+    end
+
+    message = %{
+      msg_id: msg_id,
+      ttl: ttl,
+      type: type,
+      src_node_id: src_node_id,
+      payload: payload
+    }
+
+    Logger.debug("[MeshController] Received mesh message: type=#{type}, from=#{String.slice(src_node_id || "", 0..7)}...")
+
+    if Code.ensure_loaded?(AiReality2Transnet.MeshRouter) do
+      apply(AiReality2Transnet.MeshRouter, :handle_incoming, [message, :wifi_hotspot])
+    end
+
+    json(conn, %{status: "ok"})
+  end
+
+  @doc """
   GET /mesh/info - Query node information and capabilities.
 
   Returns node_id, version, capabilities (bluetooth, wifi_mesh, sentant count),
