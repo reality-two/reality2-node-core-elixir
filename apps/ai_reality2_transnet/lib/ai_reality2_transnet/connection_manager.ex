@@ -755,6 +755,13 @@ defmodule AiReality2Transnet.ConnectionManager do
       |> Enum.reject(fn c -> c.node_id == node_id end)  # Remove old entry if exists
       |> Kernel.++([client_info])  # Add new entry
 
+    # Store in PNS_Peers so PNS Router can look up client IP for GraphQL routing
+    Reality2.Metadata.set(:PNS_Peers, node_id, %{
+      peer_ip: client_ip,
+      node_name: node_name,
+      connected_at: System.system_time(:millisecond)
+    })
+
     {:noreply, %{state | connected_clients: updated_clients}}
   end
 
