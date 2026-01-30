@@ -51,6 +51,17 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
+  # Allow CORS origins to be configured via environment variable.
+  # Set CHECK_ORIGIN to a comma-separated list of allowed origins, e.g.:
+  #   CHECK_ORIGIN="https://example.com,https://app.example.com"
+  # Defaults to :conn (allows requests from the same host as the connection).
+  check_origin =
+    case System.get_env("CHECK_ORIGIN") do
+      nil -> :conn
+      "false" -> false
+      origins -> String.split(origins, ",", trim: true)
+    end
+
   config :reality2_web, Reality2Web.Endpoint,
     https: [
       ip: {0, 0, 0, 0},
@@ -59,7 +70,7 @@ if config_env() == :prod do
       certfile: "priv/cert/selfsigned.pem",
       keyfile: "priv/cert/selfsigned_key.pem"
     ],
-    check_origin: false,
+    check_origin: check_origin,
     secret_key_base: secret_key_base,
     server: true
 

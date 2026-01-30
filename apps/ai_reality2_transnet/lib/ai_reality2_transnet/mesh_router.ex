@@ -525,11 +525,12 @@ defmodule AiReality2Transnet.MeshRouter do
       info.max_payload >= payload_size and
       info.type != source_transport
     end)
-    |> Enum.each(fn {mod, _info} ->
+    |> Enum.each(fn {mod, info} ->
       try do
         mod.broadcast(message)
       rescue
-        _ -> :ok
+        e ->
+          Logger.warning("#{log_prefix()} Failed to relay via #{info.type}: #{Exception.message(e)}")
       end
     end)
   end
@@ -549,16 +550,30 @@ defmodule AiReality2Transnet.MeshRouter do
 
   defp deliver_event_locally(message) do
     case decode_event_payload(message.payload) do
-      {:ok, sentant_id, event_name, params} ->
+      {:ok, _sentant_id, event_name, params} ->
+        # Extract sender context from params (embedded by PNS Router as _sender)
+        sender = case params do
+          %{"_sender" => s} when is_map(s) ->
+            %{
+              sentant_name: Map.get(s, "sentant_name"),
+              sentant_id: Map.get(s, "sentant_id"),
+              node_id: Map.get(s, "node_id"),
+              node_name: Map.get(s, "node_name")
+            }
+          _ -> nil
+        end
+
+        # Remove internal routing keys from params before delivery
+        clean_params = params
+          |> Map.delete("_sender")
+          |> Map.delete("_passthrough")
+
+        # Deliver as the original event name (not __mesh_event) so automations work transparently
         Reality2.Sentants.sendto_all(%{
-          event: "__mesh_event",
-          parameters: %{
-            source_sentant: sentant_id,
-            source_node: message.src_node_id,
-            event: event_name,
-            params: params,
-            ttl: message.ttl
-          }
+          event: event_name,
+          parameters: clean_params,
+          passthrough: Map.get(params, "_passthrough") || %{},
+          sender: sender
         })
 
       {:error, _} ->

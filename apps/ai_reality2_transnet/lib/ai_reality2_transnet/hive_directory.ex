@@ -290,7 +290,7 @@ defmodule AiReality2Transnet.HiveDirectory do
     schedule_persist()
     schedule_decay()
 
-    {:ok, %{directory: state, data_dir: data_dir, compressed_id_map: build_compressed_id_map(state)}}
+    {:ok, %{directory: state, data_dir: data_dir, compressed_id_map: build_compressed_id_map(state), dirty: false}}
   end
 
   @impl true
@@ -328,8 +328,7 @@ defmodule AiReality2Transnet.HiveDirectory do
   def handle_call({:merge_directory, remote_dir}, _from, state) do
     merged = merge_directories(state.directory, remote_dir)
     new_map = build_compressed_id_map(merged)
-    persist_directory(merged, state.data_dir)
-    {:reply, {:ok, export_directory(merged)}, %{state | directory: merged, compressed_id_map: new_map}}
+    {:reply, {:ok, export_directory(merged)}, %{state | directory: merged, compressed_id_map: new_map, dirty: true}}
   end
 
   @impl true
@@ -366,7 +365,7 @@ defmodule AiReality2Transnet.HiveDirectory do
   @impl true
   def handle_call(:persist, _from, state) do
     persist_directory(state.directory, state.data_dir)
-    {:reply, :ok, state}
+    {:reply, :ok, %{state | dirty: false}}
   end
 
   @impl true
@@ -383,7 +382,7 @@ defmodule AiReality2Transnet.HiveDirectory do
     new_dir = %{dir | nodes: new_nodes, directory_version: dir.directory_version + 1}
     new_map = build_compressed_id_map(new_dir)
 
-    {:noreply, %{state | directory: new_dir, compressed_id_map: new_map}}
+    {:noreply, %{state | directory: new_dir, compressed_id_map: new_map, dirty: true}}
   end
 
   @impl true
@@ -410,7 +409,7 @@ defmodule AiReality2Transnet.HiveDirectory do
     new_nodes = Map.put(dir.nodes, node_id, updated_entry)
     new_dir = %{dir | nodes: new_nodes}
 
-    {:noreply, %{state | directory: new_dir}}
+    {:noreply, %{state | directory: new_dir, dirty: true}}
   end
 
   @impl true
@@ -434,7 +433,7 @@ defmodule AiReality2Transnet.HiveDirectory do
     new_dir = %{dir | nodes: new_nodes, directory_version: dir.directory_version + 1}
     new_map = build_compressed_id_map(new_dir)
 
-    {:noreply, %{state | directory: new_dir, compressed_id_map: new_map}}
+    {:noreply, %{state | directory: new_dir, compressed_id_map: new_map, dirty: true}}
   end
 
   @impl true
@@ -442,12 +441,17 @@ defmodule AiReality2Transnet.HiveDirectory do
     dir = state.directory
     new_trusted = Map.put(dir.trusted_hives, hive_id, trust_info)
     new_dir = %{dir | trusted_hives: new_trusted, directory_version: dir.directory_version + 1}
-    {:noreply, %{state | directory: new_dir}}
+    {:noreply, %{state | directory: new_dir, dirty: true}}
   end
 
   @impl true
   def handle_info(:persist, state) do
-    persist_directory(state.directory, state.data_dir)
+    state = if state.dirty do
+      persist_directory(state.directory, state.data_dir)
+      %{state | dirty: false}
+    else
+      state
+    end
     schedule_persist()
     {:noreply, state}
   end

@@ -9,7 +9,10 @@ defmodule Reality2Web.SentantResolver do
   # *******************************************************************************************************************************************
 
   # alias Absinthe.PubSub
+  require Logger
   alias Reality2.Helpers.R2Map, as: R2Map
+  alias Reality2Web.SentantResolver.PathResolver
+  alias Reality2Web.SentantResolver.RemoteForwarder
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Puplic Functions
@@ -20,29 +23,20 @@ defmodule Reality2Web.SentantResolver do
   # Includes node_id and node_name for attribution.
   # -----------------------------------------------------------------------------------------------------------------------------------------
   def get_sentant(_, args, _) do
-    case Map.get(args, :name) do
+    sentant_key =
+      cond do
+        Map.get(args, :name) -> %{name: Map.get(args, :name)}
+        Map.get(args, :id) -> %{id: Map.get(args, :id)}
+        true -> nil
+      end
+
+    case sentant_key do
       nil ->
-        case Map.get(args, :id) do
-          nil ->
-            {:error, :name_or_id}
+        {:error, :name_or_id}
 
-          sentantid ->
-            case Reality2.Sentants.read(%{id: sentantid}, :definition) do
-              {:ok, sentant} ->
-                {:ok, add_node_attribution(sentant)}
-
-              {:error, reason} ->
-                {:error, reason}
-            end
-        end
-
-      name ->
-        case Reality2.Sentants.read(%{name: name}, :definition) do
-          {:ok, sentant} ->
-            {:ok, add_node_attribution(sentant)}
-
-          {:error, reason} ->
-            {:error, reason}
+      key ->
+        with {:ok, sentant} <- Reality2.Sentants.read(key, :definition) do
+          {:ok, add_node_attribution(sentant)}
         end
     end
   end
@@ -113,8 +107,6 @@ defmodule Reality2Web.SentantResolver do
   # Optionally excludes sentants from a peer at the given IP address
   # Includes node_id and node_name for each sentant's origin node
   defp get_registered_client_sentants(exclude_ip) do
-    require Logger
-
     if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
       case apply(AiReality2Transnet.PeerManager, :get_all_peers, []) do
         peers when is_map(peers) ->
@@ -329,44 +321,47 @@ defmodule Reality2Web.SentantResolver do
   @spec send_event(any(), map(), any()) ::
           {:error, :event | :existance | :path | :invalid_event | :name}
   def send_event(_root, args, _info) do
-    require Logger
+    with {:ok, path} <- require_arg(args, :path),
+         {:ok, event} <- require_arg(args, :event) do
+      Logger.info("[SentantResolver] send_event called with path: #{path}")
 
-    # Get the path (can be name, UUID, or node|sentant format)
-    case Map.get(args, :path) do
-      nil ->
-        {:error, :path}
+      parameters = Map.get(args, :parameters, %{})
+      passthrough = Map.get(args, :passthrough, %{})
+      sender = build_sender(Map.get(args, :sender))
 
-      path ->
-        Logger.info("[SentantResolver] send_event called with path: #{path}")
+      parsed = PathResolver.parse_path(path)
+      Logger.info("[SentantResolver] Parsed path: #{inspect(parsed)}")
 
-        # Get the event
-        case Map.get(args, :event) do
-          nil ->
-            {:error, :event}
+      case parsed do
+        {:remote, node_ref, sentant_ref} ->
+          Logger.info("[SentantResolver] Routing to REMOTE node #{String.slice(node_ref, 0..7)}...")
+          RemoteForwarder.send_event_to_remote(node_ref, sentant_ref, event, parameters, passthrough, sender)
 
-          event ->
-            parameters = Map.get(args, :parameters, %{})
-            passthrough = Map.get(args, :passthrough, %{})
-
-            # Build sender info - use provided sender or create default from this node
-            sender = build_sender(Map.get(args, :sender))
-
-            # Parse the path to determine if local or remote
-            parsed = parse_path(path)
-            Logger.info("[SentantResolver] Parsed path: #{inspect(parsed)}")
-
-            case parsed do
-              {:remote, node_ref, sentant_ref} ->
-                Logger.info("[SentantResolver] Routing to REMOTE node #{String.slice(node_ref, 0..7)}...")
-                send_event_to_remote(node_ref, sentant_ref, event, parameters, passthrough, sender)
-
-              {:local, sentant_ref} ->
-                Logger.info("[SentantResolver] Routing to LOCAL sentant #{String.slice(sentant_ref, 0..7)}...")
-                send_event_to_local(sentant_ref, event, parameters, passthrough, sender)
-            end
-        end
+        {:local, sentant_ref} ->
+          Logger.info("[SentantResolver] Routing to LOCAL sentant #{String.slice(sentant_ref, 0..7)}...")
+          send_event_to_local(sentant_ref, event, parameters, passthrough, sender)
+      end
     end
   end
+
+  defp require_arg(args, key) do
+    case Map.get(args, key) do
+      nil -> {:error, key}
+      value -> {:ok, value}
+    end
+  end
+
+  # SECURITY TODO: Sender spoofing prevention
+  # The sender field in sentantSend mutations is currently trusted as-is from
+  # the GraphQL client. A malicious client can forge sender identity, tricking
+  # automations that use @sender for routing.
+  # Plan:
+  # 1. For external API calls (no sender provided), always populate sender
+  #    from this node's identity (already done below).
+  # 2. For forwarded cross-node calls, validate that the sender's node_id
+  #    matches the source IP's registered peer identity in PeerManager.
+  # 3. Consider signing sender info with the sending node's Hive key so the
+  #    recipient can verify authenticity.
 
   # Build sender info from provided input or create default from this node
   defp build_sender(nil) do
@@ -389,79 +384,11 @@ defmodule Reality2Web.SentantResolver do
     }
   end
 
-  # Parse path to determine if local or remote
-  # Accepts: UUID, name, node|sentant (using names or UUIDs in either position)
-  # Returns {:remote, node_ref, sentant_ref} or {:local, sentant_ref}
-  defp parse_path(path) do
-    require Logger
-    local_node_id = Reality2.Bootstrap.get(:node_id)
-
-    case String.split(path, "|", parts: 2) do
-      [node_ref, sentant_ref] ->
-        # Resolve node reference to ID (could be UUID or name)
-        resolved_node_id = resolve_node_ref(node_ref)
-
-        if resolved_node_id == local_node_id do
-          # Local node - resolve sentant ref
-          {:local, resolve_sentant_ref(sentant_ref)}
-        else
-          # Remote node
-          {:remote, resolved_node_id || node_ref, sentant_ref}
-        end
-
-      [sentant_ref] ->
-        # No separator - local sentant (could be UUID or name)
-        {:local, sentant_ref}
-    end
-  end
-
-  # Resolve a node reference (UUID or name) to node ID
-  defp resolve_node_ref(ref) do
-    local_node_id = Reality2.Bootstrap.get(:node_id)
-    local_node_name = Reality2.Bootstrap.get(:node_name)
-
-    cond do
-      ref == local_node_id -> local_node_id
-      ref == local_node_name -> local_node_id
-      is_uuid?(ref) -> ref
-      true ->
-        # Try to look up by name in PeerManager
-        if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-          case apply(AiReality2Transnet.PeerManager, :get_peer_by_name, [ref]) do
-            {:ok, peer} -> Map.get(peer, :node_id)
-            _ -> nil
-          end
-        else
-          nil
-        end
-    end
-  end
-
-  # Resolve a sentant reference (UUID or name) to sentant ID
-  defp resolve_sentant_ref(ref) do
-    if is_uuid?(ref) do
-      ref
-    else
-      # Try to look up by name locally
-      case Reality2.Metadata.get(:SentantIDs, ref) do
-        nil -> ref  # Return as-is, let downstream handle it
-        id -> id
-      end
-    end
-  end
-
-  # Check if a string looks like a UUID
-  defp is_uuid?(str) do
-    case UUID.info(str) do
-      {:ok, _} -> true
-      _ -> false
-    end
-  end
 
   # Send event to a local sentant (sentant_ref can be UUID or name)
   defp send_event_to_local(sentant_ref, event, parameters, passthrough, sender) do
     # Determine if we have a UUID or a name
-    sentant_key = if is_uuid?(sentant_ref), do: %{id: sentant_ref}, else: %{name: sentant_ref}
+    sentant_key = if PathResolver.is_uuid?(sentant_ref), do: %{id: sentant_ref}, else: %{name: sentant_ref}
 
     case Reality2.Sentants.read(sentant_key, :definition) do
       {:ok, sentant} ->
@@ -489,150 +416,9 @@ defmodule Reality2Web.SentantResolver do
     end
   end
 
-  # Send event to a remote sentant via HTTP
-  defp send_event_to_remote(node_id, sentant_id, event, parameters, passthrough, sender) do
-    require Logger
 
-    # Look up the peer's IP address from PeerManager
-    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      case apply(AiReality2Transnet.PeerManager, :get_peer, [node_id]) do
-        {:ok, peer} ->
-          peer_address = Map.get(peer, :address)
-          peer_name = Map.get(peer, :node_name, "Unknown")
-
-          # Determine the best IP to use for HTTP communication
-          case get_http_address_for_peer(peer_address) do
-            {:ok, ip_address} ->
-              Logger.info("[SentantResolver] Forwarding event '#{event}' to remote sentant #{String.slice(sentant_id, 0..7)}... on #{peer_name} (#{ip_address})")
-              forward_event_via_http(ip_address, sentant_id, event, parameters, passthrough, sender)
-
-            {:error, reason} ->
-              Logger.warning("[SentantResolver] Cannot reach peer #{peer_name}: #{reason}")
-              {:error, :peer_not_directly_reachable}
-          end
-
-        {:error, _} ->
-          Logger.warning("[SentantResolver] Peer #{String.slice(node_id, 0..7)}... not found in PeerManager")
-          {:error, :peer_not_found}
-      end
-    else
-      {:error, :transnet_not_loaded}
-    end
-  end
-
-  # Determine the HTTP address to use for a peer
-  # Returns {:ok, ip_address} or {:error, reason}
-  defp get_http_address_for_peer(peer_address) do
-    cond do
-      # Already an IP address
-      is_ip_address?(peer_address) ->
-        {:ok, peer_address}
-
-      # "via_host" means route through host (not directly reachable)
-      peer_address == "via_host" ->
-        {:error, "peer connected via host"}
-
-      # Likely a BLE MAC address - try to use gateway IP if we're connected to a hotspot
-      true ->
-        # Try to get gateway IP from ConnectionManager (we're likely connected to their hotspot)
-        if Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) do
-          case apply(AiReality2Transnet.ConnectionManager, :get_gateway_ip, []) do
-            {:ok, gateway_ip} ->
-              {:ok, gateway_ip}
-            _ ->
-              {:error, "no IP address available (peer has BLE MAC: #{peer_address})"}
-          end
-        else
-          {:error, "no IP address available"}
-        end
-    end
-  end
-
-  # Check if a string looks like an IP address
-  defp is_ip_address?(str) when is_binary(str) do
-    case :inet.parse_address(String.to_charlist(str)) do
-      {:ok, _} -> true
-      _ -> false
-    end
-  end
-  defp is_ip_address?(_), do: false
-
-  # Forward event to remote node via HTTPS GraphQL endpoint
-  defp forward_event_via_http(peer_ip, sentant_id, event, parameters, passthrough, sender) do
-    require Logger
-
-    url = "https://#{peer_ip}:4005/reality2"
-
-    query = """
-    mutation SendEvent($path: String!, $event: String!, $parameters: Json, $passthrough: Json, $sender: SenderInput) {
-      sentantSend(path: $path, event: $event, parameters: $parameters, passthrough: $passthrough, sender: $sender) {
-        id
-        name
-      }
-    }
-    """
-
-    # Parameters and passthrough need to be JSON strings for the Json scalar type
-    params_json = if is_map(parameters), do: Jason.encode!(parameters), else: parameters
-    passthrough_json = if is_map(passthrough), do: Jason.encode!(passthrough), else: passthrough
-
-    # Convert sender to GraphQL input format
-    sender_input = if sender do
-      %{
-        sentantId: Map.get(sender, :sentant_id),
-        sentantName: Map.get(sender, :sentant_name),
-        nodeId: Map.get(sender, :node_id),
-        nodeName: Map.get(sender, :node_name)
-      }
-    else
-      nil
-    end
-
-    body = Jason.encode!(%{
-      query: query,
-      variables: %{
-        path: sentant_id,
-        event: event,
-        parameters: params_json,
-        passthrough: passthrough_json,
-        sender: sender_input
-      }
-    })
-
-    headers = [{"content-type", "application/json"}]
-    request = Finch.build(:post, url, headers, body)
-
-    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
-      {:ok, %Finch.Response{status: 200, body: response_body}} ->
-        case Jason.decode(response_body) do
-          {:ok, %{"data" => %{"sentantSend" => sentant_data}}} when not is_nil(sentant_data) ->
-            Logger.info("[SentantResolver] Successfully forwarded event to remote sentant")
-            # Return a minimal response indicating success
-            {:ok, %{id: sentant_id, name: Map.get(sentant_data, "name", "remote")}}
-
-          {:ok, %{"errors" => errors}} ->
-            error_msg = errors |> Enum.map(& &1["message"]) |> Enum.join(", ")
-            Logger.warning("[SentantResolver] Remote node returned error: #{error_msg}")
-            {:error, :remote_error}
-
-          _ ->
-            {:error, :invalid_response}
-        end
-
-      {:ok, %Finch.Response{status: status}} ->
-        Logger.warning("[SentantResolver] Remote node returned HTTP #{status}")
-        {:error, :http_error}
-
-      {:error, reason} ->
-        Logger.warning("[SentantResolver] Failed to reach remote node: #{inspect(reason)}")
-        {:error, :connection_failed}
-    end
-  end
-
-  defp get_event_list([]), do: []
-
-  defp get_event_list([%{event: event, parameters: _params} | rest]) do
-    [event | get_event_list(rest)]
+  defp get_event_list(events) do
+    Enum.map(events, & &1.event)
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------

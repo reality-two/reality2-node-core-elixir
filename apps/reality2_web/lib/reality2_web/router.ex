@@ -14,8 +14,8 @@ defmodule Reality2Web.Router do
 
   pipeline :reality2 do
     plug Reality2Web.Plugs.SetLocalContext
+    plug Reality2Web.Plugs.QueryDepthLimit, max_depth: 10
     plug :accepts, ["json"]
-    # plug Reality2Web.HeadersAndAdminContext
   end
 
   # GraphQL endpoint - must come before catch-all routes
@@ -25,6 +25,8 @@ defmodule Reality2Web.Router do
     forward "/", Absinthe.Plug,
       schema: Reality2Web.Schema,
       socket: Reality2Web.UserSocket,
+      analyze_complexity: true,
+      max_complexity: 200,
       init_opts: [
         json_codec: Jason
       ]

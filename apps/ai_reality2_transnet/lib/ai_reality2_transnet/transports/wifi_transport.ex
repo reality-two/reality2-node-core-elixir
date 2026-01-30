@@ -284,7 +284,7 @@ defmodule AiReality2Transnet.Transports.WiFiTransport do
         {:ok, %{
           msg_id: id,
           ttl: ttl,
-          type: String.to_existing_atom(type),
+          type: parse_message_type(type),
           src_node_id: src,
           payload: payload
         }}
@@ -297,4 +297,10 @@ defmodule AiReality2Transnet.Transports.WiFiTransport do
   end
 
   defp decode_message(_), do: {:error, :invalid_format}
+
+  defp parse_message_type("event"), do: :event
+  defp parse_message_type("signal"), do: :signal
+  defp parse_message_type("presence"), do: :presence
+  defp parse_message_type("data"), do: :data
+  defp parse_message_type(_), do: :event
 end

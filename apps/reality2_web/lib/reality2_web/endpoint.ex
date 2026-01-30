@@ -9,8 +9,8 @@ defmodule Reality2Web.Endpoint do
   @session_options [
     store: :cookie,
     key: "_reality2_web_key",
-    signing_salt: "H0tk9UUi",
-    same_site: "Lax"
+    signing_salt: System.get_env("SESSION_SIGNING_SALT") || "H0tk9UUi",
+    same_site: "Strict"
   ]
 
   if Mix.env() == :dev do
@@ -42,12 +42,22 @@ defmodule Reality2Web.Endpoint do
     param_key: "request_logger",
     cookie_key: "request_logger"
 
+  # SECURITY TODO: Rate limiting
+  # Plan:
+  # 1. Add a lightweight per-IP rate limiter plug (e.g., Hammer or a custom
+  #    ETS-based counter) before the router.
+  # 2. Limit GraphQL mutations to ~60/min per IP, mesh POST endpoints to
+  #    ~120/min per IP. GET endpoints can be more generous.
+  # 3. Return 429 Too Many Requests when exceeded.
+  # 4. Consider exempting localhost / local network IPs if the node operates
+  #    as a private device.
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    length: 1_000_000,
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride

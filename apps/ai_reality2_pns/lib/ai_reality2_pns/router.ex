@@ -1042,9 +1042,12 @@ defmodule AiReality2Pns.Router do
         Logger.debug("[PNS Router] Routing to #{sentant_id} on #{peer.node_name || node_id} via GraphQL (WiFi)")
         case send_via_graphql(node_id, sentant_id, event, parameters, passthrough, sender) do
           {:ok, _} = result -> result
-          {:error, _} ->
-            # GraphQL failed — fall back to MeshRouter
-            Logger.debug("[PNS Router] GraphQL failed, falling back to MeshRouter")
+          # GraphQL-level errors (200 response but query errors) — don't fall back, the node received the request
+          {:error, :graphql_error} = error -> error
+          {:error, :invalid_response} = error -> error
+          # Connection/HTTP errors — fall back to MeshRouter since the node may be unreachable via HTTP
+          {:error, reason} ->
+            Logger.debug("[PNS Router] GraphQL connection failed (#{reason}), falling back to MeshRouter")
             send_via_mesh(node_id, peer, sentant_id, event, parameters, passthrough, sender)
         end
       else

@@ -3,6 +3,8 @@ defmodule Reality2.Automation do
   @moduledoc false
   # The Automation on a Sentant, managed as a Finite State Machine.
   #
+  # Action handlers (send, signal, set, test, debug) are in Reality2.Automation.Actions.
+  #
   # **Author**
   # - Dr. Roy C. Davies
   # - [roycdavies.github.io](https://roycdavies.github.io/)
@@ -12,9 +14,9 @@ defmodule Reality2.Automation do
   use GenServer, restart: :transient
   require Logger
   alias Reality2.Helpers.R2Map, as: R2Map
-  alias Reality2.Helpers.JsonPath, as: JsonPath
   alias Reality2.Helpers.R2Process, as: R2Process
   alias Reality2.Helpers.Crypto, as: Crypto
+  alias Reality2.Automation.Actions
   alias :mnesia, as: Mnesia
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -130,7 +132,7 @@ defmodule Reality2.Automation do
         {name, id, sentant_name, automation_map, keys, state}
       ) do
     # Use PNS router for location-transparent routing
-    send_via_pns(name_or_id, details)
+    Actions.send_via_pns(name_or_id, details)
     R2Process.deregister(id <> "|timers|" <> event)
     {:noreply, {name, id, sentant_name, automation_map, keys, state}}
   end
@@ -349,15 +351,7 @@ defmodule Reality2.Automation do
          keys,
          data
        ) do
-    override = R2Map.get(action_parameters, :override, false)
-
-    combined_parameters =
-      if override do
-        Map.merge(accumulated_parameters, action_parameters)
-      else
-        Map.merge(action_parameters, accumulated_parameters)
-      end
-      |> interpret()
+    combined_parameters = Actions.merge_parameters(action_parameters, accumulated_parameters)
 
     # When the sentant begins, there is a small possibiity that the plugin has not yet started.
     case test_and_wait(id <> "|plugin|" <> plugin, 5) do
@@ -404,550 +398,28 @@ defmodule Reality2.Automation do
   # ---------------------------------------------------------------------------------------------------------------------------------------------
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Do an Inbuilt Action
+  # Do an Inbuilt Action — delegates to Reality2.Automation.Actions
   # ---------------------------------------------------------------------------------------------------------------------------------------------
-  defp do_inbuilt_action(
-         action,
-         id,
-         sentant_name,
-         action_parameters,
-         accumulated_parameters,
-         passthrough,
-         keys,
-         data
-       ) do
+  defp do_inbuilt_action(action, id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data) do
     case action do
       "send" ->
-        send(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
+        Actions.send_action(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
 
       "debug" ->
-        debug(
-          id,
-          sentant_name,
-          action_parameters,
-          accumulated_parameters,
-          passthrough,
-          keys,
-          data
-        )
+        Actions.debug_action(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
 
       "set" ->
-        set(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
+        Actions.set_action(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
 
       "signal" ->
-        signal(
-          id,
-          sentant_name,
-          action_parameters,
-          accumulated_parameters,
-          passthrough,
-          keys,
-          data
-        )
+        Actions.signal_action(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
 
       "test" ->
-        test(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
+        Actions.test_action(id, sentant_name, action_parameters, accumulated_parameters, passthrough, keys, data)
 
       _ ->
         accumulated_parameters |> Map.merge(%{result: :invalid_command})
     end
-  end
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Private Functions
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Send
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  defp send(
-         id,
-         sentant_name,
-         action_parameters,
-         accumulated_parameters,
-         passthrough,
-         _decryption_key,
-         _data
-       ) do
-    override = R2Map.get(action_parameters, :override, false)
-
-    combined_parameters =
-      if override do
-        Map.merge(accumulated_parameters, action_parameters)
-      else
-        Map.merge(action_parameters, accumulated_parameters)
-      end
-      |> interpret()
-
-    # Get the 'to' parameter, if it exists.  If not, return a list with the id of this Sentant.
-    # Special path formats ("*", "*|name", "node|name", "@sender") are handled specially.
-    to_field = R2Map.get(combined_parameters, :to)
-
-    # Get original sender info for @sender resolution (who sent the triggering event)
-    original_sender = R2Map.get(combined_parameters, "__sender__")
-
-    # Build sender info for this Sentant (the one sending the event now)
-    # This allows the recipient to reply back using @sender
-    this_sender = %{
-      sentant_id: id,
-      sentant_name: sentant_name,
-      node_id: Reality2.Bootstrap.get(:node_id),
-      node_name: Reality2.Bootstrap.get(:node_name)
-    }
-
-    to_list =
-      case to_field do
-        # Self - no 'to' field specified
-        nil -> [id]
-        # @sender - reply to the sender of the triggering event
-        "@sender" -> [resolve_sender_path(original_sender)]
-        # Pass strings directly to PNS Router (handles "*", "*|name", "node|name", etc.)
-        str when is_binary(str) -> [str]
-        # List of targets - resolve @sender in each
-        list when is_list(list) ->
-          Enum.map(list, fn
-            "@sender" -> resolve_sender_path(original_sender)
-            other -> other
-          end)
-        # Other (map, etc.)
-        other -> [other]
-      end
-      |> Enum.reject(&is_nil/1)
-
-    # Go through the list, sending the event to each one.
-    for to <- to_list do
-      # Create identifier for PNS Router
-      # For path formats like "*", "*|name", "node|name" - pass as-is
-      # For local names/IDs - wrap in map for backwards compatibility
-      name_or_id =
-        cond do
-          # Path formats containing "|" or "*" - pass directly to PNS Router
-          is_binary(to) and (String.contains?(to, "|") or to == "*") ->
-            to
-
-          # Local name lookup
-          is_binary(to) ->
-            case Reality2.Metadata.get(:SentantIDs, to) do
-              nil -> %{id: to}  # Assume it's an ID
-              found_id -> %{id: found_id}  # Was a name
-            end
-
-          # Already a map
-          true ->
-            to
-        end
-
-      # Get the event to send.
-      event = R2Map.get(combined_parameters, :event, "event")
-      event_parameters = R2Map.get(action_parameters, :parameters, %{})
-
-      # Make sure there is no timer for this event already in process.  If so, cancel it before doing the new one.
-      case R2Process.whereis(id <> "|timers|" <> event) do
-        nil ->
-          :ok
-
-        timer ->
-          Process.cancel_timer(timer)
-          R2Process.deregister(id <> "|timers|" <> event)
-      end
-
-      # Clean parameters - remove __sender__ as it's passed separately
-      clean_params = Map.merge(event_parameters, accumulated_parameters)
-        |> interpret()
-        |> Map.delete("__sender__")
-        |> Map.delete(:__sender__)
-
-      # Send the event either immediately or after a delay.
-      case R2Map.get(combined_parameters, :delay) do
-        nil ->
-          # Use PNS router for location-transparent routing (local or remote)
-          send_via_pns(name_or_id, %{
-            event: event,
-            parameters: clean_params,
-            passthrough: passthrough,
-            sender: this_sender
-          })
-
-        delay ->
-          timer =
-            Process.send_after(
-              self(),
-              {:send, name_or_id,
-               %{
-                 event: event,
-                 parameters: clean_params,
-                 passthrough: passthrough,
-                 sender: this_sender
-               }},
-              delay
-            )
-
-          R2Process.register(id <> "|timers|" <> event, timer)
-      end
-    end
-
-    # No side effects, so just return the parameters sent in
-    accumulated_parameters |> Map.merge(%{result: :ok})
-  end
-
-  # Helper function to send via PNS router with fallback to direct send
-  defp send_via_pns(name_or_id, message_map) do
-    # Try to use PNS router if available
-    if Code.ensure_loaded?(AiReality2Pns.Router) do
-      # Extract identifier for PNS Router
-      identifier = case name_or_id do
-        %{id: id} -> id
-        %{name: name} -> Reality2.Metadata.get(:SentantIDs, name) || name
-        str when is_binary(str) -> str  # Pass path formats directly ("*", "*|name", "node|name")
-      end
-
-      # Suppress compile-time warning - PNS is an optional plugin
-      router_module = AiReality2Pns.Router
-      sender = Map.get(message_map, :sender)
-      case apply(router_module, :send_to_sentant, [
-        identifier,
-        message_map.event,
-        message_map.parameters,
-        message_map.passthrough,
-        sender
-      ]) do
-        # Single target results
-        {:ok, :local, _result} -> :ok
-        {:ok, {:remote, _node_id}, _result} -> :ok
-        # Broadcast results (for "*" and "*|name" formats)
-        {:ok, %{local: _, remote: _}} -> :ok
-        # Errors
-        {:error, :not_found, _} ->
-          # Fallback to direct send (only works for local targets)
-          if is_map(name_or_id) do
-            Reality2.Sentants.sendto(name_or_id, message_map)
-          else
-            Logger.warning("PNS routing failed: not_found for #{inspect(name_or_id)}")
-          end
-        {:error, :not_found} ->
-          Logger.warning("PNS routing failed: not_found for #{inspect(name_or_id)}")
-        {:error, reason} ->
-          Logger.warning("PNS routing failed: #{inspect(reason)}")
-      end
-    else
-      # PNS not available, use direct send (only works for local targets)
-      if is_map(name_or_id) do
-        Reality2.Sentants.sendto(name_or_id, message_map)
-      else
-        Logger.warning("PNS not available, cannot route #{inspect(name_or_id)}")
-      end
-    end
-  end
-
-  # Resolve @sender to a PNS-compatible path
-  # Returns "node_name|sentant_name" or "node_name" if no sentant specified
-  defp resolve_sender_path(nil) do
-    Logger.warning("[Automation] @sender used but no sender info available in message")
-    nil
-  end
-
-  defp resolve_sender_path(sender) when is_map(sender) do
-    node_name = Map.get(sender, :node_name) || Map.get(sender, "node_name")
-    sentant_name = Map.get(sender, :sentant_name) || Map.get(sender, "sentant_name")
-    sentant_id = Map.get(sender, :sentant_id) || Map.get(sender, "sentant_id")
-
-    cond do
-      # Prefer sentant_name for addressing (names are stable, UUIDs change on reload)
-      sentant_name && node_name ->
-        "#{node_name}|#{sentant_name}"
-
-      # Fall back to sentant_id if no name
-      sentant_id && node_name ->
-        "#{node_name}|#{sentant_id}"
-
-      # No sentant specified - just the node (for node-level events)
-      node_name ->
-        node_name
-
-      true ->
-        Logger.warning("[Automation] @sender has incomplete info: #{inspect(sender)}")
-        nil
-    end
-  end
-
-  defp resolve_sender_path(other) do
-    Logger.warning("[Automation] @sender has unexpected format: #{inspect(other)}")
-    nil
-  end
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Send a signal on the Sentant's subscription channel
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  defp signal(
-         id,
-         _sentant_name,
-         action_parameters,
-         accumulated_parameters,
-         passthrough,
-         _decryption_key,
-         _data
-       ) do
-    override = R2Map.get(action_parameters, :override, false)
-
-    combined_parameters =
-      if override do
-        Map.merge(accumulated_parameters, action_parameters)
-      else
-        Map.merge(action_parameters, accumulated_parameters)
-      end
-      |> interpret()
-
-    # Get sender info for passing through to signal subscribers
-    sender = R2Map.get(combined_parameters, "__sender__")
-
-    # Send off a signal to any listening device
-    case R2Map.get(combined_parameters, :event) do
-      nil ->
-        Logger.debug("[Automation] Signal action: no event in parameters")
-        nil
-
-      event ->
-        case R2Process.whereis(id <> "|comms") do
-          nil ->
-            Logger.debug("[Automation] Signal action: comms process not found for #{id}")
-            nil
-
-          _pid ->
-            event_parameters = R2Map.get(action_parameters, :parameters, %{})
-            merged_params = Map.merge(event_parameters, accumulated_parameters) |> interpret()
-            # Remove __sender__ from params (it's passed separately)
-            clean_params = Map.delete(merged_params, "__sender__")
-
-            Logger.info("[Automation] Broadcasting signal '#{event}' with params: #{inspect(Map.keys(clean_params))}")
-
-            Reality2.Signals.broadcast(
-              id,
-              event,
-              clean_params,
-              passthrough,
-              sender
-            )
-        end
-    end
-
-    # No side effects, so just return the parameters sent in
-    accumulated_parameters |> Map.merge(%{result: :ok})
-  end
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Send debug info to the debug channel
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  defp debug(
-         id,
-         _sentant_name,
-         _action_parameters,
-         accumulated_parameters,
-         passthrough,
-         _decryption_key,
-         _data
-       ) do
-    Reality2.Signals.broadcast(id, "debug", accumulated_parameters, passthrough)
-
-    accumulated_parameters |> Map.merge(%{result: :ok})
-  end
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Set a key / value in the accumulated parameters
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  defp set(
-         _id,
-         _sentant_name,
-         action_parameters,
-         accumulated_parameters,
-         _passthrough,
-         _decryption_key,
-         data
-       ) do
-    override = R2Map.get(action_parameters, :override, false)
-
-    combined_parameters =
-      if override do
-        Map.merge(accumulated_parameters, action_parameters)
-      else
-        Map.merge(action_parameters, accumulated_parameters)
-      end
-      |> interpret()
-
-    key = R2Map.get(combined_parameters, :key)
-
-    # Get the value, and then process it to replace
-    value = replace_variable_in_map(R2Map.get(combined_parameters, :value), combined_parameters)
-
-    if value == nil do
-      accumulated_parameters
-      |> interpret()
-      |> R2Map.delete(key)
-      |> Map.merge(%{result: :ok})
-    else
-      # If the value includes %{jsonpath: "the path"} then extract the element from the combined parameters rather than the facevalue"
-      if is_map(value) && R2Map.get(value, :jsonpath) != nil do
-        # Adjust the JSON path to bring in __variables__
-        %{"json_path" => jsonpath} =
-          replace_variable_in_map(
-            %{"json_path" => R2Map.get(value, :jsonpath)},
-            accumulated_parameters
-          )
-
-        case JsonPath.get_value(combined_parameters, jsonpath) do
-          {:ok, value2} ->
-            accumulated_parameters
-            |> interpret()
-            |> Map.merge(%{key => value2})
-            |> Map.merge(%{result: :ok})
-
-          {:error, _} ->
-            accumulated_parameters
-            |> interpret()
-            |> Map.merge(%{result: %{error: :jsonpath_error}})
-        end
-      else
-        if is_map(value) && R2Map.get(value, :expr) != nil do
-          case R2Map.get(value, :expr) do
-            expr ->
-              if is_map(expr) do
-                value3 = Reality2.Calculation.calculate(expr, combined_parameters)
-
-                accumulated_parameters
-                |> interpret()
-                |> Map.merge(%{key => value3})
-                |> Map.merge(%{result: :ok})
-              else
-                case RPN.convert(expr, combined_parameters) do
-                  value2 ->
-                    accumulated_parameters
-                    |> interpret()
-                    |> Map.merge(%{key => value2})
-                    |> Map.merge(%{result: :ok})
-                end
-              end
-          end
-        else
-          if is_map(value) && R2Map.get(value, :data) != nil do
-            case R2Map.get(data, R2Map.get(value, :data)) do
-              nil ->
-                accumulated_parameters
-                |> interpret()
-                |> Map.merge(%{result: %{error: :data_error}})
-
-              value2 ->
-                accumulated_parameters
-                |> interpret()
-                |> Map.merge(%{key => value2})
-                |> Map.merge(%{result: :ok})
-            end
-          else
-            accumulated_parameters
-            |> interpret()
-            |> Map.merge(%{key => value})
-            |> Map.merge(%{result: :ok})
-          end
-        end
-      end
-    end
-  end
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Test a condition and send an event depending on the outcome
-  # ---------------------------------------------------------------------------------------------------------------------------------------------
-  defp test(
-         id,
-         _sentant_name,
-         action_parameters,
-         accumulated_parameters,
-         passthrough,
-         _decryption_key,
-         _data
-       ) do
-    override = R2Map.get(action_parameters, :override, false)
-
-    combined_parameters =
-      if override do
-        Map.merge(accumulated_parameters, action_parameters)
-      else
-        Map.merge(action_parameters, accumulated_parameters)
-      end
-      |> interpret()
-
-    test_expr = R2Map.get(combined_parameters, :if)
-
-    result =
-      if is_map(test_expr) do
-        Reality2.Calculation.calculate(test_expr, combined_parameters)
-      else
-        RPN.convert(test_expr, combined_parameters)
-      end
-
-    # Test the condition to choose the event to send
-    event =
-      case result do
-        true -> R2Map.get(combined_parameters, :then, "event")
-        _ -> R2Map.get(combined_parameters, :else, "event")
-      end
-
-    # Get the 'to' parameter, if it exists.  If not, return a list with the id of this Sentant.
-    # Special path formats ("*", "*|name", "node|name") are passed directly to PNS Router.
-    to_field = R2Map.get(combined_parameters, :to)
-
-    to_list =
-      case to_field do
-        # Self - no 'to' field specified
-        nil -> [id]
-        # Pass strings directly to PNS Router (handles "*", "*|name", "node|name", etc.)
-        str when is_binary(str) -> [str]
-        # List of targets
-        list when is_list(list) -> list
-        # Other (map, etc.)
-        other -> [other]
-      end
-
-    # Go through the list, sending the event to each Sentant.
-    for to <- to_list do
-      # Create identifier for PNS Router
-      # For path formats like "*", "*|name", "node|name" - pass as-is
-      # For local names/IDs - wrap in map for backwards compatibility
-      name_or_id =
-        cond do
-          # Path formats containing "|" or "*" - pass directly to PNS Router
-          is_binary(to) and (String.contains?(to, "|") or to == "*") ->
-            to
-
-          # Local name lookup
-          is_binary(to) ->
-            case Reality2.Metadata.get(:SentantIDs, to) do
-              nil -> %{id: to}  # Assume it's an ID
-              found_id -> %{id: found_id}  # Was a name
-            end
-
-          # Already a map
-          true ->
-            to
-        end
-
-      event_parameters = R2Map.get(action_parameters, :parameters, %{})
-
-      Reality2.Sentants.sendto(name_or_id, %{
-        event: event,
-        parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(),
-        passthrough: passthrough
-      })
-    end
-
-    accumulated_parameters |> Map.merge(%{result: :ok})
   end
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------

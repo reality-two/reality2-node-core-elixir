@@ -6,6 +6,11 @@ export PORT=4005
 export POOLSIZE=10
 export PLUGINS="ai.reality2.vars, ai.reality2.geospatial, ai.reality2.pns, ai.reality2.backup, ai.reality2.rustdemo, ai.reality2.transnet, ai.reality2.versioncontrol"
 
+# Database credentials (override these for your local setup)
+export DB_USERNAME="${DB_USERNAME:-postgres}"
+export DB_PASSWORD="${DB_PASSWORD:-postgres}"
+export DB_HOSTNAME="${DB_HOSTNAME:-localhost}"
+
 # A Reality2 node is unlocked by default. To lock it:
 # export LOCKED="true"    # No Sentants or Swarms may be created or deleted after autostart
 # export LOCKED="remote"  # Only local API commands can create/delete Swarms or Sentants

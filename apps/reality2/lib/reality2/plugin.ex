@@ -137,32 +137,37 @@ defmodule Reality2.Plugin do
 
               {:ok, result} ->
                 %Finch.Response{body: body} = result
-                body_json = Jason.decode!(body)
 
-                output = R2Map.get(plugin_map, "output", %{})
-                output_pattern = R2Map.get(output, "value", "")
+                case Jason.decode(body) do
+                  {:error, _} ->
+                    Logger.warning("[Plugin:#{name}] Invalid JSON in HTTP response")
+                    {:reply, {:error, :invalid_json}, {name, id, plugin_map, state}}
 
-                case JsonPath.get_value(body_json, output_pattern) do
-                  {:error, reason} ->
-                    {:reply, {:error, reason}, {name, id, plugin_map, state}}
+                  {:ok, body_json} ->
+                    output = R2Map.get(plugin_map, "output", %{})
+                    output_pattern = R2Map.get(output, "value", "")
 
-                  {:ok, answer} ->
-                    case R2Map.get(output, "event") do
-                      nil ->
-                        {:reply, {:ok, answer}, {name, id, plugin_map, state}}
+                    case JsonPath.get_value(body_json, output_pattern) do
+                      {:error, reason} ->
+                        {:reply, {:error, reason}, {name, id, plugin_map, state}}
 
-                      event ->
-                        # Send the event to the Sentant
-                        output_key = R2Map.get(output, "key", "result")
+                      {:ok, answer} ->
+                        case R2Map.get(output, "event") do
+                          nil ->
+                            {:reply, {:ok, answer}, {name, id, plugin_map, state}}
 
-                        Reality2.Sentants.sendto(%{id: id}, %{
-                          event: event,
-                          parameters: Map.merge(parameters, %{output_key => answer}),
-                          passthrough: passthrough
-                        })
+                          event ->
+                            output_key = R2Map.get(output, "key", "result")
+
+                            Reality2.Sentants.sendto(%{id: id}, %{
+                              event: event,
+                              parameters: Map.merge(parameters, %{output_key => answer}),
+                              passthrough: passthrough
+                            })
+                        end
+
+                        {:reply, {:ok, %{}}, {name, id, plugin_map, state}}
                     end
-
-                    {:reply, {:ok, %{}}, {name, id, plugin_map, state}}
                 end
             end
         end

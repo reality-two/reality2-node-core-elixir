@@ -236,27 +236,32 @@ defmodule AiReality2Transnet.MeshRouterTest do
       assert decoded["sentants"] == sentants
     end
 
-    test "event payload delivered via sendto_all contains __mesh_event structure" do
+    test "event payload delivered via sendto_all uses original event name with sender" do
       # Verify the shape of what deliver_event_locally would pass to sendto_all.
-      sentant_id = TestNodeFactory.generate_uuid()
+      # After refactoring, events are delivered as their original event name
+      # with sender extracted from _sender param.
       event_name = "my_event"
       params = %{"x" => 1}
       src_node_id = TestNodeFactory.generate_uuid()
+      src_node_name = "TestNode"
 
-      expected_sendto_all_arg = %{
-        event: "__mesh_event",
-        parameters: %{
-          source_sentant: sentant_id,
-          source_node: src_node_id,
-          event: event_name,
-          params: params,
-          ttl: 4
-        }
+      sender = %{
+        sentant_name: "TestSentant",
+        sentant_id: TestNodeFactory.generate_uuid(),
+        node_id: src_node_id,
+        node_name: src_node_name
       }
 
-      assert expected_sendto_all_arg.event == "__mesh_event"
-      assert expected_sendto_all_arg.parameters.source_sentant == sentant_id
-      assert expected_sendto_all_arg.parameters.source_node == src_node_id
+      expected_sendto_all_arg = %{
+        event: event_name,
+        parameters: params,
+        passthrough: %{},
+        sender: sender
+      }
+
+      assert expected_sendto_all_arg.event == event_name
+      assert expected_sendto_all_arg.sender.node_id == src_node_id
+      assert expected_sendto_all_arg.sender.node_name == src_node_name
     end
 
     test "signal payload delivered locally contains __mesh_signal structure" do

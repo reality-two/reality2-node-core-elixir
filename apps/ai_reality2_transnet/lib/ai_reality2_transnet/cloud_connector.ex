@@ -626,7 +626,7 @@ defmodule AiReality2Transnet.CloudConnector do
         {:ok, %{
           msg_id: Map.get(data, "msg_id", :rand.uniform(0xFFFFFFFF)),
           ttl: Map.get(data, "ttl", 5),
-          type: String.to_existing_atom(Map.get(data, "message_type", "event")),
+          type: parse_message_type(Map.get(data, "message_type", "event")),
           src_node_id: Map.get(data, "src_node_id", ""),
           payload: Map.get(data, "payload", "")
         }}
@@ -687,4 +687,10 @@ defmodule AiReality2Transnet.CloudConnector do
     end
   end
   defp extract_host(_), do: nil
+
+  defp parse_message_type("event"), do: :event
+  defp parse_message_type("signal"), do: :signal
+  defp parse_message_type("presence"), do: :presence
+  defp parse_message_type("data"), do: :data
+  defp parse_message_type(_), do: :event
 end

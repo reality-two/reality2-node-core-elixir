@@ -548,8 +548,9 @@ defmodule AiReality2Transnet.BLEMesh do
     # TODO: Maintain hash -> sentant_id mapping for efficient routing
 
     Reality2.Sentants.sendto_all(%{
-      event: "__mesh_event",
+      event: "__internal",
       parameters: %{
+        type: :ble_mesh_event,
         sentant_hash: sentant_hash,
         event_hash: event_hash,
         params: params,

@@ -11,6 +11,20 @@ defmodule Reality2Web.MeshController do
 
   use Reality2Web, :controller
 
+  # SECURITY TODO: Mesh endpoint authentication
+  # These endpoints currently accept unauthenticated requests from any client.
+  # Plan:
+  # 1. Add a shared-secret HMAC plug that validates a signature header on all
+  #    POST endpoints (/register, /peer_update, /message).
+  # 2. The secret is derived from the Hive identity — only nodes in the same
+  #    Hive can communicate. Use HiveIdentity.derive_data_key("mesh:auth") to
+  #    produce a per-Hive HMAC key.
+  # 3. Each request must include an X-Mesh-Signature header containing
+  #    HMAC-SHA256(request_body, shared_key). Replay protection via msg_id or
+  #    timestamp window.
+  # 4. GET endpoints (/info, /sentants) can remain public since they expose
+  #    only the public sentant interface.
+
   @doc """
   GET /mesh/sentants - List all Sentants with public information only.
 
@@ -238,11 +252,7 @@ defmodule Reality2Web.MeshController do
     src_node_id = Map.get(params, "src_node_id")
     payload = Map.get(params, "payload", "{}")
 
-    type = try do
-      String.to_existing_atom(type_str)
-    rescue
-      _ -> :event
-    end
+    type = parse_message_type(type_str)
 
     message = %{
       msg_id: msg_id,
@@ -451,6 +461,12 @@ defmodule Reality2Web.MeshController do
       require Logger
       Logger.warning("[MeshController] Failed to notify clients: #{Exception.message(e)}")
   end
+
+  defp parse_message_type("event"), do: :event
+  defp parse_message_type("signal"), do: :signal
+  defp parse_message_type("presence"), do: :presence
+  defp parse_message_type("data"), do: :data
+  defp parse_message_type(_), do: :event
 
   defp push_registration_notification(client_ip, notification) do
     require Logger

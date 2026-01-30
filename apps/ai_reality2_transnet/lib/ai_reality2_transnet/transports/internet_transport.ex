@@ -89,21 +89,35 @@ defmodule AiReality2Transnet.Transports.InternetTransport do
     # are routed through CloudConnector → MeshRouter, not through this adapter
     case Jason.decode(raw_data) do
       {:ok, data} ->
+        message_type = parse_message_type(Map.get(data, "message_type", "event"))
         message = %{
           msg_id: Map.get(data, "msg_id", :rand.uniform(0xFFFFFFFF)),
           ttl: Map.get(data, "ttl", 5),
-          type: String.to_existing_atom(Map.get(data, "message_type", "event")),
+          type: message_type,
           src_node_id: Map.get(data, "src_node_id", ""),
           payload: Map.get(data, "payload", "")
         }
         AiReality2Transnet.MeshRouter.handle_incoming(message, :internet)
         :ok
 
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.warning("[InternetTransport] Failed to decode incoming message: #{inspect(reason)}")
         :ok
     end
   rescue
-    _ -> :ok
+    e ->
+      Logger.warning("[InternetTransport] Error handling incoming message: #{Exception.message(e)}")
+      :ok
+  end
+
+  # Safe message type parsing — maps known string types to atoms, defaults to :event
+  defp parse_message_type("event"), do: :event
+  defp parse_message_type("signal"), do: :signal
+  defp parse_message_type("presence"), do: :presence
+  defp parse_message_type("data"), do: :data
+  defp parse_message_type(other) do
+    Logger.warning("[InternetTransport] Unknown message_type: #{inspect(other)}, defaulting to :event")
+    :event
   end
 
   @impl true

@@ -14,8 +14,12 @@ defmodule Reality2Web.UserSocket do
   end
 
   defp authorize_user(_socket, _query_params) do
-    # Fetch the user here (for example, from a token in the query_params)
-    {:ok, :fred}
+    # TODO: Implement proper authentication here.
+    # Consider proximity-based auth (BLE challenge, WiFi hotspot association),
+    # token-based auth (signed JWT from a trusted app), or device pairing.
+    # Currently accepts all connections — acceptable only if the node is
+    # access-controlled at the network level (e.g., private WiFi hotspot).
+    {:ok, :anonymous}
   end
 
   @impl true

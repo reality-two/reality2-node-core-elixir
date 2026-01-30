@@ -109,7 +109,8 @@ defmodule AiReality2Transnet.Transports.LoRaTransport do
         AiReality2Transnet.MeshRouter.handle_incoming(message, :lora)
         :ok
 
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.warning("[LoRaTransport] Failed to decode incoming message: #{inspect(reason)}")
         :ok
     end
   end

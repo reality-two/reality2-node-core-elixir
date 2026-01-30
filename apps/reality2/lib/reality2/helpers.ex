@@ -172,6 +172,20 @@ defmodule Reality2.Helpers do
   # -------------------------------------------------------------------------------------------------------------------------------------------
   defmodule R2Map do
     @moduledoc false
+    # SECURITY TODO: Atom table exhaustion risk
+    # This module calls String.to_atom(key) on every map lookup when the key is
+    # a binary string. If user-controlled strings (sentant names, event names,
+    # parameter keys) flow through R2Map.get/3, each unique string creates a
+    # permanent atom. The BEAM atom table is limited (~1M atoms) and not GC'd.
+    #
+    # Plan:
+    # 1. Replace String.to_atom(key) with String.to_existing_atom(key) wrapped
+    #    in a try/rescue that returns the default on ArgumentError.
+    # 2. Alternatively, normalize all map keys to strings at ingestion boundaries
+    #    (JSON decode, GraphQL input) and use string-only lookups internally.
+    # 3. The same issue exists in Metadata.set/get/delete (String.to_atom for
+    #    GenServer names) — those names are a fixed set from application.ex so
+    #    they're safe, but audit any dynamic callers.
 
     # -----------------------------------------------------------------------------------------------------------------------------------------
     # A useful Map Get function that works regardless if the key is a binary or an atom
