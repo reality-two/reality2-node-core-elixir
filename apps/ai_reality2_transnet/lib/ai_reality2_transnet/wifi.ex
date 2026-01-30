@@ -1108,11 +1108,27 @@ defmodule AiReality2Transnet.Wifi do
   end
 
   # Get device state
+  # Uses GENERAL section (compatible with all NetworkManager versions).
+  # Older versions (e.g. Debian/ARM) don't support field-level queries like
+  # "-f STATE device show" — only section-level like "-f GENERAL".
   defp get_device_state(interface) do
-    case System.cmd("nmcli", ["-t", "-f", "STATE", "device", "show", interface], stderr_to_stdout: true) do
+    case System.cmd("nmcli", ["-t", "-f", "GENERAL", "device", "show", interface], stderr_to_stdout: true) do
       {output, 0} ->
-        state = output |> String.trim() |> String.split(":") |> List.last()
-        {:ok, state}
+        # Parse GENERAL section for STATE line: "GENERAL.STATE:100 (connected)"
+        state =
+          output
+          |> String.split("\n", trim: true)
+          |> Enum.find_value(fn line ->
+            case String.split(line, ":", parts: 2) do
+              ["GENERAL.STATE", value] -> String.trim(value)
+              _ -> nil
+            end
+          end)
+
+        case state do
+          nil -> {:error, "state_not_found"}
+          value -> {:ok, value}
+        end
 
       {error, _} ->
         {:error, "device_query_failed: #{error}"}
