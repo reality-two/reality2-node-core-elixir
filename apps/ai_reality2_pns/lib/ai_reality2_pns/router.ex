@@ -1128,13 +1128,17 @@ defmodule AiReality2Pns.Router do
       end
 
       # Build GraphQL mutation
+      # Schema: sentantSend(path: String!, event: String!, parameters: JSON, passthrough: JSON, sender: SenderInput)
+      params_json = Jason.encode!(Jason.encode!(parameters || %{}))
+      passthrough_json = Jason.encode!(Jason.encode!(passthrough))
+
       mutation = """
       mutation {
         sentantSend(
-          id: "#{sentant_id}",
+          path: "#{sentant_id}",
           event: "#{event}",
-          parameters: #{Jason.encode!(parameters || %{})},
-          passthrough: #{Jason.encode!(passthrough)}#{sender_arg}
+          parameters: #{params_json},
+          passthrough: #{passthrough_json}#{sender_arg}
         ) {
           id
           name
