@@ -1347,7 +1347,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   # Detects external disconnects (user action, signal loss, host reboot)
   defp verify_wifi_connection(%{connection_state: :connected_as_client} = state) do
     case Wifi.get_connection_status(state.wifi_interface) do
-      {:ok, %{connected: true, ssid: current_ssid}} ->
+      {:ok, %{state: :connected, ssid: current_ssid}} ->
         # Verify we're still connected to the expected SSID
         if current_ssid == state.current_host_ssid do
           # Connection healthy - no state change needed
@@ -1358,9 +1358,9 @@ defmodule AiReality2Transnet.ConnectionManager do
           handle_wifi_connection_lost(state, "ssid_mismatch")
         end
 
-      {:ok, %{connected: false}} ->
+      {:ok, %{state: conn_state}} when conn_state in [:disconnected, :connecting] ->
         # WiFi disconnected externally
-        Logger.warning("#{log_prefix()} WiFi connection lost externally")
+        Logger.warning("#{log_prefix()} WiFi connection lost externally (state: #{conn_state})")
         handle_wifi_connection_lost(state, "external_disconnect")
 
       {:error, reason} ->
@@ -1375,7 +1375,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   defp verify_wifi_connection(%{connection_state: :disconnected, wifi_interface: interface} = state)
        when not is_nil(interface) do
     case Wifi.get_connection_status(interface) do
-      {:ok, %{connected: true, ssid: ssid}} when is_binary(ssid) ->
+      {:ok, %{state: :connected, ssid: ssid}} when is_binary(ssid) ->
         # Check if connected to an R2 hotspot
         if String.starts_with?(ssid, "R2Node_") or String.starts_with?(ssid, "R2-") do
           Logger.info("#{log_prefix()} Detected R2 hotspot connection during verification: #{ssid}")
