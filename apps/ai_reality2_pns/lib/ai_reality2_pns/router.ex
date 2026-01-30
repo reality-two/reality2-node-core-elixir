@@ -1029,44 +1029,27 @@ defmodule AiReality2Pns.Router do
     })
   end
 
-  # Send to remote Sentant via MeshRouter (transport-agnostic)
-  # MeshRouter will select the best transport (WiFi, LoRa, or BLE for tiny messages)
+  # Send to remote Sentant - prefers GraphQL for WiFi-connected peers (location-transparent)
+  # Falls back to MeshRouter for non-WiFi transports (BLE, LoRa)
   defp send_to_remote_gatt(node_id, sentant_id, event, parameters, passthrough, sender) do
     # Check if transnet modules are available
-    with true <- Code.ensure_loaded?(AiReality2Transnet.MeshRouter),
-         true <- Code.ensure_loaded?(AiReality2Transnet.PeerManager),
+    with true <- Code.ensure_loaded?(AiReality2Transnet.PeerManager),
          {:ok, peer} <- AiReality2Transnet.PeerManager.get_peer(node_id) do
 
-      # Build target address (node|sentant format)
-      target = if peer.node_name do
-        "#{peer.node_name}|#{sentant_id}"
+      # For WiFi-connected peers, use GraphQL directly for transparent event delivery
+      # (MeshRouter wraps events in __mesh_signal envelope, breaking transparency)
+      if peer.transport == :wifi_hotspot do
+        Logger.debug("[PNS Router] Routing to #{sentant_id} on #{peer.node_name || node_id} via GraphQL (WiFi)")
+        case send_via_graphql(node_id, sentant_id, event, parameters, passthrough, sender) do
+          {:ok, _} = result -> result
+          {:error, _} ->
+            # GraphQL failed — fall back to MeshRouter
+            Logger.debug("[PNS Router] GraphQL failed, falling back to MeshRouter")
+            send_via_mesh(node_id, peer, sentant_id, event, parameters, passthrough, sender)
+        end
       else
-        "#{node_id}|#{sentant_id}"
-      end
-
-      # Merge passthrough and sender into parameters for transport
-      full_params = Map.merge(parameters || %{}, %{_passthrough: passthrough, _sender: sender})
-
-      # Route through MeshRouter - it will pick the best transport
-      Logger.debug("[PNS Router] Routing to #{target} via MeshRouter")
-
-      case AiReality2Transnet.MeshRouter.send_signal(
-        "pns_router",  # source
-        target,        # target (node|sentant)
-        event,
-        full_params
-      ) do
-        :ok ->
-          {:ok, %{routed_via: :mesh_router, target: target}}
-
-        {:error, :no_transports_available} ->
-          # Fall back to direct GraphQL if MeshRouter has no transports
-          # This handles the case where WiFi is connected but not registered as transport
-          Logger.debug("[PNS Router] MeshRouter unavailable, falling back to direct GraphQL")
-          send_via_graphql(node_id, sentant_id, event, parameters, passthrough, sender)
-
-        error ->
-          error
+        # Non-WiFi transport — use MeshRouter (BLE, LoRa)
+        send_via_mesh(node_id, peer, sentant_id, event, parameters, passthrough, sender)
       end
     else
       false ->
@@ -1079,6 +1062,32 @@ defmodule AiReality2Pns.Router do
 
       error ->
         error
+    end
+  end
+
+  # Send via MeshRouter (for non-WiFi transports or as fallback)
+  defp send_via_mesh(node_id, peer, sentant_id, event, parameters, passthrough, sender) do
+    if Code.ensure_loaded?(AiReality2Transnet.MeshRouter) do
+      target = if peer.node_name do
+        "#{peer.node_name}|#{sentant_id}"
+      else
+        "#{node_id}|#{sentant_id}"
+      end
+
+      full_params = Map.merge(parameters || %{}, %{_passthrough: passthrough, _sender: sender})
+
+      Logger.debug("[PNS Router] Routing to #{target} via MeshRouter")
+
+      case AiReality2Transnet.MeshRouter.send_signal("pns_router", target, event, full_params) do
+        :ok -> {:ok, %{routed_via: :mesh_router, target: target}}
+        {:error, :no_transports_available} ->
+          Logger.debug("[PNS Router] MeshRouter unavailable, falling back to direct GraphQL")
+          send_via_graphql(node_id, sentant_id, event, parameters, passthrough, sender)
+        error -> error
+      end
+    else
+      Logger.debug("[PNS Router] MeshRouter not loaded, using direct GraphQL")
+      send_via_graphql_if_available(node_id, sentant_id, event, parameters, passthrough, sender)
     end
   end
 
@@ -1134,12 +1143,12 @@ defmodule AiReality2Pns.Router do
       """
 
       graphql_request = %{query: mutation}
-      url = "http://#{peer_ip}:4005/reality2"
+      url = "https://#{peer_ip}:4005/reality2"
       headers = [{"content-type", "application/json"}]
       body = Jason.encode!(graphql_request)
 
       case Finch.build(:post, url, headers, body)
-           |> Finch.request(Reality2.HTTPClient, receive_timeout: 5_000) do
+           |> Finch.request(Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
         {:ok, %Finch.Response{status: 200, body: response_body}} ->
           case Jason.decode(response_body) do
             {:ok, %{"data" => %{"sentantSend" => sentant}}} ->
