@@ -824,13 +824,19 @@ defmodule AiReality2Transnet.ConnectionManager do
       interface ->
         case Wifi.get_connection_status(interface) do
           {:ok, %{state: :connected, ssid: ssid}} when is_binary(ssid) ->
-            # Check if connected to an R2 hotspot (SSID starts with R2Node_ or R2-)
-            if String.starts_with?(ssid, "R2Node_") or String.starts_with?(ssid, "R2-") do
-              Logger.info("#{log_prefix()} Found existing R2 hotspot connection: #{ssid}")
-              # Trigger the same flow as if we just connected
-              report_wifi_connected(ssid)
-            else
-              Logger.debug("#{log_prefix()} Connected to non-R2 network: #{ssid}")
+            my_name = Reality2.Bootstrap.get(:node_name, "")
+            # Check if connected to an R2 hotspot (but not our own hotspot)
+            cond do
+              ssid == my_name ->
+                Logger.debug("#{log_prefix()} Connected to own hotspot: #{ssid} - ignoring")
+
+              String.starts_with?(ssid, "R2Node_") or String.starts_with?(ssid, "R2-") ->
+                Logger.info("#{log_prefix()} Found existing R2 hotspot connection: #{ssid}")
+                # Trigger the same flow as if we just connected
+                report_wifi_connected(ssid)
+
+              true ->
+                Logger.debug("#{log_prefix()} Connected to non-R2 network: #{ssid}")
             end
             {:noreply, state}
 
@@ -1376,8 +1382,9 @@ defmodule AiReality2Transnet.ConnectionManager do
        when not is_nil(interface) do
     case Wifi.get_connection_status(interface) do
       {:ok, %{state: :connected, ssid: ssid}} when is_binary(ssid) ->
-        # Check if connected to an R2 hotspot
-        if String.starts_with?(ssid, "R2Node_") or String.starts_with?(ssid, "R2-") do
+        my_name = Reality2.Bootstrap.get(:node_name, "")
+        # Check if connected to an R2 hotspot (but not our own hotspot)
+        if ssid != my_name and (String.starts_with?(ssid, "R2Node_") or String.starts_with?(ssid, "R2-")) do
           Logger.info("#{log_prefix()} Detected R2 hotspot connection during verification: #{ssid}")
           # Trigger mesh registration
           report_wifi_connected(ssid)
