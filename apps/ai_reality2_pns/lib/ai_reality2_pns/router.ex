@@ -145,8 +145,8 @@ defmodule AiReality2Pns.Router do
   - `{:error, :not_found}` - Sentant not found
   - `{:error, :node_not_found}` - Target node not found
   """
-  def send_to_sentant(sentant_identifier, event, parameters \\ %{}, passthrough \\ nil) do
-    GenServer.call(__MODULE__, {:send_to_sentant, sentant_identifier, event, parameters, passthrough})
+  def send_to_sentant(sentant_identifier, event, parameters \\ %{}, passthrough \\ nil, sender \\ nil) do
+    GenServer.call(__MODULE__, {:send_to_sentant, sentant_identifier, event, parameters, passthrough, sender})
   end
 
   @doc """
@@ -236,25 +236,53 @@ defmodule AiReality2Pns.Router do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   @impl true
-  def handle_call({:send_to_sentant, identifier, event, params, passthrough}, _from, state) do
+  def handle_call({:send_to_sentant, identifier, event, params, passthrough, sender}, _from, state) do
     # Parse path to handle different formats
     case parse_path(identifier) do
       :broadcast_all ->
         # "*" - send to ALL sentants on ALL known nodes
-        handle_broadcast_all(event, params, passthrough, state)
+        handle_broadcast_all(event, params, passthrough, sender, state)
 
       {:local_only, sentant_identifier} ->
-        # No node prefix - send to local node only
-        handle_local_only(sentant_identifier, event, params, passthrough, state)
+        # No node prefix — search local first, then hive peers (Gap 1 fix)
+        handle_local_then_hive(sentant_identifier, event, params, passthrough, sender, state)
 
       {:all_nodes, sentant_identifier} ->
         # "*|sentant" - send to all nodes with this sentant
-        handle_all_nodes(sentant_identifier, event, params, passthrough, state)
+        handle_all_nodes(sentant_identifier, event, params, passthrough, sender, state)
 
       {:specific_node, node_part, sentant_part} ->
         # "node|sentant" - route to specific node
-        handle_specific_node(node_part, sentant_part, event, params, passthrough, state)
+        handle_specific_node(node_part, sentant_part, event, params, passthrough, sender, state)
+
+      {:specific_node_or_hive, part1, part2} ->
+        # Could be node|sentant or hive|sentant — try node first
+        case handle_specific_node(part1, part2, event, params, passthrough, sender, state) do
+          {:reply, {:error, :node_not_found}, _} ->
+            # Not a node — try as hive
+            handle_hive_sentant(part1, part2, event, params, passthrough, sender, state)
+          result ->
+            result
+        end
+
+      {:hive_sentant, hive_identifier, sentant_name} ->
+        # "hive|sentant" - route to nearest matching sentant in hive
+        handle_hive_sentant(hive_identifier, sentant_name, event, params, passthrough, sender, state)
+
+      {:hive_node_sentant, hive_identifier, node_part, sentant_part} ->
+        # "hive|node|sentant" - route to specific node in specific hive
+        handle_hive_node_sentant(hive_identifier, node_part, sentant_part, event, params, passthrough, sender, state)
+
+      :reply_to_sender ->
+        # "@sender" - reply to the sender
+        handle_reply_to_sender(event, params, passthrough, sender, state)
     end
+  end
+
+  # Backwards compatibility - handle calls without sender
+  @impl true
+  def handle_call({:send_to_sentant, identifier, event, params, passthrough}, from, state) do
+    handle_call({:send_to_sentant, identifier, event, params, passthrough, nil}, from, state)
   end
 
   @impl true
@@ -262,7 +290,7 @@ defmodule AiReality2Pns.Router do
     targets = resolve_broadcast_targets(pattern, state)
 
     local_count = Enum.count(targets.local, fn sentant_id ->
-      case send_to_local(sentant_id, event, params, passthrough) do
+      case send_to_local(sentant_id, event, params, passthrough, nil) do
         {:ok, _} -> true
         _ -> false
       end
@@ -270,7 +298,7 @@ defmodule AiReality2Pns.Router do
 
     remote_count = Enum.reduce(targets.remote, 0, fn {node_id, sentant_ids}, acc ->
       Enum.count(sentant_ids, fn sentant_id ->
-        case send_to_remote_gatt(node_id, sentant_id, event, params, passthrough) do
+        case send_to_remote_gatt(node_id, sentant_id, event, params, passthrough, nil) do
           :ok -> true
           _ -> false
         end
@@ -336,18 +364,34 @@ defmodule AiReality2Pns.Router do
 
       {:specific_node, node_part, sentant_part} ->
         # Target specific node
-        case resolve_node_identifier(node_part) do
-          {:local, _node_id} ->
-            sentant_id = resolve_sentant_on_node(sentant_part, :local)
-            {:reply, {:ok, :local, sentant_id}, state}
+        locate_on_node(node_part, sentant_part, state)
 
-          {:remote, node_id} ->
-            sentant_id = resolve_sentant_on_node(sentant_part, {:remote, node_id})
-            {:reply, {:ok, {:remote, node_id}, sentant_id}, state}
-
-          {:error, reason} ->
-            {:reply, {:error, reason}, state}
+      {:specific_node_or_hive, node_part, sentant_part} ->
+        # Could be node|sentant or hive|sentant — try node first
+        case locate_on_node(node_part, sentant_part, state) do
+          {:reply, {:error, :node_not_found}, _} ->
+            {:reply, {:error, :not_found}, state}
+          result ->
+            result
         end
+
+      _ ->
+        {:reply, {:error, :not_found}, state}
+    end
+  end
+
+  defp locate_on_node(node_part, sentant_part, state) do
+    case resolve_node_identifier(node_part) do
+      {:local, _node_id} ->
+        sentant_id = resolve_sentant_on_node(sentant_part, :local)
+        {:reply, {:ok, :local, sentant_id}, state}
+
+      {:remote, node_id} ->
+        sentant_id = resolve_sentant_on_node(sentant_part, {:remote, node_id})
+        {:reply, {:ok, {:remote, node_id}, sentant_id}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
     end
   end
 
@@ -372,7 +416,7 @@ defmodule AiReality2Pns.Router do
 
 
   # Handle "*" - broadcast to ALL sentants on ALL known nodes
-  defp handle_broadcast_all(event, params, passthrough, state) do
+  defp handle_broadcast_all(event, params, passthrough, sender, state) do
     # Get all local sentants
     local_sentant_ids = case Reality2.Metadata.all(:SentantIDs) do
       map when is_map(map) -> Map.values(map)
@@ -381,7 +425,7 @@ defmodule AiReality2Pns.Router do
 
     # Send to all local sentants
     local_results = Enum.map(local_sentant_ids, fn sentant_id ->
-      result = send_to_local(sentant_id, event, params, passthrough)
+      result = send_to_local(sentant_id, event, params, passthrough, sender)
       {:local, sentant_id, result}
     end)
     local_count = length(local_results)
@@ -393,7 +437,7 @@ defmodule AiReality2Pns.Router do
       results = Enum.flat_map(peers, fn {node_id, peer} ->
         Enum.map(peer.sentants, fn s ->
           sentant_id = Map.get(s, :id) || Map.get(s, "id")
-          result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough)
+          result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough, sender)
           {{:remote, node_id}, sentant_id, result}
         end)
       end)
@@ -415,19 +459,19 @@ defmodule AiReality2Pns.Router do
   end
 
   # Handle "node|sentant" - route to specific node
-  defp handle_specific_node(node_part, sentant_part, event, params, passthrough, state) do
+  defp handle_specific_node(node_part, sentant_part, event, params, passthrough, sender, state) do
     case resolve_node_identifier(node_part) do
       {:local, _node_id} ->
         # Target is this node - resolve sentant locally
         sentant_id = resolve_sentant_on_node(sentant_part, :local)
-        result = send_to_local(sentant_id, event, params, passthrough)
+        result = send_to_local(sentant_id, event, params, passthrough, sender)
         new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
         {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
 
       {:remote, node_id} ->
         # Target is a remote node
         sentant_id = resolve_sentant_on_node(sentant_part, {:remote, node_id})
-        result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough)
+        result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough, sender)
         new_stats = Map.update!(state.stats, :remote_sends, &(&1 + 1))
         {:reply, {:ok, {:remote, node_id}, result}, %{state | stats: new_stats}}
 
@@ -437,25 +481,93 @@ defmodule AiReality2Pns.Router do
     end
   end
 
-  # Handle local-only routing (no node prefix)
-  # Only searches the local node
-  defp handle_local_only(sentant_identifier, event, params, passthrough, state) do
-    # Normalize to sentant ID
+  # Handle bare-name routing: local first, then hive directory (Gap 1 fix)
+  # Falls through to hive peers when local lookup fails
+  defp handle_local_then_hive(sentant_identifier, event, params, passthrough, sender, state) do
     sentant_id = normalize_identifier(sentant_identifier)
 
-    # Check if it exists locally
+    # Check local first
     if is_local_sentant?(sentant_id) do
-      result = send_to_local(sentant_id, event, params, passthrough)
+      result = send_to_local(sentant_id, event, params, passthrough, sender)
       new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
       {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
     else
-      Logger.debug("[PNS Router] Sentant '#{sentant_id}' not found locally")
-      {:reply, {:error, :not_found}, state}
+      # Not found locally — search hive directory for nearest peer with this sentant
+      sentant_name = case sentant_identifier do
+        %{name: n} -> n
+        str when is_binary(str) -> str
+        _ -> to_string(sentant_identifier)
+      end
+
+      case find_in_hive_directory(sentant_name) do
+        {:ok, node_id, _entry} ->
+          # Found on a hive peer — route via best transport
+          result = send_to_remote_with_transport(node_id, sentant_name, event, params, passthrough, sender)
+          new_stats = Map.update!(state.stats, :remote_sends, &(&1 + 1))
+          {:reply, {:ok, {:remote, node_id}, result}, %{state | stats: new_stats}}
+
+        {:error, :not_found} ->
+          Logger.debug("[PNS Router] Sentant '#{sentant_name}' not found locally or in hive directory")
+          {:reply, {:error, :not_found}, state}
+      end
+    end
+  end
+
+  # Handle "hive|sentant" — route to nearest matching sentant in hive
+  defp handle_hive_sentant(hive_identifier, sentant_name, event, params, passthrough, sender, state) do
+    case find_in_hive_directory_by_hive(hive_identifier, sentant_name) do
+      {:ok, node_id, _entry} ->
+        result = send_to_remote_with_transport(node_id, sentant_name, event, params, passthrough, sender)
+        new_stats = Map.update!(state.stats, :remote_sends, &(&1 + 1))
+        {:reply, {:ok, {:remote, node_id}, result}, %{state | stats: new_stats}}
+
+      {:error, :not_found} ->
+        # Check if the target is actually local (our hive)
+        sentant_id = normalize_identifier(sentant_name)
+        if is_local_sentant?(sentant_id) do
+          result = send_to_local(sentant_id, event, params, passthrough, sender)
+          new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
+          {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
+        else
+          Logger.debug("[PNS Router] Sentant '#{sentant_name}' not found in hive '#{hive_identifier}'")
+          {:reply, {:error, :not_found}, state}
+        end
+    end
+  end
+
+  # Handle "hive|node|sentant" — route to specific node in hive
+  defp handle_hive_node_sentant(_hive_identifier, node_part, sentant_part, event, params, passthrough, sender, state) do
+    # Resolve the node within the hive context, then route normally
+    handle_specific_node(node_part, sentant_part, event, params, passthrough, sender, state)
+  end
+
+  # Handle "@sender" — reply to the original sender
+  defp handle_reply_to_sender(event, params, passthrough, sender, state) do
+    case sender do
+      %{node_id: sender_node_id, sentant_id: sender_sentant_id} when not is_nil(sender_sentant_id) ->
+        local_node_id = Reality2.Bootstrap.get(:node_id)
+        if sender_node_id == local_node_id do
+          result = send_to_local(sender_sentant_id, event, params, passthrough, sender)
+          new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
+          {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
+        else
+          result = send_to_remote_with_transport(sender_node_id, sender_sentant_id, event, params, passthrough, sender)
+          new_stats = Map.update!(state.stats, :remote_sends, &(&1 + 1))
+          {:reply, {:ok, {:remote, sender_node_id}, result}, %{state | stats: new_stats}}
+        end
+
+      %{sentant_name: sender_name} when not is_nil(sender_name) ->
+        # Try to find the sender by name
+        handle_local_then_hive(sender_name, event, params, passthrough, sender, state)
+
+      _ ->
+        Logger.warning("[PNS Router] @sender used but no sender context available")
+        {:reply, {:error, :no_sender_context}, state}
     end
   end
 
   # Handle "*|sentant" - send to ALL nodes with this sentant
-  defp handle_all_nodes(sentant_identifier, event, params, passthrough, state) do
+  defp handle_all_nodes(sentant_identifier, event, params, passthrough, sender, state) do
     # Determine if this is a name or UUID
     {is_name, identifier} = case sentant_identifier do
       %{id: id} -> {false, id}
@@ -473,7 +585,7 @@ defmodule AiReality2Pns.Router do
 
     # Send to local if found
     {local_count, local_results} = if local_sentant_id do
-      result = send_to_local(local_sentant_id, event, params, passthrough)
+      result = send_to_local(local_sentant_id, event, params, passthrough, sender)
       {1, [{:local, result}]}
     else
       {0, []}
@@ -484,7 +596,7 @@ defmodule AiReality2Pns.Router do
       case find_sentants_by_name_on_peers(identifier) do
         {:ok, matches} ->
           results = Enum.map(matches, fn {sentant_id, node_id} ->
-            result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough)
+            result = send_to_remote_gatt(node_id, sentant_id, event, params, passthrough, sender)
             {{:remote, node_id}, result}
           end)
           {length(matches), results}
@@ -496,7 +608,7 @@ defmodule AiReality2Pns.Router do
       # ID-based: can only be on one remote node
       case find_sentant_by_id_on_peers(identifier) do
         {:ok, node_id} ->
-          result = send_to_remote_gatt(node_id, identifier, event, params, passthrough)
+          result = send_to_remote_gatt(node_id, identifier, event, params, passthrough, sender)
           {1, [{{:remote, node_id}, result}]}
 
         {:error, _} ->
@@ -578,22 +690,96 @@ defmodule AiReality2Pns.Router do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # Parse path format:
-  # - "*" -> {:broadcast_all} (all sentants on all nodes)
+  # - "*" -> :broadcast_all (all sentants on all nodes)
   # - "sentant" -> {:local_only, sentant}
   # - "*|sentant" -> {:all_nodes, sentant}
   # - "node|sentant" -> {:specific_node, node, sentant}
+  # - "hive_name|sentant" -> {:hive_sentant, hive_id_or_name, sentant}
+  # - "hive|node|sentant" -> {:hive_node_sentant, hive, node, sentant}
+  # - "@sender" -> {:reply_to_sender} (resolved via sender context)
   defp parse_path("*"), do: :broadcast_all
+  defp parse_path("@sender"), do: :reply_to_sender
   defp parse_path(path) when is_binary(path) do
-    case String.split(path, "|", parts: 2) do
-      ["*", sentant_part] -> {:all_nodes, sentant_part}
-      [node_part, sentant_part] -> {:specific_node, node_part, sentant_part}
-      [sentant_only] -> {:local_only, sentant_only}
+    case String.split(path, "|") do
+      ["*", sentant_part] ->
+        {:all_nodes, sentant_part}
+
+      [part1, part2, part3] ->
+        # Three-part: hive|node|sentant
+        {:hive_node_sentant, part1, part2, part3}
+
+      [part1, part2] ->
+        # Two-part: could be node|sentant or hive|sentant
+        # Determine if part1 is a known node (by name or UUID) or a hive identifier
+        case classify_identifier(part1) do
+          :local_node -> {:specific_node, part1, part2}
+          :known_peer -> {:specific_node, part1, part2}
+          :hive -> {:hive_sentant, part1, part2}
+          :unknown ->
+            # Could be either — try node first, fall back to hive
+            {:specific_node_or_hive, part1, part2}
+        end
+
+      [sentant_only] ->
+        {:local_only, sentant_only}
     end
   end
 
   defp parse_path(%{id: _} = map), do: {:local_only, map}
   defp parse_path(%{name: _} = map), do: {:local_only, map}
   defp parse_path(other), do: {:local_only, other}
+
+  # Classify an identifier as local node, known peer, hive, or unknown
+  defp classify_identifier(identifier) do
+    local_node_id = Reality2.Bootstrap.get(:node_id)
+    local_node_name = Reality2.Bootstrap.get(:node_name)
+
+    cond do
+      identifier == local_node_id or identifier == local_node_name ->
+        :local_node
+
+      # Check if it's a known peer by name
+      Reality2.Metadata.get(:PNS_NodeNames, identifier) != nil ->
+        :known_peer
+
+      # Check if it's a known peer by UUID
+      uuid?(identifier) and peer_exists?(identifier) ->
+        :known_peer
+
+      # Check if it's a hive identifier (name or UUID matches our hive or a trusted hive)
+      is_hive_identifier?(identifier) ->
+        :hive
+
+      true ->
+        :unknown
+    end
+  end
+
+  defp peer_exists?(node_id) do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      case AiReality2Transnet.PeerManager.get_peer(node_id) do
+        {:ok, _} -> true
+        _ -> false
+      end
+    else
+      false
+    end
+  end
+
+  defp is_hive_identifier?(identifier) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) and
+       Process.whereis(AiReality2Transnet.HiveDirectory) != nil do
+      # Check if it matches our hive name or ID
+      case AiReality2Transnet.HiveDirectory.get_directory() do
+        %{hive_id: hive_id, hive_name: hive_name} ->
+          identifier == hive_id or identifier == hive_name or
+          AiReality2Transnet.HiveDirectory.hive_trusted?(identifier)
+        _ -> false
+      end
+    else
+      false
+    end
+  end
 
   # Resolve a node identifier (name or ID) to node_id
   # Returns the node_id, or nil if not found
@@ -720,6 +906,80 @@ defmodule AiReality2Pns.Router do
     end
   end
 
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Hive Directory Integration (Gap 1, Gap 4, Gap 6, Gap 8 fixes)
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Search hive directory for nearest peer with a sentant of the given name
+  defp find_in_hive_directory(sentant_name) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) and
+       Process.whereis(AiReality2Transnet.HiveDirectory) != nil do
+      case AiReality2Transnet.HiveDirectory.find_sentant_by_name(sentant_name) do
+        [{node_id, entry, _conf} | _] -> {:ok, node_id, entry}
+        [] -> {:error, :not_found}
+      end
+    else
+      # Fall back to legacy peer search
+      case find_sentants_by_name_on_peers(sentant_name) do
+        {:ok, [{sentant_id, node_id} | _]} -> {:ok, node_id, %{sentant_id: sentant_id}}
+        _ -> {:error, :not_found}
+      end
+    end
+  end
+
+  # Search hive directory for sentant in a specific hive
+  defp find_in_hive_directory_by_hive(hive_identifier, sentant_name) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) and
+       Process.whereis(AiReality2Transnet.HiveDirectory) != nil do
+      case AiReality2Transnet.HiveDirectory.find_sentant_in_hive(hive_identifier, sentant_name) do
+        [{node_id, entry, _conf} | _] -> {:ok, node_id, entry}
+        [] -> {:error, :not_found}
+      end
+    else
+      {:error, :not_found}
+    end
+  end
+
+  # Send to remote peer using reachability-aware transport selection (Gap 4, Gap 8 fixes)
+  # Instead of always assuming WiFi/GraphQL, uses PeerManager to select best transport
+  defp send_to_remote_with_transport(node_id, sentant_identifier, event, params, passthrough, sender) do
+    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      case AiReality2Transnet.PeerManager.best_transport(node_id) do
+        {:ok, :wifi, _info} ->
+          # WiFi available — use GraphQL or MeshRouter
+          sentant_id = resolve_sentant_on_node(sentant_identifier, {:remote, node_id})
+          send_to_remote_gatt(node_id, sentant_id, event, params, passthrough, sender)
+
+        {:ok, transport, _info} when transport in [:ble, :lora] ->
+          # BLE or LoRa — route via MeshRouter (transport-agnostic)
+          send_via_mesh_router(node_id, sentant_identifier, event, params, passthrough, sender)
+
+        {:error, _} ->
+          # Peer not tracked or unreachable — try MeshRouter as last resort
+          send_via_mesh_router(node_id, sentant_identifier, event, params, passthrough, sender)
+      end
+    else
+      # PeerManager not available — try direct
+      sentant_id = resolve_sentant_on_node(sentant_identifier, {:remote, node_id})
+      send_to_remote_gatt(node_id, sentant_id, event, params, passthrough, sender)
+    end
+  end
+
+  # Send via MeshRouter for non-WiFi transports
+  defp send_via_mesh_router(node_id, sentant_identifier, event, params, passthrough, sender) do
+    if Code.ensure_loaded?(AiReality2Transnet.MeshRouter) do
+      target = "#{node_id}|#{sentant_identifier}"
+      full_params = Map.merge(params || %{}, %{_passthrough: passthrough, _sender: sender})
+
+      case AiReality2Transnet.MeshRouter.send_signal("pns_router", target, event, full_params) do
+        :ok -> {:ok, %{routed_via: :mesh_router, target: target}}
+        error -> error
+      end
+    else
+      {:error, :mesh_router_not_available}
+    end
+  end
+
   # Check if a string is a valid UUID
   defp uuid?(str) when is_binary(str) do
     case UUID.info(str) do
@@ -760,38 +1020,59 @@ defmodule AiReality2Pns.Router do
   end
 
   # Send to local Sentant
-  defp send_to_local(sentant_id, event, parameters, passthrough) do
+  defp send_to_local(sentant_id, event, parameters, passthrough, sender) do
     Sentants.sendto(%{id: sentant_id}, %{
       event: event,
       parameters: parameters,
-      passthrough: passthrough
+      passthrough: passthrough,
+      sender: sender
     })
   end
 
-  # Send to remote Sentant via appropriate transport (WiFi hotspot/GraphQL or BLE discovery)
-  defp send_to_remote_gatt(node_id, sentant_id, event, parameters, passthrough) do
+  # Send to remote Sentant via MeshRouter (transport-agnostic)
+  # MeshRouter will select the best transport (WiFi, LoRa, or BLE for tiny messages)
+  defp send_to_remote_gatt(node_id, sentant_id, event, parameters, passthrough, sender) do
     # Check if transnet modules are available
-    with true <- Code.ensure_loaded?(AiReality2Transnet.PeerManager),
+    with true <- Code.ensure_loaded?(AiReality2Transnet.MeshRouter),
+         true <- Code.ensure_loaded?(AiReality2Transnet.PeerManager),
          {:ok, peer} <- AiReality2Transnet.PeerManager.get_peer(node_id) do
 
-      # Send via appropriate transport
-      case peer.transport do
-        :wifi_hotspot ->
-          # Use WiFi hotspot + GraphQL for sending commands
-          send_via_graphql(node_id, sentant_id, event, parameters, passthrough)
+      # Build target address (node|sentant format)
+      target = if peer.node_name do
+        "#{peer.node_name}|#{sentant_id}"
+      else
+        "#{node_id}|#{sentant_id}"
+      end
 
-        :ble_gatt ->
-          # BLE is for discovery only
-          Logger.warning("[PNS Router] Peer #{String.slice(node_id, 0..7)}... is on BLE (discovery only)")
-          Logger.info("[PNS Router] Wait for WiFi hotspot connection for data transfer")
-          {:error, :ble_discovery_only}
+      # Merge passthrough and sender into parameters for transport
+      full_params = Map.merge(parameters || %{}, %{_passthrough: passthrough, _sender: sender})
 
-        _ ->
-          {:error, :unknown_transport}
+      # Route through MeshRouter - it will pick the best transport
+      Logger.debug("[PNS Router] Routing to #{target} via MeshRouter")
+
+      case AiReality2Transnet.MeshRouter.send_signal(
+        "pns_router",  # source
+        target,        # target (node|sentant)
+        event,
+        full_params
+      ) do
+        :ok ->
+          {:ok, %{routed_via: :mesh_router, target: target}}
+
+        {:error, :no_transports_available} ->
+          # Fall back to direct GraphQL if MeshRouter has no transports
+          # This handles the case where WiFi is connected but not registered as transport
+          Logger.debug("[PNS Router] MeshRouter unavailable, falling back to direct GraphQL")
+          send_via_graphql(node_id, sentant_id, event, parameters, passthrough, sender)
+
+        error ->
+          error
       end
     else
       false ->
-        {:error, :transnet_not_available}
+        # MeshRouter not available, try direct GraphQL as fallback
+        Logger.debug("[PNS Router] MeshRouter not loaded, using direct GraphQL")
+        send_via_graphql_if_available(node_id, sentant_id, event, parameters, passthrough, sender)
 
       {:error, :not_found} ->
         {:error, :peer_not_found}
@@ -801,13 +1082,41 @@ defmodule AiReality2Pns.Router do
     end
   end
 
+  # Fallback when MeshRouter isn't available
+  defp send_via_graphql_if_available(node_id, sentant_id, event, parameters, passthrough, sender) do
+    with true <- Code.ensure_loaded?(AiReality2Transnet.PeerManager),
+         {:ok, peer} <- AiReality2Transnet.PeerManager.get_peer(node_id),
+         :wifi_hotspot <- peer.transport do
+      send_via_graphql(node_id, sentant_id, event, parameters, passthrough, sender)
+    else
+      :ble_gatt ->
+        {:error, :ble_discovery_only}
+      _ ->
+        {:error, :transnet_not_available}
+    end
+  end
+
   # Send command via GraphQL (Reality2Web endpoint on port 4005)
-  defp send_via_graphql(node_id, sentant_id, event, parameters, passthrough) do
+  defp send_via_graphql(node_id, sentant_id, event, parameters, passthrough, sender) do
     # Get peer's IP address from PNS_Peers metadata (stored by ConnectionManager)
     peer_ip = get_peer_ip(node_id)
 
     if peer_ip do
       Logger.info("[PNS Router] Sending to Sentant #{String.slice(sentant_id, 0..7)}... via GraphQL")
+
+      # Build sender argument for GraphQL (if present)
+      sender_arg = if sender do
+        """
+        , sender: {
+            sentant_id: #{if sender[:sentant_id], do: "\"#{sender[:sentant_id]}\"", else: "null"},
+            sentant_name: #{if sender[:sentant_name], do: "\"#{sender[:sentant_name]}\"", else: "null"},
+            node_id: "#{sender[:node_id]}",
+            node_name: "#{sender[:node_name]}"
+          }
+        """
+      else
+        ""
+      end
 
       # Build GraphQL mutation
       mutation = """
@@ -816,7 +1125,7 @@ defmodule AiReality2Pns.Router do
           id: "#{sentant_id}",
           event: "#{event}",
           parameters: #{Jason.encode!(parameters || %{})},
-          passthrough: #{Jason.encode!(passthrough)}
+          passthrough: #{Jason.encode!(passthrough)}#{sender_arg}
         ) {
           id
           name

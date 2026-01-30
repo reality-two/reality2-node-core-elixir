@@ -808,13 +808,64 @@ defmodule AiReality2Transnet.ConnectionManager do
     {:noreply, state}
   end
 
-  # Host reachability check - detect when WiFi is connected but host is unreachable
+  # Host reachability check - runs async to avoid blocking the GenServer
+  # (blocking causes ConnectionManager timeout cascades in Assessor and WiFiTransport)
   @impl true
-  def handle_info(:check_host_reachability, state) do
-    state = check_host_reachability(state)
-    # Schedule next check
+  def handle_info(:check_host_reachability, %{connection_state: :connected_as_client, current_host_ip: host_ip} = state)
+      when not is_nil(host_ip) do
+    # Run the HTTP check in a separate task to avoid blocking
+    parent = self()
+    unreachable_count = state.host_unreachable_count
+    host_peer_id = state.current_host_peer_id
+
+    Task.start(fn ->
+      url = "https://#{host_ip}:4005/mesh/info"
+      request = Finch.build(:get, url, [{"accept", "application/json"}])
+
+      result = case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
+        {:ok, %Finch.Response{status: 200, body: body}} -> {:reachable, body}
+        {:ok, %Finch.Response{status: status}} -> {:unreachable, "http_#{status}"}
+        {:error, reason} -> {:unreachable, reason}
+      end
+
+      send(parent, {:host_reachability_result, result, unreachable_count, host_peer_id, host_ip})
+    end)
+
     Process.send_after(self(), :check_host_reachability, @host_reachability_check_interval_ms)
     {:noreply, state}
+  end
+
+  def handle_info(:check_host_reachability, state) do
+    # Not connected as client — nothing to check
+    Process.send_after(self(), :check_host_reachability, @host_reachability_check_interval_ms)
+    {:noreply, state}
+  end
+
+  # Handle async reachability result
+  @impl true
+  def handle_info({:host_reachability_result, {:reachable, body}, prev_unreachable_count, host_peer_id, host_ip}, state) do
+    if prev_unreachable_count > 0 do
+      Logger.info("#{log_prefix()} Host reachable again after #{prev_unreachable_count} failures - re-registering")
+
+      # Host may have restarted — re-do sentant exchange to re-register
+      host_node_id = case Jason.decode(body) do
+        {:ok, %{"node_id" => id}} -> id
+        _ -> host_peer_id
+      end
+
+      Task.start(fn ->
+        perform_sentant_exchange(host_node_id || host_peer_id, host_ip, 4005)
+        register_with_host(host_ip, 4005)
+      end)
+    end
+
+    {:noreply, %{state | host_unreachable_count: 0}}
+  end
+
+  @impl true
+  def handle_info({:host_reachability_result, {:unreachable, reason}, _prev_count, _host_peer_id, _host_ip}, state) do
+    Logger.warning("#{log_prefix()} Host unreachable: #{inspect(reason)}")
+    {:noreply, increment_unreachable_count(state)}
   end
 
   # Check for existing R2 hotspot connection at startup
@@ -1474,32 +1525,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   # Check if host is reachable (WiFi connected but host may have rebooted/died)
-  defp check_host_reachability(%{connection_state: :connected_as_client, current_host_ip: host_ip} = state)
-       when not is_nil(host_ip) do
-    # Try to reach the host's /mesh/info endpoint
-    url = "https://#{host_ip}:4005/mesh/info"
-    request = Finch.build(:get, url, [{"accept", "application/json"}])
-
-    case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
-      {:ok, %Finch.Response{status: 200}} ->
-        # Host is reachable - reset counter
-        if state.host_unreachable_count > 0 do
-          Logger.info("#{log_prefix()} Host reachable again after #{state.host_unreachable_count} failures")
-        end
-        %{state | host_unreachable_count: 0}
-
-      {:ok, %Finch.Response{status: status}} ->
-        Logger.warning("#{log_prefix()} Host returned unexpected status #{status}")
-        increment_unreachable_count(state)
-
-      {:error, reason} ->
-        Logger.warning("#{log_prefix()} Host unreachable: #{inspect(reason)}")
-        increment_unreachable_count(state)
-    end
-  end
-
-  # No check needed for other states
-  defp check_host_reachability(state), do: state
+  # Note: check_host_reachability is now handled asynchronously in handle_info(:check_host_reachability)
 
   defp increment_unreachable_count(state) do
     new_count = state.host_unreachable_count + 1
