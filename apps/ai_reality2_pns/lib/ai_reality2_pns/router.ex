@@ -1113,32 +1113,25 @@ defmodule AiReality2Pns.Router do
     if peer_ip do
       Logger.info("[PNS Router] Sending to Sentant #{String.slice(sentant_id, 0..7)}... via GraphQL")
 
-      # Build sender argument for GraphQL (if present)
-      sender_arg = if sender do
-        """
-        , sender: {
-            sentant_id: #{if sender[:sentant_id], do: "\"#{sender[:sentant_id]}\"", else: "null"},
-            sentant_name: #{if sender[:sentant_name], do: "\"#{sender[:sentant_name]}\"", else: "null"},
-            node_id: "#{sender[:node_id]}",
-            node_name: "#{sender[:node_name]}"
-          }
-        """
-      else
-        ""
+      # Build sender variable for GraphQL (if present)
+      sender_var = if sender do
+        %{
+          sentant_id: sender[:sentant_id],
+          sentant_name: sender[:sentant_name],
+          node_id: sender[:node_id],
+          node_name: sender[:node_name]
+        }
       end
 
-      # Build GraphQL mutation
-      # Schema: sentantSend(path: String!, event: String!, parameters: JSON, passthrough: JSON, sender: SenderInput)
-      params_json = Jason.encode!(Jason.encode!(parameters || %{}))
-      passthrough_json = Jason.encode!(Jason.encode!(passthrough))
-
+      # Build parameterized GraphQL mutation using variables to prevent injection
       mutation = """
-      mutation {
+      mutation($path: String!, $event: String!, $parameters: JSON, $passthrough: JSON, $sender: SenderInput) {
         sentantSend(
-          path: "#{sentant_id}",
-          event: "#{event}",
-          parameters: #{params_json},
-          passthrough: #{passthrough_json}#{sender_arg}
+          path: $path,
+          event: $event,
+          parameters: $parameters,
+          passthrough: $passthrough,
+          sender: $sender
         ) {
           id
           name
@@ -1146,7 +1139,15 @@ defmodule AiReality2Pns.Router do
       }
       """
 
-      graphql_request = %{query: mutation}
+      variables = %{
+        path: sentant_id,
+        event: event,
+        parameters: Jason.encode!(parameters || %{}),
+        passthrough: Jason.encode!(passthrough),
+        sender: sender_var
+      }
+
+      graphql_request = %{query: mutation, variables: variables}
       url = "https://#{peer_ip}:4005/reality2"
       headers = [{"content-type", "application/json"}]
       body = Jason.encode!(graphql_request)

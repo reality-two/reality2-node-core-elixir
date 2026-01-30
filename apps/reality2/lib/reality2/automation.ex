@@ -69,9 +69,18 @@ defmodule Reality2.Automation do
   def handle_cast(args, {name, id, sentant_name, automation_map, keys, state}) do
     parameters = R2Map.get(args, :parameters, %{})
     passthrough = R2Map.get(args, :passthrough, %{})
+    sender = R2Map.get(args, :sender)
 
-    # Get the data from the Sentant Database (if there is any)
-    data = get_data(id, R2Map.get(keys, "decryption_key"))
+    # Add sender as __sender__ to parameters so it's available for variable interpolation
+    # This enables actions to use __sender__ in their parameters
+    parameters_with_sender = if sender do
+      Map.put(parameters, "__sender__", sender)
+    else
+      parameters
+    end
+
+    # Get the data from the Sentant Database (if there is any), decrypted with Hive key
+    data = get_data(id)
 
     case R2Map.get(args, :event) do
       nil ->
@@ -95,7 +104,7 @@ defmodule Reality2.Automation do
                        sentant_name,
                        transition_map,
                        event,
-                       parameters,
+                       parameters_with_sender,
                        passthrough,
                        data,
                        keys,
@@ -137,9 +146,9 @@ defmodule Reality2.Automation do
   # ---------------------------------------------------------------------------------------------------------------------------------------------
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Get the data from the Data Table in Mnesia
+  # Get the data from the Data Table in Mnesia (decrypted with Hive key)
   # ---------------------------------------------------------------------------------------------------------------------------------------------
-  defp get_data(id, decryption_key) do
+  defp get_data(id) do
     do_read = fn id ->
       Mnesia.read({:data, id})
     end
@@ -148,10 +157,17 @@ defmodule Reality2.Automation do
     case Mnesia.transaction(do_read, [id]) do
       {:atomic, [{:data, ^id, stored_data}]} ->
         try do
+          # Try Hive-based decryption first
           data_string =
-            case decryption_key do
-              nil -> stored_data
-              _ -> Crypto.decrypt(Base.decode64!(stored_data), decryption_key)
+            case Base.decode64(stored_data) do
+              {:ok, encrypted_data} ->
+                case Crypto.decrypt(encrypted_data, "sentant:data:#{id}") do
+                  {:ok, decrypted} -> decrypted
+                  _ -> stored_data  # Fallback: assume unencrypted
+                end
+
+              :error ->
+                stored_data  # Not base64 encoded, assume unencrypted
             end
 
           case Jason.decode(data_string) do
@@ -448,7 +464,7 @@ defmodule Reality2.Automation do
   # ---------------------------------------------------------------------------------------------------------------------------------------------
   defp send(
          id,
-         _sentant_name,
+         sentant_name,
          action_parameters,
          accumulated_parameters,
          passthrough,
@@ -466,20 +482,39 @@ defmodule Reality2.Automation do
       |> interpret()
 
     # Get the 'to' parameter, if it exists.  If not, return a list with the id of this Sentant.
-    # Special path formats ("*", "*|name", "node|name") are passed directly to PNS Router.
+    # Special path formats ("*", "*|name", "node|name", "@sender") are handled specially.
     to_field = R2Map.get(combined_parameters, :to)
+
+    # Get original sender info for @sender resolution (who sent the triggering event)
+    original_sender = R2Map.get(combined_parameters, "__sender__")
+
+    # Build sender info for this Sentant (the one sending the event now)
+    # This allows the recipient to reply back using @sender
+    this_sender = %{
+      sentant_id: id,
+      sentant_name: sentant_name,
+      node_id: Reality2.Bootstrap.get(:node_id),
+      node_name: Reality2.Bootstrap.get(:node_name)
+    }
 
     to_list =
       case to_field do
         # Self - no 'to' field specified
         nil -> [id]
+        # @sender - reply to the sender of the triggering event
+        "@sender" -> [resolve_sender_path(original_sender)]
         # Pass strings directly to PNS Router (handles "*", "*|name", "node|name", etc.)
         str when is_binary(str) -> [str]
-        # List of targets
-        list when is_list(list) -> list
+        # List of targets - resolve @sender in each
+        list when is_list(list) ->
+          Enum.map(list, fn
+            "@sender" -> resolve_sender_path(original_sender)
+            other -> other
+          end)
         # Other (map, etc.)
         other -> [other]
       end
+      |> Enum.reject(&is_nil/1)
 
     # Go through the list, sending the event to each one.
     for to <- to_list do
@@ -518,14 +553,21 @@ defmodule Reality2.Automation do
           R2Process.deregister(id <> "|timers|" <> event)
       end
 
+      # Clean parameters - remove __sender__ as it's passed separately
+      clean_params = Map.merge(event_parameters, accumulated_parameters)
+        |> interpret()
+        |> Map.delete("__sender__")
+        |> Map.delete(:__sender__)
+
       # Send the event either immediately or after a delay.
       case R2Map.get(combined_parameters, :delay) do
         nil ->
           # Use PNS router for location-transparent routing (local or remote)
           send_via_pns(name_or_id, %{
             event: event,
-            parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(),
-            passthrough: passthrough
+            parameters: clean_params,
+            passthrough: passthrough,
+            sender: this_sender
           })
 
         delay ->
@@ -535,8 +577,9 @@ defmodule Reality2.Automation do
               {:send, name_or_id,
                %{
                  event: event,
-                 parameters: Map.merge(event_parameters, accumulated_parameters) |> interpret(),
-                 passthrough: passthrough
+                 parameters: clean_params,
+                 passthrough: passthrough,
+                 sender: this_sender
                }},
               delay
             )
@@ -562,11 +605,13 @@ defmodule Reality2.Automation do
 
       # Suppress compile-time warning - PNS is an optional plugin
       router_module = AiReality2Pns.Router
+      sender = Map.get(message_map, :sender)
       case apply(router_module, :send_to_sentant, [
         identifier,
         message_map.event,
         message_map.parameters,
-        message_map.passthrough
+        message_map.passthrough,
+        sender
       ]) do
         # Single target results
         {:ok, :local, _result} -> :ok
@@ -596,6 +641,42 @@ defmodule Reality2.Automation do
     end
   end
 
+  # Resolve @sender to a PNS-compatible path
+  # Returns "node_name|sentant_name" or "node_name" if no sentant specified
+  defp resolve_sender_path(nil) do
+    Logger.warning("[Automation] @sender used but no sender info available in message")
+    nil
+  end
+
+  defp resolve_sender_path(sender) when is_map(sender) do
+    node_name = Map.get(sender, :node_name) || Map.get(sender, "node_name")
+    sentant_name = Map.get(sender, :sentant_name) || Map.get(sender, "sentant_name")
+    sentant_id = Map.get(sender, :sentant_id) || Map.get(sender, "sentant_id")
+
+    cond do
+      # Prefer sentant_name for addressing (names are stable, UUIDs change on reload)
+      sentant_name && node_name ->
+        "#{node_name}|#{sentant_name}"
+
+      # Fall back to sentant_id if no name
+      sentant_id && node_name ->
+        "#{node_name}|#{sentant_id}"
+
+      # No sentant specified - just the node (for node-level events)
+      node_name ->
+        node_name
+
+      true ->
+        Logger.warning("[Automation] @sender has incomplete info: #{inspect(sender)}")
+        nil
+    end
+  end
+
+  defp resolve_sender_path(other) do
+    Logger.warning("[Automation] @sender has unexpected format: #{inspect(other)}")
+    nil
+  end
+
   # ---------------------------------------------------------------------------------------------------------------------------------------------
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -620,6 +701,9 @@ defmodule Reality2.Automation do
       end
       |> interpret()
 
+    # Get sender info for passing through to signal subscribers
+    sender = R2Map.get(combined_parameters, "__sender__")
+
     # Send off a signal to any listening device
     case R2Map.get(combined_parameters, :event) do
       nil ->
@@ -635,14 +719,17 @@ defmodule Reality2.Automation do
           _pid ->
             event_parameters = R2Map.get(action_parameters, :parameters, %{})
             merged_params = Map.merge(event_parameters, accumulated_parameters) |> interpret()
+            # Remove __sender__ from params (it's passed separately)
+            clean_params = Map.delete(merged_params, "__sender__")
 
-            Logger.info("[Automation] Broadcasting signal '#{event}' with params: #{inspect(Map.keys(merged_params))}")
+            Logger.info("[Automation] Broadcasting signal '#{event}' with params: #{inspect(Map.keys(clean_params))}")
 
             Reality2.Signals.broadcast(
               id,
               event,
-              merged_params,
-              passthrough
+              clean_params,
+              passthrough,
+              sender
             )
         end
     end

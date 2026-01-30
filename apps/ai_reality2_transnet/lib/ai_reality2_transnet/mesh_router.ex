@@ -96,6 +96,7 @@ defmodule AiReality2Transnet.MeshRouter do
   # Registered transports (order matters for selection)
   @transport_modules [
     AiReality2Transnet.Transports.WiFiTransport,
+    AiReality2Transnet.Transports.InternetTransport,
     AiReality2Transnet.Transports.LoRaTransport,
     AiReality2Transnet.Transports.BLETransport
   ]
@@ -259,8 +260,8 @@ defmodule AiReality2Transnet.MeshRouter do
       new_stats = Map.update!(state.stats, :messages_delivered, &(&1 + 1))
       {:reply, :ok, %{state | seen: new_seen, stats: new_stats}}
     else
-      # Broadcast to mesh
-      {results, new_stats} = broadcast_via_transports(message, state.stats, state.transports)
+      # Transport-aware routing (Gap 5 fix): prefer the target's known transport
+      {results, new_stats} = route_to_target(message, target, state.stats, state.transports)
 
       case results do
         [] ->
@@ -378,6 +379,98 @@ defmodule AiReality2Transnet.MeshRouter do
     |> Map.new()
   end
 
+  # Transport-aware routing: prefer the target peer's known transport (Gap 5 fix)
+  defp route_to_target(message, target, stats, transports) do
+    # Extract node_id from target (format: "node|sentant" or just "sentant")
+    target_node_id = case String.split(target, "|", parts: 2) do
+      [node, _sentant] -> node
+      [_sentant_only] -> nil
+    end
+
+    if target_node_id do
+      # Try to find the best transport for this specific peer
+      if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+        case AiReality2Transnet.PeerManager.best_transport(target_node_id) do
+          {:ok, transport_type, _info} ->
+            # Find the transport module matching this type
+            case find_transport_module(transport_type, transports) do
+              {:ok, mod} ->
+                # Send via the preferred transport only
+                send_via_single_transport(message, mod, stats, transports)
+
+              {:error, _} ->
+                # Transport module not available, fall back to broadcast
+                broadcast_via_transports(message, stats, transports)
+            end
+
+          {:error, _} ->
+            # Unknown peer — broadcast on all transports (discovery)
+            broadcast_via_transports(message, stats, transports)
+        end
+      else
+        broadcast_via_transports(message, stats, transports)
+      end
+    else
+      # No node specified — broadcast
+      broadcast_via_transports(message, stats, transports)
+    end
+  end
+
+  defp find_transport_module(transport_type, transports) do
+    # Map transport types to what the modules report
+    type_mapping = %{
+      wifi: :wifi_hotspot,
+      wifi_hotspot: :wifi_hotspot,
+      ble: :ble,
+      ble_gatt: :ble,
+      lora: :lora,
+      internet: :internet
+    }
+
+    target_type = Map.get(type_mapping, transport_type, transport_type)
+
+    case Enum.find(transports, fn {_mod, info} ->
+      info.available and info.type == target_type
+    end) do
+      {mod, _info} -> {:ok, mod}
+      nil -> {:error, :not_found}
+    end
+  end
+
+  defp send_via_single_transport(message, mod, stats, transports) do
+    payload_size = byte_size(message.payload)
+    mod_info = Map.get(transports, mod, %{max_payload: 0})
+
+    if mod_info.max_payload >= payload_size do
+      result = try do
+        mod.broadcast(message)
+      rescue
+        e -> {:error, Exception.message(e)}
+      end
+
+      transport_type = mod_info.type || :unknown
+      new_stats = case result do
+        :ok ->
+          transport_stats = Map.get(stats.transport_sends, transport_type, %{sent: 0, errors: 0})
+          new_ts = %{transport_stats | sent: transport_stats.sent + 1}
+          stats
+          |> put_in([:transport_sends, transport_type], new_ts)
+          |> Map.update!(:messages_sent, &(&1 + 1))
+
+        {:error, _} ->
+          transport_stats = Map.get(stats.transport_sends, transport_type, %{sent: 0, errors: 0})
+          new_ts = %{transport_stats | errors: transport_stats.errors + 1}
+          put_in(stats, [:transport_sends, transport_type], new_ts)
+      end
+
+      successful = if result == :ok, do: [{mod, :ok}], else: []
+      {successful, new_stats}
+    else
+      # Payload too large for preferred transport, broadcast to find one that fits
+      broadcast_via_transports(message, stats, transports)
+    end
+  end
+
   defp broadcast_via_transports(message, stats, transports) do
     payload_size = byte_size(message.payload)
 
@@ -476,22 +569,50 @@ defmodule AiReality2Transnet.MeshRouter do
   defp deliver_signal_locally(message) do
     case decode_signal_payload(message.payload) do
       {:ok, source, target, signal_name, params} ->
+        # Extract sentant name from node|sentant format
+        sentant_name = case String.split(target, "|", parts: 2) do
+          [_node, sentant] -> sentant
+          [sentant] -> sentant
+        end
+
+        # Extract sender context from params (embedded by PNS Router as _sender)
+        sender = case params do
+          %{"_sender" => s} when is_map(s) ->
+            %{
+              sentant_name: Map.get(s, "sentant_name"),
+              sentant_id: Map.get(s, "sentant_id"),
+              node_id: Map.get(s, "node_id"),
+              node_name: Map.get(s, "node_name")
+            }
+          _ -> nil
+        end
+
+        # Remove internal routing keys from params before delivery
+        clean_params = params
+          |> Map.delete("_sender")
+          |> Map.delete("_passthrough")
+
         # Check if target is local and deliver directly
         if is_local_sentant?(target) do
-          case Reality2.Sentants.read(%{name: target}, :definition) do
+          # Try by name first, then by UUID
+          sentant_result = case Reality2.Sentants.read(%{name: sentant_name}, :definition) do
+            {:ok, s} -> {:ok, s}
+            _ -> Reality2.Sentants.read(%{id: sentant_name}, :definition)
+          end
+
+          case sentant_result do
             {:ok, sentant} ->
-              Reality2.Sentants.sendto(%{id: sentant.id}, %{
-                event: "__mesh_signal",
-                parameters: %{
-                  source_sentant: source,
-                  source_node: message.src_node_id,
-                  signal: signal_name,
-                  params: params
-                }
-              })
+              # Deliver as the original signal event (not __mesh_signal) with sender context
+              msg = %{
+                event: signal_name,
+                parameters: clean_params,
+                passthrough: Map.get(params, "_passthrough") || %{},
+                sender: sender
+              }
+              Reality2.Sentants.sendto(%{id: sentant.id}, msg)
 
             _ ->
-              Logger.debug("#{log_prefix()} Target sentant #{target} not found locally")
+              Logger.debug("#{log_prefix()} Target sentant #{sentant_name} not found locally")
           end
         else
           # Broadcast to all - they can filter
@@ -502,9 +623,10 @@ defmodule AiReality2Transnet.MeshRouter do
               source_node: message.src_node_id,
               target_sentant: target,
               signal: signal_name,
-              params: params,
+              params: clean_params,
               ttl: message.ttl
-            }
+            },
+            sender: sender
           })
         end
 
@@ -515,14 +637,89 @@ defmodule AiReality2Transnet.MeshRouter do
 
   defp handle_presence(message) do
     # Presence messages announce node/sentant availability
-    # Could update PeerManager here
-    Logger.debug("#{log_prefix()} Presence from #{String.slice(message.src_node_id, 0..7)}...")
+    case Jason.decode(message.payload) do
+      {:ok, payload} ->
+        node_id = message.src_node_id
+        node_name = Map.get(payload, "node_name")
+
+        Logger.debug("#{log_prefix()} Presence from #{String.slice(node_id, 0..7)}... (#{node_name || "unknown"})")
+
+        # Register/update the peer in PeerManager
+        sentants = Map.get(payload, "sentants", [])
+        AiReality2Transnet.PeerManager.register_peer(node_id, %{
+          node_name: node_name,
+          sentants: sentants
+        })
+
+        # Update Hive info if present
+        hive_id = Map.get(payload, "hive_id")
+        if hive_id do
+          hive_info = %{
+            hive_id: hive_id,
+            hive_public_key: Map.get(payload, "hive_public_key"),
+            node_cert: Map.get(payload, "node_cert")
+          }
+
+          case AiReality2Transnet.PeerManager.update_peer_hive_info(node_id, hive_info) do
+            :ok ->
+              Logger.debug("#{log_prefix()} Updated Hive info for peer #{String.slice(node_id, 0..7)}... (Hive: #{String.slice(hive_id, 0..7)}...)")
+
+            {:error, reason} ->
+              Logger.warning("#{log_prefix()} Failed to update Hive info for #{String.slice(node_id, 0..7)}...: #{inspect(reason)}")
+          end
+        end
+
+        # Register in HiveDirectory for hive-level addressing
+        if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) and
+           Process.whereis(AiReality2Transnet.HiveDirectory) != nil do
+          sentant_entries = Enum.map(sentants, fn s ->
+            %{
+              id: (if is_map(s), do: Map.get(s, "id") || Map.get(s, :id), else: nil),
+              name: (if is_binary(s), do: s, else: Map.get(s, "name") || Map.get(s, :name, ""))
+            }
+          end)
+
+          AiReality2Transnet.HiveDirectory.register_node(node_id, %{
+            name: node_name,
+            sentants: sentant_entries,
+            hive_id: hive_id
+          })
+        end
+
+      {:error, _} ->
+        Logger.warning("#{log_prefix()} Failed to decode presence payload from #{String.slice(message.src_node_id, 0..7)}...")
+    end
   end
 
-  defp is_local_sentant?(sentant_name) do
-    case Reality2.Sentants.read(%{name: sentant_name}, :definition) do
-      {:ok, _} -> true
-      _ -> false
+  defp is_local_sentant?(target) do
+    # Handle node|sentant format
+    {node_part, sentant_name} = case String.split(target, "|", parts: 2) do
+      [node, sentant] -> {node, sentant}
+      [sentant] -> {nil, sentant}
+    end
+
+    # If node is specified, check if it's us
+    is_for_us = if node_part do
+      my_node_id = Reality2.Bootstrap.get(:node_id)
+      my_node_name = Reality2.Bootstrap.get(:node_name)
+      node_part == my_node_id or node_part == my_node_name or node_part == "*"
+    else
+      true  # No node specified, could be local
+    end
+
+    # Check if we have this sentant
+    if is_for_us do
+      case Reality2.Sentants.read(%{name: sentant_name}, :definition) do
+        {:ok, _} -> true
+        _ ->
+          # Try by UUID
+          case Reality2.Sentants.read(%{id: sentant_name}, :definition) do
+            {:ok, _} -> true
+            _ -> false
+          end
+      end
+    else
+      false
     end
   end
 
@@ -577,10 +774,40 @@ defmodule AiReality2Transnet.MeshRouter do
     my_node_id = Reality2.Bootstrap.get(:node_id)
     my_node_name = Reality2.Bootstrap.get(:node_name)
 
-    # Get local sentant names
-    sentant_names = case Reality2.Sentants.read_all(:definition) do
-      {:ok, sentants} -> Enum.map(sentants, fn s -> Map.get(s, :name, "") end)
+    # Get local sentant info
+    sentants_data = case Reality2.Sentants.read_all(:definition) do
+      {:ok, sentants} -> sentants
       _ -> []
+    end
+    sentant_names = Enum.map(sentants_data, fn s -> Map.get(s, :name, "") end)
+
+    # Update HiveDirectory with our current sentants
+    if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) and
+       Process.whereis(AiReality2Transnet.HiveDirectory) != nil do
+      now = DateTime.utc_now() |> DateTime.to_iso8601()
+      sentant_entries = Enum.map(sentants_data, fn s ->
+        %{
+          id: Map.get(s, :id, ""),
+          name: Map.get(s, :name, ""),
+          updated_at: now
+        }
+      end)
+      AiReality2Transnet.HiveDirectory.update_self(%{sentants: sentant_entries, name: my_node_name})
+    end
+
+    # Get Hive identity info
+    hive_info = case AiReality2Transnet.HiveIdentity.get_identity() do
+      {:ok, identity} ->
+        %{
+          hive_id: identity.hive_id,
+          hive_name: identity.name,
+          hive_public_key: Base.encode64(identity.public_key),
+          hive_created_at: DateTime.to_iso8601(identity.created_at),
+          hive_provisional: identity.provisional,
+          node_cert: identity.node_cert  # nil for key holders, cert for members
+        }
+      _ ->
+        %{}
     end
 
     message = %{
@@ -588,15 +815,17 @@ defmodule AiReality2Transnet.MeshRouter do
       ttl: @default_ttl,
       type: :presence,
       src_node_id: my_node_id,
-      payload: Jason.encode!(%{
+      payload: Jason.encode!(Map.merge(%{
         node_name: my_node_name,
         sentants: sentant_names
-      })
+      }, hive_info))
     }
 
-    # Broadcast via all available transports
+    # Broadcast via non-LoRa transports only (Gap 9 fix)
+    # LoRa presence is handled by LoRaMesh directly with its own binary format
+    # to avoid duplicate announcements and wasted airtime
     transports
-    |> Enum.filter(fn {_mod, info} -> info.available end)
+    |> Enum.filter(fn {_mod, info} -> info.available and info.type != :lora end)
     |> Enum.each(fn {mod, _info} ->
       try do
         mod.broadcast(message)
