@@ -57,7 +57,21 @@ config :ai_reality2_transnet,
   # Examples: R2-WAIROA-A3F7, R2-AUCKLAND-B2E9
   # Can be overridden by environment variable R2_SITE_ID
   # Default: "NODE"
-  site_id: "NODE"
+  site_id: "NODE",
+
+  # HIVE (Human Interactive Virtual Experience) configuration
+  # A Hive is a collection of nodes acting as a single unified identity
+  # The Hive ID is derived from the public key (self-certifying)
+  hive_name: "DefaultHive",      # Human-readable name (can be changed)
+  hive_data_dir: ".hive",        # Directory for identity persistence
+
+  # Cloud nodes — hive members running on remote servers (backup, relay, analytics)
+  # Each entry needs a WebSocket URL and the node's UUID
+  # Example:
+  #   cloud_nodes: [
+  #     %{url: "wss://backup.example.com/mesh", node_id: "cloud-node-uuid"}
+  #   ]
+  cloud_nodes: []
 
 # config/config.exs
 config :mnesia,

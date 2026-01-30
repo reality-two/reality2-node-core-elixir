@@ -46,3 +46,10 @@ mix.lock
 
 # Native library binaries (platform-specific, should be built locally)
 *.so
+
+# Hive identity and directory files (contain private keys)
+.hive/
+.hive_old/
+
+# Stray compiled beam files
+*.beam

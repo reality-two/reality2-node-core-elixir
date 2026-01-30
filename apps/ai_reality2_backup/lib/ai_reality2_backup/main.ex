@@ -135,25 +135,30 @@ defmodule AiReality2Backup.Main do
   @impl true
   def sendto(_sentant_id, command_and_parameters) do
     sentant_name = R2Map.get(command_and_parameters, :name, "")
+
+    # Legacy key support for migration - if provided, use old Hive key
     keys = R2Map.get(command_and_parameters, :keys, %{})
-    decryption_key = R2Map.get(keys, :decryption_key, "")
-    encryption_key = R2Map.get(keys, :encryption_key, "")
+    old_hive_key = R2Map.get(keys, :old_hive_key, nil)
 
     parameters = R2Map.get(command_and_parameters, :parameters, %{})
     data = parameters |> R2Map.delete(:result)
 
     case R2Map.get(command_and_parameters, :command) do
       "store" ->
-        # Encrypt and store data in the database
-        encrypt_and_store(sentant_name, data, encryption_key, decryption_key)
+        # Encrypt with current Hive key and store
+        encrypt_and_store(sentant_name, data)
 
       "retrieve" ->
-        # Retrieve and decrypt data from the database
-        retrieve_and_decrypt(sentant_name, decryption_key)
+        # Retrieve and decrypt with current Hive key
+        retrieve_and_decrypt(sentant_name)
+
+      "retrieve_migrate" ->
+        # Retrieve using old Hive key, re-encrypt with current, and store
+        retrieve_and_migrate(sentant_name, old_hive_key)
 
       "delete" ->
         # Delete an entry from the database
-        delete(sentant_name, decryption_key)
+        delete_entry(sentant_name)
 
       _ ->
         {:error, :command}
@@ -163,96 +168,147 @@ defmodule AiReality2Backup.Main do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Private Functions
+  # Private Functions - All encryption now uses Hive-derived keys
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  defp encrypt_and_store("", _data, _encryption_key, _decryption_key), do: {:error, :name}
-  defp encrypt_and_store(_name, _data, "", _decryption_key), do: {:error, :encryption_key}
 
-  defp encrypt_and_store(name, data, encryption_key, ""),
-    do: encrypt_and_store(name, data, encryption_key, encryption_key)
+  # Store data encrypted with the current Hive key
+  defp encrypt_and_store("", _data), do: {:error, :name}
 
-  defp encrypt_and_store(name, data, encryption_key, decryption_key) do
-    # Encrypt the data and store it in the database
-    do_write = fn name, data ->
-      Mnesia.write({:backup, name, data})
-    end
+  defp encrypt_and_store(name, data) do
+    purpose = "backup:#{name}"
 
-    case retrieve_and_decrypt(name, decryption_key) do
-      {:ok, _} ->
-        case Jason.encode(data) do
-          {:ok, data_string} ->
-            encrypted_data = Crypto.encrypt(data_string, encryption_key)
-            Mnesia.transaction(do_write, [name, Base.encode64(encrypted_data)])
-            :ok
+    case Jason.encode(data) do
+      {:ok, data_string} ->
+        case Crypto.encrypt(data_string, purpose) do
+          {:ok, encrypted_data} ->
+            do_write = fn ->
+              Mnesia.write({:backup, name, Base.encode64(encrypted_data)})
+            end
 
-          _ ->
-            {:error, :data}
-        end
+            case Mnesia.transaction(do_write) do
+              {:atomic, :ok} -> :ok
+              _ -> {:error, :storage}
+            end
 
-        :ok
-
-      {:error, :name} ->
-        case Jason.encode(data) do
-          {:ok, data_string} ->
-            encrypted_data = Crypto.encrypt(data_string, encryption_key)
-            Mnesia.transaction(do_write, [name, Base.encode64(encrypted_data)])
-            :ok
-
-          _ ->
-            {:error, :data}
+          {:error, reason} ->
+            {:error, reason}
         end
 
       _ ->
-        {:error, :decryption}
+        {:error, :data}
     end
   end
 
-  defp retrieve_and_decrypt("", _decryption_key), do: {:error, :name}
-  defp retrieve_and_decrypt(_name, ""), do: {:error, :decryption_key}
+  # Retrieve and decrypt data using current Hive key
+  defp retrieve_and_decrypt(""), do: {:error, :name}
 
-  defp retrieve_and_decrypt(name, decryption_key) do
-    # Retrieve the data from the database and decrypt it
-    do_read = fn name ->
+  defp retrieve_and_decrypt(name) do
+    purpose = "backup:#{name}"
+
+    do_read = fn ->
       Mnesia.read({:backup, name})
     end
 
-    case Mnesia.transaction(do_read, [name]) do
-      {:atomic, [{:backup, ^name, encrypted_data}]} ->
+    case Mnesia.transaction(do_read) do
+      {:atomic, [{:backup, ^name, encrypted_data_b64}]} ->
         try do
-          data_string = Crypto.decrypt(Base.decode64!(encrypted_data), decryption_key)
+          encrypted_data = Base.decode64!(encrypted_data_b64)
 
-          case Jason.decode(data_string) do
-            {:ok, decrypted_data} ->
-              {:ok, decrypted_data}
+          case Crypto.decrypt(encrypted_data, purpose) do
+            {:ok, data_string} ->
+              case Jason.decode(data_string) do
+                {:ok, decrypted_data} ->
+                  {:ok, decrypted_data}
 
-            _ ->
-              {:error, :decryption}
+                _ ->
+                  {:error, :json_decode}
+              end
+
+            {:error, reason} ->
+              {:error, reason}
           end
         rescue
           _ -> {:error, :decryption}
         end
 
+      {:atomic, []} ->
+        {:error, :not_found}
+
       _ ->
-        {:error, :name}
+        {:error, :storage}
     end
   end
 
-  defp delete("", _decryption_key), do: {:error, :name}
-  defp delete(_name, ""), do: {:error, :decryption_key}
+  # Retrieve data encrypted with old Hive, re-encrypt with current Hive, and store
+  defp retrieve_and_migrate("", _old_hive_key), do: {:error, :name}
+  defp retrieve_and_migrate(_name, nil), do: {:error, :old_hive_key}
 
-  defp delete(name, decryption_key) do
-    # Delete the data from the database if it descrypts correctly
-    do_delete = fn name ->
-      Mnesia.delete({:backup, name})
+  defp retrieve_and_migrate(name, old_hive_key) do
+    purpose = "backup:#{name}"
+
+    do_read = fn ->
+      Mnesia.read({:backup, name})
     end
 
-    case retrieve_and_decrypt(name, decryption_key) do
-      {:ok, _} ->
-        Mnesia.transaction(do_delete, [name])
-        :ok
+    case Mnesia.transaction(do_read) do
+      {:atomic, [{:backup, ^name, encrypted_data_b64}]} ->
+        try do
+          encrypted_data = Base.decode64!(encrypted_data_b64)
+
+          # Migrate: decrypt with old key, re-encrypt with current Hive key
+          case Crypto.migrate_from_old_hive(encrypted_data, purpose, old_hive_key) do
+            {:ok, re_encrypted_data} ->
+              # Store the re-encrypted data
+              do_write = fn ->
+                Mnesia.write({:backup, name, Base.encode64(re_encrypted_data)})
+              end
+
+              case Mnesia.transaction(do_write) do
+                {:atomic, :ok} ->
+                  # Now retrieve with current key to return the data
+                  retrieve_and_decrypt(name)
+
+                _ ->
+                  {:error, :storage}
+              end
+
+            {:error, reason} ->
+              {:error, reason}
+          end
+        rescue
+          _ -> {:error, :migration}
+        end
+
+      {:atomic, []} ->
+        {:error, :not_found}
 
       _ ->
-        {:error, :decryption}
+        {:error, :storage}
+    end
+  end
+
+  # Delete an entry - only requires verifying we can decrypt it first
+  defp delete_entry(""), do: {:error, :name}
+
+  defp delete_entry(name) do
+    # Verify we can decrypt (proves we own it) before deleting
+    case retrieve_and_decrypt(name) do
+      {:ok, _} ->
+        do_delete = fn ->
+          Mnesia.delete({:backup, name})
+        end
+
+        case Mnesia.transaction(do_delete) do
+          {:atomic, :ok} -> :ok
+          _ -> {:error, :storage}
+        end
+
+      {:error, :not_found} ->
+        # Already gone, that's fine
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

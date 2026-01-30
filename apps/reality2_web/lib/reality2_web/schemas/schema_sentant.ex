@@ -14,11 +14,31 @@ defmodule Reality2Web.Schema.Sentant do
 
   alias Reality2Web.SentantResolver
 
+  # ------------------------------------------------------------------------------------------------------
+  # Sender - identifies who sent an event (for reply routing via @sender)
+  # ------------------------------------------------------------------------------------------------------
+  input_object :sender_input do
+    field(:sentant_id, :uuid4, description: "Sending sentant UUID (optional)")
+    field(:sentant_name, :string, description: "Sending sentant name (optional)")
+    field(:node_id, :uuid4, description: "Origin node UUID")
+    field(:node_name, :string, description: "Origin node name")
+  end
+
+  object :sender do
+    field(:sentant_id, :uuid4, description: "Sending sentant UUID")
+    field(:sentant_name, :string, description: "Sending sentant name")
+    field(:node_id, non_null(:uuid4), description: "Origin node UUID")
+    field(:node_name, non_null(:string), description: "Origin node name")
+  end
+
+  # ------------------------------------------------------------------------------------------------------
+
   object :signal_output do
-    field(:sentant, non_null(:sentant), description: "Sentant")
+    field(:sentant, non_null(:sentant), description: "Sentant that emitted the signal")
     field(:event, non_null(:string), description: "Signal event")
     field(:parameters, :json, description: "Signal parameters")
     field(:passthrough, :json, description: "Passed through parameters")
+    field(:sender, :sender, description: "Original sender that triggered this signal chain (use @sender in to: field to reply)")
   end
 
   object :plugin_output do
@@ -168,13 +188,26 @@ defmodule Reality2Web.Schema.Sentant do
     end
 
     # ----------------------------------------------------------------------------------------------------
-    @desc "Send a message event and parameters to a sentant. Path can be: name, UUID, node|sentant (using names or UUIDs)."
+    @desc """
+    Send a message event and parameters to a sentant.
+
+    Path formats:
+    - `"SentantName"` or `"sentant-uuid"` - Local sentant
+    - `"*"` - Broadcast to all sentants on all nodes
+    - `"*|SentantName"` - All nodes with this sentant
+    - `"nodeName|SentantName"` - Specific node and sentant
+    - `"@sender"` - Reply to the sender of the triggering event (in automations)
+
+    The sender field identifies who is sending this event, enabling reply routing.
+    If not provided, it will be auto-populated with the origin node info.
+    """
     # ----------------------------------------------------------------------------------------------------
     field :sentant_send, non_null(:sentant) do
       arg(:path, non_null(:string))
       arg(:event, non_null(:string))
       arg(:parameters, :json)
       arg(:passthrough, :json)
+      arg(:sender, :sender_input, description: "Sender info for reply routing (auto-populated if not provided)")
       resolve(&SentantResolver.send_event/3)
     end
   end

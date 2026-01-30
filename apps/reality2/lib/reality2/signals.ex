@@ -25,6 +25,7 @@ defmodule Reality2.Signals do
   - `event` - The event name (e.g., "button_pressed", "debug")
   - `parameters` - Map of event parameters
   - `passthrough` - Map of passthrough data
+  - `sender` - (optional) Original sender info for reply routing via @sender
 
   ## Returns
   - `:ok` on successful broadcast
@@ -33,9 +34,10 @@ defmodule Reality2.Signals do
   ## Example
 
       Reality2.Signals.broadcast(sentant_id, "status_changed", %{status: "active"}, %{})
+      Reality2.Signals.broadcast(sentant_id, "response", %{result: "ok"}, %{}, sender)
   """
-  @spec broadcast(Types.uuid(), any(), map(), map()) :: :ok | false
-  def broadcast(id, event, parameters, passthrough) do
+  @spec broadcast(Types.uuid(), any(), map(), map(), map() | nil) :: :ok | false
+  def broadcast(id, event, parameters, passthrough, sender \\ nil) do
     case Reality2.Sentants.read(%{id: id}, :definition) do
       {:ok, sentant} ->
         # Add node attribution to the sentant
@@ -49,7 +51,8 @@ defmodule Reality2.Signals do
           sentant: sentant_with_node,
           event: event,
           parameters: parameters,
-          passthrough: passthrough
+          passthrough: passthrough,
+          sender: sender
         }
 
         # Publish to PubSub for all subscribers (GraphQL, GATT, etc.)

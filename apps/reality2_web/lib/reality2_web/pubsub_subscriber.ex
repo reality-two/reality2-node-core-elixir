@@ -31,21 +31,21 @@ defmodule Reality2Web.PubSubSubscriber do
 
   @impl true
   def handle_info({:sentant_signal, signal_data}, state) do
-    # Extract data
-    %{
-      id: id,
-      sentant: sentant,
-      event: event,
-      parameters: parameters,
-      passthrough: passthrough
-    } = signal_data
+    # Extract data (sender may or may not be present)
+    id = Map.get(signal_data, :id)
+    sentant = Map.get(signal_data, :sentant)
+    event = Map.get(signal_data, :event)
+    parameters = Map.get(signal_data, :parameters)
+    passthrough = Map.get(signal_data, :passthrough)
+    sender = Map.get(signal_data, :sender)
 
-    # Prepare subscription data for Absinthe
+    # Prepare subscription data for Absinthe (includes sender for @sender routing)
     subscription_data = %{
       sentant: sentant,
       event: event,
       parameters: parameters,
-      passthrough: passthrough
+      passthrough: passthrough,
+      sender: sender
     }
 
     # Publish to GraphQL subscribers

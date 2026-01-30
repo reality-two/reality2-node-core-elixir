@@ -23,22 +23,10 @@ defmodule Reality2.Sentant do
       Mnesia.write({:data, id, data})
     end
 
-    encryption_key =
-      case R2Map.get(sentant_map, "keys", nil) do
-        nil ->
-          nil
-
-        keys ->
-          case R2Map.get(keys, "encryption_key", nil) do
-            nil -> nil
-            key -> key
-          end
-      end
-
     # Add the name and id to the Sentant Map
     new_sentant_map = Map.merge(sentant_map, %{"id" => id, "name" => name})
 
-    # Get the data from the Sentant Map and store in the Sentant Database
+    # Get the data from the Sentant Map and store in the Sentant Database (encrypted with Hive key)
     new_sentant_map =
       case R2Map.get(new_sentant_map, "data") do
         nil ->
@@ -48,10 +36,11 @@ defmodule Reality2.Sentant do
           try do
             case Jason.encode(data) do
               {:ok, data_string} ->
+                # Encrypt with Hive-derived key for this Sentant
                 data_to_store =
-                  case encryption_key do
-                    nil -> data_string
-                    key -> Base.encode64(Crypto.encrypt(data_string, key))
+                  case Crypto.encrypt(data_string, "sentant:data:#{id}") do
+                    {:ok, encrypted} -> Base.encode64(encrypted)
+                    _ -> data_string  # Fallback to unencrypted if Hive not available
                   end
 
                 Mnesia.transaction(do_write, [id, data_to_store])

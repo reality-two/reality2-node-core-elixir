@@ -14,6 +14,7 @@ defmodule AiReality2Transnet.Transport do
   | WiFi Mesh | ~50m | High (~1MB) | Data exchange, GraphQL |
   | WiFi Hotspot | ~50m | High (~1MB) | Full sentant exchange |
   | LoRa | ~15km | Very Low (~200 bytes) | Long range, rural |
+  | Internet | Global | High (~1MB) | Cloud backup, relay, analytics |
 
   ## Message Format
 
@@ -231,13 +232,14 @@ defmodule AiReality2Transnet.Transport do
         if preferred && Enum.any?(candidates, fn t -> t.transport_type() == preferred end) do
           {:ok, Enum.find(candidates, fn t -> t.transport_type() == preferred end)}
         else
-          # Otherwise pick by priority: WiFi > LoRa > BLE
+          # Otherwise pick by priority: WiFi > Internet > LoRa > BLE
           sorted = Enum.sort_by(candidates, fn t ->
             case t.transport_type() do
               :wifi_hotspot -> 0
               :wifi_mesh -> 1
-              :lora -> 2
-              :ble -> 3
+              :internet -> 2
+              :lora -> 3
+              :ble -> 4
               _ -> 99
             end
           end)

@@ -8,8 +8,11 @@ defmodule AiReality2Transnet.Application do
   ```
   AiReality2Transnet.Application (one_for_one)
   ├── Main                        - Plugin interface
+  ├── HiveIdentity                - Cryptographic Hive identity (Ed25519)
+  ├── HiveDirectory               - Distributed eventually-consistent hive directory
   ├── PeerManager                 - Shared peer state (critical, isolated)
   ├── MeshRouter                  - Transport-agnostic message routing
+  ├── CloudConnector              - Persistent connections to cloud hive nodes
   ├── ConnectionSupervisor        - Data layer (rest_for_one) [STARTS FIRST]
   │   ├── ConnectionManager       - WiFi hotspot/client management
   │   └── ConnectionAssessor      - Quality assessment (depends on Manager)
@@ -58,6 +61,22 @@ defmodule AiReality2Transnet.Application do
         restart: :transient
       },
 
+      # HiveIdentity - cryptographic identity for the Hive
+      # MUST start before PeerManager since peers need Hive context
+      %{
+        id: AiReality2Transnet.HiveIdentity,
+        start: {AiReality2Transnet.HiveIdentity, :start_link, [[]]},
+        restart: :permanent
+      },
+
+      # HiveDirectory - distributed eventually-consistent hive directory
+      # MUST start after HiveIdentity (needs hive_id), before PeerManager
+      %{
+        id: AiReality2Transnet.HiveDirectory,
+        start: {AiReality2Transnet.HiveDirectory, :start_link, [[]]},
+        restart: :permanent
+      },
+
       # PeerManager - shared peer state, critical for mesh operation
       # At top level for fault isolation - used by both discovery and connection layers
       %{
@@ -67,10 +86,19 @@ defmodule AiReality2Transnet.Application do
       },
 
       # MeshRouter - transport-agnostic message routing
-      # Routes messages through available transports (BLE, WiFi, LoRa)
+      # Routes messages through available transports (BLE, WiFi, LoRa, Internet)
       %{
         id: AiReality2Transnet.MeshRouter,
         start: {AiReality2Transnet.MeshRouter, :start_link, [[]]},
+        restart: :permanent
+      },
+
+      # CloudConnector - persistent connections to cloud-hosted hive nodes
+      # Enables backup, relay, and analytics via internet (GSM, wired, WiFi-to-internet)
+      # Starts after MeshRouter so it can relay messages immediately on connect
+      %{
+        id: AiReality2Transnet.CloudConnector,
+        start: {AiReality2Transnet.CloudConnector, :start_link, [[]]},
         restart: :permanent
       },
 

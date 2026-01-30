@@ -205,6 +205,27 @@ defmodule AiReality2Transnet.LoRaMesh do
   end
 
   @doc """
+  Sends raw binary data via LoRa (used by LoRaTransport adapter).
+
+  The data should already be in the correct wire format.
+
+  ## Parameters
+  - `data` - Pre-encoded binary data
+
+  ## Returns
+  - `:ok` - Queued for transmission
+  - `{:error, reason}` - Failed
+  """
+  @spec send_raw(binary()) :: :ok | {:error, term()}
+  def send_raw(data) when is_binary(data) do
+    if available?() do
+      GenServer.call(__MODULE__, {:send_raw, data})
+    else
+      {:error, :not_available}
+    end
+  end
+
+  @doc """
   Gets LoRa mesh statistics.
   """
   @spec get_stats() :: map()
@@ -375,6 +396,23 @@ defmodule AiReality2Transnet.LoRaMesh do
 
         {:error, _} ->
           {:reply, {:error, :encode_failed}, state}
+      end
+    else
+      {:reply, {:error, :not_available}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:send_raw, data}, _from, state) do
+    if state.available do
+      case transmit_raw(data, state) do
+        :ok ->
+          new_stats = Map.update!(state.stats, :messages_sent, &(&1 + 1))
+          {:reply, :ok, %{state | stats: new_stats, last_tx: System.system_time(:millisecond)}}
+
+        {:error, reason} ->
+          new_stats = Map.update!(state.stats, :tx_errors, &(&1 + 1))
+          {:reply, {:error, reason}, %{state | stats: new_stats}}
       end
     else
       {:reply, {:error, :not_available}, state}
@@ -606,6 +644,7 @@ defmodule AiReality2Transnet.LoRaMesh do
         deliver_signal(message)
 
       @msg_type_presence ->
+        handle_presence(message)
         Logger.debug("#{log_prefix()} Presence from 0x#{Integer.to_string(message.src_hash, 16)}")
 
       _ ->
@@ -659,6 +698,60 @@ defmodule AiReality2Transnet.LoRaMesh do
 
       _ ->
         Logger.warning("#{log_prefix()} Malformed signal payload")
+    end
+  end
+
+  # Handle incoming presence: update reachability via PeerManager and HiveDirectory
+  defp handle_presence(message) do
+    # Try to decode the new presence format
+    if Code.ensure_loaded?(AiReality2Transnet.Transports.LoRaTransport) do
+      case AiReality2Transnet.Transports.LoRaTransport.decode_presence(message.payload) do
+        {:ok, presence} ->
+          # Try to resolve compressed source ID to full UUID
+          src_node_id = resolve_lora_source(message)
+
+          # Update PeerManager reachability for LoRa
+          if Code.ensure_loaded?(AiReality2Transnet.PeerManager) and src_node_id != nil do
+            AiReality2Transnet.PeerManager.update_reachability(src_node_id, :lora, %{
+              confidence: 120,
+              hive_compressed: Map.get(presence, :hive_compressed),
+              dir_version: Map.get(presence, :dir_version, 0)
+            })
+          end
+
+          # Update HiveDirectory reachability
+          if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) and
+             Process.whereis(AiReality2Transnet.HiveDirectory) != nil and
+             src_node_id != nil do
+            AiReality2Transnet.HiveDirectory.update_reachability(src_node_id, :lora, %{
+              confidence: 120
+            })
+          end
+
+        {:error, _} ->
+          :ok
+      end
+    end
+  end
+
+  # Resolve LoRa source to full UUID (via compressed ID lookup or hash)
+  defp resolve_lora_source(message) do
+    cond do
+      # New format: message may have src_compressed field
+      is_map_key(message, :src_compressed) and is_binary(message.src_compressed) ->
+        if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) and
+           Process.whereis(AiReality2Transnet.HiveDirectory) != nil do
+          case AiReality2Transnet.HiveDirectory.resolve_compressed_id(message.src_compressed) do
+            {:ok, node_id} -> node_id
+            _ -> nil
+          end
+        else
+          nil
+        end
+
+      # Legacy: src_hash is a 16-bit hash, can't reliably resolve
+      true ->
+        nil
     end
   end
 
@@ -744,25 +837,79 @@ defmodule AiReality2Transnet.LoRaMesh do
 
   defp announce_presence(state) do
     node_id = Reality2.Bootstrap.get(:node_id)
-    src_hash = hash16(node_id)
+    node_name = Reality2.Bootstrap.get(:node_name, "unknown")
 
-    # Get local Sentant count
+    # Use compressed ID from HiveIdentity
+    src_compressed = if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      AiReality2Transnet.HiveIdentity.compressed_id(node_id)
+    else
+      hash16_to_binary(hash16(node_id))
+    end
+
+    # Get hive compressed ID
+    hive_compressed = if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case AiReality2Transnet.HiveIdentity.get_hive_compressed_id() do
+        {:ok, cid} -> cid
+        _ -> <<0, 0, 0, 0>>
+      end
+    else
+      <<0, 0, 0, 0>>
+    end
+
+    # Get sentant count
     sentant_count = case Reality2.Sentants.read_all(:definition) do
-      {:ok, sentants} -> length(sentants)
+      {:ok, sentants} -> min(length(sentants), 255)
       _ -> 0
     end
 
-    payload = <<sentant_count::16>>
+    # Get directory version
+    dir_version = if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) and
+                     Process.whereis(AiReality2Transnet.HiveDirectory) != nil do
+      AiReality2Transnet.HiveDirectory.get_version()
+    else
+      0
+    end
 
-    message = %{
-      msg_id: generate_msg_id(),
-      ttl: @default_ttl,
-      type: @msg_type_presence,
-      src_hash: src_hash,
-      payload: payload
+    # Build presence payload using the new format
+    presence_info = %{
+      hive_compressed: hive_compressed,
+      capabilities: %{has_wifi: true, has_ble: true, is_relay: true},
+      sentant_count: sentant_count,
+      hosting_priority: 0,
+      node_name_hash: hash16(node_name),
+      cell_hint: 0,
+      dir_version: dir_version,
+      energy_state: 255,
+      backlog_count: 0
     }
 
-    transmit_with_backoff(message, state)
+    presence_payload = if Code.ensure_loaded?(AiReality2Transnet.Transports.LoRaTransport) do
+      AiReality2Transnet.Transports.LoRaTransport.encode_presence(presence_info)
+    else
+      <<sentant_count::16>>
+    end
+
+    # Use new 8-byte header format if LoRaTransport is available
+    encoded = if Code.ensure_loaded?(AiReality2Transnet.Transports.LoRaTransport) do
+      AiReality2Transnet.Transports.LoRaTransport.encode_message(%{
+        msg_id: generate_msg_id(),
+        ttl: @default_ttl,
+        type: :presence,
+        src_node_id: node_id,
+        payload: presence_payload
+      })
+    else
+      # Legacy format
+      msg_id = generate_msg_id()
+      src_hash = hash16(node_id)
+      <<msg_id::16, @default_ttl::8, @msg_type_presence::8, src_hash::16, presence_payload::binary>>
+    end
+
+    transmit_raw(encoded, state)
+  end
+
+  defp hash16_to_binary(hash) do
+    <<hash::32>>
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------

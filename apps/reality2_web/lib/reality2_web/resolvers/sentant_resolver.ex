@@ -324,7 +324,7 @@ defmodule Reality2Web.SentantResolver do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Send an event to a Sentant
-  # Path can be: name, UUID, or node|sentant (using names or UUIDs in either position)
+  # Path can be: name, UUID, node|sentant, or @sender (for replies)
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @spec send_event(any(), map(), any()) ::
           {:error, :event | :existance | :path | :invalid_event | :name}
@@ -348,6 +348,9 @@ defmodule Reality2Web.SentantResolver do
             parameters = Map.get(args, :parameters, %{})
             passthrough = Map.get(args, :passthrough, %{})
 
+            # Build sender info - use provided sender or create default from this node
+            sender = build_sender(Map.get(args, :sender))
+
             # Parse the path to determine if local or remote
             parsed = parse_path(path)
             Logger.info("[SentantResolver] Parsed path: #{inspect(parsed)}")
@@ -355,14 +358,35 @@ defmodule Reality2Web.SentantResolver do
             case parsed do
               {:remote, node_ref, sentant_ref} ->
                 Logger.info("[SentantResolver] Routing to REMOTE node #{String.slice(node_ref, 0..7)}...")
-                send_event_to_remote(node_ref, sentant_ref, event, parameters, passthrough)
+                send_event_to_remote(node_ref, sentant_ref, event, parameters, passthrough, sender)
 
               {:local, sentant_ref} ->
                 Logger.info("[SentantResolver] Routing to LOCAL sentant #{String.slice(sentant_ref, 0..7)}...")
-                send_event_to_local(sentant_ref, event, parameters, passthrough)
+                send_event_to_local(sentant_ref, event, parameters, passthrough, sender)
             end
         end
     end
+  end
+
+  # Build sender info from provided input or create default from this node
+  defp build_sender(nil) do
+    # No sender provided - use this node as origin (external API call)
+    %{
+      sentant_id: nil,
+      sentant_name: nil,
+      node_id: Reality2.Bootstrap.get(:node_id),
+      node_name: Reality2.Bootstrap.get(:node_name)
+    }
+  end
+
+  defp build_sender(sender_input) when is_map(sender_input) do
+    # Use provided sender, filling in node info if missing
+    %{
+      sentant_id: Map.get(sender_input, :sentant_id) || Map.get(sender_input, "sentant_id"),
+      sentant_name: Map.get(sender_input, :sentant_name) || Map.get(sender_input, "sentant_name"),
+      node_id: Map.get(sender_input, :node_id) || Map.get(sender_input, "node_id") || Reality2.Bootstrap.get(:node_id),
+      node_name: Map.get(sender_input, :node_name) || Map.get(sender_input, "node_name") || Reality2.Bootstrap.get(:node_name)
+    }
   end
 
   # Parse path to determine if local or remote
@@ -435,7 +459,7 @@ defmodule Reality2Web.SentantResolver do
   end
 
   # Send event to a local sentant (sentant_ref can be UUID or name)
-  defp send_event_to_local(sentant_ref, event, parameters, passthrough) do
+  defp send_event_to_local(sentant_ref, event, parameters, passthrough, sender) do
     # Determine if we have a UUID or a name
     sentant_key = if is_uuid?(sentant_ref), do: %{id: sentant_ref}, else: %{name: sentant_ref}
 
@@ -447,7 +471,8 @@ defmodule Reality2Web.SentantResolver do
           case Reality2.Sentants.sendto(sentant_key, %{
                  event: event,
                  parameters: parameters,
-                 passthrough: passthrough
+                 passthrough: passthrough,
+                 sender: sender
                }) do
             {:ok, _} ->
               {:ok, add_node_attribution(sentant)}
@@ -465,7 +490,7 @@ defmodule Reality2Web.SentantResolver do
   end
 
   # Send event to a remote sentant via HTTP
-  defp send_event_to_remote(node_id, sentant_id, event, parameters, passthrough) do
+  defp send_event_to_remote(node_id, sentant_id, event, parameters, passthrough, sender) do
     require Logger
 
     # Look up the peer's IP address from PeerManager
@@ -479,7 +504,7 @@ defmodule Reality2Web.SentantResolver do
           case get_http_address_for_peer(peer_address) do
             {:ok, ip_address} ->
               Logger.info("[SentantResolver] Forwarding event '#{event}' to remote sentant #{String.slice(sentant_id, 0..7)}... on #{peer_name} (#{ip_address})")
-              forward_event_via_http(ip_address, sentant_id, event, parameters, passthrough)
+              forward_event_via_http(ip_address, sentant_id, event, parameters, passthrough, sender)
 
             {:error, reason} ->
               Logger.warning("[SentantResolver] Cannot reach peer #{peer_name}: #{reason}")
@@ -533,14 +558,14 @@ defmodule Reality2Web.SentantResolver do
   defp is_ip_address?(_), do: false
 
   # Forward event to remote node via HTTPS GraphQL endpoint
-  defp forward_event_via_http(peer_ip, sentant_id, event, parameters, passthrough) do
+  defp forward_event_via_http(peer_ip, sentant_id, event, parameters, passthrough, sender) do
     require Logger
 
     url = "https://#{peer_ip}:4005/reality2"
 
     query = """
-    mutation SendEvent($path: String!, $event: String!, $parameters: Json, $passthrough: Json) {
-      sentantSend(path: $path, event: $event, parameters: $parameters, passthrough: $passthrough) {
+    mutation SendEvent($path: String!, $event: String!, $parameters: Json, $passthrough: Json, $sender: SenderInput) {
+      sentantSend(path: $path, event: $event, parameters: $parameters, passthrough: $passthrough, sender: $sender) {
         id
         name
       }
@@ -551,13 +576,26 @@ defmodule Reality2Web.SentantResolver do
     params_json = if is_map(parameters), do: Jason.encode!(parameters), else: parameters
     passthrough_json = if is_map(passthrough), do: Jason.encode!(passthrough), else: passthrough
 
+    # Convert sender to GraphQL input format
+    sender_input = if sender do
+      %{
+        sentantId: Map.get(sender, :sentant_id),
+        sentantName: Map.get(sender, :sentant_name),
+        nodeId: Map.get(sender, :node_id),
+        nodeName: Map.get(sender, :node_name)
+      }
+    else
+      nil
+    end
+
     body = Jason.encode!(%{
       query: query,
       variables: %{
         path: sentant_id,
         event: event,
         parameters: params_json,
-        passthrough: passthrough_json
+        passthrough: passthrough_json,
+        sender: sender_input
       }
     })
 

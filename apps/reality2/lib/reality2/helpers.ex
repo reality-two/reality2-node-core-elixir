@@ -269,21 +269,141 @@ defmodule Reality2.Helpers do
   # -------------------------------------------------------------------------------------------------------------------------------------------
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
+  # Hive-based encryption - all data is encrypted with keys derived from the Hive identity.
+  # If a node changes Hives, old data becomes unreadable unless migrated.
   # -------------------------------------------------------------------------------------------------------------------------------------------
   defmodule Crypto do
-    def encrypt(data, encoded_encryption_key) do
-      key = Base.decode64!(encoded_encryption_key)
-      iv = :crypto.strong_rand_bytes(12)
-      {ciphertext, tag} = :crypto.crypto_one_time_aead(:aes_gcm, key, iv, data, "", true)
+    @moduledoc """
+    Hive-based encryption for Reality2.
 
-      # Combine IV, tag, and ciphertext into a blob
+    All encryption uses keys derived from the Hive identity. This ensures:
+    - Data is tied to the Hive, not just the device
+    - If a device changes Hives, old data becomes unreadable
+    - Migration functions allow transitioning data between Hives
+    """
+
+    @doc """
+    Encrypts data using a Hive-derived key.
+
+    ## Parameters
+    - `data` - String data to encrypt
+    - `purpose` - Key derivation purpose (e.g., "backup:passwords", "sentant:mydata")
+
+    ## Returns
+    - `{:ok, encrypted_binary}` - Encrypted data
+    - `{:error, :hive_not_available}` - HiveIdentity not loaded
+    - `{:error, :not_key_holder}` - Only key holders can encrypt
+    """
+    def encrypt(data, purpose) when is_binary(data) and is_binary(purpose) do
+      with {:ok, key} <- get_hive_key(purpose) do
+        {:ok, do_encrypt(data, key)}
+      end
+    end
+
+    @doc """
+    Decrypts data that was encrypted with `encrypt/2`.
+
+    ## Parameters
+    - `data` - Encrypted binary
+    - `purpose` - Same purpose used during encryption
+
+    ## Returns
+    - `{:ok, decrypted_string}` - Decrypted data
+    - `{:error, :decryption_failed}` - Wrong key or corrupted data
+    - `{:error, :hive_not_available}` - HiveIdentity not loaded
+    """
+    def decrypt(data, purpose) when is_binary(data) and is_binary(purpose) do
+      with {:ok, key} <- get_hive_key(purpose) do
+        do_decrypt(data, key)
+      end
+    end
+
+    @doc """
+    Migrates encrypted data from an old Hive to the current Hive.
+
+    Use this when a device joins a new Hive but needs to preserve old data.
+    Requires the old Hive's private key (from backup).
+
+    ## Parameters
+    - `encrypted_data` - Data encrypted with old Hive key
+    - `purpose` - Key derivation purpose
+    - `old_hive_private_key` - Base64-encoded private key from old Hive
+
+    ## Returns
+    - `{:ok, re_encrypted_data}` - Data re-encrypted with current Hive key
+    - `{:error, reason}` - Migration failed
+    """
+    def migrate_from_old_hive(encrypted_data, purpose, old_hive_private_key) do
+      with {:ok, old_key} <- derive_key_from_private(old_hive_private_key, purpose),
+           {:ok, plaintext} <- do_decrypt(encrypted_data, old_key),
+           {:ok, new_key} <- get_hive_key(purpose) do
+        {:ok, do_encrypt(plaintext, new_key)}
+      end
+    end
+
+    @doc """
+    Decrypts data using an old Hive's private key.
+
+    Use this to read data from a previous Hive without re-encrypting.
+
+    ## Parameters
+    - `encrypted_data` - Data encrypted with old Hive key
+    - `purpose` - Key derivation purpose
+    - `old_hive_private_key` - Base64-encoded private key from old Hive
+
+    ## Returns
+    - `{:ok, plaintext}` - Decrypted data
+    - `{:error, reason}` - Decryption failed
+    """
+    def decrypt_with_old_hive(encrypted_data, purpose, old_hive_private_key) do
+      with {:ok, old_key} <- derive_key_from_private(old_hive_private_key, purpose) do
+        do_decrypt(encrypted_data, old_key)
+      end
+    end
+
+    # -----------------------------------------------------------------------------------------------------------------------------------------
+    # Private Implementation
+    # -----------------------------------------------------------------------------------------------------------------------------------------
+
+    defp get_hive_key(purpose) do
+      if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+        AiReality2Transnet.HiveIdentity.derive_data_key(purpose)
+      else
+        {:error, :hive_not_available}
+      end
+    end
+
+    defp derive_key_from_private(private_key_b64, purpose) do
+      case Base.decode64(private_key_b64) do
+        {:ok, private_key} when byte_size(private_key) == 32 ->
+          info = "hive-data-key:" <> purpose
+          derived = :crypto.mac(:hmac, :sha256, private_key, info)
+          {:ok, Base.encode64(derived)}
+
+        {:ok, _} ->
+          {:error, :invalid_key_size}
+
+        :error ->
+          {:error, :invalid_key_format}
+      end
+    end
+
+    defp do_encrypt(data, encoded_key) do
+      key = Base.decode64!(encoded_key)
+      iv = :crypto.strong_rand_bytes(12)
+      {ciphertext, tag} = :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, data, "", 16, true)
       iv <> tag <> ciphertext
     end
 
-    def decrypt(data, encoded_decryption_key) do
-      key = Base.decode64!(encoded_decryption_key)
-      <<iv::binary-size(12), tag::binary-size(16), ciphertext::binary>> = data
-      :crypto.crypto_one_time_aead(:aes_gcm, key, iv, ciphertext, "", tag, false)
+    defp do_decrypt(data, encoded_key) do
+      try do
+        key = Base.decode64!(encoded_key)
+        <<iv::binary-size(12), tag::binary-size(16), ciphertext::binary>> = data
+        result = :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, ciphertext, "", tag, false)
+        {:ok, result}
+      rescue
+        _ -> {:error, :decryption_failed}
+      end
     end
   end
 
