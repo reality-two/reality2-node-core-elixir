@@ -1,0 +1,41 @@
+sentant:
+  name: Counter
+  description: Hardware test sentant - maintains a count with increment and report operations
+  data:
+    count: 0
+  automations:
+    # --------------------------------------------------------------------------------------------------
+    # Count - increment the counter
+    # --------------------------------------------------------------------------------------------------
+    - name: Count Handler
+      description: Increments the counter and signals the updated value
+      transitions:
+        - public: true
+          event: count
+          actions:
+            - command: set
+              plugin: ai.reality2.vars
+              parameters:
+                key: count
+                value:
+                  add:
+                    - key: count
+                    - 1
+            - command: signal
+              parameters:
+                event: count_updated
+                public: true
+
+    # --------------------------------------------------------------------------------------------------
+    # Get Count - report the current value
+    # --------------------------------------------------------------------------------------------------
+    - name: Get Count Handler
+      description: Reports the current counter value
+      transitions:
+        - public: true
+          event: get_count
+          actions:
+            - command: signal
+              parameters:
+                event: count_report
+                public: true

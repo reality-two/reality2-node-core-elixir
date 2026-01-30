@@ -1,0 +1,30 @@
+sentant:
+  name: PingPong
+  description: Hardware test sentant - responds to ping events with pong signals
+  automations:
+    # --------------------------------------------------------------------------------------------------
+    # Ping/Pong via public event
+    # --------------------------------------------------------------------------------------------------
+    - name: Ping Handler
+      description: Responds to a public ping event with a pong signal
+      transitions:
+        - public: true
+          event: ping
+          actions:
+            - command: signal
+              parameters:
+                event: pong
+                public: true
+
+    # --------------------------------------------------------------------------------------------------
+    # Mesh Ping/Pong via __mesh_event
+    # --------------------------------------------------------------------------------------------------
+    - name: Mesh Ping Handler
+      description: Responds to a mesh ping event with a mesh_pong signal
+      transitions:
+        - event: __mesh_event
+          actions:
+            - command: signal
+              parameters:
+                event: mesh_pong
+                public: true
