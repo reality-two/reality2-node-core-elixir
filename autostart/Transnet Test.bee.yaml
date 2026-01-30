@@ -19,6 +19,10 @@ sentant:
                 key: ping_count
                 value:
                   jsonpath: "ping_count + 1"
+            - command: send
+              parameters:
+                to: "@sender"
+                event: pong
             - command: signal
               parameters:
                 event: pong
@@ -32,6 +36,10 @@ sentant:
           parameters:
             message: string
           actions:
+            - command: send
+              parameters:
+                to: "@sender"
+                event: echo_reply
             - command: signal
               parameters:
                 event: echo_reply
