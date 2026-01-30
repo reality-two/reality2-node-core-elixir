@@ -10,6 +10,7 @@ defmodule AiReality2Transnet.MixProject do
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
       elixir: "~> 1.17",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Reality2 Transient Networks Plugin",
@@ -23,6 +24,9 @@ defmodule AiReality2Transnet.MixProject do
       ]
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help compile.app" to learn about applications.
   def application do
@@ -41,7 +45,8 @@ defmodule AiReality2Transnet.MixProject do
       # This prevents circular dependency (PNS depends on transnet)
       {:rustler, "~> 0.34.0"},
       {:plug_cowboy, "~> 2.0"},
-      {:httpoison, "~> 2.0"}
+      {:httpoison, "~> 2.0"},
+      {:mox, "~> 1.0", only: :test}
     ]
   end
 end
