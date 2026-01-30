@@ -663,27 +663,47 @@ defmodule AiReality2Transnet.Wifi do
     # First, disconnect from any current connection
     disconnect_from_network(interface)
 
-    # Use nmcli to connect
-    args = [
-      "device", "wifi", "connect",
-      ssid,
-      "password", psk,
-      "ifname", interface
+    # Delete any stale connection profile for this SSID to avoid conflicts
+    System.cmd("nmcli", ["connection", "delete", ssid], stderr_to_stdout: true)
+    Process.sleep(200)
+
+    # Create connection profile with explicit WPA-PSK security settings.
+    # Using "nmcli connection add" instead of "nmcli device wifi connect"
+    # because some NetworkManager versions (especially on Debian/ARM) fail
+    # with "802-11-wireless-security.key-mgmt: property is missing" when
+    # using the shorthand connect command.
+    add_args = [
+      "connection", "add",
+      "type", "wifi",
+      "con-name", ssid,
+      "ifname", interface,
+      "ssid", ssid,
+      "wifi-sec.key-mgmt", "wpa-psk",
+      "wifi-sec.psk", psk
     ]
 
-    case System.cmd("nmcli", args, stderr_to_stdout: true) do
+    case System.cmd("nmcli", add_args, stderr_to_stdout: true) do
       {_output, 0} ->
-        Logger.info("#{log_prefix()} Connected to network: SSID=#{ssid}")
+        # Activate the connection profile
+        case System.cmd("nmcli", ["connection", "up", ssid], stderr_to_stdout: true) do
+          {_output, 0} ->
+            Logger.info("#{log_prefix()} Connected to network: SSID=#{ssid}")
 
-        # Wait for IP assignment with retries
-        case wait_for_ip_assignment(interface, 5) do
-          {:ok, ip} ->
-            Logger.info("#{log_prefix()} IP assigned: #{ip}")
-            {:ok, ip}
+            # Wait for IP assignment with retries
+            case wait_for_ip_assignment(interface, 5) do
+              {:ok, ip} ->
+                Logger.info("#{log_prefix()} IP assigned: #{ip}")
+                {:ok, ip}
 
-          {:error, :timeout} ->
-            Logger.error("#{log_prefix()} Connected but DHCP failed - no IP assigned after retries")
-            {:error, "dhcp_timeout"}
+              {:error, :timeout} ->
+                Logger.error("#{log_prefix()} Connected but DHCP failed - no IP assigned after retries")
+                System.cmd("nmcli", ["connection", "delete", ssid], stderr_to_stdout: true)
+                {:error, "dhcp_timeout"}
+            end
+
+          {error, _} ->
+            System.cmd("nmcli", ["connection", "delete", ssid], stderr_to_stdout: true)
+            {:error, "connect_failed: #{error}"}
         end
 
       {error, _} ->
