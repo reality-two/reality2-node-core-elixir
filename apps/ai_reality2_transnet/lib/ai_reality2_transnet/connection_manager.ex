@@ -823,7 +823,7 @@ defmodule AiReality2Transnet.ConnectionManager do
 
       interface ->
         case Wifi.get_connection_status(interface) do
-          {:ok, %{connected: true, ssid: ssid}} when is_binary(ssid) ->
+          {:ok, %{state: :connected, ssid: ssid}} when is_binary(ssid) ->
             # Check if connected to an R2 hotspot (SSID starts with R2Node_ or R2-)
             if String.starts_with?(ssid, "R2Node_") or String.starts_with?(ssid, "R2-") do
               Logger.info("#{log_prefix()} Found existing R2 hotspot connection: #{ssid}")
@@ -834,8 +834,12 @@ defmodule AiReality2Transnet.ConnectionManager do
             end
             {:noreply, state}
 
-          {:ok, %{connected: false}} ->
-            Logger.debug("#{log_prefix()} Not connected to any WiFi network")
+          {:ok, %{state: conn_state}} when conn_state in [:disconnected, :connecting] ->
+            Logger.debug("#{log_prefix()} WiFi state: #{conn_state}")
+            {:noreply, state}
+
+          {:ok, _status} ->
+            Logger.debug("#{log_prefix()} Not connected to any R2 WiFi network")
             {:noreply, state}
 
           {:error, reason} ->
