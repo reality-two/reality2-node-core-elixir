@@ -1,9 +1,9 @@
-defmodule AiReality2Pns.MixProject do
+defmodule AiReality2Wfs.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ai_reality2_pns,
+      app: :ai_reality2_wfs,
       version: "0.1.13",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
@@ -12,7 +12,7 @@ defmodule AiReality2Pns.MixProject do
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "Reality2 Path Name System Plugin"
+      description: "Reality2 Waggle Finding Service (WFS) Plugin"
     ]
   end
 
@@ -20,7 +20,7 @@ defmodule AiReality2Pns.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {AiReality2Pns.Application, []}
+      mod: {AiReality2Wfs.Application, []}
     ]
   end
 

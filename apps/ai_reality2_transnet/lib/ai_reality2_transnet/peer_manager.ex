@@ -4,7 +4,7 @@ defmodule AiReality2Transnet.PeerManager do
 
   Tracks peer nodes discovered via BLE beacons, maintains their state,
   manages transport upgrades (BLE → WiFi hotspot), and coordinates with
-  the PNS Router for Sentant routing.
+  the WFS Router for Sentant routing.
 
   ## State Management
 
@@ -36,10 +36,10 @@ defmodule AiReality2Transnet.PeerManager do
   # Helper to get node name for log messages
   defp log_prefix, do: "[PeerManager:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
 
-  # Suppress warnings for optional PNS integration (runtime checks used)
-  # PNS is a higher-level module that depends on transnet, not vice versa
+  # Suppress warnings for optional WFS integration (runtime checks used)
+  # WFS is a higher-level module that depends on transnet, not vice versa
   # We use Code.ensure_loaded?/1 to avoid circular dependency
-  @compile {:no_warn_undefined, AiReality2Pns.Router}
+  @compile {:no_warn_undefined, AiReality2Wfs.Router}
 
   @peer_timeout_ms 60_000  # Remove peers not seen for 60 seconds
   @cleanup_interval_ms 30_000  # Check for stale peers every 30 seconds
@@ -542,9 +542,9 @@ defmodule AiReality2Transnet.PeerManager do
     # Store updated peer in state
     new_peers = Map.put(state.peers, node_id, peer)
 
-    # Register node_name -> node_id mapping for PNS lookup
+    # Register node_name -> node_id mapping for WFS lookup
     if peer.node_name do
-      Reality2.Metadata.set(:PNS_NodeNames, peer.node_name, node_id)
+      Reality2.Metadata.set(:WFS_NodeNames, peer.node_name, node_id)
     end
 
     # Only increment discovery counter for brand new peers
@@ -580,10 +580,10 @@ defmodule AiReality2Transnet.PeerManager do
 
         Logger.info("#{log_prefix()} Updated sentants for #{String.slice(node_id, 0..7)}...: #{length(sentants)} sentants")
 
-        # Notify PNS Router that new remote Sentants are available
+        # Notify WFS Router that new remote Sentants are available
         # This triggers routing table refresh so messages can be routed to this peer
-        if Code.ensure_loaded?(AiReality2Pns.Router) do
-          AiReality2Pns.Router.refresh_topology()
+        if Code.ensure_loaded?(AiReality2Wfs.Router) do
+          AiReality2Wfs.Router.refresh_topology()
         end
 
         # Update HiveDirectory with peer's sentants
@@ -688,17 +688,17 @@ defmodule AiReality2Transnet.PeerManager do
           new_peers = Map.delete(state.peers, node_id)
           new_stats = Map.update!(state.stats, :total_removed, &(&1 + 1))
 
-          # Clean up PNS_NodeNames mapping
+          # Clean up WFS_NodeNames mapping
           if peer.node_name do
-            Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
+            Reality2.Metadata.delete(:WFS_NodeNames, peer.node_name)
           end
 
           Logger.info("#{log_prefix()} Peer removed: #{String.slice(node_id, 0..7)}...")
 
-          # Notify PNS Router that peer is gone
+          # Notify WFS Router that peer is gone
           # This removes routes to Sentants on this peer
-          if Code.ensure_loaded?(AiReality2Pns.Router) do
-            AiReality2Pns.Router.refresh_topology()
+          if Code.ensure_loaded?(AiReality2Wfs.Router) do
+            AiReality2Wfs.Router.refresh_topology()
           end
 
           {:noreply, %{state | peers: new_peers, stats: new_stats}}
@@ -730,7 +730,7 @@ defmodule AiReality2Transnet.PeerManager do
 
   @impl true
   def handle_call(:get_all_peers, _from, state) do
-    # Return entire peer map (used by PNS Router for routing table)
+    # Return entire peer map (used by WFS Router for routing table)
     {:reply, state.peers, state}
   end
 
@@ -968,7 +968,7 @@ defmodule AiReality2Transnet.PeerManager do
         is_stale && !is_protected
       end)
 
-    # Log each removal, emit event, and clean up PNS_NodeNames mapping
+    # Log each removal, emit event, and clean up WFS_NodeNames mapping
     Enum.each(stale_peers, fn {node_id, peer} ->
       Logger.info("#{log_prefix()} Removing stale peer: #{String.slice(node_id, 0..7)}... (timeout)")
 
@@ -985,17 +985,17 @@ defmodule AiReality2Transnet.PeerManager do
       end
 
       if peer.node_name do
-        Reality2.Metadata.delete(:PNS_NodeNames, peer.node_name)
+        Reality2.Metadata.delete(:WFS_NodeNames, peer.node_name)
       end
     end)
 
     new_peers = Map.new(fresh_peers)
     new_stats = Map.update!(state.stats, :total_removed, &(&1 + length(stale_peers)))
 
-    # Notify PNS Router if any peers were removed
+    # Notify WFS Router if any peers were removed
     # This removes routes to Sentants on timed-out peers
-    if length(stale_peers) > 0 and Code.ensure_loaded?(AiReality2Pns.Router) do
-      AiReality2Pns.Router.refresh_topology()
+    if length(stale_peers) > 0 and Code.ensure_loaded?(AiReality2Wfs.Router) do
+      AiReality2Wfs.Router.refresh_topology()
     end
 
     # Schedule next cleanup cycle

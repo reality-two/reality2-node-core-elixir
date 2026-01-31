@@ -9,7 +9,7 @@ defmodule AiReality2Transnet.BLEMesh do
 
   ```
   ┌─────────────────────────────────────────────────────────────┐
-  │              Sentants + PNS Router                          │
+  │              Sentants + WFS Router                          │
   │         (transport agnostic - unchanged)                    │
   ├─────────────────────────────────────────────────────────────┤
   │                   BLEMesh GenServer                         │
@@ -391,7 +391,7 @@ defmodule AiReality2Transnet.BLEMesh do
     # Decode and route to local Sentants
     case Jason.decode(params_json) do
       {:ok, params} ->
-        # Route via PNS or directly to Sentants
+        # Route via WFS or directly to Sentants
         route_incoming_event(sentant_hash, event_hash, params)
 
       {:error, _} ->

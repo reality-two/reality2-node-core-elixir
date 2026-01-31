@@ -1,10 +1,10 @@
-# Reality2 Pathing Name System (PNS)
+# Reality2 Waggle Finding Service (WFS)
 
 Location-transparent routing for Sentant digital agents across Reality2 nodes.
 
 ## Overview
 
-The **Pathing Name System (PNS)** is a higher-level abstraction that allows Sentants to send events to other Sentants without knowing their physical location or connection type. Whether a Sentant is local, on a peer node via GATT Bluetooth, or on a remote server via GraphQL - the PNS handles routing automatically.
+The **Waggle Finding Service (WFS)** is a higher-level abstraction that allows Sentants to send events to other Sentants without knowing their physical location or connection type. Whether a Sentant is local, on a peer node via GATT Bluetooth, or on a remote server via GraphQL - the WFS handles routing automatically.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ Sentant Automation
       ↓
    send action
       ↓
-PNS Router (Location Resolver)
+WFS Router (Location Resolver)
       ↓
    ┌──────────┴──────────┐
    ↓                     ↓
@@ -51,10 +51,10 @@ Reality2.Sentants    ┌───┴────┐
 
 ## Installation
 
-The PNS app is automatically loaded when included in the `PLUGINS` environment variable:
+The WFS app is automatically loaded when included in the `PLUGINS` environment variable:
 
 ```bash
-export PLUGINS="ai.reality2.pns, ..."
+export PLUGINS="ai.reality2.wfs, ..."
 ```
 
 It's already added to `scripts/run_as_dev`.
@@ -65,32 +65,32 @@ It's already added to `scripts/run_as_dev`.
 
 ```elixir
 # Send by ID (automatically routes)
-AiReality2Pns.send_to(sentant_id, "event_name", %{param: "value"})
+AiReality2Wfs.send_to(sentant_id, "event_name", %{param: "value"})
 
 # Send by name
-AiReality2Pns.send_to("device1_sensor", "read_temperature")
+AiReality2Wfs.send_to("device1_sensor", "read_temperature")
 
 # With passthrough data
-AiReality2Pns.send_to(sentant_id, "ping", %{}, %{source: "test"})
+AiReality2Wfs.send_to(sentant_id, "ping", %{}, %{source: "test"})
 ```
 
 ### Broadcasting
 
 ```elixir
 # Broadcast to all Sentants
-AiReality2Pns.broadcast("*", "sync")
+AiReality2Wfs.broadcast("*", "sync")
 
 # Pattern matching
-AiReality2Pns.broadcast("sensor_*", "calibrate")
+AiReality2Wfs.broadcast("sensor_*", "calibrate")
 
 # Specific list
-AiReality2Pns.broadcast([id1, id2, id3], "update")
+AiReality2Wfs.broadcast([id1, id2, id3], "update")
 ```
 
 ### Location Discovery
 
 ```elixir
-case AiReality2Pns.locate(sentant_id) do
+case AiReality2Wfs.locate(sentant_id) do
   {:ok, :local} ->
     IO.puts("Sentant is on this node")
 
@@ -106,7 +106,7 @@ end
 
 ```elixir
 # Get routing table
-table = AiReality2Pns.routing_table()
+table = AiReality2Wfs.routing_table()
 
 IO.inspect(table.stats)
 #=> %{
@@ -118,12 +118,12 @@ IO.inspect(table.stats)
 #   }
 
 # Refresh topology cache
-AiReality2Pns.refresh()
+AiReality2Wfs.refresh()
 ```
 
 ## Automation Integration
 
-The PNS is **automatically used** when you use the `send` action in Sentant automations:
+The WFS is **automatically used** when you use the `send` action in Sentant automations:
 
 ```yaml
 automations:
@@ -134,13 +134,13 @@ automations:
           to: other_sentant  # Can be local OR remote!
           event: hello
           parameters:
-            message: "Hi from PNS!"
+            message: "Hi from WFS!"
 ```
 
-The automation code now routes through PNS automatically:
+The automation code now routes through WFS automatically:
 - If `other_sentant` is local → uses `Reality2.Sentants.sendto()`
 - If `other_sentant` is remote → uses `AiReality2Transnet.Bluetooth.send_to_peer_sentant()`
-- Fallback to direct send if PNS fails
+- Fallback to direct send if WFS fails
 
 ### Sending to Remote Sentants in YAML
 
@@ -161,13 +161,13 @@ automations:
 ### Show Routing Table
 
 ```elixir
-AiReality2Pns.Test.show_routing_table()
+AiReality2Wfs.Test.show_routing_table()
 ```
 
 Output:
 ```
 ===========================================
-PNS Routing Table
+WFS Routing Table
 ===========================================
 Local Sentants: 5
 Remote Sentants: 12
@@ -187,10 +187,10 @@ Sentant Locations:
 ### Test Local Send
 
 ```elixir
-AiReality2Pns.Test.test_local_send()
+AiReality2Wfs.Test.test_local_send()
 ```
 
-Creates a test Sentant, locates it, and sends an event through PNS.
+Creates a test Sentant, locates it, and sends an event through WFS.
 
 ### Test Remote Send
 
@@ -201,14 +201,14 @@ peers = AiReality2Transnet.Bluetooth.get_connected_peers()
 sentant = Enum.at(peer_info.sentants, 0)
 sentant_id = Map.get(sentant, "id")
 
-# Test sending via PNS
-AiReality2Pns.Test.test_remote_send(peer_id, sentant_id)
+# Test sending via WFS
+AiReality2Wfs.Test.test_remote_send(peer_id, sentant_id)
 ```
 
 ### Full Integration Test
 
 ```elixir
-AiReality2Pns.Test.test_integration()
+AiReality2Wfs.Test.test_integration()
 ```
 
 Runs all tests: local send, remote send, broadcast, and displays statistics.
@@ -216,16 +216,16 @@ Runs all tests: local send, remote send, broadcast, and displays statistics.
 ### Quick Test
 
 ```elixir
-AiReality2Pns.Test.quick_test()
+AiReality2Wfs.Test.quick_test()
 ```
 
-Creates two local Sentants and demonstrates PNS routing between them.
+Creates two local Sentants and demonstrates WFS routing between them.
 
 ## How It Works
 
 ### 1. Topology Cache
 
-The PNS maintains a cache of Sentant locations:
+The WFS maintains a cache of Sentant locations:
 
 ```elixir
 %{
@@ -258,7 +258,7 @@ When you send to a Sentant:
 
 ### 3. Peer Discovery Integration
 
-The PNS subscribes to PubSub events:
+The WFS subscribes to PubSub events:
 
 ```elixir
 # From ai_reality2_transnet
@@ -269,7 +269,7 @@ The PNS subscribes to PubSub events:
 
 ### 4. Transport Selection
 
-The PNS automatically selects the best transport:
+The WFS automatically selects the best transport:
 
 | Scenario | Transport | Implementation |
 |----------|-----------|----------------|
@@ -280,7 +280,7 @@ The PNS automatically selects the best transport:
 
 ## Configuration
 
-No configuration needed! The PNS automatically:
+No configuration needed! The WFS automatically:
 - Starts with the application
 - Subscribes to peer events
 - Refreshes topology on init
@@ -341,7 +341,7 @@ send_with_retry(sentant_id, event, max_retries: 3, backoff: :exponential)
 ### "Sentant not found"
 ```elixir
 # Refresh topology cache
-AiReality2Pns.refresh()
+AiReality2Wfs.refresh()
 
 # Wait for peer discovery
 Process.sleep(2000)
@@ -353,10 +353,10 @@ AiReality2Transnet.Bluetooth.get_connected_peers()
 ### "Routing failed"
 ```elixir
 # Check routing table
-AiReality2Pns.Test.show_routing_table()
+AiReality2Wfs.Test.show_routing_table()
 
 # Try locating the Sentant
-AiReality2Pns.locate(sentant_id)
+AiReality2Wfs.locate(sentant_id)
 
 # Check if transnet is loaded
 Code.ensure_loaded?(AiReality2Transnet.Bluetooth)
@@ -370,47 +370,47 @@ AiReality2Transnet.BluetoothTest.list_connected_peers()
 # Test GATT directly
 AiReality2Transnet.BluetoothTest.test_peer_to_peer()
 
-# Check PNS routing
-AiReality2Pns.Test.test_remote_send(peer_id, sentant_id)
+# Check WFS routing
+AiReality2Wfs.Test.test_remote_send(peer_id, sentant_id)
 ```
 
 ## API Reference
 
 ### Core Functions
 
-#### `AiReality2Pns.send_to/4`
+#### `AiReality2Wfs.send_to/4`
 Send event to a Sentant (location-transparent).
 
-#### `AiReality2Pns.broadcast/4`
+#### `AiReality2Wfs.broadcast/4`
 Broadcast event to multiple Sentants.
 
-#### `AiReality2Pns.locate/1`
+#### `AiReality2Wfs.locate/1`
 Find where a Sentant is located.
 
-#### `AiReality2Pns.routing_table/0`
+#### `AiReality2Wfs.routing_table/0`
 Get current routing table and statistics.
 
-#### `AiReality2Pns.refresh/0`
+#### `AiReality2Wfs.refresh/0`
 Force topology cache refresh.
 
 ### Test Functions
 
-#### `AiReality2Pns.Test.show_routing_table/0`
+#### `AiReality2Wfs.Test.show_routing_table/0`
 Display formatted routing table.
 
-#### `AiReality2Pns.Test.test_local_send/0`
+#### `AiReality2Wfs.Test.test_local_send/0`
 Test sending to local Sentant.
 
-#### `AiReality2Pns.Test.test_remote_send/2`
+#### `AiReality2Wfs.Test.test_remote_send/2`
 Test sending to remote Sentant.
 
-#### `AiReality2Pns.Test.test_broadcast/1`
+#### `AiReality2Wfs.Test.test_broadcast/1`
 Test broadcasting with pattern.
 
-#### `AiReality2Pns.Test.test_integration/0`
+#### `AiReality2Wfs.Test.test_integration/0`
 Run full integration test suite.
 
-#### `AiReality2Pns.Test.quick_test/0`
+#### `AiReality2Wfs.Test.quick_test/0`
 Quick test with two local Sentants.
 
 ## Example Scenario
@@ -447,21 +447,21 @@ automations:
                   speed: high
 ```
 
-**With PNS**, the controller doesn't need to know:
+**With WFS**, the controller doesn't need to know:
 - Where `sensor_temp` is (Device A)
 - How to reach it (GATT Bluetooth)
 - The BLE address or connection details
 
-The PNS handles **all routing automatically**! 🎯
+The WFS handles **all routing automatically**! 🎯
 
 ## Integration with GraphQL
 
-The PNS routing is **parallel** to GraphQL:
+The WFS routing is **parallel** to GraphQL:
 
 ```
 External Client              Internal Automation
       ↓                            ↓
-   GraphQL                        PNS
+   GraphQL                        WFS
 (sentantSend mutation)    (send action in YAML)
       ↓                            ↓
       └──────→ Reality2.Sentants ←─┘
@@ -471,7 +471,7 @@ Both paths converge at the Sentant layer, and both receive signals via the same 
 
 ## Summary
 
-The Reality2 PNS provides:
+The Reality2 WFS provides:
 - ✅ Location-transparent routing
 - ✅ Automatic transport selection
 - ✅ Mesh networking support

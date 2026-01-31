@@ -45,7 +45,7 @@ defmodule AiReality2Transnet.R2Mesh do
   - **WiFi Mesh** - For higher bandwidth needs
   - **LoRa Mesh** - For long range
 
-  The Sentant/PNS layer remains unchanged regardless of transport.
+  The Sentant/WFS layer remains unchanged regardless of transport.
 
   **Author**
   - Dr. Roy C. Davies

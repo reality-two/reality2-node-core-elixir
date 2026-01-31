@@ -133,8 +133,8 @@ defmodule Reality2Web.MeshController do
         apply(AiReality2Transnet.ConnectionManager, :register_connected_client, [node_id, node_name, client_ip])
       end
 
-      # Update PNS routing table with client's sentants
-      update_pns_routes_for_peer(node_id, node_name, client_ip, sentants)
+      # Update WFS routing table with client's sentants
+      update_wfs_routes_for_peer(node_id, node_name, client_ip, sentants)
 
       # Notify other connected clients to refresh their sentant lists
       # This enables client-to-client discovery through the host
@@ -224,9 +224,9 @@ defmodule Reality2Web.MeshController do
         apply(AiReality2Transnet.PeerManager, :update_peer_sentants, [peer_node_id, sentants])
       end
 
-      # Refresh PNS topology
-      if Code.ensure_loaded?(AiReality2Pns.Router) do
-        apply(AiReality2Pns.Router, :refresh_topology, [])
+      # Refresh WFS topology
+      if Code.ensure_loaded?(AiReality2Wfs.Router) do
+        apply(AiReality2Wfs.Router, :refresh_topology, [])
       end
 
       json(conn, %{status: "ok", received_sentants: length(sentants)})
@@ -388,18 +388,18 @@ defmodule Reality2Web.MeshController do
     end
   end
 
-  defp update_pns_routes_for_peer(peer_node_id, peer_node_name, peer_ip, peer_sentants) do
+  defp update_wfs_routes_for_peer(peer_node_id, peer_node_name, peer_ip, peer_sentants) do
     require Logger
 
-    # Update PNS routing table with peer's sentants
+    # Update WFS routing table with peer's sentants
     Enum.each(peer_sentants, fn sentant ->
       sentant_name = Map.get(sentant, "name") || Map.get(sentant, :name)
       sentant_id = Map.get(sentant, "id") || Map.get(sentant, :id)
 
       if sentant_name do
-        pns_key = "#{peer_node_id}|#{sentant_name}"
+        wfs_key = "#{peer_node_id}|#{sentant_name}"
 
-        Reality2.Metadata.set(:PNS_Routes, pns_key, %{
+        Reality2.Metadata.set(:WFS_Routes, wfs_key, %{
           peer_node_id: peer_node_id,
           peer_node_name: peer_node_name,
           peer_ip: peer_ip,
@@ -408,16 +408,16 @@ defmodule Reality2Web.MeshController do
           discovered_at: System.system_time(:millisecond)
         })
 
-        Logger.debug("[MeshController] PNS route added: #{peer_node_name}|#{sentant_name} -> #{peer_ip}")
+        Logger.debug("[MeshController] WFS route added: #{peer_node_name}|#{sentant_name} -> #{peer_ip}")
       end
     end)
 
-    # Notify PNS Router of topology change
-    if Code.ensure_loaded?(AiReality2Pns.Router) do
-      apply(AiReality2Pns.Router, :refresh_topology, [])
+    # Notify WFS Router of topology change
+    if Code.ensure_loaded?(AiReality2Wfs.Router) do
+      apply(AiReality2Wfs.Router, :refresh_topology, [])
     end
 
-    Logger.info("[MeshController] PNS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
+    Logger.info("[MeshController] WFS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
   end
 
   # Notify other connected clients that a new node has registered

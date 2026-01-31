@@ -755,8 +755,8 @@ defmodule AiReality2Transnet.ConnectionManager do
       |> Enum.reject(fn c -> c.node_id == node_id end)  # Remove old entry if exists
       |> Kernel.++([client_info])  # Add new entry
 
-    # Store in PNS_Peers so PNS Router can look up client IP for GraphQL routing
-    Reality2.Metadata.set(:PNS_Peers, node_id, %{
+    # Store in WFS_Peers so WFS Router can look up client IP for GraphQL routing
+    Reality2.Metadata.set(:WFS_Peers, node_id, %{
       peer_ip: client_ip,
       node_name: node_name,
       connected_at: System.system_time(:millisecond)
@@ -944,9 +944,9 @@ defmodule AiReality2Transnet.ConnectionManager do
   end
 
   defp notify_clients_of_sentant_change(state) do
-    # Notify PNS router if available
-    if Code.ensure_loaded?(AiReality2Pns.Router) and function_exported?(AiReality2Pns.Router, :refresh_topology, 0) do
-      apply(AiReality2Pns.Router, :refresh_topology, [])
+    # Notify WFS router if available
+    if Code.ensure_loaded?(AiReality2Wfs.Router) and function_exported?(AiReality2Wfs.Router, :refresh_topology, 0) do
+      apply(AiReality2Wfs.Router, :refresh_topology, [])
     end
 
     # Push updated sentants to all connected clients
@@ -1023,7 +1023,7 @@ defmodule AiReality2Transnet.ConnectionManager do
               PeerManager.update_peer_transport(peer_id, :wifi_hotspot)
 
               # Step 4: Exchange Sentant directories via GraphQL
-              # This populates PNS routing table with host's available Sentants
+              # This populates WFS routing table with host's available Sentants
               case perform_sentant_exchange(peer_id, join_offer.rendezvous_ip, join_offer.rendezvous_port) do
                 :ok ->
                   # Step 5: Update state to :connected_as_client
@@ -1461,7 +1461,7 @@ defmodule AiReality2Transnet.ConnectionManager do
   defp handle_wifi_connection_lost(state, reason) do
     Logger.info("#{log_prefix()} Handling WiFi connection loss: #{reason}")
 
-    # Clean up PNS routes for the lost host
+    # Clean up WFS routes for the lost host
     if state.current_host_peer_id do
       cleanup_host_routes(state.current_host_peer_id)
     end
@@ -1500,17 +1500,17 @@ defmodule AiReality2Transnet.ConnectionManager do
     new_state
   end
 
-  # Clean up PNS routes when host connection is lost
+  # Clean up WFS routes when host connection is lost
   defp cleanup_host_routes(host_node_id) do
     # Remove sentants from PeerManager
     AiReality2Transnet.PeerManager.update_peer_sentants(host_node_id, [])
 
-    # Clean up PNS_Routes for this host
-    case Reality2.Metadata.all(:PNS_Routes) do
+    # Clean up WFS_Routes for this host
+    case Reality2.Metadata.all(:WFS_Routes) do
       routes when is_map(routes) ->
         Enum.each(routes, fn {key, route_info} ->
           if Map.get(route_info, :peer_node_id) == host_node_id do
-            Reality2.Metadata.delete(:PNS_Routes, key)
+            Reality2.Metadata.delete(:WFS_Routes, key)
           end
         end)
 
@@ -1518,8 +1518,8 @@ defmodule AiReality2Transnet.ConnectionManager do
         :ok
     end
 
-    # Remove from PNS_Peers
-    Reality2.Metadata.delete(:PNS_Peers, host_node_id)
+    # Remove from WFS_Peers
+    Reality2.Metadata.delete(:WFS_Peers, host_node_id)
 
     Logger.debug("#{log_prefix()} Cleaned up routes for host #{String.slice(host_node_id, 0..7)}...")
   end
@@ -1547,8 +1547,8 @@ defmodule AiReality2Transnet.ConnectionManager do
   defp perform_sentant_exchange(host_node_id, host_ip, host_port, retries_left) do
     Logger.info("#{log_prefix()} Performing sentantAll exchange with #{host_ip}:#{host_port} (retries: #{retries_left})")
 
-    # Store peer connection info for PNS Router lookup
-    Reality2.Metadata.set(:PNS_Peers, host_node_id, %{
+    # Store peer connection info for WFS Router lookup
+    Reality2.Metadata.set(:WFS_Peers, host_node_id, %{
       peer_ip: host_ip,
       port: host_port,
       connected_at: System.system_time(:millisecond)
@@ -1597,8 +1597,8 @@ defmodule AiReality2Transnet.ConnectionManager do
             # Update PeerManager with host's sentants
             AiReality2Transnet.PeerManager.update_peer_sentants(host_node_id, host_sentants)
 
-            # Update PNS routing table with host's sentants
-            update_pns_routing_table(host_node_id, host_ip, host_sentants)
+            # Update WFS routing table with host's sentants
+            update_wfs_routing_table(host_node_id, host_ip, host_sentants)
 
             # Register our sentants with the host (bidirectional exchange)
             register_with_host(host_ip, host_port)
@@ -1723,8 +1723,8 @@ defmodule AiReality2Transnet.ConnectionManager do
             # Update PeerManager with refreshed sentants
             AiReality2Transnet.PeerManager.update_peer_sentants(host_node_id, sentants)
 
-            # Update PNS routing table
-            update_pns_routing_table(host_node_id, host_ip, sentants)
+            # Update WFS routing table
+            update_wfs_routing_table(host_node_id, host_ip, sentants)
 
             {:ok, length(sentants)}
 
@@ -1837,14 +1837,14 @@ defmodule AiReality2Transnet.ConnectionManager do
     end
   end
 
-  defp update_pns_routing_table(peer_node_id, peer_ip, peer_sentants) do
+  defp update_wfs_routing_table(peer_node_id, peer_ip, peer_sentants) do
     # Get peer's node_name from PeerManager for better identification
     peer_node_name = case AiReality2Transnet.PeerManager.get_peer(peer_node_id) do
       {:ok, peer} -> Map.get(peer, :node_name, "Unknown")
       _ -> "Unknown"
     end
 
-    # Update PNS routing table with peer's sentants
+    # Update WFS routing table with peer's sentants
     # Format: peer_node_id|sentant_name -> peer_ip
     Enum.each(peer_sentants, fn sentant ->
       sentant_name = Map.get(sentant, "name")
@@ -1852,10 +1852,10 @@ defmodule AiReality2Transnet.ConnectionManager do
 
       if sentant_name do
         # Store routing entry: node_id|sentant_name -> host_ip
-        pns_key = "#{peer_node_id}|#{sentant_name}"
+        wfs_key = "#{peer_node_id}|#{sentant_name}"
 
-        # Store in PNS metadata with peer node name for easier identification
-        Reality2.Metadata.set(:PNS_Routes, pns_key, %{
+        # Store in WFS metadata with peer node name for easier identification
+        Reality2.Metadata.set(:WFS_Routes, wfs_key, %{
           peer_node_id: peer_node_id,
           peer_node_name: peer_node_name,
           peer_ip: peer_ip,
@@ -1864,11 +1864,11 @@ defmodule AiReality2Transnet.ConnectionManager do
           discovered_at: System.system_time(:millisecond)
         })
 
-        Logger.debug("#{log_prefix()} PNS route added: #{peer_node_name}|#{sentant_name} -> #{peer_ip}")
+        Logger.debug("#{log_prefix()} WFS route added: #{peer_node_name}|#{sentant_name} -> #{peer_ip}")
       end
     end)
 
-    Logger.info("#{log_prefix()} PNS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
+    Logger.info("#{log_prefix()} WFS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
   end
 
   # Perform sentantAll exchange after auto-connecting to an R2 hotspot via SSID
@@ -1889,7 +1889,7 @@ defmodule AiReality2Transnet.ConnectionManager do
 
   defp perform_sentant_exchange_by_ssid(ssid, retries_left) do
     # The SSID is the node_name - find the peer by looking up the node_id
-    case Reality2.Metadata.get(:PNS_NodeNames, ssid) do
+    case Reality2.Metadata.get(:WFS_NodeNames, ssid) do
       nil ->
         # Peer not found by node_name, try to find by scanning all peers
         find_peer_by_ssid_and_exchange(ssid, retries_left)

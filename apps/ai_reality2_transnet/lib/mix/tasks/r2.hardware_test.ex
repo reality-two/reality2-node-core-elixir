@@ -29,8 +29,8 @@ defmodule Mix.Tasks.R2.HardwareTest do
 
   require Logger
 
-  # PNS is a runtime dependency, not compile-time (same pattern as PeerManager)
-  @compile {:no_warn_undefined, AiReality2Pns.Router}
+  # WFS is a runtime dependency, not compile-time (same pattern as PeerManager)
+  @compile {:no_warn_undefined, AiReality2Wfs.Router}
 
   @shortdoc "Run hardware integration tests for Reality2 transnet"
 
@@ -306,36 +306,36 @@ defmodule Mix.Tasks.R2.HardwareTest do
 
       # 7. Local PingPong responds to ping
       test("Local PingPong responds to ping", fn ->
-        case AiReality2Pns.Router.send_to_sentant("PingPong", "ping", %{}) do
+        case AiReality2Wfs.Router.send_to_sentant("PingPong", "ping", %{}) do
           {:ok, _, _} -> :ok
           {:ok, _} -> :ok
           :ok -> :ok
-          error -> {:error, "PNS send failed: #{inspect(error)}"}
+          error -> {:error, "WFS send failed: #{inspect(error)}"}
         end
       end),
 
-      # 8. Cross-node PingPong via PNS
-      test("Cross-node PingPong via PNS", fn ->
+      # 8. Cross-node PingPong via WFS
+      test("Cross-node PingPong via WFS", fn ->
         # Get the SBC node name from its info endpoint
         case remote_info(sbc1) do
           {:ok, %{"node_name" => sbc_name}} ->
             target = "#{sbc_name}|PingPong"
             verbose(verbose?, "Sending ping to #{target}")
-            case AiReality2Pns.Router.send_to_sentant(target, "ping", %{}) do
+            case AiReality2Wfs.Router.send_to_sentant(target, "ping", %{}) do
               {:ok, _, _} -> :ok
               {:ok, _} -> :ok
               :ok -> :ok
-              error -> {:error, "PNS cross-node send failed: #{inspect(error)}"}
+              error -> {:error, "WFS cross-node send failed: #{inspect(error)}"}
             end
           {:ok, info} ->
             # Try alternate key formats
             sbc_name = info["name"] || info["node_name"] || "unknown"
             target = "#{sbc_name}|PingPong"
-            case AiReality2Pns.Router.send_to_sentant(target, "ping", %{}) do
+            case AiReality2Wfs.Router.send_to_sentant(target, "ping", %{}) do
               {:ok, _, _} -> :ok
               {:ok, _} -> :ok
               :ok -> :ok
-              error -> {:error, "PNS cross-node send failed: #{inspect(error)}"}
+              error -> {:error, "WFS cross-node send failed: #{inspect(error)}"}
             end
           error -> {:error, "Cannot get SBC1 info: #{inspect(error)}"}
         end
@@ -382,26 +382,26 @@ defmodule Mix.Tasks.R2.HardwareTest do
         if node_count >= 3, do: :ok, else: {:error, "only #{node_count} node(s)"}
       end),
 
-      # 4. Send to SBC2 sentant via PNS
-      test("Send to SBC2 PingPong via PNS", fn ->
+      # 4. Send to SBC2 sentant via WFS
+      test("Send to SBC2 PingPong via WFS", fn ->
         case remote_info(sbc2) do
           {:ok, %{"node_name" => sbc2_name}} ->
             target = "#{sbc2_name}|PingPong"
             verbose(verbose?, "Sending ping to #{target}")
-            case AiReality2Pns.Router.send_to_sentant(target, "ping", %{}) do
+            case AiReality2Wfs.Router.send_to_sentant(target, "ping", %{}) do
               {:ok, _, _} -> :ok
               {:ok, _} -> :ok
               :ok -> :ok
-              error -> {:error, "PNS send to SBC2 failed: #{inspect(error)}"}
+              error -> {:error, "WFS send to SBC2 failed: #{inspect(error)}"}
             end
           {:ok, info} ->
             sbc2_name = info["name"] || info["node_name"] || "unknown"
             target = "#{sbc2_name}|PingPong"
-            case AiReality2Pns.Router.send_to_sentant(target, "ping", %{}) do
+            case AiReality2Wfs.Router.send_to_sentant(target, "ping", %{}) do
               {:ok, _, _} -> :ok
               {:ok, _} -> :ok
               :ok -> :ok
-              error -> {:error, "PNS send to SBC2 failed: #{inspect(error)}"}
+              error -> {:error, "WFS send to SBC2 failed: #{inspect(error)}"}
             end
           error -> {:error, "Cannot get SBC2 info: #{inspect(error)}"}
         end
@@ -453,7 +453,7 @@ defmodule Mix.Tasks.R2.HardwareTest do
 
       # 3. Broadcast "*" event delivered
       test("Broadcast \"*\" event delivered", fn ->
-        case AiReality2Pns.Router.send_to_sentant("*", "ping", %{source: "hardware_test"}) do
+        case AiReality2Wfs.Router.send_to_sentant("*", "ping", %{source: "hardware_test"}) do
           {:ok, %{local: l, remote: r}} ->
             verbose(verbose?, "Delivered to #{l} local, #{r} remote")
             :ok
@@ -465,7 +465,7 @@ defmodule Mix.Tasks.R2.HardwareTest do
 
       # 4. Hive addressing resolves
       test("Hive addressing resolves PingPong", fn ->
-        case AiReality2Pns.Router.locate("*|PingPong") do
+        case AiReality2Wfs.Router.locate("*|PingPong") do
           {:ok, :multiple, locations} when is_list(locations) ->
             verbose(verbose?, "PingPong found at #{length(locations)} location(s)")
             if length(locations) >= 2, do: :ok, else: {:error, "only #{length(locations)} location(s)"}
@@ -569,20 +569,20 @@ defmodule Mix.Tasks.R2.HardwareTest do
             {:ok, %{"node_name" => cloud_name}} ->
               target = "#{cloud_name}|PingPong"
               verbose(verbose?, "Sending ping to #{target}")
-              case AiReality2Pns.Router.send_to_sentant(target, "ping", %{}) do
+              case AiReality2Wfs.Router.send_to_sentant(target, "ping", %{}) do
                 {:ok, _, _} -> :ok
                 {:ok, _} -> :ok
                 :ok -> :ok
-                error -> {:error, "Cloud PNS send failed: #{inspect(error)}"}
+                error -> {:error, "Cloud WFS send failed: #{inspect(error)}"}
               end
             {:ok, info} ->
               cloud_name = info["name"] || info["node_name"] || "unknown"
               target = "#{cloud_name}|PingPong"
-              case AiReality2Pns.Router.send_to_sentant(target, "ping", %{}) do
+              case AiReality2Wfs.Router.send_to_sentant(target, "ping", %{}) do
                 {:ok, _, _} -> :ok
                 {:ok, _} -> :ok
                 :ok -> :ok
-                error -> {:error, "Cloud PNS send failed: #{inspect(error)}"}
+                error -> {:error, "Cloud WFS send failed: #{inspect(error)}"}
               end
             error -> {:error, "Cannot get cloud info: #{inspect(error)}"}
           end

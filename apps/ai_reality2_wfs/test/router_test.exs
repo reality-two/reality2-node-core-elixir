@@ -1,6 +1,6 @@
-defmodule AiReality2Pns.RouterTest do
+defmodule AiReality2Wfs.RouterTest do
   @moduledoc """
-  Tests for AiReality2Pns.Router path parsing and routing behavior.
+  Tests for AiReality2Wfs.Router path parsing and routing behavior.
 
   The core `parse_path/1` function is private, so these tests document and verify
   the expected path format classifications by testing observable behavior where
@@ -306,7 +306,7 @@ defmodule AiReality2Pns.RouterTest do
   # classify_identifier/1 determines how two-part paths are routed.
   # It checks (in order):
   #   1. local node name/id -> :local_node
-  #   2. known peer by name (PNS_NodeNames) -> :known_peer
+  #   2. known peer by name (WFS_NodeNames) -> :known_peer
   #   3. known peer by UUID (uuid? + peer_exists?) -> :known_peer
   #   4. hive identifier -> :hive
   #   5. fallthrough -> :unknown (try node first, then hive)
@@ -472,52 +472,52 @@ defmodule AiReality2Pns.RouterTest do
 
   describe "public API function existence" do
     setup do
-      Code.ensure_loaded!(AiReality2Pns.Router)
+      Code.ensure_loaded!(AiReality2Wfs.Router)
       :ok
     end
 
     test "send_to_sentant/5 is exported" do
-      assert function_exported?(AiReality2Pns.Router, :send_to_sentant, 5)
+      assert function_exported?(AiReality2Wfs.Router, :send_to_sentant, 5)
     end
 
     test "send_to_sentant/4 is exported (without sender)" do
-      assert function_exported?(AiReality2Pns.Router, :send_to_sentant, 4)
+      assert function_exported?(AiReality2Wfs.Router, :send_to_sentant, 4)
     end
 
     test "send_to_sentant/3 is exported (minimal args)" do
-      assert function_exported?(AiReality2Pns.Router, :send_to_sentant, 3)
+      assert function_exported?(AiReality2Wfs.Router, :send_to_sentant, 3)
     end
 
     test "send_to_sentant/2 is exported (identifier + event)" do
-      assert function_exported?(AiReality2Pns.Router, :send_to_sentant, 2)
+      assert function_exported?(AiReality2Wfs.Router, :send_to_sentant, 2)
     end
 
     test "broadcast/4 is exported" do
-      assert function_exported?(AiReality2Pns.Router, :broadcast, 4)
+      assert function_exported?(AiReality2Wfs.Router, :broadcast, 4)
     end
 
     test "broadcast/3 is exported" do
-      assert function_exported?(AiReality2Pns.Router, :broadcast, 3)
+      assert function_exported?(AiReality2Wfs.Router, :broadcast, 3)
     end
 
     test "broadcast/2 is exported" do
-      assert function_exported?(AiReality2Pns.Router, :broadcast, 2)
+      assert function_exported?(AiReality2Wfs.Router, :broadcast, 2)
     end
 
     test "locate/1 is exported" do
-      assert function_exported?(AiReality2Pns.Router, :locate, 1)
+      assert function_exported?(AiReality2Wfs.Router, :locate, 1)
     end
 
     test "get_routing_table/0 is exported" do
-      assert function_exported?(AiReality2Pns.Router, :get_routing_table, 0)
+      assert function_exported?(AiReality2Wfs.Router, :get_routing_table, 0)
     end
 
     test "refresh_topology/0 is exported" do
-      assert function_exported?(AiReality2Pns.Router, :refresh_topology, 0)
+      assert function_exported?(AiReality2Wfs.Router, :refresh_topology, 0)
     end
 
     test "start_link/1 is exported" do
-      assert function_exported?(AiReality2Pns.Router, :start_link, 1)
+      assert function_exported?(AiReality2Wfs.Router, :start_link, 1)
     end
   end
 

@@ -20,9 +20,9 @@ defmodule Reality2.Application do
       %{id: :SentantNames, start: {Reality2.Metadata, :start_link, [:SentantNames]}},
       %{id: :SentantIDs, start: {Reality2.Metadata, :start_link, [:SentantIDs]}},
       %{id: :Sentants, start: {Reality2.Metadata, :start_link, [:Sentants]}},
-      %{id: :PNS_Routes, start: {Reality2.Metadata, :start_link, [:PNS_Routes]}},
-      %{id: :PNS_NodeNames, start: {Reality2.Metadata, :start_link, [:PNS_NodeNames]}},
-      %{id: :PNS_Peers, start: {Reality2.Metadata, :start_link, [:PNS_Peers]}},
+      %{id: :WFS_Routes, start: {Reality2.Metadata, :start_link, [:WFS_Routes]}},
+      %{id: :WFS_NodeNames, start: {Reality2.Metadata, :start_link, [:WFS_NodeNames]}},
+      %{id: :WFS_Peers, start: {Reality2.Metadata, :start_link, [:WFS_Peers]}},
       {Finch, name: Reality2.HTTPClient},
       # HTTP client for transient network peers with relaxed SSL (accepts self-signed certs)
       # SECURITY TODO: Replace verify: :verify_none with Hive-based certificate pinning.

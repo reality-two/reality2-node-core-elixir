@@ -40,9 +40,9 @@ defmodule AiReality2Transnet.MixProject do
   defp deps do
     [
       {:reality2, in_umbrella: true},
-      # Note: ai_reality2_pns is NOT a compile-time dependency
-      # PNS integration uses runtime checks (Code.ensure_loaded?)
-      # This prevents circular dependency (PNS depends on transnet)
+      # Note: ai_reality2_wfs is NOT a compile-time dependency
+      # WFS integration uses runtime checks (Code.ensure_loaded?)
+      # This prevents circular dependency (WFS depends on transnet)
       {:rustler, "~> 0.34.0"},
       {:plug_cowboy, "~> 2.0"},
       {:httpoison, "~> 2.0"},

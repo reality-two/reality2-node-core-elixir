@@ -1,27 +1,27 @@
-defmodule AiReality2Pns.Test do
+defmodule AiReality2Wfs.Test do
   @moduledoc """
-  Test helpers for the Pathing Name System (PNS) router.
+  Test helpers for the Waggle Finding Service (WFS) router.
 
   ## Usage
 
       # Show routing table
-      AiReality2Pns.Test.show_routing_table()
+      AiReality2Wfs.Test.show_routing_table()
 
       # Test sending to local Sentant
-      AiReality2Pns.Test.test_local_send()
+      AiReality2Wfs.Test.test_local_send()
 
       # Test sending to remote Sentant
-      AiReality2Pns.Test.test_remote_send(peer_node_id, sentant_id)
+      AiReality2Wfs.Test.test_remote_send(peer_node_id, sentant_id)
 
       # Test broadcast
-      AiReality2Pns.Test.test_broadcast("*")
+      AiReality2Wfs.Test.test_broadcast("*")
 
       # Full integration test
-      AiReality2Pns.Test.test_integration()
+      AiReality2Wfs.Test.test_integration()
   """
 
   require Logger
-  alias AiReality2Pns.Router
+  alias AiReality2Wfs.Router
 
   @doc """
   Display the current routing table.
@@ -32,7 +32,7 @@ defmodule AiReality2Pns.Test do
         Logger.info("""
 
         ===========================================
-        PNS Routing Table
+        WFS Routing Table
         ===========================================
         Local Sentants: #{table.local_sentant_count}
         Remote Sentants: #{table.remote_sentant_count}
@@ -84,7 +84,7 @@ defmodule AiReality2Pns.Test do
 
     # Create a test Sentant
     sentant_yaml = """
-    name: pns_test_local
+    name: wfs_test_local
     events:
       - name: ping
     automations:
@@ -97,7 +97,7 @@ defmodule AiReality2Pns.Test do
                 message: "Local pong!"
     """
 
-    Logger.info("Creating test Sentant 'pns_test_local'...")
+    Logger.info("Creating test Sentant 'wfs_test_local'...")
     {:ok, sentant_id} = Reality2.Sentants.create(sentant_yaml)
     Logger.info("✓ Created: #{sentant_id}\n")
 
@@ -114,8 +114,8 @@ defmodule AiReality2Pns.Test do
         Logger.warning("✗ Unexpected location: #{inspect(other)}\n")
     end
 
-    # Send via PNS
-    Logger.info("Sending 'ping' event via PNS...")
+    # Send via WFS
+    Logger.info("Sending 'ping' event via WFS...")
     case Router.send_to_sentant(sentant_id, "ping", %{test: "local"}) do
       {:ok, :local, _result} ->
         Logger.info("✓ Successfully sent to local Sentant\n")
@@ -182,8 +182,8 @@ defmodule AiReality2Pns.Test do
                 event_name = Map.get(event, "name")
                 Logger.info("Found event: '#{event_name}'\n")
 
-                # Send via PNS
-                Logger.info("Sending '#{event_name}' event via PNS...")
+                # Send via WFS
+                Logger.info("Sending '#{event_name}' event via WFS...")
                 case Router.send_to_sentant(sentant_id, event_name, %{test: "remote"}) do
                   {:ok, {:remote, node_id}, _result} ->
                     Logger.info("✓ Successfully sent to remote Sentant on node #{String.slice(node_id, 0..7)}...\n")
@@ -240,7 +240,7 @@ defmodule AiReality2Pns.Test do
     Logger.info("""
 
     ============================================
-    PNS Integration Test Suite
+    WFS Integration Test Suite
     ============================================
     """)
 
@@ -279,7 +279,7 @@ defmodule AiReality2Pns.Test do
 
     # Step 5: Test broadcast
     Logger.info("\n5. Testing Broadcast:")
-    test_broadcast("pns_test*")
+    test_broadcast("wfs_test*")
 
     # Step 6: Final statistics
     Logger.info("\n6. Final Statistics:")
@@ -346,11 +346,11 @@ defmodule AiReality2Pns.Test do
   Quick test: Create 2 local Sentants and send between them.
   """
   def quick_test do
-    Logger.info("=== PNS Quick Test ===\n")
+    Logger.info("=== WFS Quick Test ===\n")
 
     # Create sender
     sender_yaml = """
-    name: pns_sender
+    name: wfs_sender
     events:
       - name: start
     automations:
@@ -358,7 +358,7 @@ defmodule AiReality2Pns.Test do
         on: start
         do:
           - send:
-              to: pns_receiver
+              to: wfs_receiver
               event: hello
               parameters:
                 message: "Hello from sender!"
@@ -366,7 +366,7 @@ defmodule AiReality2Pns.Test do
 
     # Create receiver
     receiver_yaml = """
-    name: pns_receiver
+    name: wfs_receiver
     events:
       - name: hello
     automations:
@@ -387,7 +387,7 @@ defmodule AiReality2Pns.Test do
 
     Process.sleep(500)
 
-    Logger.info("Triggering send via PNS...")
+    Logger.info("Triggering send via WFS...")
     Router.send_to_sentant(sender_id, "start", %{})
 
     Logger.info("\n✓ Test complete! Check logs for routing.\n")

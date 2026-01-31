@@ -218,7 +218,7 @@ WiFi mesh (IEEE 802.11s) is used for:
 - `AiReality2Transnet.Main` - Sentant plugin interface
 
 ### Integration Layer
-- `AiReality2Pns.Router` - Location-transparent Sentant routing
+- `AiReality2Wfs.Router` - Location-transparent Sentant routing
 
 ## Testing
 

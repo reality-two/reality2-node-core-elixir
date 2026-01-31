@@ -49,7 +49,7 @@ defmodule Reality2.Automation.Actions do
     |> Enum.reject(&is_nil/1)
   end
 
-  # Resolve a target to a PNS-compatible identifier
+  # Resolve a target to a WFS-compatible identifier
   defp resolve_target(to) do
     cond do
       is_binary(to) and (String.contains?(to, "|") or to == "*") ->
@@ -119,8 +119,8 @@ defmodule Reality2.Automation.Actions do
       # Send the event either immediately or after a delay.
       case R2Map.get(combined_parameters, :delay) do
         nil ->
-          # Use PNS router for location-transparent routing (local or remote)
-          send_via_pns(name_or_id, %{
+          # Use WFS router for location-transparent routing (local or remote)
+          send_via_wfs(name_or_id, %{
             event: event,
             parameters: clean_params,
             passthrough: passthrough,
@@ -353,7 +353,7 @@ defmodule Reality2.Automation.Actions do
         |> Map.delete("__sender__")
         |> Map.delete(:__sender__)
 
-      send_via_pns(name_or_id, %{
+      send_via_wfs(name_or_id, %{
         event: event,
         parameters: clean_params,
         passthrough: passthrough,
@@ -365,23 +365,23 @@ defmodule Reality2.Automation.Actions do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # PNS Router
+  # WFS Router
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # Helper function to send via PNS router with fallback to direct send
+  # Helper function to send via WFS router with fallback to direct send
   @doc false
-  def send_via_pns(name_or_id, message_map) do
-    # Try to use PNS router if available
-    if Code.ensure_loaded?(AiReality2Pns.Router) do
-      # Extract identifier for PNS Router
+  def send_via_wfs(name_or_id, message_map) do
+    # Try to use WFS router if available
+    if Code.ensure_loaded?(AiReality2Wfs.Router) do
+      # Extract identifier for WFS Router
       identifier = case name_or_id do
         %{id: id} -> id
         %{name: name} -> Reality2.Metadata.get(:SentantIDs, name) || name
         str when is_binary(str) -> str  # Pass path formats directly ("*", "*|name", "node|name")
       end
 
-      # Suppress compile-time warning - PNS is an optional plugin
-      router_module = AiReality2Pns.Router
+      # Suppress compile-time warning - WFS is an optional plugin
+      router_module = AiReality2Wfs.Router
       sender = Map.get(message_map, :sender)
       case apply(router_module, :send_to_sentant, [
         identifier,
@@ -401,19 +401,19 @@ defmodule Reality2.Automation.Actions do
           if is_map(name_or_id) do
             Reality2.Sentants.sendto(name_or_id, message_map)
           else
-            Logger.warning("PNS routing failed: not_found for #{inspect(name_or_id)}")
+            Logger.warning("WFS routing failed: not_found for #{inspect(name_or_id)}")
           end
         {:error, :not_found} ->
-          Logger.warning("PNS routing failed: not_found for #{inspect(name_or_id)}")
+          Logger.warning("WFS routing failed: not_found for #{inspect(name_or_id)}")
         {:error, reason} ->
-          Logger.warning("PNS routing failed: #{inspect(reason)}")
+          Logger.warning("WFS routing failed: #{inspect(reason)}")
       end
     else
-      # PNS not available, use direct send (only works for local targets)
+      # WFS not available, use direct send (only works for local targets)
       if is_map(name_or_id) do
         Reality2.Sentants.sendto(name_or_id, message_map)
       else
-        Logger.warning("PNS not available, cannot route #{inspect(name_or_id)}")
+        Logger.warning("WFS not available, cannot route #{inspect(name_or_id)}")
       end
     end
   end
@@ -422,7 +422,7 @@ defmodule Reality2.Automation.Actions do
   # Sender Resolution
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # Resolve @sender to a PNS-compatible path
+  # Resolve @sender to a WFS-compatible path
   # Returns "node_name|sentant_name" or "node_name" if no sentant specified
   @doc false
   def resolve_sender_path(nil) do

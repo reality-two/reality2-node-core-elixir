@@ -1,12 +1,12 @@
-defmodule AiReality2Pns.Main do
+defmodule AiReality2Wfs.Main do
   @behaviour Reality2.Plugin.Main
 
   # *******************************************************************************************************************************************
   @moduledoc """
-  Main entry point for the Pathing Name System (PNS) plugin.
+  Main entry point for the Waggle Finding Service (WFS) plugin.
 
-  PNS provides routing for messages to Sentants across transient networks.
-  Unlike per-Sentant plugins, PNS operates globally via the Router GenServer,
+  WFS provides routing for messages to Sentants across transient networks.
+  Unlike per-Sentant plugins, WFS operates globally via the Router GenServer,
   so the create/delete callbacks are no-ops.
 
   **Author**
@@ -40,9 +40,9 @@ defmodule AiReality2Pns.Main do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Does nothing in this module as PNS operates globally.
+  Does nothing in this module as WFS operates globally.
 
-  PNS routing is managed by the Router GenServer, not per-Sentant processes.
+  WFS routing is managed by the Router GenServer, not per-Sentant processes.
 
   - Parameters
     - `sentant_id` - ignored in this implementation.
@@ -58,7 +58,7 @@ defmodule AiReality2Pns.Main do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  Does nothing in this module as PNS operates globally.
+  Does nothing in this module as WFS operates globally.
 
   - Parameters
     - `sentant_id` - ignored in this implementation.
@@ -75,7 +75,7 @@ defmodule AiReality2Pns.Main do
   @doc """
   Return the process id that can be used for subsequent communications.
 
-  In this implementation, this just refers to this module as PNS is global.
+  In this implementation, this just refers to this module as WFS is global.
 
   - Parameters
     - `id` - The id of the Sentant (ignored).
@@ -90,9 +90,9 @@ defmodule AiReality2Pns.Main do
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   @doc """
-  PNS doesn't support direct sendto commands.
+  WFS doesn't support direct sendto commands.
 
-  Use AiReality2Pns.Router functions instead for routing operations.
+  Use AiReality2Wfs.Router functions instead for routing operations.
 
   - Parameters
     - `id` - The id of the Sentant (ignored)

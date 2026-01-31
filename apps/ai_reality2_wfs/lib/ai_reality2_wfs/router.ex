@@ -1,6 +1,6 @@
-defmodule AiReality2Pns.Router do
+defmodule AiReality2Wfs.Router do
   @moduledoc """
-  Pathing Name System (PNS) Router - Location-transparent routing for Sentant events.
+  Waggle Finding Service (WFS) Router - Location-transparent routing for Sentant events.
 
   Automatically routes events to the appropriate destination:
   - Local Sentants on this node
@@ -87,21 +87,21 @@ defmodule AiReality2Pns.Router do
   Programmatic usage:
 
       # Send to local sentant
-      AiReality2Pns.Router.send_to_sentant("Zen Quote", "init", %{})
+      AiReality2Wfs.Router.send_to_sentant("Zen Quote", "init", %{})
 
       # Send to all nodes with "Sensor"
-      AiReality2Pns.Router.send_to_sentant("*|Sensor", "ping", %{})
+      AiReality2Wfs.Router.send_to_sentant("*|Sensor", "ping", %{})
       # => {:ok, %{local: 1, remote: 3, results: [...]}}
 
       # Target specific node
-      AiReality2Pns.Router.send_to_sentant("R2Node_A3F7|Zen Quote", "init", %{})
+      AiReality2Wfs.Router.send_to_sentant("R2Node_A3F7|Zen Quote", "init", %{})
 
       # Locate a sentant locally
-      AiReality2Pns.Router.locate("Zen Quote")
+      AiReality2Wfs.Router.locate("Zen Quote")
       # => {:ok, :local, "uuid..."}
 
       # Locate across all nodes
-      AiReality2Pns.Router.locate("*|Sensor")
+      AiReality2Wfs.Router.locate("*|Sensor")
       # => {:ok, :multiple, [{:local, "uuid1"}, {{:remote, "node-uuid"}, "uuid2"}]}
 
   **Author**
@@ -739,7 +739,7 @@ defmodule AiReality2Pns.Router do
         :local_node
 
       # Check if it's a known peer by name
-      Reality2.Metadata.get(:PNS_NodeNames, identifier) != nil ->
+      Reality2.Metadata.get(:WFS_NodeNames, identifier) != nil ->
         :known_peer
 
       # Check if it's a known peer by UUID
@@ -802,7 +802,7 @@ defmodule AiReality2Pns.Router do
 
       # Must be a remote node name - look it up in PNS_NodeNames
       true ->
-        case Reality2.Metadata.get(:PNS_NodeNames, identifier) do
+        case Reality2.Metadata.get(:WFS_NodeNames, identifier) do
           nil -> {:error, :node_not_found}
           node_id -> {:remote, node_id}
         end
@@ -971,7 +971,7 @@ defmodule AiReality2Pns.Router do
       target = "#{node_id}|#{sentant_identifier}"
       full_params = Map.merge(params || %{}, %{_passthrough: passthrough, _sender: sender})
 
-      case AiReality2Transnet.MeshRouter.send_signal("pns_router", target, event, full_params) do
+      case AiReality2Transnet.MeshRouter.send_signal("wfs_router", target, event, full_params) do
         :ok -> {:ok, %{routed_via: :mesh_router, target: target}}
         error -> error
       end
@@ -1081,7 +1081,7 @@ defmodule AiReality2Pns.Router do
 
       Logger.debug("[PNS Router] Routing to #{target} via MeshRouter")
 
-      case AiReality2Transnet.MeshRouter.send_signal("pns_router", target, event, full_params) do
+      case AiReality2Transnet.MeshRouter.send_signal("wfs_router", target, event, full_params) do
         :ok -> {:ok, %{routed_via: :mesh_router, target: target}}
         {:error, :no_transports_available} ->
           Logger.debug("[PNS Router] MeshRouter unavailable, falling back to direct GraphQL")
@@ -1187,7 +1187,7 @@ defmodule AiReality2Pns.Router do
 
   # Get peer IP from PNS_Peers metadata (stored by ConnectionManager)
   defp get_peer_ip(node_id) do
-    case Reality2.Metadata.get(:PNS_Peers, node_id) do
+    case Reality2.Metadata.get(:WFS_Peers, node_id) do
       %{peer_ip: ip} -> ip
       _ -> nil
     end
