@@ -53,3 +53,7 @@ mix.lock
 
 # Stray compiled beam files
 *.beam
+
+# Private design documents (kept locally, not tracked)
+documents/transnet/v1/
+documents/transnet/v2/
