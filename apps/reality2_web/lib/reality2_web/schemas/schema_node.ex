@@ -40,6 +40,7 @@ defmodule Reality2Web.Schema.Node do
     field(:node_id, non_null(:string), description: "Peer's node UUID")
     field(:node_name, :string, description: "Peer's human-readable name")
     field(:transport, :string, description: "Primary transport: ble_gatt, wifi_hotspot, lora")
+    field(:address, :string, description: "Peer address (WiFi IP or BLE MAC)")
     field(:rssi, :integer, description: "Signal strength in dBm")
     field(:connection_state, :string, description: "Discovery state")
     field(:hive_id, :string, description: "Peer's Hive UUID")

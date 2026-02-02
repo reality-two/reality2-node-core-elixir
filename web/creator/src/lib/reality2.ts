@@ -114,7 +114,7 @@ export default class R2 {
   /**
    * Retrieve discovered peers from the mesh.
    */
-  peers(passthrough = {}, details: string = "nodeId nodeName transport rssi connectionState hiveId isSameHive hiveVerified sentantCount lastSeen reachability { ble { lastSeen confidence rssi } wifi { lastSeen confidence ip } lora { lastSeen confidence } }"): Promise<object> {
+  peers(passthrough = {}, details: string = "nodeId nodeName transport address rssi connectionState hiveId isSameHive hiveVerified sentantCount lastSeen reachability { ble { lastSeen confidence rssi } wifi { lastSeen confidence ip } lora { lastSeen confidence } }"): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._peers(details), {}).then(
         (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },

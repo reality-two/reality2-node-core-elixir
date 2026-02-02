@@ -31,6 +31,7 @@ defmodule Reality2Web.NodeResolver do
               node_id: peer_id,
               node_name: Map.get(peer, :node_name),
               transport: peer |> Map.get(:transport) |> to_string_safe(),
+              address: Map.get(peer, :address) |> to_string_safe(),
               rssi: Map.get(peer, :rssi),
               connection_state: peer |> Map.get(:connection_state) |> to_string_safe(),
               hive_id: Map.get(peer, :hive_id),

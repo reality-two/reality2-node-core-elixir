@@ -256,12 +256,16 @@
 
   // Peers with a reachable IP (candidates for join target)
   let reachablePeers = $derived(
-    peers.filter((p: any) => p.reachability?.wifi?.ip).map((p: any) => ({
+    peers.filter((p: any) => getPeerIp(p)).map((p: any) => ({
       nodeId: p.nodeId,
       nodeName: p.nodeName || p.nodeId?.slice(0, 8),
-      ip: p.reachability.wifi.ip,
+      ip: getPeerIp(p)!,
     }))
   );
+
+  function getPeerIp(peer: any): string | null {
+    return peer.reachability?.wifi?.ip || peer.address || null;
+  }
   let joinManual = $state(false);
 </script>
 
@@ -488,8 +492,8 @@
               </div>
               <div class="peer-details">
                 <span class="peer-detail" title="Node ID">{peer.nodeId?.slice(0, 8)}...</span>
-                {#if peer.reachability?.wifi?.ip}
-                  <span class="peer-detail mono" title="WiFi IP">{peer.reachability.wifi.ip}</span>
+                {#if getPeerIp(peer)}
+                  <span class="peer-detail mono" title="Address">{getPeerIp(peer)}</span>
                 {/if}
                 {#if peer.rssi != null}
                   <span class="peer-detail" title="Signal strength">{peer.rssi} dBm</span>
