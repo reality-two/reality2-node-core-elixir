@@ -26,8 +26,9 @@ mkdir -p ".mnesia/$MIX_ENV"
 # Get any new deps
 mix deps.get
 
-# Force reality2_web to be recompiled in case there have been some new WebApps added
+# Force recompile of apps that include static assets or native code
 rm -rf "_build/$MIX_ENV/lib/reality2_web"
+rm -rf "_build/$MIX_ENV/lib/ai_reality2_transnet"
 
 # Start the Elixir application
 iex -S mix phx.server
