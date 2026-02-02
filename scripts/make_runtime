@@ -94,15 +94,19 @@ export LOCKED="remote"
 # Get any new deps (only fetches if needed)
 mix deps.get
 
-# Ensure static webapp assets are included in the release.
-# mix compile may skip re-copying priv/ when no .ex files changed,
-# so we force it by touching the app's mix config.
-echo "***** Refreshing webapp static assets..."
-touch apps/reality2_web/mix.exs
-
 # Build the Reality2 Node
 echo "***** Building the Reality2 Node..."
 mix release
+
+# Copy webapp static assets directly into the release.
+# mix release may not pick up priv/ changes when no .ex files changed.
+echo "***** Syncing webapp static assets into release..."
+RELEASE_PRIV=$(ls -d _build/prod/rel/reality2/lib/reality2_web-*/priv/static/sites 2>/dev/null | head -1)
+if [ -n "$RELEASE_PRIV" ]; then
+    cp -r apps/reality2_web/priv/static/sites/* "$RELEASE_PRIV"/
+else
+    echo "WARNING: Could not find release priv directory"
+fi
 
 cp "scripts/runtime_run" "_build/prod/rel/reality2/run"
 
