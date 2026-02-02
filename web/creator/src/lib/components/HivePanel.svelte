@@ -344,7 +344,11 @@
   let hasHive = $derived(!!nodeInfo?.hiveName);
 
   function getPeerIp(peer: any): string | null {
-    return peer.reachability?.wifi?.ip || peer.address || null;
+    const ip = peer.reachability?.wifi?.ip;
+    if (ip) return ip;
+    // peer.address may be a MAC address (contains colons but no dots) — skip those
+    if (peer.address && /^\d+\.\d+\.\d+\.\d+$/.test(peer.address)) return peer.address;
+    return null;
   }
 
   // Peers that have a hive and we could join
