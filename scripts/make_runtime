@@ -76,23 +76,17 @@ esac
 rm -rf "builds/${BUILD_FOLDER}.zip"
 mkdir -p "builds/${BUILD_FOLDER}"
 
-# Validate webapp static assets exist (these come from git, built on dev machine)
-echo "***** Checking webapp static assets..."
-MISSING_FILES=0
-for check_file in \
-    "apps/reality2_web/priv/static/sites/creator/index.html" \
-    "apps/reality2_web/priv/static/sites/creator/vendor/semantic.min.css" \
-    "apps/reality2_web/priv/static/sites/creator/images/bee_icon.png"; do
-    if [ ! -f "$check_file" ]; then
-        echo "WARNING: Missing $check_file"
-        MISSING_FILES=1
-    fi
-done
-if [ "$MISSING_FILES" -eq 1 ]; then
-    echo "WARNING: Some webapp assets are missing. Ensure build_webapp was run and assets committed on the dev machine."
-fi
+# Restore webapp static assets from git to ensure nothing is missing.
+# These are built on the dev machine, committed, and must survive intact.
+echo "***** Restoring webapp static assets from git..."
+git checkout -- apps/reality2_web/priv/static/sites/ 2>/dev/null || true
 ASSET_COUNT=$(find apps/reality2_web/priv/static/sites -type f 2>/dev/null | wc -l)
-echo "  Found $ASSET_COUNT webapp static files"
+echo "  Restored $ASSET_COUNT webapp static files from git"
+if [ "$ASSET_COUNT" -lt 5 ]; then
+    echo "ERROR: Only $ASSET_COUNT static files found. Webapp assets may not be committed."
+    echo "       Run build_webapp on the dev machine and commit the output."
+    exit 1
+fi
 
 echo "***** Clearing certificate files (will be generated on first run)..."
 rm -f apps/reality2_web/priv/cert/*.pem
