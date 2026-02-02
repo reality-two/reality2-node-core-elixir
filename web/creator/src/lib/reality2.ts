@@ -98,7 +98,7 @@ export default class R2 {
   /**
    * Retrieve this node's identity and hive information.
    */
-  nodeInfo(passthrough = {}, details: string = "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId"): Promise<object> {
+  nodeInfo(passthrough = {}, details: string = "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId version"): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._nodeInfo(details), {}).then(
         (data: GraphQLResponse) => {
@@ -225,6 +225,66 @@ export default class R2 {
   hiveJoinAsMember(hivePublicInfo: object, certificate: object, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._hiveJoinAsMember(details), { hivePublicInfo: JSON.stringify(hivePublicInfo), certificate: JSON.stringify(certificate) }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Submit a join request to a key holder node.
+   */
+  hiveSubmitJoinRequest(nodeName: string, nodePublicKey: string, passthrough = {}, details: string = "id nodeName nodePublicKey status submittedAt"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveSubmitJoinRequest(details), { nodeName, nodePublicKey }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Get pending join requests (key holder).
+   */
+  hivePendingJoinRequests(passthrough = {}, details: string = "id nodeName nodePublicKey status submittedAt"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hivePendingJoinRequests(details), {}).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Approve a join request (key holder).
+   */
+  hiveApproveJoinRequest(requestId: string, passthrough = {}, details: string = "certificate hivePublicInfo"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveApproveJoinRequest(details), { requestId }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Deny a join request (key holder).
+   */
+  hiveDenyJoinRequest(requestId: string, passthrough = {}): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveDenyJoinRequest(), { requestId }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Check status of a join request (joiner polls this on key holder).
+   */
+  hiveJoinRequestStatus(requestId: string, passthrough = {}, details: string = "status certificate hivePublicInfo"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveJoinRequestStatus(details), { requestId }).then(
         (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
         (error: Error) => { reject(error); },
       );
@@ -831,6 +891,44 @@ export default class R2 {
   _hiveJoinAsMember(details: string): string {
     return `mutation HiveJoinAsMember($hivePublicInfo: Json!, $certificate: Json!) {
             hiveJoinAsMember(hivePublicInfo: $hivePublicInfo, certificate: $certificate) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveSubmitJoinRequest(details: string): string {
+    return `mutation HiveSubmitJoinRequest($nodeName: String!, $nodePublicKey: String!) {
+            hiveSubmitJoinRequest(nodeName: $nodeName, nodePublicKey: $nodePublicKey) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hivePendingJoinRequests(details: string): string {
+    return `{
+            hivePendingJoinRequests {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveApproveJoinRequest(details: string): string {
+    return `mutation HiveApproveJoinRequest($requestId: String!) {
+            hiveApproveJoinRequest(requestId: $requestId) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveDenyJoinRequest(): string {
+    return `mutation HiveDenyJoinRequest($requestId: String!) {
+            hiveDenyJoinRequest(requestId: $requestId)
+        }`;
+  }
+
+  _hiveJoinRequestStatus(details: string): string {
+    return `query HiveJoinRequestStatus($requestId: String!) {
+            hiveJoinRequestStatus(requestId: $requestId) {
                 ${details}
             }
         }`;

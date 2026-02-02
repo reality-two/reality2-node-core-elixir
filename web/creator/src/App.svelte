@@ -198,7 +198,7 @@
   async function fetchHiveData() {
     try {
       const [infoResult, peersResult, dirResult]: any[] = await Promise.all([
-        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId isProvisional"),
+        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId isProvisional version"),
         r2.peers(),
         r2.hiveDirectory(),
       ]);
@@ -223,7 +223,7 @@
   async function handleBrowseNode() {
     try {
       const [nodeInfoResult, sentantsResult]: any[] = await Promise.all([
-        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode"),
+        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode version"),
         r2.sentantAll({}, "id name swarm description events { event parameters } signals nodeId nodeName"),
       ]);
 
@@ -378,6 +378,10 @@
       setLiveSentants(liveSentants);
 
       for (const ls of liveSentants) {
+        // Only subscribe to signals on local sentants — remote sentants
+        // don't exist on this node's subscription system
+        if (ls.nodeId && ls.nodeId !== thisNodeId) continue;
+
         for (const signal of ls.signals) {
           r2.awaitSignal(ls.id, signal, (data: any) => {
             if (data?.event) {

@@ -42,6 +42,7 @@ defmodule AiReality2Transnet.PeerManager do
   @compile {:no_warn_undefined, AiReality2Wfs.Router}
 
   @peer_timeout_ms 60_000  # Remove peers not seen for 60 seconds
+  @protected_peer_timeout_ms 300_000  # Remove protected peers not seen for 5 minutes
   @cleanup_interval_ms 30_000  # Check for stale peers every 30 seconds
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -952,20 +953,23 @@ defmodule AiReality2Transnet.PeerManager do
   def handle_info(:cleanup_stale_peers, state) do
     # Periodic cleanup task (runs every @cleanup_interval_ms)
     # Removes peers that haven't been seen for @peer_timeout_ms
-    # EXCEPT peers with active WiFi connections (to prevent cleanup during exchange)
+    # Protected peers (WiFi/exchanged) get a longer timeout before removal
     now = System.system_time(:millisecond)
     cutoff = now - @peer_timeout_ms
+    protected_cutoff = now - @protected_peer_timeout_ms
 
     # Split peers into stale (timeout) and fresh (active)
-    # Protected peers: those with active WiFi connection or recent sentant exchange
+    # Protected peers (WiFi or sentant-exchanged) use longer timeout
     {stale_peers, fresh_peers} =
       Enum.split_with(state.peers, fn {_id, peer} ->
-        is_stale = peer.last_seen < cutoff
         is_protected = peer.transport == :wifi_hotspot ||
                        peer.connection_state == :sentants_exchanged
 
-        # Only consider stale if both timeout has passed AND peer is not protected
-        is_stale && !is_protected
+        if is_protected do
+          peer.last_seen < protected_cutoff
+        else
+          peer.last_seen < cutoff
+        end
       end)
 
     # Log each removal, emit event, and clean up WFS_NodeNames mapping

@@ -1,5 +1,8 @@
 import { defineConfig, Plugin } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { readFileSync } from "fs";
+
+const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
 // Custom plugin to strip TypeScript generics from @xyflow/svelte files
 function stripXyflowTypeScript(): Plugin {
@@ -29,6 +32,9 @@ function stripXyflowTypeScript(): Plugin {
 
 export default defineConfig({
   base: "/creator/",
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     stripXyflowTypeScript(),
     svelte(),

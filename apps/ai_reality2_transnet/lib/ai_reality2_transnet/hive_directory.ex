@@ -41,7 +41,7 @@ defmodule AiReality2Transnet.HiveDirectory do
 
   @persist_interval_ms 60_000        # Persist to disk every 60 seconds
   @decay_interval_ms 30_000          # Decay confidence every 30 seconds
-  @prune_absent_days 7               # Prune absent nodes after 7 days
+  @prune_absent_days 1               # Prune absent nodes after 1 day
   @confidence_decay_rate 0.95        # Multiply confidence by this each decay interval
   @directory_filename "directory.json"
 
@@ -459,9 +459,10 @@ defmodule AiReality2Transnet.HiveDirectory do
   @impl true
   def handle_info(:decay, state) do
     dir = decay_all_confidence(state.directory)
+    dir = mark_absent_nodes(dir)
     dir = prune_absent_nodes(dir)
     schedule_decay()
-    {:noreply, %{state | directory: dir}}
+    {:noreply, %{state | directory: dir, dirty: true}}
   end
 
   @impl true
@@ -777,6 +778,19 @@ defmodule AiReality2Transnet.HiveDirectory do
       {node_id, %{entry | reachability: new_reach}}
     end)
 
+    %{directory | nodes: new_nodes}
+  end
+
+  defp mark_absent_nodes(directory) do
+    new_nodes = Map.new(directory.nodes, fn {node_id, entry} ->
+      if node_id != directory.my_node_id and
+         entry.status == :active and
+         best_confidence(entry) == 0 do
+        {node_id, %{entry | status: :absent}}
+      else
+        {node_id, entry}
+      end
+    end)
     %{directory | nodes: new_nodes}
   end
 

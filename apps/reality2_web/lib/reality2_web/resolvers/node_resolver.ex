@@ -14,7 +14,8 @@ defmodule Reality2Web.NodeResolver do
 
     {:ok, Map.merge(%{
       node_id: node_id,
-      node_name: node_name
+      node_name: node_name,
+      version: Application.spec(:reality2, :vsn) |> to_string()
     }, hive_info)}
   end
 
@@ -232,6 +233,92 @@ defmodule Reality2Web.NodeResolver do
       end
     else
       {:error, "Transnet not loaded"}
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # Mutations — approval-based joining
+  # -------------------------------------------------------------------------
+
+  def submit_join_request(_, %{node_name: node_name, node_public_key: node_public_key}, _) do
+    request = Reality2Web.JoinRequests.submit(node_name, node_public_key)
+    {:ok, %{
+      id: request.id,
+      node_name: request.node_name,
+      node_public_key: request.node_public_key,
+      status: Atom.to_string(request.status),
+      submitted_at: request.submitted_at
+    }}
+  end
+
+  def pending_join_requests(_, _, _) do
+    requests = Reality2Web.JoinRequests.list_pending()
+    result = Enum.map(requests, fn req ->
+      %{
+        id: req.id,
+        node_name: req.node_name,
+        node_public_key: req.node_public_key,
+        status: Atom.to_string(req.status),
+        submitted_at: req.submitted_at
+      }
+    end)
+    {:ok, result}
+  end
+
+  def approve_join_request(_, %{request_id: request_id}, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case Reality2Web.JoinRequests.get_status(request_id) do
+        {:ok, %{status: :pending, node_name: node_name, node_public_key: node_public_key_b64}} ->
+          case Base.decode64(node_public_key_b64) do
+            {:ok, node_public_key} ->
+              case apply(AiReality2Transnet.HiveIdentity, :issue_cert, [node_name, node_public_key]) do
+                {:ok, cert} ->
+                  case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+                    {:ok, identity} ->
+                      hive_public_info = %{
+                        hive_id: identity.hive_id,
+                        name: identity.name,
+                        public_key: Base.encode64(identity.public_key),
+                        created_at: DateTime.to_iso8601(identity.created_at)
+                      }
+                      cert_str = stringify_keys(cert)
+                      info_str = stringify_keys(hive_public_info)
+                      Reality2Web.JoinRequests.set_result(request_id, cert_str, info_str)
+                      {:ok, %{certificate: cert_str, hive_public_info: info_str}}
+                    _ ->
+                      {:error, "Failed to get hive identity"}
+                  end
+                {:error, reason} -> {:error, inspect(reason)}
+              end
+            :error ->
+              {:error, "Invalid public key"}
+          end
+
+        {:ok, _} -> {:error, "Request is not pending"}
+        :not_found -> {:error, "Request not found"}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  def deny_join_request(_, %{request_id: request_id}, _) do
+    case Reality2Web.JoinRequests.deny(request_id) do
+      {:ok, _} -> {:ok, true}
+      :not_found -> {:error, "Request not found"}
+    end
+  end
+
+  def join_request_status(_, %{request_id: request_id}, _) do
+    case Reality2Web.JoinRequests.get_status(request_id) do
+      {:ok, req} ->
+        {:ok, %{
+          status: Atom.to_string(req.status),
+          certificate: req.certificate,
+          hive_public_info: req.hive_public_info
+        }}
+      :not_found ->
+        {:error, "Request not found"}
     end
   end
 

@@ -16,6 +16,7 @@ defmodule Reality2Web.Schema.Node do
     field(:hive_mode, :string, description: "Node's hive role: key_holder or member")
     field(:hive_compressed_id, :string, description: "4-byte compressed Hive ID (hex)")
     field(:is_provisional, :boolean, description: "Whether this node's hive is still provisional")
+    field(:version, :string, description: "Server software version")
   end
 
   # --- Peer reachability per transport ---
@@ -99,6 +100,20 @@ defmodule Reality2Web.Schema.Node do
     field(:hive_public_info, :json, description: "Hive public info (hive_id, name, public_key, created_at)")
   end
 
+  object :pending_join_request do
+    field(:id, non_null(:string), description: "Request ID")
+    field(:node_name, non_null(:string), description: "Requesting node's name")
+    field(:node_public_key, non_null(:string), description: "Requesting node's public key (base64)")
+    field(:status, non_null(:string), description: "pending, approved, or denied")
+    field(:submitted_at, non_null(:integer), description: "Unix timestamp")
+  end
+
+  object :join_status do
+    field(:status, non_null(:string), description: "pending, approved, or denied")
+    field(:certificate, :json, description: "Signed certificate (when approved)")
+    field(:hive_public_info, :json, description: "Hive public info (when approved)")
+  end
+
   # --- Queries ---
 
   object :node_queries do
@@ -115,6 +130,17 @@ defmodule Reality2Web.Schema.Node do
     @desc "Get the hive directory (all known nodes in the hive)"
     field :hive_directory, :hive_directory do
       resolve(&NodeResolver.hive_directory/3)
+    end
+
+    @desc "Get pending join requests (key holder only)"
+    field :hive_pending_join_requests, list_of(:pending_join_request) do
+      resolve(&NodeResolver.pending_join_requests/3)
+    end
+
+    @desc "Check the status of a join request (called by joiner)"
+    field :hive_join_request_status, :join_status do
+      arg(:request_id, non_null(:string))
+      resolve(&NodeResolver.join_request_status/3)
     end
   end
 
@@ -167,6 +193,25 @@ defmodule Reality2Web.Schema.Node do
       arg(:hive_public_info, non_null(:json))
       arg(:certificate, non_null(:json))
       resolve(&NodeResolver.join_as_member/3)
+    end
+
+    @desc "Submit a join request (called on key holder by joiner's UI)"
+    field :hive_submit_join_request, :pending_join_request do
+      arg(:node_name, non_null(:string))
+      arg(:node_public_key, non_null(:string))
+      resolve(&NodeResolver.submit_join_request/3)
+    end
+
+    @desc "Approve a pending join request (key holder only)"
+    field :hive_approve_join_request, :join_request_result do
+      arg(:request_id, non_null(:string))
+      resolve(&NodeResolver.approve_join_request/3)
+    end
+
+    @desc "Deny a pending join request (key holder only)"
+    field :hive_deny_join_request, :boolean do
+      arg(:request_id, non_null(:string))
+      resolve(&NodeResolver.deny_join_request/3)
     end
   end
 end

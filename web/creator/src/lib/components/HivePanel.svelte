@@ -1,4 +1,6 @@
 <script lang="ts">
+  declare const __APP_VERSION__: string;
+
   import R2 from "../reality2";
   import { DEFAULT_PORT } from "../constants";
 
@@ -24,21 +26,22 @@
   let newHiveName = $state("");
   let creating = $state(false);
 
-  // --- Join code ---
-  let joinCode = $state<string | null>(null);
-  let joinCountdown = $state(0);
-  let joinTimer: ReturnType<typeof setInterval> | null = null;
-
   // --- Key management ---
   let exportPassphrase = $state("");
   let importPassphrase = $state("");
   let importData = $state("");
   let showKeySection = $state(false);
 
-  // --- Join hive ---
-  let joinAddress = $state("");
-  let joinInputCode = $state("");
-  let joining = $state(false);
+  // --- Approval-based joining (joiner side) ---
+  let joiningPeerId = $state<string | null>(null);       // peer nodeId we're requesting to join
+  let joinRequestId = $state<string | null>(null);        // request ID returned by key holder
+  let joinTargetR2 = $state<R2 | null>(null);             // R2 client for key holder node
+  let joinPollingTimer: ReturnType<typeof setInterval> | null = null;
+
+  // --- Approval-based joining (key holder side) ---
+  let pendingRequests = $state<any[]>([]);
+  let requestsPollingTimer: ReturnType<typeof setInterval> | null = null;
+  let approvingId = $state<string | null>(null);
 
   function status(msg: string) {
     onStatus?.(msg);
@@ -78,32 +81,6 @@
     }
   }
 
-  async function handleGenerateJoinCode() {
-    try {
-      const result: any = await r2.hiveGenerateJoinCode();
-      if (result?.errors) {
-        status("Error: " + result.errors[0]?.message);
-        return;
-      }
-      const data = result?.data?.hiveGenerateJoinCode;
-      if (data?.code) {
-        joinCode = data.code;
-        joinCountdown = data.expiresIn || 300;
-        if (joinTimer) clearInterval(joinTimer);
-        joinTimer = setInterval(() => {
-          joinCountdown--;
-          if (joinCountdown <= 0) {
-            joinCode = null;
-            joinCountdown = 0;
-            if (joinTimer) { clearInterval(joinTimer); joinTimer = null; }
-          }
-        }, 1000);
-      }
-    } catch (err) {
-      status("Error: " + (err as Error).message);
-    }
-  }
-
   async function handleExportKey() {
     const pass = exportPassphrase.trim();
     if (!pass) return;
@@ -115,7 +92,6 @@
       }
       const data = result?.data?.hiveExportKey;
       if (data?.encryptedData) {
-        // Download as file
         const blob = new Blob([data.encryptedData], { type: "text/plain" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -160,73 +136,185 @@
     reader.readAsText(file);
   }
 
-  async function handleJoinHive() {
-    const addr = joinAddress.trim();
-    const code = joinInputCode.trim().toUpperCase();
-    if (!addr || !code) return;
-    joining = true;
+  // --- Joiner: Request to join a peer's hive ---
+
+  async function handleRequestToJoin(peer: any) {
+    const ip = getPeerIp(peer);
+    if (!ip) {
+      status("Cannot reach peer — no IP address");
+      return;
+    }
+    joiningPeerId = peer.nodeId;
     try {
       // 1. Get our public key
       const keyResult: any = await r2.hiveGetPublicKey();
       if (keyResult?.errors) {
         status("Error getting public key: " + keyResult.errors[0]?.message);
+        joiningPeerId = null;
         return;
       }
       const publicKey = keyResult?.data?.hiveGetPublicKey;
       if (!publicKey) {
         status("Error: no public key returned");
+        joiningPeerId = null;
         return;
       }
 
-      // 2. Get our node name
-      const nodeName = nodeInfo?.nodeName || "unknown";
-
-      // 3. Connect to key holder and send join request
+      // 2. Connect to key holder and submit join request
       const port = parseInt(DEFAULT_PORT);
-      const r2Remote = new R2(addr, port, true);
-      let joinResult: any;
+      let remoteR2: R2;
+      let submitResult: any;
       try {
-        joinResult = await r2Remote.hiveProcessJoinRequest(code, nodeName, publicKey);
+        remoteR2 = new R2(ip, port, true);
+        submitResult = await remoteR2.hiveSubmitJoinRequest(nodeInfo?.nodeName || "unknown", publicKey);
       } catch {
-        // Retry without SSL
-        const r2RemoteInsecure = new R2(addr, port, false);
-        joinResult = await r2RemoteInsecure.hiveProcessJoinRequest(code, nodeName, publicKey);
+        remoteR2 = new R2(ip, port, false);
+        submitResult = await remoteR2.hiveSubmitJoinRequest(nodeInfo?.nodeName || "unknown", publicKey);
       }
 
-      if (joinResult?.errors) {
-        status("Join error: " + joinResult.errors[0]?.message);
+      if (submitResult?.errors) {
+        status("Error: " + submitResult.errors[0]?.message);
+        joiningPeerId = null;
         return;
       }
 
-      const data = joinResult?.data?.hiveProcessJoinRequest;
-      if (!data?.certificate || !data?.hivePublicInfo) {
-        status("Error: incomplete join response");
+      const reqData = submitResult?.data?.hiveSubmitJoinRequest;
+      if (!reqData?.id) {
+        status("Error: no request ID returned");
+        joiningPeerId = null;
         return;
       }
 
-      // 4. Finalize locally
-      const memberResult: any = await r2.hiveJoinAsMember(data.hivePublicInfo, data.certificate);
-      if (memberResult?.errors) {
-        status("Error finalizing join: " + memberResult.errors[0]?.message);
-        return;
-      }
-
-      joinAddress = "";
-      joinInputCode = "";
-      status("Joined hive successfully!");
-      onRefresh?.();
+      // 3. Start polling for approval
+      joinRequestId = reqData.id;
+      joinTargetR2 = remoteR2;
+      startJoinPolling();
     } catch (err) {
-      status("Join error: " + (err as Error).message);
-    } finally {
-      joining = false;
+      status("Join request error: " + (err as Error).message);
+      joiningPeerId = null;
     }
   }
 
-  function formatCountdown(secs: number): string {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${String(s).padStart(2, "0")}`;
+  function startJoinPolling() {
+    if (joinPollingTimer) clearInterval(joinPollingTimer);
+    joinPollingTimer = setInterval(pollJoinStatus, 3000);
   }
+
+  async function pollJoinStatus() {
+    if (!joinRequestId || !joinTargetR2) return;
+    try {
+      const result: any = await joinTargetR2.hiveJoinRequestStatus(joinRequestId);
+      if (result?.errors) return; // keep polling
+
+      const data = result?.data?.hiveJoinRequestStatus;
+      if (!data) return;
+
+      if (data.status === "approved" && data.certificate && data.hivePublicInfo) {
+        // Auto-finalize
+        stopJoinPolling();
+        const memberResult: any = await r2.hiveJoinAsMember(data.hivePublicInfo, data.certificate);
+        if (memberResult?.errors) {
+          status("Error finalizing join: " + memberResult.errors[0]?.message);
+        } else {
+          status("Joined hive successfully!");
+          onRefresh?.();
+        }
+        joiningPeerId = null;
+        joinRequestId = null;
+        joinTargetR2 = null;
+      } else if (data.status === "denied") {
+        stopJoinPolling();
+        status("Join request was denied");
+        joiningPeerId = null;
+        joinRequestId = null;
+        joinTargetR2 = null;
+      }
+    } catch {
+      // network error, keep polling
+    }
+  }
+
+  function stopJoinPolling() {
+    if (joinPollingTimer) { clearInterval(joinPollingTimer); joinPollingTimer = null; }
+  }
+
+  function cancelJoinRequest() {
+    stopJoinPolling();
+    joiningPeerId = null;
+    joinRequestId = null;
+    joinTargetR2 = null;
+  }
+
+  // --- Key holder: Manage incoming join requests ---
+
+  function startRequestsPolling() {
+    if (requestsPollingTimer) return;
+    pollPendingRequests();
+    requestsPollingTimer = setInterval(pollPendingRequests, 3000);
+  }
+
+  function stopRequestsPolling() {
+    if (requestsPollingTimer) { clearInterval(requestsPollingTimer); requestsPollingTimer = null; }
+  }
+
+  async function pollPendingRequests() {
+    try {
+      const result: any = await r2.hivePendingJoinRequests();
+      if (result?.errors) return;
+      const data = result?.data?.hivePendingJoinRequests;
+      if (Array.isArray(data)) {
+        pendingRequests = data;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleApprove(requestId: string) {
+    approvingId = requestId;
+    try {
+      const result: any = await r2.hiveApproveJoinRequest(requestId);
+      if (result?.errors) {
+        status("Approve error: " + result.errors[0]?.message);
+      } else {
+        status("Join request approved");
+        pollPendingRequests();
+      }
+    } catch (err) {
+      status("Approve error: " + (err as Error).message);
+    } finally {
+      approvingId = null;
+    }
+  }
+
+  async function handleDeny(requestId: string) {
+    try {
+      const result: any = await r2.hiveDenyJoinRequest(requestId);
+      if (result?.errors) {
+        status("Deny error: " + result.errors[0]?.message);
+      } else {
+        status("Join request denied");
+        pollPendingRequests();
+      }
+    } catch (err) {
+      status("Deny error: " + (err as Error).message);
+    }
+  }
+
+  // --- Start/stop key holder polling based on state ---
+  $effect(() => {
+    if (hasHive && isKeyHolder) {
+      startRequestsPolling();
+    } else {
+      stopRequestsPolling();
+    }
+    return () => {
+      stopRequestsPolling();
+      stopJoinPolling();
+    };
+  });
+
+  // --- Utility ---
 
   function timeAgo(isoStr: string | null | undefined): string {
     if (!isoStr) return "unknown";
@@ -254,19 +342,14 @@
   let isKeyHolder = $derived(nodeInfo?.hiveMode === "key_holder");
   let hasHive = $derived(!!nodeInfo?.hiveName);
 
-  // Peers with a reachable IP (candidates for join target)
-  let reachablePeers = $derived(
-    peers.filter((p: any) => getPeerIp(p)).map((p: any) => ({
-      nodeId: p.nodeId,
-      nodeName: p.nodeName || p.nodeId?.slice(0, 8),
-      ip: getPeerIp(p)!,
-    }))
-  );
-
   function getPeerIp(peer: any): string | null {
     return peer.reachability?.wifi?.ip || peer.address || null;
   }
-  let joinManual = $state(false);
+
+  // Peers that have a hive and we could join
+  let joinablePeers = $derived(
+    peers.filter((p: any) => p.hiveId && !p.isSameHive && getPeerIp(p))
+  );
 </script>
 
 <div class="hive-panel">
@@ -296,6 +379,8 @@
             {:else}
               <tr><td class="label-cell">Hive</td><td style="color: #999;">Not configured</td></tr>
             {/if}
+            <tr><td class="label-cell">Server</td><td class="mono">{nodeInfo.version || '?'}</td></tr>
+            <tr><td class="label-cell">Creator</td><td class="mono">{__APP_VERSION__}</td></tr>
           </tbody>
         </table>
 
@@ -341,75 +426,57 @@
       {/if}
     </div>
 
-    <!-- Join Hive (when no hive or provisional) -->
-    {#if !hasHive || nodeInfo?.isProvisional}
-      <div class="ui segment">
-        <h4 class="ui header">
-          <i class="sign-in icon"></i>
-          Join Existing Hive
-        </h4>
-        <div class="action-group">
-          <label class="action-label">Key holder node</label>
-          {#if reachablePeers.length > 0 && !joinManual}
-            <div class="peer-picker">
-              {#each reachablePeers as peer}
-                <button class="peer-pick-btn" class:selected={joinAddress === peer.ip}
-                  onclick={() => { joinAddress = peer.ip; }}>
-                  <i class="wifi icon" style="color: #43a047;"></i>
-                  <span class="peer-pick-name">{peer.nodeName}</span>
-                  <span class="peer-pick-ip">{peer.ip}</span>
-                </button>
-              {/each}
-            </div>
-            <button class="manual-link" onclick={() => { joinManual = true; }}>
-              Enter address manually
-            </button>
-          {:else}
-            <div class="ui mini input fluid">
-              <input type="text" placeholder="hostname or IP" bind:value={joinAddress} />
-            </div>
-            {#if reachablePeers.length > 0}
-              <button class="manual-link" onclick={() => { joinManual = false; joinAddress = ""; }}>
-                Pick from nearby peers
-              </button>
-            {:else}
-              <p style="font-size: 11px; color: #999; margin-top: 4px;">No nearby peers with WiFi found. Enter address manually.</p>
-            {/if}
-          {/if}
-        </div>
-        <div class="action-group">
-          <label class="action-label">Join code</label>
-          <div class="inline-form">
-            <div class="ui mini input">
-              <input type="text" placeholder="XXXX" maxlength="4"
-                style="font-family: monospace; font-size: 16px; letter-spacing: 4px; width: 100px; text-transform: uppercase;"
-                bind:value={joinInputCode}
-                onkeydown={(e) => { if (e.key === "Enter") handleJoinHive(); }} />
-            </div>
-            <button class="ui mini primary button" disabled={joining || !joinAddress.trim() || joinInputCode.trim().length < 4} onclick={handleJoinHive}>
-              {joining ? "Joining..." : "Join"}
-            </button>
-          </div>
-        </div>
-      </div>
-    {/if}
-
-    <!-- Join Codes (key_holder only) -->
+    <!-- Join Requests (key holder only) -->
     {#if hasHive && isKeyHolder}
       <div class="ui segment">
         <h4 class="ui header">
-          <i class="key icon"></i>
-          Join Codes
+          <i class="user plus icon"></i>
+          Join Requests
+          {#if pendingRequests.length > 0}
+            <span class="ui mini circular red label" style="margin-left: 6px;">{pendingRequests.length}</span>
+          {/if}
         </h4>
-        {#if joinCode}
-          <div class="join-code-display">
-            <span class="join-code">{joinCode}</span>
-            <span class="join-countdown">{formatCountdown(joinCountdown)}</span>
+        {#if pendingRequests.length === 0}
+          <p style="color: #999; font-size: 13px;">No pending join requests.</p>
+        {:else}
+          <div class="request-list">
+            {#each pendingRequests as req}
+              <div class="request-card">
+                <div class="request-header">
+                  <span class="request-name">
+                    <i class="laptop icon"></i>
+                    {req.nodeName}
+                  </span>
+                  <span class="request-time">{timeAgo(new Date(req.submittedAt * 1000).toISOString())}</span>
+                </div>
+                <div class="request-actions">
+                  <button class="ui mini green button" disabled={approvingId === req.id}
+                    onclick={() => handleApprove(req.id)}>
+                    {approvingId === req.id ? "Approving..." : "Approve"}
+                  </button>
+                  <button class="ui mini red basic button" onclick={() => handleDeny(req.id)}>
+                    Deny
+                  </button>
+                </div>
+              </div>
+            {/each}
           </div>
-          <p class="join-hint">Share this code with nodes that want to join the hive.</p>
         {/if}
-        <button class="ui mini basic button" onclick={handleGenerateJoinCode}>
-          <i class="plus icon"></i> Generate Code
+      </div>
+    {/if}
+
+    <!-- Joiner waiting state -->
+    {#if joiningPeerId}
+      <div class="ui segment">
+        <h4 class="ui header">
+          <i class="spinner loading icon"></i>
+          Waiting for Approval
+        </h4>
+        <p style="font-size: 13px; color: #555;">
+          Your join request has been sent. Waiting for the key holder to approve...
+        </p>
+        <button class="ui mini basic button" onclick={cancelJoinRequest}>
+          <i class="times icon"></i> Cancel
         </button>
       </div>
     {/if}
@@ -477,6 +544,7 @@
       {:else}
         <div class="peer-list">
           {#each peers as peer}
+            {@const canJoin = !hasHive && !joiningPeerId && peer.hiveId && !peer.isSameHive && getPeerIp(peer)}
             <div class="peer-card" class:same-hive={peer.isSameHive}>
               <div class="peer-header">
                 <span class="peer-name">{peer.nodeName || 'Unknown'}</span>
@@ -486,6 +554,9 @@
                   {/if}
                   {#if peer.hiveVerified}
                     <span class="ui mini label" style="background: #1976d2; color: #fff;">Verified</span>
+                  {/if}
+                  {#if peer.hiveId && !peer.isSameHive}
+                    <span class="ui mini label" style="background: #7b1fa2; color: #fff;">Has Hive</span>
                   {/if}
                   <span class="ui mini label">{peer.transport || '?'}</span>
                 </div>
@@ -520,6 +591,21 @@
                       LoRa
                     </span>
                   {/if}
+                </div>
+              {/if}
+              <!-- Request to Join button -->
+              {#if canJoin}
+                <div class="join-action">
+                  <button class="ui mini primary button" onclick={() => handleRequestToJoin(peer)}>
+                    <i class="sign-in icon"></i> Request to Join Hive
+                  </button>
+                </div>
+              {/if}
+              {#if joiningPeerId === peer.nodeId}
+                <div class="join-action">
+                  <span class="join-waiting">
+                    <i class="spinner loading icon"></i> Waiting for approval...
+                  </span>
                 </div>
               {/if}
             </div>
@@ -630,33 +716,6 @@
     gap: 6px;
     align-items: center;
   }
-  .join-code-display {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-  }
-  .join-code {
-    font-family: monospace;
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: 6px;
-    color: #1976d2;
-    background: #e3f2fd;
-    padding: 8px 16px;
-    border-radius: 6px;
-    border: 2px solid #90caf9;
-  }
-  .join-countdown {
-    font-size: 14px;
-    font-weight: 600;
-    color: #888;
-  }
-  .join-hint {
-    font-size: 11px;
-    color: #999;
-    margin: 4px 0 8px;
-  }
   .section-toggle {
     cursor: pointer;
     padding: 4px 0;
@@ -672,53 +731,45 @@
     padding-top: 10px;
     border-top: 1px solid #eee;
   }
-  .peer-picker {
+  .request-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-bottom: 4px;
+    gap: 8px;
   }
-  .peer-pick-btn {
+  .request-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
+    border-left: 4px solid #ff9800;
+  }
+  .request-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border: 2px solid #ddd;
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
-    text-align: left;
-    transition: border-color 0.15s, background 0.15s;
+    justify-content: space-between;
+    margin-bottom: 8px;
   }
-  .peer-pick-btn:hover {
-    border-color: #90caf9;
-    background: #f0f7ff;
-  }
-  .peer-pick-btn.selected {
-    border-color: #1976d2;
-    background: #e3f2fd;
-  }
-  .peer-pick-name {
+  .request-name {
     font-weight: 600;
     font-size: 13px;
-    flex: 1;
   }
-  .peer-pick-ip {
-    font-family: monospace;
+  .request-time {
     font-size: 11px;
-    color: #888;
+    color: #999;
   }
-  .manual-link {
-    background: none;
-    border: none;
+  .request-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .join-action {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+  }
+  .join-waiting {
+    font-size: 12px;
     color: #1976d2;
-    font-size: 11px;
-    cursor: pointer;
-    padding: 2px 0;
-    text-decoration: underline;
-  }
-  .manual-link:hover {
-    color: #0d47a1;
+    font-weight: 600;
   }
   .peer-list {
     display: flex;
