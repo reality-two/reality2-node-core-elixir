@@ -545,7 +545,7 @@
       {:else}
         <div class="peer-list">
           {#each peers as peer}
-            {@const canJoin = !hasHive && !joiningPeerId && peer.hiveId && !peer.isSameHive && getPeerIp(peer)}
+            {@const canJoin = !joiningPeerId && peer.hiveId && !peer.isSameHive && getPeerIp(peer)}
             <div class="peer-card" class:same-hive={peer.isSameHive}>
               <div class="peer-header">
                 <span class="peer-name">{peer.nodeName || 'Unknown'}</span>
