@@ -281,8 +281,25 @@ defmodule Reality2Web.MeshController do
     node_id = Reality2.Bootstrap.get(:node_id)
     mesh_info = get_mesh_info()
 
+    # Include hive info so peers can identify our hive
+    hive_info = if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+        {:ok, identity} ->
+          %{
+            hive_id: identity.hive_id,
+            hive_name: identity.name,
+            hive_public_key: Base.encode64(identity.public_key),
+            node_cert: identity.node_cert
+          }
+        _ -> %{}
+      end
+    else
+      %{}
+    end
+
     response = %{
       node_id: node_id,
+      node_name: Reality2.Bootstrap.get(:node_name),
       version: Application.spec(:reality2, :vsn) |> to_string(),
       capabilities: %{
         bluetooth: bluetooth_available?(),
@@ -290,6 +307,7 @@ defmodule Reality2Web.MeshController do
         sentants: Reality2.Metadata.all(:SentantIDs) |> map_size()
       },
       mesh_info: mesh_info,
+      hive: hive_info,
       timestamp: System.system_time(:millisecond)
     }
 

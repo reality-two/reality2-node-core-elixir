@@ -1559,7 +1559,7 @@ defmodule AiReality2Transnet.ConnectionManager do
 
     _my_sentants = get_local_sentants()  # Reserved for future bidirectional exchange
 
-    # Build GraphQL query for sentantAll
+    # Build GraphQL query for sentantAll and nodeInfo (for hive identity)
     graphql_query = """
     {
       sentantAll {
@@ -1571,6 +1571,12 @@ defmodule AiReality2Transnet.ConnectionManager do
           parameters
         }
         signals
+      }
+      nodeInfo {
+        nodeId
+        nodeName
+        hiveId
+        hiveName
       }
     }
     """
@@ -1594,7 +1600,7 @@ defmodule AiReality2Transnet.ConnectionManager do
     case Finch.request(request, Reality2.TransnetHTTPClient, receive_timeout: 5_000) do
       {:ok, %Finch.Response{status: 200, body: response_body}} ->
         case Jason.decode(response_body) do
-          {:ok, %{"data" => %{"sentantAll" => host_sentants}}} ->
+          {:ok, %{"data" => %{"sentantAll" => host_sentants} = data}} ->
             Logger.info("#{log_prefix()} Received #{length(host_sentants)} sentants from host")
 
             # Update PeerManager with host's sentants
@@ -1602,6 +1608,16 @@ defmodule AiReality2Transnet.ConnectionManager do
 
             # Update WFS routing table with host's sentants
             update_wfs_routing_table(host_node_id, host_ip, host_sentants)
+
+            # Update peer's hive info if nodeInfo was returned
+            case Map.get(data, "nodeInfo") do
+              %{"hiveId" => hive_id} when is_binary(hive_id) ->
+                Logger.info("#{log_prefix()} Peer hive: #{hive_id}")
+                AiReality2Transnet.PeerManager.update_peer_hive_info(host_node_id, %{
+                  hive_id: hive_id
+                })
+              _ -> :ok
+            end
 
             # Register our sentants with the host (bidirectional exchange)
             register_with_host(host_ip, host_port)
