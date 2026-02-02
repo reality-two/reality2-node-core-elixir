@@ -198,7 +198,7 @@
   async function fetchHiveData() {
     try {
       const [infoResult, peersResult, dirResult]: any[] = await Promise.all([
-        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId"),
+        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId isProvisional"),
         r2.peers(),
         r2.hiveDirectory(),
       ]);
@@ -543,7 +543,9 @@
         nodeInfo={hiveNodeInfo}
         peers={hivePeers}
         directory={hiveDirectory}
+        {r2}
         onRefresh={fetchHiveData}
+        onStatus={showStatus}
       />
     {:else if editingSwarm}
       <SwarmEditor swarm={editingSwarm} />

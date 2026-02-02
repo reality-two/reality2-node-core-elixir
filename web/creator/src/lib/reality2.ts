@@ -136,6 +136,102 @@ export default class R2 {
   }
 
   /**
+   * Create (or reset) a hive with the given name.
+   */
+  hiveCreate(name: string, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveCreate(details), { name }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Mark the current provisional hive as established.
+   */
+  hiveMarkEstablished(passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveMarkEstablished(details), {}).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Generate a 4-character join code for other nodes.
+   */
+  hiveGenerateJoinCode(passthrough = {}, details: string = "code expiresIn"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveGenerateJoinCode(details), {}).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Export the hive key encrypted with a passphrase.
+   */
+  hiveExportKey(passphrase: string, passthrough = {}, details: string = "encryptedData"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveExportKey(details), { passphrase }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Import an encrypted hive key.
+   */
+  hiveImportKey(encryptedData: string, passphrase: string, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveImportKey(details), { encryptedData, passphrase }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Get this node's public key (base64-encoded).
+   */
+  hiveGetPublicKey(passthrough = {}): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveGetPublicKey(), {}).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Process a join request (called on key holder node).
+   */
+  hiveProcessJoinRequest(code: string, nodeName: string, nodePublicKey: string, passthrough = {}, details: string = "certificate hivePublicInfo"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveProcessJoinRequest(details), { code, nodeName, nodePublicKey }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Finalize joining a hive as a member (called on joining node).
+   */
+  hiveJoinAsMember(hivePublicInfo: object, certificate: object, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveJoinAsMember(details), { hivePublicInfo: JSON.stringify(hivePublicInfo), certificate: JSON.stringify(certificate) }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
    * Retrieve a specific sentant by ID
    *
    * @param id - The unique identifier of the sentant
@@ -673,6 +769,68 @@ export default class R2 {
   _awaitSignal(details: string = "id name"): string {
     return `subscription AwaitSignal($id: UUID4!, $signal: String!) {
             awaitSignal(id: $id, signal: $signal) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveCreate(details: string): string {
+    return `mutation HiveCreate($name: String!) {
+            hiveCreate(name: $name) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveMarkEstablished(details: string): string {
+    return `mutation HiveMarkEstablished {
+            hiveMarkEstablished {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveGenerateJoinCode(details: string): string {
+    return `mutation HiveGenerateJoinCode {
+            hiveGenerateJoinCode {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveExportKey(details: string): string {
+    return `mutation HiveExportKey($passphrase: String!) {
+            hiveExportKey(passphrase: $passphrase) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveImportKey(details: string): string {
+    return `mutation HiveImportKey($encryptedData: String!, $passphrase: String!) {
+            hiveImportKey(encryptedData: $encryptedData, passphrase: $passphrase) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveGetPublicKey(): string {
+    return `mutation HiveGetPublicKey {
+            hiveGetPublicKey
+        }`;
+  }
+
+  _hiveProcessJoinRequest(details: string): string {
+    return `mutation HiveProcessJoinRequest($code: String!, $nodeName: String!, $nodePublicKey: String!) {
+            hiveProcessJoinRequest(code: $code, nodeName: $nodeName, nodePublicKey: $nodePublicKey) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveJoinAsMember(details: string): string {
+    return `mutation HiveJoinAsMember($hivePublicInfo: Json!, $certificate: Json!) {
+            hiveJoinAsMember(hivePublicInfo: $hivePublicInfo, certificate: $certificate) {
                 ${details}
             }
         }`;

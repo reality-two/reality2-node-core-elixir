@@ -95,8 +95,167 @@ defmodule Reality2Web.NodeResolver do
   end
 
   # -------------------------------------------------------------------------
+  # Mutations — hive lifecycle
+  # -------------------------------------------------------------------------
+
+  def create_hive(_, %{name: name}, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case apply(AiReality2Transnet.HiveIdentity, :reset_hive, [name]) do
+        :ok -> {:ok, get_hive_info_result()}
+        {:error, reason} -> {:error, inspect(reason)}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  def mark_established(_, _, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case apply(AiReality2Transnet.HiveIdentity, :mark_established, []) do
+        :ok -> {:ok, get_hive_info_result()}
+        {:error, reason} -> {:error, inspect(reason)}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  def generate_join_code(_, _, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case apply(AiReality2Transnet.HiveIdentity, :generate_join_code, []) do
+        {:ok, code} -> {:ok, %{code: code, expires_in: 300}}
+        {:error, reason} -> {:error, inspect(reason)}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  def export_key(_, %{passphrase: passphrase}, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case apply(AiReality2Transnet.HiveIdentity, :export_key, [passphrase]) do
+        {:ok, encrypted_data} -> {:ok, %{encrypted_data: Base.encode64(encrypted_data)}}
+        {:error, reason} -> {:error, inspect(reason)}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  def import_key(_, %{encrypted_data: encrypted_data, passphrase: passphrase}, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case Base.decode64(encrypted_data) do
+        {:ok, binary_data} ->
+          case apply(AiReality2Transnet.HiveIdentity, :import_key, [binary_data, passphrase]) do
+            :ok -> {:ok, get_hive_info_result()}
+            {:error, reason} -> {:error, inspect(reason)}
+          end
+        :error ->
+          {:error, "Invalid base64 data"}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # Mutations — hive joining
+  # -------------------------------------------------------------------------
+
+  def get_public_key(_, _, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case apply(AiReality2Transnet.HiveIdentity, :get_public_key, []) do
+        {:ok, key} -> {:ok, Base.encode64(key)}
+        {:error, reason} -> {:error, inspect(reason)}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  def process_join_request(_, %{code: code, node_name: node_name, node_public_key: node_public_key_b64}, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case Base.decode64(node_public_key_b64) do
+        {:ok, node_public_key} ->
+          node_id = Reality2.Bootstrap.get(:node_id)
+          case apply(AiReality2Transnet.HiveIdentity, :process_join_request, [node_id, code, node_name, node_public_key]) do
+            {:ok, cert} ->
+              # Also return hive public info so the joiner can verify and store it
+              case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+                {:ok, identity} ->
+                  hive_public_info = %{
+                    hive_id: identity.hive_id,
+                    name: identity.name,
+                    public_key: Base.encode64(identity.public_key),
+                    created_at: DateTime.to_iso8601(identity.created_at)
+                  }
+                  {:ok, %{certificate: stringify_keys(cert), hive_public_info: stringify_keys(hive_public_info)}}
+                _ ->
+                  {:error, "Failed to get hive identity"}
+              end
+            {:error, reason} -> {:error, inspect(reason)}
+          end
+        :error ->
+          {:error, "Invalid base64 public key"}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  def join_as_member(_, %{hive_public_info: hive_public_info, certificate: certificate}, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      # Convert string keys from JSON to atoms for HiveIdentity
+      hive_info = atomize_keys(hive_public_info)
+      cert = atomize_keys(certificate)
+
+      # Convert permissions list from strings to atoms if present
+      cert = case Map.get(cert, :permissions) do
+        perms when is_list(perms) ->
+          Map.put(cert, :permissions, Enum.map(perms, fn
+            p when is_binary(p) -> String.to_existing_atom(p)
+            p -> p
+          end))
+        _ -> cert
+      end
+
+      # Convert type from string to atom if needed
+      cert = case Map.get(cert, :type) do
+        t when is_binary(t) -> Map.put(cert, :type, String.to_existing_atom(t))
+        _ -> cert
+      end
+
+      case apply(AiReality2Transnet.HiveIdentity, :join_as_member, [hive_info, cert]) do
+        :ok -> {:ok, get_hive_info_result()}
+        {:error, reason} -> {:error, inspect(reason)}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  # -------------------------------------------------------------------------
   # Private helpers
   # -------------------------------------------------------------------------
+
+  defp get_hive_info_result do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+      case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+        {:ok, identity} ->
+          %{
+            hive_id: identity.hive_id,
+            hive_name: identity.name,
+            hive_mode: Atom.to_string(identity.mode),
+            is_provisional: Map.get(identity, :provisional, false)
+          }
+
+        _ ->
+          %{hive_id: nil, hive_name: nil, hive_mode: nil, is_provisional: false}
+      end
+    else
+      %{hive_id: nil, hive_name: nil, hive_mode: nil, is_provisional: false}
+    end
+  end
 
   defp get_hive_info do
     if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
@@ -111,15 +270,35 @@ defmodule Reality2Web.NodeResolver do
             hive_id: identity.hive_id,
             hive_name: identity.name,
             hive_mode: Atom.to_string(identity.mode),
-            hive_compressed_id: compressed
+            hive_compressed_id: compressed,
+            is_provisional: Map.get(identity, :provisional, false)
           }
 
         _ ->
-          %{hive_id: nil, hive_name: nil, hive_mode: nil, hive_compressed_id: nil}
+          %{hive_id: nil, hive_name: nil, hive_mode: nil, hive_compressed_id: nil, is_provisional: false}
       end
     else
-      %{hive_id: nil, hive_name: nil, hive_mode: nil, hive_compressed_id: nil}
+      %{hive_id: nil, hive_name: nil, hive_mode: nil, hive_compressed_id: nil, is_provisional: false}
     end
+  end
+
+  defp stringify_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {k, v} when is_atom(k) -> {Atom.to_string(k), stringify_value(v)}
+      {k, v} -> {k, stringify_value(v)}
+    end)
+  end
+
+  defp stringify_value(v) when is_atom(v) and not is_nil(v) and not is_boolean(v), do: Atom.to_string(v)
+  defp stringify_value(v) when is_list(v), do: Enum.map(v, &stringify_value/1)
+  defp stringify_value(v) when is_map(v), do: stringify_keys(v)
+  defp stringify_value(v), do: v
+
+  defp atomize_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+      {k, v} -> {k, v}
+    end)
   end
 
   defp to_string_safe(nil), do: nil

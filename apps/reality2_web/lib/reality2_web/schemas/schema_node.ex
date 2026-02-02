@@ -15,6 +15,7 @@ defmodule Reality2Web.Schema.Node do
     field(:hive_name, :string, description: "Hive human-readable name")
     field(:hive_mode, :string, description: "Node's hive role: key_holder or member")
     field(:hive_compressed_id, :string, description: "4-byte compressed Hive ID (hex)")
+    field(:is_provisional, :boolean, description: "Whether this node's hive is still provisional")
   end
 
   # --- Peer reachability per transport ---
@@ -74,6 +75,29 @@ defmodule Reality2Web.Schema.Node do
     field(:nodes, list_of(:directory_node), description: "All known nodes")
   end
 
+  # --- Mutation return types ---
+
+  object :hive_info_result do
+    field(:hive_id, :string, description: "Hive UUID")
+    field(:hive_name, :string, description: "Hive human-readable name")
+    field(:hive_mode, :string, description: "Node's hive role: key_holder or member")
+    field(:is_provisional, :boolean, description: "Whether the hive is still provisional")
+  end
+
+  object :join_code_result do
+    field(:code, non_null(:string), description: "4-character join code")
+    field(:expires_in, non_null(:integer), description: "Seconds until code expires")
+  end
+
+  object :key_export_result do
+    field(:encrypted_data, non_null(:string), description: "Base64-encoded encrypted key data")
+  end
+
+  object :join_request_result do
+    field(:certificate, :json, description: "Signed node certificate")
+    field(:hive_public_info, :json, description: "Hive public info (hive_id, name, public_key, created_at)")
+  end
+
   # --- Queries ---
 
   object :node_queries do
@@ -90,6 +114,58 @@ defmodule Reality2Web.Schema.Node do
     @desc "Get the hive directory (all known nodes in the hive)"
     field :hive_directory, :hive_directory do
       resolve(&NodeResolver.hive_directory/3)
+    end
+  end
+
+  # --- Mutations ---
+
+  object :node_mutations do
+    @desc "Create (or reset) a hive with the given name"
+    field :hive_create, :hive_info_result do
+      arg(:name, non_null(:string))
+      resolve(&NodeResolver.create_hive/3)
+    end
+
+    @desc "Mark the current provisional hive as established"
+    field :hive_mark_established, :hive_info_result do
+      resolve(&NodeResolver.mark_established/3)
+    end
+
+    @desc "Generate a 4-character join code for other nodes"
+    field :hive_generate_join_code, :join_code_result do
+      resolve(&NodeResolver.generate_join_code/3)
+    end
+
+    @desc "Export the hive key encrypted with a passphrase"
+    field :hive_export_key, :key_export_result do
+      arg(:passphrase, non_null(:string))
+      resolve(&NodeResolver.export_key/3)
+    end
+
+    @desc "Import an encrypted hive key"
+    field :hive_import_key, :hive_info_result do
+      arg(:encrypted_data, non_null(:string))
+      arg(:passphrase, non_null(:string))
+      resolve(&NodeResolver.import_key/3)
+    end
+    @desc "Get this node's public key (base64-encoded)"
+    field :hive_get_public_key, :string do
+      resolve(&NodeResolver.get_public_key/3)
+    end
+
+    @desc "Process a join request (called on the key holder node)"
+    field :hive_process_join_request, :join_request_result do
+      arg(:code, non_null(:string))
+      arg(:node_name, non_null(:string))
+      arg(:node_public_key, non_null(:string))
+      resolve(&NodeResolver.process_join_request/3)
+    end
+
+    @desc "Finalize joining a hive as a member (called on the joining node)"
+    field :hive_join_as_member, :hive_info_result do
+      arg(:hive_public_info, non_null(:json))
+      arg(:certificate, non_null(:json))
+      resolve(&NodeResolver.join_as_member/3)
     end
   end
 end

@@ -26,6 +26,7 @@ defmodule Reality2Web.Schema do
 
   mutation do
     import_fields(:sentant_mutations)
+    import_fields(:node_mutations)
   end
 
   subscription do
