@@ -94,6 +94,12 @@ export LOCKED="remote"
 # Get any new deps (only fetches if needed)
 mix deps.get
 
+# Ensure static webapp assets are included in the release.
+# mix compile may skip re-copying priv/ when no .ex files changed,
+# so we force it by touching the app's mix config.
+echo "***** Refreshing webapp static assets..."
+touch apps/reality2_web/mix.exs
+
 # Build the Reality2 Node
 echo "***** Building the Reality2 Node..."
 mix release
