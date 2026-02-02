@@ -49,7 +49,7 @@ export default class R2 {
    * const r2_insecure = new R2("192.168.1.100", 4005, false);  // HTTP/WS
    * ```
    */
-  constructor(domain_name: String, port: number, ssl = true) {
+  constructor(domain_name: string, port: number, ssl = true) {
     this._secure = ssl;
     if (ssl) {
       this._graphql_http_url =
@@ -83,236 +83,152 @@ export default class R2 {
    * ```
    */
   sentantAll(passthrough = {}, details: string = "id name nodeId nodeName"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantAll(details), {}).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+    return this._graphql_post(this._sentantAll(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Retrieve this node's identity and hive information.
    */
   nodeInfo(passthrough = {}, details: string = "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId version buildId"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._nodeInfo(details), {}).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+    return this._graphql_post(this._nodeInfo(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Retrieve discovered peers from the mesh.
    */
   peers(passthrough = {}, details: string = "nodeId nodeName transport address rssi connectionState hiveId isSameHive hiveVerified sentantCount lastSeen reachability { ble { lastSeen confidence rssi } wifi { lastSeen confidence ip } lora { lastSeen confidence } }"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._peers(details), {}).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._peers(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Retrieve the hive directory.
    */
   hiveDirectory(passthrough = {}, details: string = "hiveId hiveName myNodeId directoryVersion nodes { nodeId name status hiveId sentants { id name } reachability { ble { lastSeen confidence rssi } wifi { lastSeen confidence ip } lora { lastSeen confidence } } updatedAt }"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveDirectory(details), {}).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveDirectory(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Create (or reset) a hive with the given name.
    */
   hiveCreate(name: string, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveCreate(details), { name }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveCreate(details), { name })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Mark the current provisional hive as established.
    */
   hiveMarkEstablished(passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveMarkEstablished(details), {}).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveMarkEstablished(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Generate a 4-character join code for other nodes.
    */
   hiveGenerateJoinCode(passthrough = {}, details: string = "code expiresIn"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveGenerateJoinCode(details), {}).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveGenerateJoinCode(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Export the hive key encrypted with a passphrase.
    */
   hiveExportKey(passphrase: string, passthrough = {}, details: string = "encryptedData"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveExportKey(details), { passphrase }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveExportKey(details), { passphrase })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Import an encrypted hive key.
    */
   hiveImportKey(encryptedData: string, passphrase: string, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveImportKey(details), { encryptedData, passphrase }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveImportKey(details), { encryptedData, passphrase })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Get this node's public key (base64-encoded).
    */
   hiveGetPublicKey(passthrough = {}): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveGetPublicKey(), {}).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveGetPublicKey(), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Process a join request (called on key holder node).
    */
   hiveProcessJoinRequest(code: string, nodeName: string, nodePublicKey: string, passthrough = {}, details: string = "certificate hivePublicInfo"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveProcessJoinRequest(details), { code, nodeName, nodePublicKey }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveProcessJoinRequest(details), { code, nodeName, nodePublicKey })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Finalize joining a hive as a member (called on joining node).
    */
   hiveJoinAsMember(hivePublicInfo: object, certificate: object, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveJoinAsMember(details), { hivePublicInfo: JSON.stringify(hivePublicInfo), certificate: JSON.stringify(certificate) }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveJoinAsMember(details), { hivePublicInfo: JSON.stringify(hivePublicInfo), certificate: JSON.stringify(certificate) })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Submit a join request to a key holder node.
    */
   hiveSubmitJoinRequest(nodeName: string, nodePublicKey: string, passthrough = {}, details: string = "id nodeName nodePublicKey status submittedAt"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveSubmitJoinRequest(details), { nodeName, nodePublicKey }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveSubmitJoinRequest(details), { nodeName, nodePublicKey })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Get pending join requests (key holder).
    */
   hivePendingJoinRequests(passthrough = {}, details: string = "id nodeName nodePublicKey status submittedAt"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hivePendingJoinRequests(details), {}).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hivePendingJoinRequests(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Approve a join request (key holder).
    */
   hiveApproveJoinRequest(requestId: string, passthrough = {}, details: string = "certificate hivePublicInfo"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveApproveJoinRequest(details), { requestId }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveApproveJoinRequest(details), { requestId })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Deny a join request (key holder).
    */
   hiveDenyJoinRequest(requestId: string, passthrough = {}): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveDenyJoinRequest(), { requestId }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveDenyJoinRequest(), { requestId })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Check status of a join request (joiner polls this on key holder).
    */
   hiveJoinRequestStatus(requestId: string, passthrough = {}, details: string = "status certificate hivePublicInfo"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveJoinRequestStatus(details), { requestId }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveJoinRequestStatus(details), { requestId })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Submit a hive join request via BLE GATT (called on the joiner node).
    */
   hiveBleSubmitJoinRequest(peerId: string, nodeName: string, passthrough = {}, details: string = "status hiveId message"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveBleSubmitJoinRequest(details), { peerId, nodeName }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveBleSubmitJoinRequest(details), { peerId, nodeName })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Check the status of a BLE-based hive join request.
    */
   hiveBleJoinRequestStatus(peerId: string, passthrough = {}, details: string = "status hiveId message"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._hiveBleJoinRequestStatus(details), { peerId }).then(
-        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
-        (error: Error) => { reject(error); },
-      );
-    });
+    return this._graphql_post(this._hiveBleJoinRequestStatus(details), { peerId })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
@@ -329,89 +245,29 @@ export default class R2 {
    * const sentant = result.data.sentantGet;
    * ```
    */
-  sentantGet(
-    id: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantGet(details), { id: id }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+  sentantGet(id: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._sentantGet(details), { id })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
-  sentantGetByName(
-    name: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantGetByName(details), { name: name }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+
+  sentantGetByName(name: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._sentantGetByName(details), { name })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
-  sentantLoad(
-    definition: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantLoad(details), {
-        definition: definition,
-      }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+
+  sentantLoad(definition: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._sentantLoad(details), { definition })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
-  sentantUnload(
-    id: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantUnload(details), { id: id }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+
+  sentantUnload(id: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._sentantUnload(details), { id })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
-  swarmLoad(
-    definition: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._swarmLoad(details), {
-        definition: definition,
-      }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+
+  swarmLoad(definition: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._swarmLoad(details), { definition })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
   sentantSend(
     path: string,
@@ -652,7 +508,7 @@ export default class R2 {
   _graphql_post(query: string, variables: object): Promise<object> {
     let body = {
       query: query,
-      variables: JSON.stringify(variables),
+      variables: variables,
     };
 
     let parameters = {
@@ -665,9 +521,11 @@ export default class R2 {
     };
 
     return fetch(this._graphql_http_url, parameters)
-      .then((response) => response.json())
-      .then((data) => {
-        return data;
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
       });
   }
   // ----------------------------------------------------------------------------------------------------
@@ -734,7 +592,6 @@ export default class R2 {
           this._sockets[id + "|" + signal].connected = true;
 
           this._sockets[id + "|" + signal].timer = setInterval(() => {
-            console.log("heartbeat");
             this._sockets[id + "|" + signal].ws.send(JSON.stringify(heartbeat));
           }, WEBSOCKET_HEARTBEAT_INTERVAL_MS);
 

@@ -49,7 +49,7 @@ export default class R2 {
    * const r2_insecure = new R2("192.168.1.100", 4005, false);  // HTTP/WS
    * ```
    */
-  constructor(domain_name: String, port: number, ssl = true) {
+  constructor(domain_name: string, port: number, ssl = true) {
     this._secure = ssl;
     if (ssl) {
       this._graphql_http_url =
@@ -83,16 +83,8 @@ export default class R2 {
    * ```
    */
   sentantAll(passthrough = {}, details: string = "id name nodeId nodeName"): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantAll(details), {}).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+    return this._graphql_post(this._sentantAll(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
@@ -109,89 +101,29 @@ export default class R2 {
    * const sentant = result.data.sentantGet;
    * ```
    */
-  sentantGet(
-    id: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantGet(details), { id: id }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+  sentantGet(id: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._sentantGet(details), { id })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
-  sentantGetByName(
-    name: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantGetByName(details), { name: name }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+
+  sentantGetByName(name: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._sentantGetByName(details), { name })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
-  sentantLoad(
-    definition: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantLoad(details), {
-        definition: definition,
-      }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+
+  sentantLoad(definition: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._sentantLoad(details), { definition })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
-  sentantUnload(
-    id: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._sentantUnload(details), { id: id }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+
+  sentantUnload(id: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._sentantUnload(details), { id })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
-  swarmLoad(
-    definition: string,
-    passthrough = {},
-    details: string = "id name",
-  ): Promise<object> {
-    return new Promise((resolve, reject) => {
-      this._graphql_post(this._swarmLoad(details), {
-        definition: definition,
-      }).then(
-        (data: GraphQLResponse) => {
-          resolve({ ...passthrough, ...data });
-        },
-        (error: Error) => {
-          reject(error);
-        },
-      );
-    });
+
+  swarmLoad(definition: string, passthrough = {}, details: string = "id name"): Promise<object> {
+    return this._graphql_post(this._swarmLoad(details), { definition })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
   sentantSend(
     path: string,
@@ -432,7 +364,7 @@ export default class R2 {
   _graphql_post(query: string, variables: object): Promise<object> {
     let body = {
       query: query,
-      variables: JSON.stringify(variables),
+      variables: variables,
     };
 
     let parameters = {
@@ -445,9 +377,11 @@ export default class R2 {
     };
 
     return fetch(this._graphql_http_url, parameters)
-      .then((response) => response.json())
-      .then((data) => {
-        return data;
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
       });
   }
   // ----------------------------------------------------------------------------------------------------
@@ -514,7 +448,6 @@ export default class R2 {
           this._sockets[id + "|" + signal].connected = true;
 
           this._sockets[id + "|" + signal].timer = setInterval(() => {
-            console.log("heartbeat");
             this._sockets[id + "|" + signal].ws.send(JSON.stringify(heartbeat));
           }, WEBSOCKET_HEARTBEAT_INTERVAL_MS);
 
