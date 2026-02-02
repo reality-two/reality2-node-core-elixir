@@ -99,11 +99,22 @@ echo "***** Building the Reality2 Node..."
 mix release
 
 # Copy webapp static assets directly into the release.
-# mix release may not pick up priv/ changes when no .ex files changed.
+# mix release does not reliably include all priv/static files.
 echo "***** Syncing webapp static assets into release..."
-RELEASE_PRIV=$(ls -d _build/prod/rel/reality2/lib/reality2_web-*/priv/static/sites 2>/dev/null | head -1)
+RELEASE_PRIV=$(find _build/prod/rel/reality2/lib -path "*/reality2_web-*/priv/static/sites" -type d 2>/dev/null | head -1)
+if [ -z "$RELEASE_PRIV" ]; then
+    # Create the path if it doesn't exist
+    RELEASE_APP=$(find _build/prod/rel/reality2/lib -maxdepth 1 -name "reality2_web-*" -type d 2>/dev/null | head -1)
+    if [ -n "$RELEASE_APP" ]; then
+        RELEASE_PRIV="$RELEASE_APP/priv/static/sites"
+        mkdir -p "$RELEASE_PRIV"
+    fi
+fi
 if [ -n "$RELEASE_PRIV" ]; then
-    cp -r apps/reality2_web/priv/static/sites/* "$RELEASE_PRIV"/
+    echo "  Copying to: $RELEASE_PRIV"
+    cp -rv apps/reality2_web/priv/static/sites/* "$RELEASE_PRIV"/
+    echo "  Files in release:"
+    find "$RELEASE_PRIV/creator" -type f | head -20
 else
     echo "WARNING: Could not find release priv directory"
 fi
