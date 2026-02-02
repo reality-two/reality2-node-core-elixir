@@ -2,8 +2,6 @@ defmodule Reality2Web.NodeResolver do
   @moduledoc false
   # Resolver for node identity, peers, and hive directory queries.
 
-  @build_time DateTime.utc_now() |> Calendar.strftime("%Y-%m-%d %H:%M")
-
   # -------------------------------------------------------------------------
   # nodeInfo — this node's identity and hive membership
   # -------------------------------------------------------------------------
@@ -18,8 +16,21 @@ defmodule Reality2Web.NodeResolver do
       node_id: node_id,
       node_name: node_name,
       version: Application.spec(:reality2, :vsn) |> to_string(),
-      build_time: @build_time
+      build_time: read_build_time()
     }, hive_info)}
+  end
+
+  @compile_time DateTime.utc_now() |> Calendar.strftime("%Y-%m-%d %H:%M")
+
+  defp read_build_time do
+    # In a release, BUILD_TIME is written by make_runtime into the release root.
+    # In dev mode, fall back to module compile time.
+    release_root = Application.app_dir(:reality2_web, "../..") |> Path.expand()
+    path = Path.join(release_root, "BUILD_TIME")
+    case File.read(path) do
+      {:ok, content} -> String.trim(content)
+      _ -> @compile_time
+    end
   end
 
   # -------------------------------------------------------------------------

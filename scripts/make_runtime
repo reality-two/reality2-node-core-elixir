@@ -153,6 +153,9 @@ cp -r extras "_build/prod/rel/reality2"
 echo "***** Creating the autostart directory..."
 cp -r autostart "_build/prod/rel/reality2"
 
+echo "***** Writing build timestamp..."
+date -u '+%Y-%m-%d %H:%M' > "_build/prod/rel/reality2/BUILD_TIME"
+
 echo "***** Creating the Reality2 Node tarball..."
 tar -zcf "_build/prod/rel/reality2_${RELEASE}.tar.gz" --directory=_build/prod/rel reality2
 
