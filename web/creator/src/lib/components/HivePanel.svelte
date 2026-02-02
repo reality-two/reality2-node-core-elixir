@@ -724,7 +724,7 @@
         </h4>
         {#if directory.nodes && directory.nodes.length > 0}
           <div class="peer-list">
-            {#each directory.nodes as node}
+            {#each [...directory.nodes].sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()) as node}
               {@const stale = node.nodeId !== directory.myNodeId && isStale(node.updatedAt)}
               <div class="peer-card" class:is-me={node.nodeId === directory.myNodeId} class:stale-node={stale}>
                 <div class="peer-header">
