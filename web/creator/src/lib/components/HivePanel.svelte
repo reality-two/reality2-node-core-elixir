@@ -144,10 +144,17 @@
 
   // Determine the best join method for a peer
   function getJoinMethod(peer: any): "ble" | "ip" | null {
-    // Prefer BLE if the peer has a BLE address (works on local networks with self-signed certs)
+    // Prefer BLE if the peer has any BLE reachability (works on local networks with self-signed certs)
     if (peer.reachability?.ble?.confidence > 0) return "ble";
-    // Fall back to IP if the peer has a WiFi IP (works for cloud nodes with valid certs)
-    if (getPeerIp(peer)) return "ip";
+    // If the peer was discovered locally via WiFi, it's on the same local network.
+    // The browser can't make direct HTTPS requests to other local nodes (self-signed certs),
+    // so use BLE GATT which routes through the local server. The peer's BLE GATT should still
+    // be reachable even if BLE beacon confidence has dropped.
+    if (peer.reachability?.wifi?.confidence > 0) return "ble";
+    // Only offer direct IP join for cloud/internet nodes (not locally discovered) that have
+    // valid TLS certificates the browser will accept.
+    const ip = getPeerIp(peer);
+    if (ip) return "ip";
     return null;
   }
 
