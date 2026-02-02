@@ -17,7 +17,7 @@ defmodule Reality2Web.Schema.Node do
     field(:hive_compressed_id, :string, description: "4-byte compressed Hive ID (hex)")
     field(:is_provisional, :boolean, description: "Whether this node's hive is still provisional")
     field(:version, :string, description: "Server software version")
-    field(:build_time, :string, description: "Server build timestamp")
+    field(:build_id, :string, description: "Git commit short hash at build time")
   end
 
   # --- Peer reachability per transport ---

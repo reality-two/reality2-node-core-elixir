@@ -16,20 +16,23 @@ defmodule Reality2Web.NodeResolver do
       node_id: node_id,
       node_name: node_name,
       version: Application.spec(:reality2, :vsn) |> to_string(),
-      build_time: read_build_time()
+      build_id: read_build_id()
     }, hive_info)}
   end
 
-  @compile_time DateTime.utc_now() |> Calendar.strftime("%Y-%m-%d %H:%M")
+  @git_commit (case System.cmd("git", ["rev-parse", "--short", "HEAD"], stderr_to_stdout: true) do
+    {hash, 0} -> String.trim(hash)
+    _ -> "unknown"
+  end)
 
-  defp read_build_time do
-    # In a release, BUILD_TIME is written by make_runtime into the release root.
-    # In dev mode, fall back to module compile time.
+  defp read_build_id do
+    # In a release, GIT_COMMIT is written by make_runtime into the release root.
+    # In dev mode, fall back to the git commit captured at compile time.
     release_root = Application.app_dir(:reality2_web, "../..") |> Path.expand()
-    path = Path.join(release_root, "BUILD_TIME")
+    path = Path.join(release_root, "GIT_COMMIT")
     case File.read(path) do
       {:ok, content} -> String.trim(content)
-      _ -> @compile_time
+      _ -> @git_commit
     end
   end
 

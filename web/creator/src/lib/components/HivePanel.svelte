@@ -1,6 +1,6 @@
 <script lang="ts">
   declare const __APP_VERSION__: string;
-  declare const __BUILD_TIME__: string;
+  declare const __GIT_COMMIT__: string;
 
   import R2 from "../reality2";
   import { DEFAULT_PORT } from "../constants";
@@ -384,8 +384,8 @@
             {:else}
               <tr><td class="label-cell">Hive</td><td style="color: #999;">Not configured</td></tr>
             {/if}
-            <tr><td class="label-cell">Server</td><td class="mono">{nodeInfo.version || '?'} <span class="build-time">({nodeInfo.buildTime || '?'})</span></td></tr>
-            <tr><td class="label-cell">Creator</td><td class="mono">{__APP_VERSION__} <span class="build-time">({__BUILD_TIME__})</span></td></tr>
+            <tr><td class="label-cell">Server</td><td class="mono">{nodeInfo.version || '?'} <span class="build-id">({nodeInfo.buildId || '?'})</span></td></tr>
+            <tr><td class="label-cell">Creator</td><td class="mono">{__APP_VERSION__} <span class="build-id">({__GIT_COMMIT__})</span></td></tr>
           </tbody>
         </table>
 
@@ -701,7 +701,7 @@
     color: #555;
     word-break: break-all;
   }
-  .build-time {
+  .build-id {
     color: #999;
     font-size: 11px;
   }

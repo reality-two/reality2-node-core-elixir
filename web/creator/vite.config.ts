@@ -1,8 +1,10 @@
 import { defineConfig, Plugin } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { readFileSync } from "fs";
+import { execSync } from "child_process";
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
+const gitCommit = (() => { try { return execSync("git rev-parse --short HEAD").toString().trim(); } catch { return "unknown"; } })();
 
 // Custom plugin to strip TypeScript generics from @xyflow/svelte files
 function stripXyflowTypeScript(): Plugin {
@@ -34,7 +36,7 @@ export default defineConfig({
   base: "/creator/",
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString().replace("T", " ").slice(0, 16)),
+    __GIT_COMMIT__: JSON.stringify(gitCommit),
   },
   plugins: [
     stripXyflowTypeScript(),

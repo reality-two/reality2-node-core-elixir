@@ -98,7 +98,7 @@ export default class R2 {
   /**
    * Retrieve this node's identity and hive information.
    */
-  nodeInfo(passthrough = {}, details: string = "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId version buildTime"): Promise<object> {
+  nodeInfo(passthrough = {}, details: string = "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId version buildId"): Promise<object> {
     return new Promise((resolve, reject) => {
       this._graphql_post(this._nodeInfo(details), {}).then(
         (data: GraphQLResponse) => {
