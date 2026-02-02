@@ -293,6 +293,22 @@ export function updateAction(nodeId: string, autoIndex: number, transIndex: numb
   updateSentant(nodeId, { automations });
 }
 
+export function reorderAction(nodeId: string, autoIndex: number, transIndex: number, fromIndex: number, toIndex: number): void {
+  if (fromIndex === toIndex) return;
+  const sentant = model.sentants.find((s) => s._nodeId === nodeId);
+  if (!sentant || !sentant.automations[autoIndex]) return;
+  const trans = sentant.automations[autoIndex].transitions[transIndex];
+  if (!trans) return;
+  const actions = [...trans.actions];
+  const [moved] = actions.splice(fromIndex, 1);
+  actions.splice(toIndex, 0, moved);
+  const automations = [...sentant.automations];
+  const transitions = [...automations[autoIndex].transitions];
+  transitions[transIndex] = { ...trans, actions };
+  automations[autoIndex] = { ...automations[autoIndex], transitions };
+  updateSentant(nodeId, { automations });
+}
+
 export function addPlugin(nodeId: string): void {
   const sentant = model.sentants.find((s) => s._nodeId === nodeId);
   if (!sentant) return;

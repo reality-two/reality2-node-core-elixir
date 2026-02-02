@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { ActionModel } from "../models/canvas";
   import DataEditor from "./DataEditor.svelte";
+  import ExpressionEditor from "./ExpressionEditor.svelte";
+  import { treeToInfix, isExprTree, rpnToInfix } from "../expression/expression-parser";
 
   let {
     action,
@@ -128,12 +130,22 @@
       const obj = v as Record<string, unknown>;
       if (obj.jsonpath !== undefined) return String(obj.jsonpath);
       if (obj.expr !== undefined) {
-        if (typeof obj.expr === "string") return obj.expr;
+        if (typeof obj.expr === "string") return rpnToInfix(obj.expr);
+        if (isExprTree(obj.expr)) return treeToInfix(obj.expr as Record<string, unknown>);
         return JSON.stringify(obj.expr);
       }
       if (obj.data !== undefined) return String(obj.data);
     }
     return String(v);
+  }
+
+  // Get the raw expr value (tree or string) for ExpressionEditor
+  function getSetExprValue(): unknown {
+    const v = param("value");
+    if (typeof v === "object" && v !== null) {
+      return (v as Record<string, unknown>).expr;
+    }
+    return undefined;
   }
 
   function setSetValue(type: string, content: string) {
@@ -156,6 +168,15 @@
         break;
     }
     setParam("value", value);
+  }
+
+  // Set expr value from ExpressionEditor (accepts tree or string)
+  function setSetExprValue(tree: unknown) {
+    if (tree === undefined || tree === null || tree === "") {
+      setParam("value", undefined);
+    } else {
+      setParam("value", { expr: tree });
+    }
   }
 
   let setValueType = $derived(getSetValueType());
@@ -545,32 +566,39 @@
           </select>
         </div>
         {#if setValueType !== "delete"}
-          <div class="field-row">
-            <label>
-              {#if setValueType === "literal"}Value
-              {:else if setValueType === "jsonpath"}Path
-              {:else if setValueType === "expr"}Expression
-              {:else if setValueType === "data"}Data key
-              {/if}
-            </label>
-            <div class="ui mini input fluid">
-              <input type="text"
-                placeholder={setValueType === "jsonpath" ? "e.g. answer.q" :
-                             setValueType === "expr" ? "e.g. counter + 1" :
-                             setValueType === "data" ? "key from bee data" :
-                             "value or __variable__"}
-                value={setValueContent}
-                oninput={(e) => setSetValue(setValueType, (e.target as HTMLInputElement).value)} />
+          {#if setValueType === "expr"}
+            <div class="field-row">
+              <label>Expression</label>
+              <ExpressionEditor
+                value={getSetExprValue()}
+                onChange={setSetExprValue}
+                placeholder="e.g. (count + 1) * 3" />
             </div>
-          </div>
-          {#if setValueType === "literal"}
-            <div class="hint">Use <code>__name__</code> to reference a value from the data flow</div>
-          {:else if setValueType === "jsonpath"}
-            <div class="hint">Extract nested values, e.g. <code>answer.q</code> or <code>items.[].name</code></div>
-          {:else if setValueType === "expr"}
-            <div class="hint">Arithmetic expression, e.g. <code>count + 1</code> or <code>(a + b) * 2</code></div>
-          {:else if setValueType === "data"}
-            <div class="hint">Read from the bee's own stored data</div>
+            <div class="hint">Use variable names from the data flow. Click <i class="calculator icon" style="font-size: 10px;"></i> for operators.</div>
+          {:else}
+            <div class="field-row">
+              <label>
+                {#if setValueType === "literal"}Value
+                {:else if setValueType === "jsonpath"}Path
+                {:else if setValueType === "data"}Data key
+                {/if}
+              </label>
+              <div class="ui mini input fluid">
+                <input type="text"
+                  placeholder={setValueType === "jsonpath" ? "e.g. answer.q" :
+                               setValueType === "data" ? "key from bee data" :
+                               "value or __variable__"}
+                  value={setValueContent}
+                  oninput={(e) => setSetValue(setValueType, (e.target as HTMLInputElement).value)} />
+              </div>
+            </div>
+            {#if setValueType === "literal"}
+              <div class="hint">Use <code>__name__</code> to reference a value from the data flow</div>
+            {:else if setValueType === "jsonpath"}
+              <div class="hint">Extract nested values, e.g. <code>answer.q</code> or <code>items.[].name</code></div>
+            {:else if setValueType === "data"}
+              <div class="hint">Read from the bee's own stored data</div>
+            {/if}
           {/if}
         {:else}
           <div class="hint">Removes this key from the data flow</div>
@@ -686,11 +714,10 @@
       {:else if action.command === "test"}
         <div class="field-row">
           <label>Condition</label>
-          <div class="ui mini input fluid">
-            <input type="text" placeholder="e.g. counter > 10"
-              value={typeof param("if") === "string" ? paramStr("if") : JSON.stringify(param("if") ?? "")}
-              oninput={(e) => setParam("if", (e.target as HTMLInputElement).value)} />
-          </div>
+          <ExpressionEditor
+            value={param("if")}
+            onChange={(tree) => setParam("if", tree)}
+            placeholder="e.g. counter > 10" />
         </div>
         <div class="field-row">
           <label>Then send event</label>

@@ -7,6 +7,7 @@
     addAction,
     removeAction,
     updateAction,
+    reorderAction,
     removeTransition,
   } from "../stores/canvas-store.svelte";
 
@@ -25,6 +26,42 @@
   } = $props();
 
   let showParams = $state(false);
+
+  // Drag-and-drop reordering for actions
+  let dragIndex = $state<number | null>(null);
+  let dropIndex = $state<number | null>(null);
+
+  function handleDragStart(e: DragEvent, index: number) {
+    dragIndex = index;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+    }
+  }
+
+  function handleDragOver(e: DragEvent, index: number) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    dropIndex = index;
+  }
+
+  function handleDragLeave() {
+    dropIndex = null;
+  }
+
+  function handleDrop(e: DragEvent, index: number) {
+    e.preventDefault();
+    if (dragIndex !== null && dragIndex !== index) {
+      reorderAction(sentantNodeId, autoIndex, transIndex, dragIndex, index);
+    }
+    dragIndex = null;
+    dropIndex = null;
+  }
+
+  function handleDragEnd() {
+    dragIndex = null;
+    dropIndex = null;
+  }
 
   function handleUpdate(updates: Record<string, unknown>) {
     updateTransition(sentantNodeId, autoIndex, transIndex, updates);
@@ -180,7 +217,16 @@
 
       {#each transition.actions as action, i}
         <div class="flow-connector"></div>
-        <div class="flow-action">
+        <div class="flow-action"
+          class:drag-over={dropIndex === i && dragIndex !== i}
+          class:dragging={dragIndex === i}
+          draggable="true"
+          ondragstart={(e) => handleDragStart(e, i)}
+          ondragover={(e) => handleDragOver(e, i)}
+          ondragleave={handleDragLeave}
+          ondrop={(e) => handleDrop(e, i)}
+          ondragend={handleDragEnd}
+          role="listitem">
           <ActionEditor
             {action}
             onUpdate={(updates) => updateAction(sentantNodeId, autoIndex, transIndex, i, updates)}
@@ -336,6 +382,18 @@
   }
   .flow-action {
     margin-left: 8px;
+    cursor: grab;
+    transition: opacity 0.15s, border-color 0.15s;
+  }
+  .flow-action:active {
+    cursor: grabbing;
+  }
+  .flow-action.dragging {
+    opacity: 0.4;
+  }
+  .flow-action.drag-over {
+    border-top: 2px solid #4183c4;
+    margin-top: -2px;
   }
   .flow-entry-content {
     display: flex;

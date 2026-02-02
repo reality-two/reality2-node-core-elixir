@@ -56,7 +56,7 @@
   }
 
   // --- Drag resize ---
-  let dragging = false;
+  let dragging = $state(false);
   let dragStartY = 0;
   let dragStartHeight = 0;
 
@@ -86,7 +86,7 @@
 {#if !collapsed}
   <div class="yaml-preview" style="height: {panelHeight}px;">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="drag-handle" onmousedown={onDragStart}></div>
+    <div class="drag-handle" class:active={dragging} onmousedown={onDragStart}></div>
     <div class="preview-header">
       <div class="header-left">
         <strong style="font-size: 12px;">Definition</strong>
@@ -137,9 +137,15 @@
     background: #313244;
     cursor: ns-resize;
     flex-shrink: 0;
+    transition: background 0.15s, height 0.15s;
   }
   .drag-handle:hover {
-    background: #45475a;
+    background: #4183c4;
+    height: 4px;
+  }
+  .drag-handle.active {
+    background: #4183c4;
+    height: 4px;
   }
   .preview-header {
     display: flex;
