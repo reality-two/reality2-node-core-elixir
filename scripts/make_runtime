@@ -76,6 +76,24 @@ esac
 rm -rf "builds/${BUILD_FOLDER}.zip"
 mkdir -p "builds/${BUILD_FOLDER}"
 
+# Validate webapp static assets exist (these come from git, built on dev machine)
+echo "***** Checking webapp static assets..."
+MISSING_FILES=0
+for check_file in \
+    "apps/reality2_web/priv/static/sites/creator/index.html" \
+    "apps/reality2_web/priv/static/sites/creator/vendor/semantic.min.css" \
+    "apps/reality2_web/priv/static/sites/creator/images/bee_icon.png"; do
+    if [ ! -f "$check_file" ]; then
+        echo "WARNING: Missing $check_file"
+        MISSING_FILES=1
+    fi
+done
+if [ "$MISSING_FILES" -eq 1 ]; then
+    echo "WARNING: Some webapp assets are missing. Ensure build_webapp was run and assets committed on the dev machine."
+fi
+ASSET_COUNT=$(find apps/reality2_web/priv/static/sites -type f 2>/dev/null | wc -l)
+echo "  Found $ASSET_COUNT webapp static files"
+
 echo "***** Clearing certificate files (will be generated on first run)..."
 rm -f apps/reality2_web/priv/cert/*.pem
 rm -f apps/reality2_web/priv/cert/*.crt
@@ -112,9 +130,12 @@ if [ -z "$RELEASE_PRIV" ]; then
 fi
 if [ -n "$RELEASE_PRIV" ]; then
     echo "  Copying to: $RELEASE_PRIV"
-    cp -rv apps/reality2_web/priv/static/sites/* "$RELEASE_PRIV"/
-    echo "  Files in release:"
-    find "$RELEASE_PRIV/creator" -type f | head -20
+    cp -r apps/reality2_web/priv/static/sites/* "$RELEASE_PRIV"/
+    FILE_COUNT=$(find "$RELEASE_PRIV" -type f | wc -l)
+    echo "  Synced $FILE_COUNT files into release"
+    if [ "$FILE_COUNT" -lt 5 ]; then
+        echo "WARNING: Only $FILE_COUNT files in release static assets - webapp may be incomplete"
+    fi
 else
     echo "WARNING: Could not find release priv directory"
 fi
