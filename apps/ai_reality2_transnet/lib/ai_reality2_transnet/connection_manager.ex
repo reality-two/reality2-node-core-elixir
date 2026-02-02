@@ -762,6 +762,9 @@ defmodule AiReality2Transnet.ConnectionManager do
       connected_at: System.system_time(:millisecond)
     })
 
+    # Record the client's WiFi IP in peer reachability so UI can connect to it
+    PeerManager.update_reachability(node_id, :wifi, %{confidence: 255, ip: client_ip})
+
     {:noreply, %{state | connected_clients: updated_clients}}
   end
 
@@ -1930,6 +1933,9 @@ defmodule AiReality2Transnet.ConnectionManager do
         # Update transport BEFORE exchange so sentants are associated with wifi_hotspot
         PeerManager.update_peer_transport(peer_node_id, :wifi_hotspot)
 
+        # Record the host's WiFi IP in peer reachability so UI can connect to it
+        PeerManager.update_reachability(peer_node_id, :wifi, %{confidence: 255, ip: gateway_ip})
+
         case perform_sentant_exchange(peer_node_id, gateway_ip, 4005) do
           :ok ->
             Logger.info("#{log_prefix()} sentantAll exchange completed for #{ssid}")
@@ -1962,6 +1968,9 @@ defmodule AiReality2Transnet.ConnectionManager do
 
             # Update transport BEFORE exchange so sentants are associated with wifi_hotspot
             PeerManager.update_peer_transport(real_node_id, :wifi_hotspot)
+
+            # Record the host's WiFi IP in peer reachability so UI can connect to it
+            PeerManager.update_reachability(real_node_id, :wifi, %{confidence: 255, ip: gateway_ip})
 
             case perform_sentant_exchange(real_node_id, gateway_ip, 4005) do
               :ok ->
