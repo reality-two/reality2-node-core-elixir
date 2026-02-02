@@ -292,6 +292,30 @@ export default class R2 {
   }
 
   /**
+   * Submit a hive join request via BLE GATT (called on the joiner node).
+   */
+  hiveBleSubmitJoinRequest(peerId: string, nodeName: string, passthrough = {}, details: string = "status hiveId message"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveBleSubmitJoinRequest(details), { peerId, nodeName }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
+   * Check the status of a BLE-based hive join request.
+   */
+  hiveBleJoinRequestStatus(peerId: string, passthrough = {}, details: string = "status hiveId message"): Promise<object> {
+    return new Promise((resolve, reject) => {
+      this._graphql_post(this._hiveBleJoinRequestStatus(details), { peerId }).then(
+        (data: GraphQLResponse) => { resolve({ ...passthrough, ...data }); },
+        (error: Error) => { reject(error); },
+      );
+    });
+  }
+
+  /**
    * Retrieve a specific sentant by ID
    *
    * @param id - The unique identifier of the sentant
@@ -929,6 +953,22 @@ export default class R2 {
   _hiveJoinRequestStatus(details: string): string {
     return `query HiveJoinRequestStatus($requestId: String!) {
             hiveJoinRequestStatus(requestId: $requestId) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveBleSubmitJoinRequest(details: string): string {
+    return `mutation HiveBleSubmitJoinRequest($peerId: ID!, $nodeName: String!) {
+            hiveBleSubmitJoinRequest(peerId: $peerId, nodeName: $nodeName) {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveBleJoinRequestStatus(details: string): string {
+    return `query HiveBleJoinRequestStatus($peerId: ID!) {
+            hiveBleJoinRequestStatus(peerId: $peerId) {
                 ${details}
             }
         }`;

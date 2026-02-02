@@ -1,10 +1,18 @@
-defmodule Reality2Web.JoinRequests do
+defmodule AiReality2Transnet.JoinRequests do
   @moduledoc """
   Ephemeral storage for pending hive join requests.
   Requests expire after 10 minutes.
+
+  Part of the hive join protocol alongside HiveIdentity and HiveJoinBle.
+
+  **Author**
+  - Dr. Roy C. Davies
+  - [roycdavies.github.io](https://roycdavies.github.io/)
   """
 
   @stale_seconds 600
+  @max_pending_per_source 3
+  @max_pending_total 10
 
   def start_link(_opts) do
     Agent.start_link(fn -> %{} end, name: __MODULE__)
@@ -18,7 +26,7 @@ defmodule Reality2Web.JoinRequests do
     }
   end
 
-  @doc "Submit a new join request. Returns the request ID."
+  @doc "Submit a new join request. Returns the request or {:error, :rate_limited}."
   def submit(node_name, node_public_key) do
     id = generate_id()
     now = System.system_time(:second)
@@ -33,13 +41,28 @@ defmodule Reality2Web.JoinRequests do
       hive_public_info: nil
     }
 
-    Agent.update(__MODULE__, fn state ->
-      state
-      |> cleanup_stale(now)
-      |> Map.put(id, request)
-    end)
+    Agent.get_and_update(__MODULE__, fn state ->
+      cleaned = cleanup_stale(state, now)
 
-    request
+      # Rate limit: max pending per source (node_public_key)
+      source_pending = Enum.count(cleaned, fn {_id, req} ->
+        req.status == :pending and req.node_public_key == node_public_key
+      end)
+
+      # Rate limit: max total pending
+      total_pending = Enum.count(cleaned, fn {_id, req} -> req.status == :pending end)
+
+      cond do
+        source_pending >= @max_pending_per_source ->
+          {{:error, :rate_limited}, cleaned}
+
+        total_pending >= @max_pending_total ->
+          {{:error, :rate_limited}, cleaned}
+
+        true ->
+          {request, Map.put(cleaned, id, request)}
+      end
+    end)
   end
 
   @doc "List all pending requests."
@@ -100,7 +123,7 @@ defmodule Reality2Web.JoinRequests do
   end
 
   defp generate_id do
-    :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
   end
 
   defp cleanup_stale(state, now) do

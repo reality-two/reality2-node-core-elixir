@@ -257,19 +257,26 @@ defmodule Reality2Web.NodeResolver do
   # Mutations — approval-based joining
   # -------------------------------------------------------------------------
 
+  @join_requests AiReality2Transnet.JoinRequests
+
   def submit_join_request(_, %{node_name: node_name, node_public_key: node_public_key}, _) do
-    request = Reality2Web.JoinRequests.submit(node_name, node_public_key)
-    {:ok, %{
-      id: request.id,
-      node_name: request.node_name,
-      node_public_key: request.node_public_key,
-      status: Atom.to_string(request.status),
-      submitted_at: request.submitted_at
-    }}
+    case apply(@join_requests, :submit, [node_name, node_public_key]) do
+      {:error, :rate_limited} ->
+        {:error, "Too many pending join requests"}
+
+      request when is_map(request) ->
+        {:ok, %{
+          id: request.id,
+          node_name: request.node_name,
+          node_public_key: request.node_public_key,
+          status: Atom.to_string(request.status),
+          submitted_at: request.submitted_at
+        }}
+    end
   end
 
   def pending_join_requests(_, _, _) do
-    requests = Reality2Web.JoinRequests.list_pending()
+    requests = apply(@join_requests, :list_pending, [])
     result = Enum.map(requests, fn req ->
       %{
         id: req.id,
@@ -284,7 +291,7 @@ defmodule Reality2Web.NodeResolver do
 
   def approve_join_request(_, %{request_id: request_id}, _) do
     if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case Reality2Web.JoinRequests.get_status(request_id) do
+      case apply(@join_requests, :get_status, [request_id]) do
         {:ok, %{status: :pending, node_name: node_name, node_public_key: node_public_key_b64}} ->
           case Base.decode64(node_public_key_b64) do
             {:ok, node_public_key} ->
@@ -300,7 +307,16 @@ defmodule Reality2Web.NodeResolver do
                       }
                       cert_str = stringify_keys(cert)
                       info_str = stringify_keys(hive_public_info)
-                      Reality2Web.JoinRequests.set_result(request_id, cert_str, info_str)
+                      apply(@join_requests, :set_result, [request_id, cert_str, info_str])
+                      # Broadcast result via PubSub so Bluetooth can relay over GATT
+                      Phoenix.PubSub.broadcast(Reality2.PubSub, "hive:join_results", {
+                        :hive_join_result, request_id, %{
+                          status: "approved",
+                          certificate: cert_str,
+                          hive_public_info: info_str,
+                          hive_id: identity.hive_id
+                        }
+                      })
                       {:ok, %{certificate: cert_str, hive_public_info: info_str}}
                     _ ->
                       {:error, "Failed to get hive identity"}
@@ -320,14 +336,22 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def deny_join_request(_, %{request_id: request_id}, _) do
-    case Reality2Web.JoinRequests.deny(request_id) do
-      {:ok, _} -> {:ok, true}
+    case apply(@join_requests, :deny, [request_id]) do
+      {:ok, _} ->
+        # Broadcast denial via PubSub so Bluetooth can relay over GATT
+        Phoenix.PubSub.broadcast(Reality2.PubSub, "hive:join_results", {
+          :hive_join_result, request_id, %{
+            status: "denied",
+            message: "Join request denied by hive owner"
+          }
+        })
+        {:ok, true}
       :not_found -> {:error, "Request not found"}
     end
   end
 
   def join_request_status(_, %{request_id: request_id}, _) do
-    case Reality2Web.JoinRequests.get_status(request_id) do
+    case apply(@join_requests, :get_status, [request_id]) do
       {:ok, req} ->
         {:ok, %{
           status: Atom.to_string(req.status),
@@ -336,6 +360,46 @@ defmodule Reality2Web.NodeResolver do
         }}
       :not_found ->
         {:error, "Request not found"}
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # BLE-based hive join
+  # -------------------------------------------------------------------------
+
+  def ble_submit_join_request(_, %{peer_id: peer_id, node_name: node_name}, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveJoinBle) do
+      case apply(AiReality2Transnet.HiveJoinBle, :submit_join_request, [peer_id, node_name]) do
+        {:ok, result} ->
+          {:ok, %{
+            status: Map.get(result, :status, "pending"),
+            hive_id: Map.get(result, :hive_id),
+            message: Map.get(result, :message, "Join request sent via BLE")
+          }}
+
+        {:error, reason} ->
+          {:error, "BLE join request failed: #{inspect(reason)}"}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  def ble_join_request_status(_, %{peer_id: peer_id}, _) do
+    if Code.ensure_loaded?(AiReality2Transnet.HiveJoinBle) do
+      case apply(AiReality2Transnet.HiveJoinBle, :check_status, [peer_id]) do
+        {:ok, result} ->
+          {:ok, %{
+            status: Map.get(result, :status, "pending"),
+            hive_id: Map.get(result, :hive_id),
+            message: Map.get(result, :message)
+          }}
+
+        {:error, reason} ->
+          {:error, "BLE status check failed: #{inspect(reason)}"}
+      end
+    else
+      {:error, "Transnet not loaded"}
     end
   end
 

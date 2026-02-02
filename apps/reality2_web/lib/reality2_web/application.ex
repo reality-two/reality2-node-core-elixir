@@ -17,9 +17,7 @@ defmodule Reality2Web.Application do
       Reality2Web.Endpoint,
       {Absinthe.Subscription, Reality2Web.Endpoint},
       # Subscribe to PubSub and republish to GraphQL subscriptions
-      Reality2Web.PubSubSubscriber,
-      # Ephemeral storage for hive join requests
-      Reality2Web.JoinRequests
+      Reality2Web.PubSubSubscriber
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

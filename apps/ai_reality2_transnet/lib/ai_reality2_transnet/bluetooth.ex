@@ -90,39 +90,6 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   @doc """
-  Get list of connected peer nodes.
-
-  DEPRECATED: Use AiReality2Transnet.PeerManager.get_all_peers() instead.
-
-  ## Returns
-  - `%{node_id => %{address, sentants, connected_at}}`
-  """
-  def get_connected_peers do
-    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      AiReality2Transnet.PeerManager.get_all_peers()
-    else
-      %{}
-    end
-  end
-
-  @doc """
-  Get a specific peer's information.
-
-  DEPRECATED: Use AiReality2Transnet.PeerManager.get_peer(peer_id) instead.
-
-  ## Returns
-  - `{:ok, peer_info}` - Peer found
-  - `{:error, :not_found}` - Peer not connected
-  """
-  def get_peer(peer_node_id) do
-    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      AiReality2Transnet.PeerManager.get_peer(peer_node_id)
-    else
-      {:error, :not_found}
-    end
-  end
-
-  @doc """
   Broadcasts an R2 Mesh message to nearby nodes.
 
   This function transmits mesh messages using available BLE mechanisms:
@@ -195,6 +162,8 @@ defmodule AiReality2Transnet.Bluetooth do
       {:ok, final_state} ->
         # Schedule the BLE watchdog timer
         Process.send_after(self(), :ble_watchdog, @watchdog_interval_ms)
+        # Schedule periodic cleanup of stale BLE join request mappings
+        Process.send_after(self(), :cleanup_ble_requests, 600_000)
         Logger.info("#{log_prefix()} BLE watchdog started (check every #{div(@watchdog_interval_ms, 1000)}s)")
         {:ok, Map.put(final_state, :bluetooth_available, true)}
 
@@ -461,8 +430,6 @@ defmodule AiReality2Transnet.Bluetooth do
 
   # List of nodes found during a scan.
   def handle_info({:r2nodes, nodes}, state) do
-    # TODO: notify the pathing Plugin (useful for checking and updating).
-
     Sentants.sendto_all(%{
       event: "__internal",
       parameters: %{nodes: nodes}
@@ -496,6 +463,135 @@ defmodule AiReality2Transnet.Bluetooth do
     end
 
     {:noreply, state}
+  end
+
+  # Hive Join GATT write - a remote node is requesting to join our hive
+  def handle_info({:gatt_write, "hive_join", data}, state) do
+    Logger.info("#{log_prefix()} Hive join GATT write received")
+
+    raw = if is_list(data), do: :binary.list_to_bin(data), else: data
+
+    case AiReality2Transnet.GattProtocol.handle_hive_join_write(raw) do
+      {:ok, %{action: :join_request} = request} ->
+        node_id = request.node_id
+        node_name = request.node_name
+        node_public_key_b64 = request.node_public_key
+        ephemeral_public_key_b64 = request.ephemeral_public_key
+        signature_b64 = request.signature
+
+        Logger.info("#{log_prefix()} Hive join request from #{node_name} (#{node_id})")
+
+        # Verify the request signature to prove the requester holds the private key
+        case verify_join_request_signature(request) do
+          :ok ->
+            # Submit with the actual Ed25519 public key (base64-encoded)
+            case AiReality2Transnet.JoinRequests.submit(node_name, node_public_key_b64) do
+              {:error, :rate_limited} ->
+                Logger.warning("#{log_prefix()} Hive join rate limited for #{node_name}")
+                write_join_ack(state, %{action: "join_request_ack", status: "rate_limited"})
+                {:noreply, state}
+
+              %{id: request_id} = join_request ->
+                # Store mapping with the ephemeral key for encrypting the result
+                ble_join_requests = Map.get(state, :ble_join_requests, %{})
+                ble_join_requests = Map.put(ble_join_requests, request_id, %{
+                  node_id: node_id,
+                  node_name: node_name,
+                  ephemeral_public_key_b64: ephemeral_public_key_b64,
+                  submitted_at: System.system_time(:second)
+                })
+
+                write_join_ack(state, %{
+                  action: "join_request_ack",
+                  request_id: join_request.id,
+                  status: "pending"
+                })
+
+                {:noreply, Map.put(state, :ble_join_requests, ble_join_requests)}
+            end
+
+          {:error, reason} ->
+            Logger.warning("#{log_prefix()} Hive join signature verification failed: #{reason}")
+            write_join_ack(state, %{action: "join_request_ack", status: "invalid_signature"})
+            {:noreply, state}
+        end
+
+      {:error, reason} ->
+        Logger.error("#{log_prefix()} Hive join GATT write error: #{reason}")
+        {:noreply, state}
+    end
+  end
+
+  # PubSub: Hive join request approved/denied - write result back to GATT
+  def handle_info({:hive_join_result, request_id, result}, state) do
+    ble_join_requests = Map.get(state, :ble_join_requests, %{})
+
+    case Map.get(ble_join_requests, request_id) do
+      nil ->
+        # Not a BLE-originated request, ignore
+        {:noreply, state}
+
+      ble_request ->
+        Logger.info("#{log_prefix()} Hive join result for BLE request #{request_id}: #{result.status}")
+
+        # Build the plaintext result payload
+        result_payload = %{
+          action: "join_result",
+          request_id: request_id,
+          status: result.status,
+          hive_id: Map.get(result, :hive_id),
+          cert: Map.get(result, :certificate),
+          hive_public_info: Map.get(result, :hive_public_info),
+          message: Map.get(result, :message)
+        }
+
+        # Encrypt the result if we have the joiner's ephemeral public key
+        response = case Map.get(ble_request, :ephemeral_public_key_b64) do
+          nil ->
+            # Fallback: send unencrypted (shouldn't happen with updated joiner)
+            AiReality2Transnet.GattProtocol.encode_hive_join(result_payload)
+
+          eph_pub_b64 ->
+            case Base.decode64(eph_pub_b64) do
+              {:ok, recipient_x25519_pub} ->
+                encrypted = AiReality2Transnet.GattProtocol.encrypt_join_result(result_payload, recipient_x25519_pub)
+                AiReality2Transnet.GattProtocol.encode_hive_join(encrypted)
+
+              :error ->
+                Logger.warning("#{log_prefix()} Invalid ephemeral key, sending unencrypted")
+                AiReality2Transnet.GattProtocol.encode_hive_join(result_payload)
+            end
+        end
+
+        if handle = Map.get(state, :gatt_handle) do
+          AiReality2Transnet.Action.gatt_write_characteristic(
+            handle,
+            AiReality2Transnet.GattProtocol.hive_join_uuid(),
+            :binary.bin_to_list(response)
+          )
+        end
+
+        # Clean up
+        ble_join_requests = Map.delete(ble_join_requests, request_id)
+        {:noreply, Map.put(state, :ble_join_requests, ble_join_requests)}
+    end
+  end
+
+  # Periodic cleanup of stale BLE join request mappings
+  def handle_info(:cleanup_ble_requests, state) do
+    now = System.system_time(:second)
+    ble_join_requests = Map.get(state, :ble_join_requests, %{})
+
+    cleaned = Map.reject(ble_join_requests, fn {_id, req} ->
+      (now - req.submitted_at) >= 600
+    end)
+
+    if map_size(ble_join_requests) != map_size(cleaned) do
+      Logger.debug("#{log_prefix()} Cleaned #{map_size(ble_join_requests) - map_size(cleaned)} stale BLE join requests")
+    end
+
+    Process.send_after(self(), :cleanup_ble_requests, 600_000)
+    {:noreply, Map.put(state, :ble_join_requests, cleaned)}
   end
 
   # GATT errors
@@ -718,9 +814,6 @@ defmodule AiReality2Transnet.Bluetooth do
         # Initialize the Join Offer characteristic with WiFi hotspot credentials
         update_join_offer_characteristic(handle)
 
-        # TODO: Subscribe to Sentant signals via PubSub
-        # Phoenix.PubSub.subscribe(YourPubSub, "sentant:signals")
-
         {:ok,
          Map.merge(state, %{
            gatt_handle: handle,
@@ -761,7 +854,9 @@ defmodule AiReality2Transnet.Bluetooth do
   defp subscribe_to_pubsub({:ok, state}) do
     # Subscribe to sentant signals from Reality2.PubSub (shared across all apps)
     Phoenix.PubSub.subscribe(Reality2.PubSub, "sentant:signals")
-    Logger.debug("Subscribed to sentant:signals PubSub topic")
+    # Subscribe to hive join results so we can relay them over GATT
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "hive:join_results")
+    Logger.debug("Subscribed to sentant:signals and hive:join_results PubSub topics")
     {:ok, state}
   end
 
@@ -770,30 +865,6 @@ defmodule AiReality2Transnet.Bluetooth do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Beacon and Watch Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
-
-  # Stop the previously started BLE beacon.
-  # defp stop_beacon(state, _params) do
-  #   case Map.get(state, :r2_beacon) do
-  #     nil ->
-  #       {:ok, state}
-
-  #     h ->
-  #       AiReality2Transnet.Action.stop_broadcast(h)
-  #       {:ok, Map.put(state, :r2_beacon, nil)}
-  #   end
-  # end
-
-  # Stop watching for nearby Reality2 Nodes.
-  # defp stop_watch(state, _params) do
-  #   case Map.get(state, :r2_watch) do
-  #     nil ->
-  #       {:ok, state}
-
-  #     h ->
-  #       AiReality2Transnet.Action.stop_watching(h)
-  #       {:ok, Map.put(state, :r2_watch, nil)}
-  #   end
-  # end
 
   # List the Bluetooth adapters on this device.
   defp list_adapters(state) do
@@ -929,14 +1000,9 @@ defmodule AiReality2Transnet.Bluetooth do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   defp fetch_all_sentants do
-    # TODO: Replace with your actual Sentant registry
-    # YourSentantModule.list_all_sentants()
-    # |> Enum.map(&format_sentant/1)
-    #
     {:ok, sentants} = Reality2.Sentants.read_all(:definition)
-    sentants_map = Enum.map(sentants, fn sentant -> sentant end)
-    Logger.debug("Fetched all sentants: #{inspect(sentants_map, pretty: false, limit: 500)}")
-    sentants_map
+    Logger.debug("Fetched all sentants: #{inspect(sentants, pretty: false, limit: 500)}")
+    sentants
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -1030,8 +1096,12 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   defp update_join_offer_characteristic(handle) do
-    # Use GattProtocol to encode WiFi hotspot join offer
-    json = AiReality2Transnet.GattProtocol.encode_join_offer()
+    # Get hosting config and encode WiFi hotspot join offer
+    config = case AiReality2Transnet.ConnectionManager.get_hosting_config() do
+      {:ok, c} -> c
+      _ -> nil
+    end
+    json = AiReality2Transnet.GattProtocol.encode_join_offer(config)
     binary_data = :binary.bin_to_list(json)
 
     Logger.info("Writing #{byte_size(json)} bytes to join offer characteristic")
@@ -1091,19 +1161,50 @@ defmodule AiReality2Transnet.Bluetooth do
   defp truncate_if_needed(json, _max_size), do: json
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Peer Connection Helpers (DEPRECATED - Use WiFi Mesh HTTP)
+  # Hive Join Security Helpers
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # NOTE: These functions are deprecated. BLE is now for discovery only.
-  # For Sentant queries, use WiFi Mesh HTTP via WifiServer module.
-  #
-  # Old flow (removed):
-  #   BLE Beacon → GATT Connect → Read Sentants (512 byte limit!)
-  #
-  # New flow (current):
-  #   BLE Beacon → Register with PeerManager → Upgrade to WiFi Mesh → HTTP Query
-  #
-  # To query remote sentants:
-  #   {:ok, peer} = AiReality2Transnet.PeerManager.get_peer(node_id)
-  #   {:ok, sentants} = AiReality2Transnet.WifiServer.query_peer_sentants(peer.ipv6_link_local)
+  # Verify the Ed25519 signature on a join request to prove key ownership
+  defp verify_join_request_signature(%{
+    node_id: node_id,
+    node_name: node_name,
+    node_public_key: node_public_key_b64,
+    ephemeral_public_key: ephemeral_public_key_b64,
+    signature: signature_b64
+  }) when is_binary(node_public_key_b64) and is_binary(signature_b64) do
+    with {:ok, public_key} <- Base.decode64(node_public_key_b64),
+         {:ok, signature} <- Base.decode64(signature_b64) do
+      # Reconstruct the canonical signed message
+      message = AiReality2Transnet.GattProtocol.join_request_signable(
+        node_id, node_name, node_public_key_b64, ephemeral_public_key_b64
+      )
+
+      if :crypto.verify(:eddsa, :none, message, signature, [public_key, :ed25519]) do
+        :ok
+      else
+        {:error, "signature_mismatch"}
+      end
+    else
+      :error -> {:error, "invalid_base64"}
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    _ -> {:error, "signature_verification_exception"}
+  end
+
+  defp verify_join_request_signature(_), do: {:error, "missing_signature_fields"}
+
+  # Write a join ack/error to the GATT characteristic
+  defp write_join_ack(state, payload) do
+    ack = AiReality2Transnet.GattProtocol.encode_hive_join(payload)
+
+    if handle = Map.get(state, :gatt_handle) do
+      AiReality2Transnet.Action.gatt_write_characteristic(
+        handle,
+        AiReality2Transnet.GattProtocol.hive_join_uuid(),
+        :binary.bin_to_list(ack)
+      )
+    end
+  end
+
 end

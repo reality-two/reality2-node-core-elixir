@@ -16,7 +16,6 @@ defmodule AiReality2Transnet.Main do
   use GenServer, restart: :transient
   require Logger
   alias Reality2.Helpers.R2Map, as: R2Map
-  # alias Reality2.Helpers.Convert, as: Convert
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Supervisor Callbacks

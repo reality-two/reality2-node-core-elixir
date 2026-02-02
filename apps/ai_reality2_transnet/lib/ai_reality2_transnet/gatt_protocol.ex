@@ -68,11 +68,14 @@ defmodule AiReality2Transnet.GattProtocol do
   @network_command_char_uuid "00001236-0000-1000-8000-00805f9b34fb"
   # Minimal node info
   @node_info_char_uuid "00001237-0000-1000-8000-00805f9b34fb"
+  # Hive join requests/responses
+  @hive_join_char_uuid "00001238-0000-1000-8000-00805f9b34fb"
 
   def service_uuid, do: @reality2_service_uuid
   def join_offer_uuid, do: @join_offer_char_uuid
   def network_command_uuid, do: @network_command_char_uuid
   def node_info_uuid, do: @node_info_char_uuid
+  def hive_join_uuid, do: @hive_join_char_uuid
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Encoding Functions
@@ -115,39 +118,34 @@ defmodule AiReality2Transnet.GattProtocol do
   ## Returns
   JSON string with join offer details
   """
-  @spec encode_join_offer() :: String.t()
-  def encode_join_offer do
-    # Get current hosting configuration
-    case AiReality2Transnet.ConnectionManager.get_hosting_config() do
-      {:ok, config} ->
-        node_id = Reality2.Bootstrap.get(:node_id)
+  @spec encode_join_offer(map() | nil) :: String.t()
+  def encode_join_offer(config) when is_map(config) do
+    node_id = Reality2.Bootstrap.get(:node_id)
 
-        payload = %{
-          hotspot_available: true,
-          ssid: config.ssid,
-          psk: config.psk,
-          channel: config.channel,
-          security: "WPA2-PSK",
-          rendezvous_ip: config.ip_address,
-          rendezvous_port: config.port,
-          # Valid for 5 minutes
-          offer_expiry: System.system_time(:second) + 300,
-          host_node_id: node_id,
-          timestamp: System.system_time(:millisecond)
-        }
+    payload = %{
+      hotspot_available: true,
+      ssid: config.ssid,
+      psk: config.psk,
+      channel: config.channel,
+      security: "WPA2-PSK",
+      rendezvous_ip: config.ip_address,
+      rendezvous_port: config.port,
+      offer_expiry: System.system_time(:second) + 300,
+      host_node_id: node_id,
+      timestamp: System.system_time(:millisecond)
+    }
 
-        Jason.encode!(payload)
+    Jason.encode!(payload)
+  end
 
-      {:error, :not_hosting} ->
-        # Not hosting - return unavailable
-        payload = %{
-          hotspot_available: false,
-          message: "This node is not hosting a hotspot",
-          timestamp: System.system_time(:millisecond)
-        }
+  def encode_join_offer(_) do
+    payload = %{
+      hotspot_available: false,
+      message: "This node is not hosting a hotspot",
+      timestamp: System.system_time(:millisecond)
+    }
 
-        Jason.encode!(payload)
-    end
+    Jason.encode!(payload)
   end
 
   @doc """
@@ -298,63 +296,182 @@ defmodule AiReality2Transnet.GattProtocol do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # GATT Handlers (called when GATT reads/writes occur)
+  # Hive Join GATT Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   @doc """
-  Handles a GATT read request for minimal node info.
+  Encodes a hive join request for GATT transmission.
 
-  Returns only basic node metadata and Sentant count, NOT full list.
+  ## Parameters
+  - `params` - Map with :action and action-specific fields
 
   ## Returns
-  Binary data containing minimal node info
+  JSON string ready for GATT write
   """
-  @spec handle_node_info_read(String.t()) :: binary()
-  def handle_node_info_read(node_id) do
-    json = encode_node_info(node_id)
-    Logger.debug("[GATT Protocol] Node info read: #{byte_size(json)} bytes")
-    json
+  @spec encode_hive_join(map()) :: String.t()
+  def encode_hive_join(params) do
+    Jason.encode!(params)
   end
 
   @doc """
-  Handles a GATT read request for WiFi hotspot join offer.
+  Constructs the canonical signable string for a join request.
 
-  Returns complete connection credentials and rendezvous information.
-
-  ## Returns
-  Binary data containing join offer
+  Used by both the joiner (to sign) and the hive owner (to verify).
   """
-  @spec handle_join_offer_read() :: binary()
-  def handle_join_offer_read do
-    json = encode_join_offer()
-    Logger.debug("[GATT Protocol] Join offer read: #{byte_size(json)} bytes")
-    json
+  @spec join_request_signable(String.t(), String.t(), String.t(), String.t()) :: String.t()
+  def join_request_signable(node_id, node_name, node_public_key_b64, ephemeral_public_key_b64) do
+    "join_request|node_id=#{node_id}|node_name=#{node_name}|node_public_key=#{node_public_key_b64}|ephemeral_public_key=#{ephemeral_public_key_b64}"
   end
 
   @doc """
-  Handles a GATT write request for network coordination command.
+  Encrypts a join result payload for a specific recipient using ECDH.
 
-  Called when a remote device writes to the network command characteristic.
+  Generates an ephemeral X25519 keypair, performs DH with the recipient's
+  X25519 public key, and encrypts with AES-256-GCM.
+
+  ## Parameters
+  - `payload_map` - The join result map to encrypt
+  - `recipient_x25519_pub` - Recipient's X25519 public key (32 bytes)
+
+  ## Returns
+  Map with encrypted data and ephemeral public key for decryption
+  """
+  @spec encrypt_join_result(map(), binary()) :: map()
+  def encrypt_join_result(payload_map, recipient_x25519_pub) do
+    {sender_pub, sender_priv} = :crypto.generate_key(:ecdh, :x25519)
+    shared = :crypto.compute_key(:ecdh, recipient_x25519_pub, sender_priv, :x25519)
+    key = :crypto.hash(:sha256, shared)
+    iv = :crypto.strong_rand_bytes(12)
+    plaintext = Jason.encode!(payload_map)
+
+    {ciphertext, tag} = :crypto.crypto_one_time_aead(
+      :aes_256_gcm, key, iv, plaintext, <<>>, 16, true
+    )
+
+    %{
+      action: "join_result_encrypted",
+      ephemeral_public_key: Base.encode64(sender_pub),
+      iv: Base.encode64(iv),
+      tag: Base.encode64(tag),
+      ciphertext: Base.encode64(ciphertext)
+    }
+  end
+
+  @doc """
+  Decrypts an encrypted join result using our X25519 private key.
+
+  ## Parameters
+  - `encrypted_msg` - Map with encrypted fields
+  - `my_x25519_priv` - Our ephemeral X25519 private key (32 bytes)
+
+  ## Returns
+  - `{:ok, decrypted_map}` - Successfully decrypted
+  - `{:error, reason}` - Failed to decrypt
+  """
+  @spec decrypt_join_result(map(), binary()) :: {:ok, map()} | {:error, String.t()}
+  def decrypt_join_result(encrypted_msg, my_x25519_priv) do
+    with {:ok, sender_pub} <- decode_field(encrypted_msg, :ephemeral_public_key),
+         {:ok, iv} <- decode_field(encrypted_msg, :iv),
+         {:ok, tag} <- decode_field(encrypted_msg, :tag),
+         {:ok, ciphertext} <- decode_field(encrypted_msg, :ciphertext) do
+      shared = :crypto.compute_key(:ecdh, sender_pub, my_x25519_priv, :x25519)
+      key = :crypto.hash(:sha256, shared)
+
+      case :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, ciphertext, <<>>, tag, false) do
+        plaintext when is_binary(plaintext) ->
+          case Jason.decode(plaintext, keys: :atoms) do
+            {:ok, map} -> {:ok, map}
+            _ -> {:error, "json_decode_failed_after_decrypt"}
+          end
+
+        :error ->
+          {:error, "decryption_failed"}
+      end
+    end
+  rescue
+    error -> {:error, "decrypt_exception: #{inspect(error)}"}
+  end
+
+  @doc """
+  Decodes a hive join message received via GATT.
+
+  ## Parameters
+  - `data` - Binary data from GATT read/write/notify
+
+  ## Returns
+  - `{:ok, message}` - Successfully decoded with :action field
+  - `{:error, reason}` - Failed to decode
+  """
+  @spec decode_hive_join(binary() | list()) :: {:ok, map()} | {:error, String.t()}
+  def decode_hive_join(data) do
+    with {:ok, json} <- safe_to_string(data),
+         {:ok, decoded} <- Jason.decode(json) do
+      case decoded do
+        %{"action" => "join_request"} = msg ->
+          {:ok, %{
+            action: :join_request,
+            node_id: Map.get(msg, "node_id"),
+            node_name: Map.get(msg, "node_name"),
+            node_public_key: Map.get(msg, "node_public_key"),
+            ephemeral_public_key: Map.get(msg, "ephemeral_public_key"),
+            signature: Map.get(msg, "signature")
+          }}
+
+        %{"action" => "join_result_encrypted"} = msg ->
+          {:ok, %{
+            action: :join_result_encrypted,
+            ephemeral_public_key: Map.get(msg, "ephemeral_public_key"),
+            iv: Map.get(msg, "iv"),
+            tag: Map.get(msg, "tag"),
+            ciphertext: Map.get(msg, "ciphertext")
+          }}
+
+        %{"action" => "join_result"} = msg ->
+          {:ok, %{
+            action: :join_result,
+            status: Map.get(msg, "status"),
+            hive_id: Map.get(msg, "hive_id"),
+            cert: Map.get(msg, "cert"),
+            hive_public_info: Map.get(msg, "hive_public_info"),
+            message: Map.get(msg, "message")
+          }}
+
+        _ ->
+          {:error, "unknown_hive_join_action"}
+      end
+    else
+      {:error, reason} -> {:error, "hive_join_decode_failed: #{inspect(reason)}"}
+    end
+  rescue
+    error -> {:error, "hive_join_decode_exception: #{inspect(error)}"}
+  end
+
+  @doc """
+  Handles a GATT write for hive join requests.
+  Called on the hive owner when a remote device writes a join request.
 
   ## Parameters
   - `data` - Binary data written by the client
 
   ## Returns
-  - `:ok` - Command executed successfully
-  - `{:error, reason}` - Failed to execute command
+  - `{:ok, result}` - Request processed
+  - `{:error, reason}` - Failed to process
   """
-  @spec handle_network_command_write(binary()) :: :ok | {:error, String.t()}
-  def handle_network_command_write(data) do
-    Logger.debug("[GATT Protocol] Received network command: #{byte_size(data)} bytes")
+  @spec handle_hive_join_write(binary()) :: {:ok, map()} | {:error, String.t()}
+  def handle_hive_join_write(data) do
+    Logger.debug("[GATT Protocol] Received hive join write: #{byte_size(data)} bytes")
 
-    with {:ok, json} <- safe_to_string(data),
-         {:ok, command} <- decode_network_command(json),
-         {:ok, _result} <- execute_network_command(command) do
-      Logger.info("[GATT Protocol] Network command executed: #{command.command}")
-      :ok
-    else
+    case decode_hive_join(data) do
+      {:ok, %{action: :join_request} = request} ->
+        Logger.info("[GATT Protocol] Hive join request from node: #{request.node_name} (#{request.node_id})")
+        {:ok, request}
+
+      {:ok, other} ->
+        Logger.warning("[GATT Protocol] Unexpected hive join action: #{inspect(other)}")
+        {:error, "unexpected_action"}
+
       {:error, reason} ->
-        Logger.error("[GATT Protocol] Network command failed: #{inspect(reason)}")
+        Logger.error("[GATT Protocol] Hive join decode failed: #{reason}")
         {:error, reason}
     end
   end
@@ -362,6 +479,15 @@ defmodule AiReality2Transnet.GattProtocol do
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Private Helper Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  # Decode a base64 field from a map (supports both atom and string keys)
+  defp decode_field(map, key) do
+    value = Map.get(map, key) || Map.get(map, to_string(key))
+    case value do
+      nil -> {:error, "missing_field: #{key}"}
+      b64 -> Base.decode64(b64)
+    end
+  end
 
   # Check if WiFi is available
   defp wifi_available? do
@@ -385,39 +511,4 @@ defmodule AiReality2Transnet.GattProtocol do
   end
 
   defp safe_to_string(_), do: {:error, "not_binary"}
-
-  # Execute a network command (join/leave hotspot)
-  defp execute_network_command(%{command: command, parameters: params}) do
-    case command do
-      :join_network ->
-        # Extract join offer from parameters
-        join_offer = %{
-          ssid: Map.get(params, :ssid) || Map.get(params, "ssid"),
-          psk: Map.get(params, :psk) || Map.get(params, "psk"),
-          channel: Map.get(params, :channel) || Map.get(params, "channel", 6),
-          rendezvous_ip: Map.get(params, :rendezvous_ip) || Map.get(params, "rendezvous_ip"),
-          rendezvous_port:
-            Map.get(params, :rendezvous_port) || Map.get(params, "rendezvous_port", 4005),
-          offer_expiry:
-            Map.get(params, :offer_expiry) || Map.get(params, "offer_expiry") ||
-              System.system_time(:second) + 300,
-          host_node_id: Map.get(params, :host_node_id) || Map.get(params, "host_node_id")
-        }
-
-        # Get peer_id from host_node_id
-        peer_id = join_offer.host_node_id
-
-        # Connect to host
-        case AiReality2Transnet.ConnectionManager.connect_to_host(peer_id, join_offer) do
-          {:ok, _info} -> {:ok, :connected}
-          error -> error
-        end
-
-      :leave_network ->
-        AiReality2Transnet.ConnectionManager.disconnect_from_current_host()
-
-      _ ->
-        {:error, :unknown_command}
-    end
-  end
 end

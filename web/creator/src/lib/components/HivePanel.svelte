@@ -33,11 +33,14 @@
   let importData = $state("");
   let showKeySection = $state(false);
 
-  // --- Approval-based joining (joiner side) ---
+  // --- Approval-based joining (joiner side, BLE GATT) ---
   let joiningPeerId = $state<string | null>(null);       // peer nodeId we're requesting to join
-  let joinRequestId = $state<string | null>(null);        // request ID returned by key holder
-  let joinTargetR2 = $state<R2 | null>(null);             // R2 client for key holder node
   let joinPollingTimer: ReturnType<typeof setInterval> | null = null;
+  let joinMethod = $state<"ble" | "ip" | null>(null);    // which method is active
+
+  // --- IP-based joining state ---
+  let ipJoinRequestId: string | null = null;
+  let ipJoinRemoteR2: R2 | null = null;
 
   // --- Approval-based joining (key holder side) ---
   let pendingRequests = $state<any[]>([]);
@@ -139,62 +142,107 @@
 
   // --- Joiner: Request to join a peer's hive ---
 
-  async function handleRequestToJoin(peer: any) {
-    const ip = getPeerIp(peer);
-    if (!ip) {
-      status("Cannot reach peer — no IP address");
-      return;
-    }
-    joiningPeerId = peer.nodeId;
-    try {
-      // 1. Get our public key
-      const keyResult: any = await r2.hiveGetPublicKey();
-      if (keyResult?.errors) {
-        status("Error getting public key: " + keyResult.errors[0]?.message);
-        joiningPeerId = null;
-        return;
-      }
-      const publicKey = keyResult?.data?.hiveGetPublicKey;
-      if (!publicKey) {
-        status("Error: no public key returned");
-        joiningPeerId = null;
-        return;
-      }
+  // Determine the best join method for a peer
+  function getJoinMethod(peer: any): "ble" | "ip" | null {
+    // Prefer BLE if the peer has a BLE address (works on local networks with self-signed certs)
+    if (peer.reachability?.ble?.confidence > 0) return "ble";
+    // Fall back to IP if the peer has a WiFi IP (works for cloud nodes with valid certs)
+    if (getPeerIp(peer)) return "ip";
+    return null;
+  }
 
-      // 2. Connect to key holder and submit join request
-      const port = parseInt(DEFAULT_PORT);
-      let remoteR2: R2;
-      let submitResult: any;
-      try {
-        remoteR2 = new R2(ip, port, true);
-        submitResult = await remoteR2.hiveSubmitJoinRequest(nodeInfo?.nodeName || "unknown", publicKey);
-      } catch {
-        remoteR2 = new R2(ip, port, false);
-        submitResult = await remoteR2.hiveSubmitJoinRequest(nodeInfo?.nodeName || "unknown", publicKey);
-      }
+  async function handleRequestToJoin(peer: any) {
+    const method = getJoinMethod(peer);
+    if (!method) return;
+
+    if (method === "ip") {
+      await handleRequestToJoinIP(peer);
+    } else {
+      await handleRequestToJoinBLE(peer);
+    }
+  }
+
+  // --- BLE-based join ---
+
+  async function handleRequestToJoinBLE(peer: any) {
+    joiningPeerId = peer.nodeId;
+    joinMethod = "ble";
+    try {
+      const submitResult: any = await r2.hiveBleSubmitJoinRequest(peer.nodeId, nodeInfo?.nodeName || "unknown");
 
       if (submitResult?.errors) {
-        status("Error: " + submitResult.errors[0]?.message);
-        joiningPeerId = null;
+        status("Join request failed: " + submitResult.errors[0]?.message);
+        resetJoinState();
         return;
       }
 
-      const reqData = submitResult?.data?.hiveSubmitJoinRequest;
-      if (!reqData?.id) {
-        status("Error: no request ID returned");
-        joiningPeerId = null;
+      const data = submitResult?.data?.hiveBleSubmitJoinRequest;
+      if (data?.status === "approved") {
+        status("Joined hive successfully!");
+        resetJoinState();
+        onRefresh?.();
         return;
       }
 
-      // 3. Start polling for approval
-      joinRequestId = reqData.id;
-      joinTargetR2 = remoteR2;
+      status("Join request sent via BLE — waiting for approval...");
       startJoinPolling();
     } catch (err) {
       status("Join request error: " + (err as Error).message);
-      joiningPeerId = null;
+      resetJoinState();
     }
   }
+
+  // --- IP-based join ---
+
+  async function handleRequestToJoinIP(peer: any) {
+    const ip = getPeerIp(peer);
+    if (!ip) return;
+
+    joiningPeerId = peer.nodeId;
+    joinMethod = "ip";
+    try {
+      // Get our public key from local server
+      const pubKeyResult: any = await r2.hiveGetPublicKey();
+      const publicKey = pubKeyResult?.data?.hiveGetPublicKey;
+      if (!publicKey) {
+        status("Failed to get public key");
+        resetJoinState();
+        return;
+      }
+
+      // Create R2 client pointing to remote node
+      ipJoinRemoteR2 = new R2(ip, DEFAULT_PORT, true);
+
+      // Submit join request to remote server
+      const submitResult: any = await ipJoinRemoteR2.hiveSubmitJoinRequest(
+        nodeInfo?.nodeName || "unknown",
+        publicKey
+      );
+
+      if (submitResult?.errors) {
+        status("IP join failed: " + submitResult.errors[0]?.message);
+        resetJoinState();
+        return;
+      }
+
+      const data = submitResult?.data?.hiveSubmitJoinRequest;
+      ipJoinRequestId = data?.id;
+
+      if (!ipJoinRequestId) {
+        status("Failed to get request ID from remote");
+        resetJoinState();
+        return;
+      }
+
+      status("Join request sent via IP — waiting for approval...");
+      startJoinPolling();
+    } catch (err) {
+      status("IP join error: " + (err as Error).message);
+      resetJoinState();
+    }
+  }
+
+  // --- Shared polling ---
 
   function startJoinPolling() {
     if (joinPollingTimer) clearInterval(joinPollingTimer);
@@ -202,36 +250,71 @@
   }
 
   async function pollJoinStatus() {
-    if (!joinRequestId || !joinTargetR2) return;
+    if (!joiningPeerId) return;
+
+    if (joinMethod === "ip") {
+      await pollIpJoinStatus();
+    } else {
+      await pollBleJoinStatus();
+    }
+  }
+
+  async function pollBleJoinStatus() {
+    if (!joiningPeerId) return;
     try {
-      const result: any = await joinTargetR2.hiveJoinRequestStatus(joinRequestId);
-      if (result?.errors) return; // keep polling
+      const result: any = await r2.hiveBleJoinRequestStatus(joiningPeerId);
+      if (result?.errors) return;
+
+      const data = result?.data?.hiveBleJoinRequestStatus;
+      if (!data) return;
+
+      if (data.status === "approved") {
+        stopJoinPolling();
+        status("Joined hive successfully!");
+        resetJoinState();
+        onRefresh?.();
+      } else if (data.status === "denied") {
+        stopJoinPolling();
+        status("Join request was denied");
+        resetJoinState();
+      }
+    } catch {
+      // GATT read error, keep polling
+    }
+  }
+
+  async function pollIpJoinStatus() {
+    if (!ipJoinRequestId || !ipJoinRemoteR2) return;
+    try {
+      const result: any = await ipJoinRemoteR2.hiveJoinRequestStatus(ipJoinRequestId);
+      if (result?.errors) return;
 
       const data = result?.data?.hiveJoinRequestStatus;
       if (!data) return;
 
       if (data.status === "approved" && data.certificate && data.hivePublicInfo) {
-        // Auto-finalize
         stopJoinPolling();
-        const memberResult: any = await r2.hiveJoinAsMember(data.hivePublicInfo, data.certificate);
-        if (memberResult?.errors) {
-          status("Error finalizing join: " + memberResult.errors[0]?.message);
+
+        // Parse cert and hive info if they're JSON strings
+        const cert = typeof data.certificate === "string" ? JSON.parse(data.certificate) : data.certificate;
+        const hiveInfo = typeof data.hivePublicInfo === "string" ? JSON.parse(data.hivePublicInfo) : data.hivePublicInfo;
+
+        // Install certificate on local server
+        const joinResult: any = await r2.hiveJoinAsMember(hiveInfo, cert);
+        if (joinResult?.errors) {
+          status("Failed to install certificate: " + joinResult.errors[0]?.message);
         } else {
-          status("Joined hive successfully!");
+          status("Joined hive successfully via IP!");
           onRefresh?.();
         }
-        joiningPeerId = null;
-        joinRequestId = null;
-        joinTargetR2 = null;
+        resetJoinState();
       } else if (data.status === "denied") {
         stopJoinPolling();
         status("Join request was denied");
-        joiningPeerId = null;
-        joinRequestId = null;
-        joinTargetR2 = null;
+        resetJoinState();
       }
     } catch {
-      // network error, keep polling
+      // keep polling
     }
   }
 
@@ -239,11 +322,16 @@
     if (joinPollingTimer) { clearInterval(joinPollingTimer); joinPollingTimer = null; }
   }
 
-  function cancelJoinRequest() {
+  function resetJoinState() {
     stopJoinPolling();
     joiningPeerId = null;
-    joinRequestId = null;
-    joinTargetR2 = null;
+    joinMethod = null;
+    ipJoinRequestId = null;
+    ipJoinRemoteR2 = null;
+  }
+
+  function cancelJoinRequest() {
+    resetJoinState();
   }
 
   // --- Key holder: Manage incoming join requests ---
@@ -351,10 +439,6 @@
     return null;
   }
 
-  // Peers that have a hive and we could join
-  let joinablePeers = $derived(
-    peers.filter((p: any) => p.hiveId && !p.isSameHive && getPeerIp(p))
-  );
 </script>
 
 <div class="hive-panel">
@@ -478,7 +562,7 @@
           Waiting for Approval
         </h4>
         <p style="font-size: 13px; color: #555;">
-          Your join request has been sent. Waiting for the key holder to approve...
+          Your join request has been sent via {joinMethod === "ble" ? "BLE" : "IP"}. Waiting for the key holder to approve...
         </p>
         <button class="ui mini basic button" onclick={cancelJoinRequest}>
           <i class="times icon"></i> Cancel
@@ -549,7 +633,8 @@
       {:else}
         <div class="peer-list">
           {#each peers as peer}
-            {@const canJoin = !joiningPeerId && peer.hiveId && !peer.isSameHive && getPeerIp(peer)}
+            {@const peerJoinMethod = getJoinMethod(peer)}
+            {@const canJoin = !joiningPeerId && peer.hiveId && !peer.isSameHive && peerJoinMethod !== null}
             <div class="peer-card" class:same-hive={peer.isSameHive}>
               <div class="peer-header">
                 <span class="peer-name">{peer.nodeName || 'Unknown'}</span>
@@ -603,13 +688,14 @@
                 <div class="join-action">
                   <button class="ui mini primary button" onclick={() => handleRequestToJoin(peer)}>
                     <i class="sign-in icon"></i> Request to Join Hive
+                    <span style="opacity: 0.7; font-size: 11px;">({peerJoinMethod === "ble" ? "BLE" : "IP"})</span>
                   </button>
                 </div>
               {/if}
               {#if joiningPeerId === peer.nodeId}
                 <div class="join-action">
                   <span class="join-waiting">
-                    <i class="spinner loading icon"></i> Waiting for approval...
+                    <i class="spinner loading icon"></i> Waiting for approval via {joinMethod === "ble" ? "BLE" : "IP"}...
                   </span>
                 </div>
               {/if}

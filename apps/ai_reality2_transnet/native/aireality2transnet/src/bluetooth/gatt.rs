@@ -23,6 +23,7 @@ const CHAR_DATA_UUID: Uuid = Uuid::from_u128(0x00002A58_0000_1000_8000_00805F9B3
 const CHAR_NOTIFY_UUID: Uuid = Uuid::from_u128(0x00002A59_0000_1000_8000_00805F9B34FB);
 const MESH_INFO_CHAR_UUID: Uuid = Uuid::from_u128(0x00001235_0000_1000_8000_00805F9B34FB);
 const NODE_INFO_CHAR_UUID: Uuid = Uuid::from_u128(0x00001237_0000_1000_8000_00805F9B34FB);
+const HIVE_JOIN_CHAR_UUID: Uuid = Uuid::from_u128(0x00001238_0000_1000_8000_00805F9B34FB);
 
 // -------------------------------------------------------------------------------------------
 // GATT Server Types
@@ -199,13 +200,18 @@ async fn run_gatt_server(
     let notify_data = CharacteristicData::new(vec![]);
     let mesh_info_data = CharacteristicData::new(vec![]);
     let node_info_data = CharacteristicData::new(vec![]);
+    let hive_join_data = CharacteristicData::new(vec![]);
 
     // Build GATT service
     let (notify_tx, notify_notifier_rx) = mpsc::unbounded_channel();
     notify_data.set_notifier(notify_tx);
 
+    let (hive_join_notify_tx, hive_join_notify_rx) = mpsc::unbounded_channel();
+    hive_join_data.set_notifier(hive_join_notify_tx);
+
     // Wrap the receiver in Arc<tokio::sync::Mutex<>> so it can be shared across async contexts
     let notify_rx_shared = Arc::new(tokio::sync::Mutex::new(notify_notifier_rx));
+    let hive_join_notify_rx_shared = Arc::new(tokio::sync::Mutex::new(hive_join_notify_rx));
 
     let command_data_clone = command_data.clone();
     let command_data_read = command_data.clone();
@@ -218,7 +224,12 @@ async fn run_gatt_server(
     let mesh_info_data_write = mesh_info_data.clone();
     let node_info_data_read = node_info_data.clone();
     let node_info_data_write = node_info_data.clone();
+    let hive_join_data_clone = hive_join_data.clone();
+    let hive_join_data_read = hive_join_data.clone();
+    let hive_join_data_write = hive_join_data.clone();
+    let hive_join_data_notify_clone = hive_join_data.clone();
     let pid_clone = pid.clone();
+    let pid_hive_join = pid.clone();
 
     let service = Service {
         uuid: R2_SERVICE_UUID,
@@ -363,6 +374,65 @@ async fn run_gatt_server(
                 }),
                 ..Default::default()
             },
+            // Hive Join characteristic (read/write/notify)
+            Characteristic {
+                uuid: HIVE_JOIN_CHAR_UUID,
+                write: Some(CharacteristicWrite {
+                    write: true,
+                    write_without_response: false,
+                    method: CharacteristicWriteMethod::Fun(Box::new(
+                        move |new_value, _req_data| {
+                            let data = hive_join_data_clone.clone();
+                            let pid = pid_hive_join.clone();
+                            Box::pin(async move {
+                                eprint!("[debug] GATT HIVE_JOIN char write from client: {} bytes\r\n", new_value.len());
+                                data.write(new_value.clone());
+                                send_msg(&pid, |env| {
+                                    (atoms::gatt_write(), "hive_join", new_value.clone()).encode(env)
+                                });
+                                Ok(())
+                            })
+                        },
+                    )),
+                    ..Default::default()
+                }),
+                read: Some(CharacteristicRead {
+                    read: true,
+                    fun: Box::new(move |_req_data| {
+                        let data = hive_join_data_read.clone();
+                        Box::pin(async move {
+                            let value = data.read();
+                            eprint!("[debug] GATT HIVE_JOIN char read request - returning {} bytes\r\n", value.len());
+                            Ok(value)
+                        })
+                    }),
+                    ..Default::default()
+                }),
+                notify: Some(CharacteristicNotify {
+                    notify: true,
+                    method: CharacteristicNotifyMethod::Fun(Box::new(move |mut notifier| {
+                        let rx_lock = hive_join_notify_rx_shared.clone();
+                        Box::pin(async move {
+                            loop {
+                                let value_opt = {
+                                    let mut rx = rx_lock.lock().await;
+                                    rx.recv().await
+                                };
+                                match value_opt {
+                                    Some(value) => {
+                                        if notifier.notify(value).await.is_err() {
+                                            break;
+                                        }
+                                    }
+                                    None => break,
+                                }
+                            }
+                        })
+                    })),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
         ],
         ..Default::default()
     };
@@ -412,6 +482,10 @@ async fn run_gatt_server(
                 } else if uuid == NODE_INFO_CHAR_UUID {
                     eprint!("[debug] GATT received programmatic write to NODE_INFO char: {} bytes\r\n", data.len());
                     node_info_data_write.write(data);
+                } else if uuid == HIVE_JOIN_CHAR_UUID {
+                    eprint!("[debug] GATT received programmatic write to HIVE_JOIN char: {} bytes\r\n", data.len());
+                    hive_join_data_write.write(data.clone());
+                    hive_join_data_notify_clone.notify(data);
                 }
             }
 

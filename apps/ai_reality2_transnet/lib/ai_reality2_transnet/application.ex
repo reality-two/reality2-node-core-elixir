@@ -61,6 +61,13 @@ defmodule AiReality2Transnet.Application do
         restart: :transient
       },
 
+      # JoinRequests - ephemeral storage for pending hive join requests
+      %{
+        id: AiReality2Transnet.JoinRequests,
+        start: {AiReality2Transnet.JoinRequests, :start_link, [[]]},
+        restart: :permanent
+      },
+
       # HiveIdentity - cryptographic identity for the Hive
       # MUST start before PeerManager since peers need Hive context
       %{
@@ -117,6 +124,13 @@ defmodule AiReality2Transnet.Application do
       %{
         id: AiReality2Transnet.R2Mesh,
         start: {AiReality2Transnet.R2Mesh, :start_link, [[]]},
+        restart: :permanent
+      },
+
+      # HiveJoinBle - joiner-side BLE GATT client for hive join requests
+      %{
+        id: AiReality2Transnet.HiveJoinBle,
+        start: {AiReality2Transnet.HiveJoinBle, :start_link, [[]]},
         restart: :permanent
       }
     ]

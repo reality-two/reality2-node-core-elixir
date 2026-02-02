@@ -115,6 +115,12 @@ defmodule Reality2Web.Schema.Node do
     field(:hive_public_info, :json, description: "Hive public info (when approved)")
   end
 
+  object :ble_join_result do
+    field(:status, non_null(:string), description: "pending, approved, denied, or error")
+    field(:hive_id, :string, description: "Hive UUID (when approved)")
+    field(:message, :string, description: "Human-readable status message")
+  end
+
   # --- Queries ---
 
   object :node_queries do
@@ -142,6 +148,12 @@ defmodule Reality2Web.Schema.Node do
     field :hive_join_request_status, :join_status do
       arg(:request_id, non_null(:string))
       resolve(&NodeResolver.join_request_status/3)
+    end
+
+    @desc "Check the status of a BLE-based hive join request"
+    field :hive_ble_join_request_status, :ble_join_result do
+      arg(:peer_id, non_null(:id))
+      resolve(&NodeResolver.ble_join_request_status/3)
     end
   end
 
@@ -213,6 +225,13 @@ defmodule Reality2Web.Schema.Node do
     field :hive_deny_join_request, :boolean do
       arg(:request_id, non_null(:string))
       resolve(&NodeResolver.deny_join_request/3)
+    end
+
+    @desc "Submit a hive join request via BLE GATT (called on the joiner node)"
+    field :hive_ble_submit_join_request, :ble_join_result do
+      arg(:peer_id, non_null(:id))
+      arg(:node_name, non_null(:string))
+      resolve(&NodeResolver.ble_submit_join_request/3)
     end
   end
 end
