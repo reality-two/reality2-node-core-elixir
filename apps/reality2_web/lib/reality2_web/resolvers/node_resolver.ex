@@ -2,6 +2,8 @@ defmodule Reality2Web.NodeResolver do
   @moduledoc false
   # Resolver for node identity, peers, and hive directory queries.
 
+  @build_time DateTime.utc_now() |> Calendar.strftime("%Y-%m-%d %H:%M")
+
   # -------------------------------------------------------------------------
   # nodeInfo — this node's identity and hive membership
   # -------------------------------------------------------------------------
@@ -15,7 +17,8 @@ defmodule Reality2Web.NodeResolver do
     {:ok, Map.merge(%{
       node_id: node_id,
       node_name: node_name,
-      version: Application.spec(:reality2, :vsn) |> to_string()
+      version: Application.spec(:reality2, :vsn) |> to_string(),
+      build_time: @build_time
     }, hive_info)}
   end
 

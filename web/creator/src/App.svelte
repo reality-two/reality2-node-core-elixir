@@ -198,7 +198,7 @@
   async function fetchHiveData() {
     try {
       const [infoResult, peersResult, dirResult]: any[] = await Promise.all([
-        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId isProvisional version"),
+        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId isProvisional version buildTime"),
         r2.peers(),
         r2.hiveDirectory(),
       ]);
@@ -223,7 +223,7 @@
   async function handleBrowseNode() {
     try {
       const [nodeInfoResult, sentantsResult]: any[] = await Promise.all([
-        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode version"),
+        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode version buildTime"),
         r2.sentantAll({}, "id name swarm description events { event parameters } signals nodeId nodeName"),
       ]);
 

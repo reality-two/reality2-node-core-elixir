@@ -34,6 +34,7 @@ export default defineConfig({
   base: "/creator/",
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString().replace("T", " ").slice(0, 16)),
   },
   plugins: [
     stripXyflowTypeScript(),

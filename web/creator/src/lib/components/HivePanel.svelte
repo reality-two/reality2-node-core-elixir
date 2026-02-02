@@ -1,5 +1,6 @@
 <script lang="ts">
   declare const __APP_VERSION__: string;
+  declare const __BUILD_TIME__: string;
 
   import R2 from "../reality2";
   import { DEFAULT_PORT } from "../constants";
@@ -379,8 +380,8 @@
             {:else}
               <tr><td class="label-cell">Hive</td><td style="color: #999;">Not configured</td></tr>
             {/if}
-            <tr><td class="label-cell">Server</td><td class="mono">{nodeInfo.version || '?'}</td></tr>
-            <tr><td class="label-cell">Creator</td><td class="mono">{__APP_VERSION__}</td></tr>
+            <tr><td class="label-cell">Server</td><td class="mono">{nodeInfo.version || '?'} <span class="build-time">({nodeInfo.buildTime || '?'})</span></td></tr>
+            <tr><td class="label-cell">Creator</td><td class="mono">{__APP_VERSION__} <span class="build-time">({__BUILD_TIME__})</span></td></tr>
           </tbody>
         </table>
 
@@ -695,6 +696,10 @@
     font-size: 12px;
     color: #555;
     word-break: break-all;
+  }
+  .build-time {
+    color: #999;
+    font-size: 11px;
   }
   .hive-actions {
     margin-top: 10px;
