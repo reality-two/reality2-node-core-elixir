@@ -7,6 +7,12 @@ else
     yarn
     yarn build
 
+    # Only replace files if build succeeded and dist/ has content
+    if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
+        echo "ERROR: Build failed or dist/ is empty. Keeping existing files."
+        exit 1
+    fi
+
     echo "***** Moving $1 WebApp into place"
     if [ ! -d "../../apps/reality2_web/priv/static/sites/$1/" ]; then
         mkdir "../../apps/reality2_web/priv/static/sites/$1/"
