@@ -14,4 +14,12 @@ else
 
     rm -rf ../../apps/reality2_web/priv/static/sites/$1/*
     cp -rv dist/* ../../apps/reality2_web/priv/static/sites/$1/
+
+    # Also sync to _build so make_runtime quick picks up changes
+    BUILD_PRIV=$(ls -d ../../_build/prod/lib/reality2_web-*/priv/static/sites/$1 2>/dev/null | head -1)
+    if [ -n "$BUILD_PRIV" ]; then
+        echo "***** Syncing to build directory"
+        rm -rf "$BUILD_PRIV"/*
+        cp -r dist/* "$BUILD_PRIV"/
+    fi
 fi
