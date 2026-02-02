@@ -1,0 +1,27 @@
+{
+  "name": "creator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "5.0.3",
+    "@tsconfig/svelte": "^5.0.2",
+    "svelte": "5.25.0",
+    "svelte-check": "4.1.4",
+    "tslib": "^2.6.2",
+    "typescript": "^5.2.2",
+    "vite": "6.0.11"
+  },
+  "dependencies": {
+    "@xyflow/svelte": "1.0.0",
+    "js-yaml": "^4.1.0",
+    "svelte": "5.25.0",
+    "svelte-fomantic-ui": "0.4.0"
+  }
+}

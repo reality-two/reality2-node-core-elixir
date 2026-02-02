@@ -366,6 +366,7 @@ defmodule Reality2.Types do
   @type sentant :: %{
           id: uuid,
           name: String.t(),
+          swarm: String.t(),
           version: String.t(),
           class: String.t(),
           data: map,
@@ -383,6 +384,7 @@ defmodule Reality2.Types do
     %{
       "id" => [nullable: true, required: false, type: :string],
       "name" => [nullable: true, required: true, type: :string],
+      "swarm" => [nullable: true, required: false, type: :string],
       "version" => [nullable: true, required: false, type: :string],
       "class" => [nullable: true, required: false, type: :string],
       "data" => [nullable: true, required: false, type: :map],

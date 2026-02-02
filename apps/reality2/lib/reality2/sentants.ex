@@ -614,6 +614,7 @@ defmodule Reality2.Sentants do
   defp add_defaults(definition_map) do
     definition_map
     |> Map.put_new("description", "")
+    |> Map.put_new("swarm", "")
     |> Map.put_new("version", "0.1.0")
     # Will be changed when we actually have users
     |> Map.put_new("author", %{"id" => "_", "name" => "_", "email" => "_"})

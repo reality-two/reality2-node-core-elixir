@@ -86,6 +86,8 @@ defmodule Reality2.Swarm do
           true ->
             sentant_ids =
               Enum.map(sentants, fn sentant_map ->
+                # Stamp each sentant with the swarm name
+                sentant_map = R2Map.put(sentant_map, "swarm", name)
                 case Reality2.Sentants.create(sentant_map) do
                   {:ok, id} ->
                     id

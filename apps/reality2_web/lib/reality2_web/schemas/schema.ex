@@ -14,12 +14,14 @@ defmodule Reality2Web.Schema do
   import_types(Reality2Web.Schema.Types.Custom.StringOrJSON)
   import_types(Absinthe.Type.Custom)
   import_types(Reality2Web.Schema.Sentant)
+  import_types(Reality2Web.Schema.Node)
 
   @desc """
   The Reality2 GraphQL queries
   """
   query do
     import_fields(:sentant_queries)
+    import_fields(:node_queries)
   end
 
   mutation do
