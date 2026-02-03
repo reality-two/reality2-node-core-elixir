@@ -9,7 +9,7 @@ defmodule Reality2Web.TransnetController do
   use Reality2Web, :controller
 
   # Suppress compile-time warning for cross-app dependency (runtime check handles availability)
-  @compile {:no_warn_undefined, AiReality2Transnet.ConnectionManager}
+  @compile {:no_warn_undefined, Reality2Transnet.ConnectionManager}
 
   @doc """
   GET /transnet/info - Query node information and capabilities.
@@ -44,7 +44,7 @@ defmodule Reality2Web.TransnetController do
 
   defp get_network_info do
     if connection_manager_available?() do
-      case AiReality2Transnet.ConnectionManager.get_connection_status() do
+      case Reality2Transnet.ConnectionManager.get_connection_status() do
         {:ok, status} ->
           %{
             state: status.state,
@@ -64,8 +64,8 @@ defmodule Reality2Web.TransnetController do
   end
 
   defp bluetooth_available? do
-    Code.ensure_loaded?(AiReality2Transnet.Bluetooth) &&
-      Process.whereis(AiReality2Transnet.Bluetooth) != nil
+    Code.ensure_loaded?(Reality2Transnet.Bluetooth) &&
+      Process.whereis(Reality2Transnet.Bluetooth) != nil
   end
 
   defp wifi_available? do
@@ -73,7 +73,7 @@ defmodule Reality2Web.TransnetController do
   end
 
   defp connection_manager_available? do
-    Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) &&
-      Process.whereis(AiReality2Transnet.ConnectionManager) != nil
+    Code.ensure_loaded?(Reality2Transnet.ConnectionManager) &&
+      Process.whereis(Reality2Transnet.ConnectionManager) != nil
   end
 end

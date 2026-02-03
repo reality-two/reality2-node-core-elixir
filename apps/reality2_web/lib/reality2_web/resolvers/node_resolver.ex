@@ -41,8 +41,8 @@ defmodule Reality2Web.NodeResolver do
   # -------------------------------------------------------------------------
 
   def peers(_, _, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      case apply(AiReality2Transnet.PeerManager, :get_all_peers, []) do
+    if Code.ensure_loaded?(Reality2Transnet.PeerManager) do
+      case apply(Reality2Transnet.PeerManager, :get_all_peers, []) do
         peers when is_map(peers) ->
           result = Enum.map(peers, fn {peer_id, peer} ->
             %{
@@ -75,8 +75,8 @@ defmodule Reality2Web.NodeResolver do
   # -------------------------------------------------------------------------
 
   def hive_directory(_, _, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveDirectory) do
-      case apply(AiReality2Transnet.HiveDirectory, :get_directory, []) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) do
+      case apply(Reality2Transnet.HiveDirectory, :get_directory, []) do
         dir when is_map(dir) ->
           nodes_map = Map.get(dir, :nodes, %{})
 
@@ -118,8 +118,8 @@ defmodule Reality2Web.NodeResolver do
   # -------------------------------------------------------------------------
 
   def create_hive(_, %{name: name}, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case apply(AiReality2Transnet.HiveIdentity, :reset_hive, [name]) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+      case apply(Reality2Transnet.HiveIdentity, :reset_hive, [name]) do
         :ok -> {:ok, get_hive_info_result()}
         {:error, reason} -> {:error, inspect(reason)}
       end
@@ -129,8 +129,8 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def mark_established(_, _, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case apply(AiReality2Transnet.HiveIdentity, :mark_established, []) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+      case apply(Reality2Transnet.HiveIdentity, :mark_established, []) do
         :ok -> {:ok, get_hive_info_result()}
         {:error, reason} -> {:error, inspect(reason)}
       end
@@ -140,8 +140,8 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def generate_join_code(_, _, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case apply(AiReality2Transnet.HiveIdentity, :generate_join_code, []) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+      case apply(Reality2Transnet.HiveIdentity, :generate_join_code, []) do
         {:ok, code} -> {:ok, %{code: code, expires_in: 300}}
         {:error, reason} -> {:error, inspect(reason)}
       end
@@ -151,8 +151,8 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def export_key(_, %{passphrase: passphrase}, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case apply(AiReality2Transnet.HiveIdentity, :export_key, [passphrase]) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+      case apply(Reality2Transnet.HiveIdentity, :export_key, [passphrase]) do
         {:ok, encrypted_data} -> {:ok, %{encrypted_data: Base.encode64(encrypted_data)}}
         {:error, reason} -> {:error, inspect(reason)}
       end
@@ -162,10 +162,10 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def import_key(_, %{encrypted_data: encrypted_data, passphrase: passphrase}, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
       case Base.decode64(encrypted_data) do
         {:ok, binary_data} ->
-          case apply(AiReality2Transnet.HiveIdentity, :import_key, [binary_data, passphrase]) do
+          case apply(Reality2Transnet.HiveIdentity, :import_key, [binary_data, passphrase]) do
             :ok -> {:ok, get_hive_info_result()}
             {:error, reason} -> {:error, inspect(reason)}
           end
@@ -182,8 +182,8 @@ defmodule Reality2Web.NodeResolver do
   # -------------------------------------------------------------------------
 
   def get_public_key(_, _, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case apply(AiReality2Transnet.HiveIdentity, :get_public_key, []) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+      case apply(Reality2Transnet.HiveIdentity, :get_public_key, []) do
         {:ok, key} -> {:ok, Base.encode64(key)}
         {:error, reason} -> {:error, inspect(reason)}
       end
@@ -193,14 +193,14 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def process_join_request(_, %{code: code, node_name: node_name, node_public_key: node_public_key_b64}, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
       case Base.decode64(node_public_key_b64) do
         {:ok, node_public_key} ->
           node_id = Reality2.Bootstrap.get(:node_id)
-          case apply(AiReality2Transnet.HiveIdentity, :process_join_request, [node_id, code, node_name, node_public_key]) do
+          case apply(Reality2Transnet.HiveIdentity, :process_join_request, [node_id, code, node_name, node_public_key]) do
             {:ok, cert} ->
               # Also return hive public info so the joiner can verify and store it
-              case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+              case apply(Reality2Transnet.HiveIdentity, :get_identity, []) do
                 {:ok, identity} ->
                   hive_public_info = %{
                     hive_id: identity.hive_id,
@@ -223,7 +223,7 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def join_as_member(_, %{hive_public_info: hive_public_info, certificate: certificate}, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
       # Convert string keys from JSON to atoms for HiveIdentity
       hive_info = atomize_keys(hive_public_info)
       cert = atomize_keys(certificate)
@@ -244,7 +244,7 @@ defmodule Reality2Web.NodeResolver do
         _ -> cert
       end
 
-      case apply(AiReality2Transnet.HiveIdentity, :join_as_member, [hive_info, cert]) do
+      case apply(Reality2Transnet.HiveIdentity, :join_as_member, [hive_info, cert]) do
         :ok -> {:ok, get_hive_info_result()}
         {:error, reason} -> {:error, inspect(reason)}
       end
@@ -257,7 +257,7 @@ defmodule Reality2Web.NodeResolver do
   # Mutations — approval-based joining
   # -------------------------------------------------------------------------
 
-  @join_requests AiReality2Transnet.JoinRequests
+  @join_requests Reality2Transnet.JoinRequests
 
   def submit_join_request(_, %{node_name: node_name, node_public_key: node_public_key}, _) do
     case apply(@join_requests, :submit, [node_name, node_public_key]) do
@@ -290,14 +290,14 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def approve_join_request(_, %{request_id: request_id}, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
       case apply(@join_requests, :get_status, [request_id]) do
         {:ok, %{status: :pending, node_name: node_name, node_public_key: node_public_key_b64}} ->
           case Base.decode64(node_public_key_b64) do
             {:ok, node_public_key} ->
-              case apply(AiReality2Transnet.HiveIdentity, :issue_cert, [node_name, node_public_key]) do
+              case apply(Reality2Transnet.HiveIdentity, :issue_cert, [node_name, node_public_key]) do
                 {:ok, cert} ->
-                  case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+                  case apply(Reality2Transnet.HiveIdentity, :get_identity, []) do
                     {:ok, identity} ->
                       hive_public_info = %{
                         hive_id: identity.hive_id,
@@ -308,6 +308,19 @@ defmodule Reality2Web.NodeResolver do
                       cert_str = stringify_keys(cert)
                       info_str = stringify_keys(hive_public_info)
                       apply(@join_requests, :set_result, [request_id, cert_str, info_str])
+
+                      # Register as hive member (viewer type for BLE-joined devices)
+                      node_id = Map.get(cert, :node_id) || request_id
+                      if Code.ensure_loaded?(Reality2Transnet.HiveMembers) do
+                        apply(Reality2Transnet.HiveMembers, :add_member, [
+                          node_id,
+                          node_name,
+                          node_public_key_b64,
+                          cert_str,
+                          :viewer
+                        ])
+                      end
+
                       # Broadcast result via PubSub so Bluetooth can relay over GATT
                       Phoenix.PubSub.broadcast(Reality2.PubSub, "hive:join_results", {
                         :hive_join_result, request_id, %{
@@ -368,8 +381,8 @@ defmodule Reality2Web.NodeResolver do
   # -------------------------------------------------------------------------
 
   def ble_submit_join_request(_, %{peer_id: peer_id, node_name: node_name}, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveJoinBle) do
-      case apply(AiReality2Transnet.HiveJoinBle, :submit_join_request, [peer_id, node_name]) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveJoinBle) do
+      case apply(Reality2Transnet.HiveJoinBle, :submit_join_request, [peer_id, node_name]) do
         {:ok, result} ->
           {:ok, %{
             status: Map.get(result, :status, "pending"),
@@ -386,8 +399,8 @@ defmodule Reality2Web.NodeResolver do
   end
 
   def ble_join_request_status(_, %{peer_id: peer_id}, _) do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveJoinBle) do
-      case apply(AiReality2Transnet.HiveJoinBle, :check_status, [peer_id]) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveJoinBle) do
+      case apply(Reality2Transnet.HiveJoinBle, :check_status, [peer_id]) do
         {:ok, result} ->
           {:ok, %{
             status: Map.get(result, :status, "pending"),
@@ -403,13 +416,37 @@ defmodule Reality2Web.NodeResolver do
     end
   end
 
+  def hive_members(_, args, _) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveMembers) do
+      members = case Map.get(args, :member_type) do
+        nil -> apply(Reality2Transnet.HiveMembers, :list_members, [])
+        type_str ->
+          type = String.to_existing_atom(type_str)
+          apply(Reality2Transnet.HiveMembers, :list_by_type, [type])
+      end
+
+      result = Enum.map(members, fn m ->
+        %{
+          node_id: m.node_id,
+          node_name: m.node_name,
+          node_public_key: m.node_public_key,
+          member_type: Atom.to_string(m.member_type),
+          approved_at: m.approved_at
+        }
+      end)
+      {:ok, result}
+    else
+      {:ok, []}
+    end
+  end
+
   # -------------------------------------------------------------------------
   # Private helpers
   # -------------------------------------------------------------------------
 
   defp get_hive_info_result do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+      case apply(Reality2Transnet.HiveIdentity, :get_identity, []) do
         {:ok, identity} ->
           %{
             hive_id: identity.hive_id,
@@ -427,10 +464,10 @@ defmodule Reality2Web.NodeResolver do
   end
 
   defp get_hive_info do
-    if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+      case apply(Reality2Transnet.HiveIdentity, :get_identity, []) do
         {:ok, identity} ->
-          compressed = case apply(AiReality2Transnet.HiveIdentity, :get_hive_compressed_id, []) do
+          compressed = case apply(Reality2Transnet.HiveIdentity, :get_hive_compressed_id, []) do
             {:ok, cid} -> Base.encode16(cid, case: :lower)
             _ -> nil
           end
@@ -502,5 +539,44 @@ defmodule Reality2Web.NodeResolver do
       rssi: Map.get(t, :rssi),
       ip: Map.get(t, :ip)
     }
+  end
+
+  # -------------------------------------------------------------------------
+  # hiveDirectoryClearStale — remove stale entries from hive directory
+  # -------------------------------------------------------------------------
+
+  def clear_stale_directory(_, _, _) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) do
+      case apply(Reality2Transnet.HiveDirectory, :clear_stale, []) do
+        {:ok, removed_count} ->
+          {:ok, removed_count}
+
+        {:error, reason} ->
+          {:error, "Failed to clear stale entries: #{inspect(reason)}"}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # hiveRemoveMember — remove a member from the hive (key holder only)
+  # -------------------------------------------------------------------------
+
+  def remove_hive_member(_, %{node_id: node_id}, _) do
+    if Code.ensure_loaded?(Reality2Transnet.HiveMembers) do
+      case apply(Reality2Transnet.HiveMembers, :remove_member, [node_id]) do
+        :ok ->
+          {:ok, true}
+
+        {:error, :not_found} ->
+          {:error, "Member not found"}
+
+        {:error, reason} ->
+          {:error, "Failed to remove member: #{inspect(reason)}"}
+      end
+    else
+      {:error, "Transnet not loaded"}
+    end
   end
 end

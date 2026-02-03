@@ -46,8 +46,8 @@ defmodule Reality2Web.SentantResolver.PathResolver do
       is_uuid?(ref) -> ref
       true ->
         # Try to look up by name in PeerManager
-        if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-          case apply(AiReality2Transnet.PeerManager, :get_peer_by_name, [ref]) do
+        if Code.ensure_loaded?(Reality2Transnet.PeerManager) do
+          case apply(Reality2Transnet.PeerManager, :get_peer_by_name, [ref]) do
             {:ok, peer} -> Map.get(peer, :node_id)
             _ -> nil
           end

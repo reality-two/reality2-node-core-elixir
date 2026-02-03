@@ -380,8 +380,8 @@ defmodule Reality2.Helpers do
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
     defp get_hive_key(purpose) do
-      if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-        apply(AiReality2Transnet.HiveIdentity, :derive_data_key, [purpose])
+      if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+        apply(Reality2Transnet.HiveIdentity, :derive_data_key, [purpose])
       else
         {:error, :hive_not_available}
       end

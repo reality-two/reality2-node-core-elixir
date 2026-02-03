@@ -136,7 +136,29 @@
       "Bash(node -e:*)",
       "Bash(npx tsx:*)",
       "Bash(git check-ignore:*)",
-      "Bash(git lfs:*)"
+      "Bash(git lfs:*)",
+      "Bash(git -C /mnt/data/Development/Reality2/reality2-node-core-elixir status --short)",
+      "Bash(git -C /mnt/data/Development/Reality2/reality2-node-core-elixir log --oneline -1 -- apps/reality2_web/priv/static/sites/)",
+      "Bash(git -C /mnt/data/Development/Reality2/reality2-node-core-elixir show --stat e72073b -- apps/reality2_web/priv/static/sites/)",
+      "Bash(git -C /mnt/data/Development/Reality2/reality2-node-core-elixir show --name-only e72073b)",
+      "Bash(git -C /mnt/data/Development/Reality2/reality2-android-devtool log --oneline -10)",
+      "Bash(git -C /mnt/data/Development/Reality2/reality2-android-devtool log --all --pretty=format:\"%H %ai %s\")",
+      "Bash(git -C /mnt/data/Development/Reality2/reality2-mobile-app log --all --pretty=format:\"%H %ai %s\")",
+      "Bash(git -C /mnt/data/Development/Reality2/reality2-android-devtool2 log --oneline -5)",
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(/dev/null -exec grep JAVA_VERSION {} ;)",
+      "Bash(./gradlew buildEnvironment:*)",
+      "Bash(adb uninstall:*)",
+      "Bash(adb shell am start:*)",
+      "Bash(adb logcat:*)",
+      "Bash(adb shell pidof:*)",
+      "Bash(adb shell \"logcat -d | grep -E ''22974 ''\")",
+      "Bash(adb install:*)",
+      "Bash(ssh:*)",
+      "Bash(docker logs:*)",
+      "Bash(ss:*)",
+      "Bash(netstat:*)",
+      "Bash(git mv:*)"
     ]
   }
 }

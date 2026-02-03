@@ -44,8 +44,8 @@ This is an Elixir umbrella project. The main applications are:
 |-------------|-------------|
 | **reality2** | Core Sentant platform — lifecycle, automations, plugin system |
 | **reality2_web** | Phoenix web server, GraphQL API, WebSocket subscriptions |
-| **ai_reality2_transnet** | Multi-transport mesh networking (BLE, WiFi, LoRa, Internet) |
-| **ai_reality2_wfs** | Waggle Finding Service — cross-node Sentant addressing and routing |
+| **reality2_transnet** | Multi-transport mesh networking (BLE, WiFi, LoRa, Internet) |
+| **reality2_wfs** | Waggle Finding Service — cross-node Sentant addressing and routing |
 | **ai_reality2_vars** | In-memory variable storage plugin |
 | **ai_reality2_geospatial** | Geolocation and proximity search plugin |
 | **ai_reality2_backup** | Persistent database storage plugin |

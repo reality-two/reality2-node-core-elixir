@@ -47,6 +47,9 @@
   let requestsPollingTimer: ReturnType<typeof setInterval> | null = null;
   let approvingId = $state<string | null>(null);
 
+  // --- Hive members (all approved nodes and viewers) ---
+  let hiveMembers = $state<any[]>([]);
+
   function status(msg: string) {
     onStatus?.(msg);
   }
@@ -366,6 +369,56 @@
     }
   }
 
+  async function fetchHiveMembers() {
+    try {
+      const result: any = await r2.hiveMembers();
+      if (result?.errors) return;
+      const data = result?.data?.hiveMembers;
+      if (Array.isArray(data)) {
+        hiveMembers = data;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleClearStaleDirectory() {
+    try {
+      const result: any = await r2.hiveDirectoryClearStale();
+      if (result?.errors) {
+        status("Error: " + result.errors[0]?.message);
+      } else {
+        const removed = result?.data?.hiveDirectoryClearStale ?? 0;
+        status(`Cleared ${removed} stale entries`);
+        onRefresh?.();
+      }
+    } catch (err) {
+      status("Error: " + (err as Error).message);
+    }
+  }
+
+  let removingMemberId = $state<string | null>(null);
+
+  async function handleRemoveMember(nodeId: string, nodeName: string) {
+    if (!confirm(`Remove "${nodeName}" from the hive? This will revoke their access.`)) {
+      return;
+    }
+    removingMemberId = nodeId;
+    try {
+      const result: any = await r2.hiveRemoveMember(nodeId);
+      if (result?.errors) {
+        status("Error: " + result.errors[0]?.message);
+      } else {
+        status(`Removed ${nodeName} from hive`);
+        fetchHiveMembers();
+      }
+    } catch (err) {
+      status("Error: " + (err as Error).message);
+    } finally {
+      removingMemberId = null;
+    }
+  }
+
   async function handleApprove(requestId: string) {
     approvingId = requestId;
     try {
@@ -403,6 +456,12 @@
       startRequestsPolling();
     } else {
       stopRequestsPolling();
+    }
+    // Always fetch hive members if we have a hive
+    if (hasHive) {
+      fetchHiveMembers();
+    } else {
+      hiveMembers = [];
     }
     return () => {
       stopRequestsPolling();
@@ -620,6 +679,58 @@
       </div>
     {/if}
 
+    <!-- Hive Members (when part of a hive) -->
+    {#if hasHive && hiveMembers.length > 0}
+      <div class="ui segment">
+        <h4 class="ui header">
+          <i class="users icon"></i>
+          Hive Members
+          <span class="ui mini circular label" style="margin-left: 6px;">{hiveMembers.length}</span>
+        </h4>
+        <div class="member-list">
+          {#each hiveMembers as member}
+            {@const isViewer = member.memberType === "viewer"}
+            {@const isMe = member.nodeId === nodeInfo?.nodeId}
+            <div class="member-card" class:is-viewer={isViewer}>
+              <div class="member-header">
+                <span class="member-name">
+                  <i class="{isViewer ? 'mobile alternate' : 'server'} icon"></i>
+                  {member.nodeName || 'Unknown'}
+                  {#if isMe}
+                    <span style="font-weight: 400; opacity: 0.7;"> (this node)</span>
+                  {/if}
+                </span>
+                <div class="member-badges">
+                  <span class="ui mini label" class:teal={isViewer} class:blue={!isViewer}>
+                    {isViewer ? 'Viewer' : 'Node'}
+                  </span>
+                </div>
+              </div>
+              <div class="member-details">
+                <span class="member-detail" title="Node ID">{member.nodeId?.slice(0, 8)}...</span>
+                {#if member.approvedAt}
+                  <span class="member-detail" title={member.approvedAt}>joined {timeAgo(member.approvedAt)}</span>
+                {/if}
+              </div>
+              {#if isKeyHolder && !isMe}
+                <div class="member-actions">
+                  <button class="ui mini red basic button" disabled={removingMemberId === member.nodeId}
+                    onclick={() => handleRemoveMember(member.nodeId, member.nodeName)}>
+                    <i class="user times icon"></i>
+                    {removingMemberId === member.nodeId ? "Removing..." : "Remove"}
+                  </button>
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: #888;">
+          <i class="info circle icon"></i>
+          Viewers are devices (phones, tablets) that can interact with the hive but don't host sentants.
+        </div>
+      </div>
+    {/if}
+
     <!-- Discovered Peers -->
     <div class="ui segment">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -759,8 +870,13 @@
         {:else}
           <p style="color: #999; font-size: 13px;">No nodes in directory yet.</p>
         {/if}
-        <div style="margin-top: 6px; font-size: 11px; color: #aaa;">
-          Directory version: {directory.directoryVersion ?? 0}
+        <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 11px; color: #aaa;">
+            Directory version: {directory.directoryVersion ?? 0}
+          </span>
+          <button class="ui mini basic button" onclick={handleClearStaleDirectory} title="Remove entries not updated in over 1 hour">
+            <i class="trash icon"></i> Clear Stale
+          </button>
         </div>
       </div>
     {/if}
@@ -947,5 +1063,51 @@
     background: #fff3e0;
     color: #e65100;
     border: 1px solid #ffcc80;
+  }
+  .member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .member-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
+    border-left: 4px solid #1976d2;
+  }
+  .member-card.is-viewer {
+    border-left-color: #00897b;
+    background: #f0fdfb;
+  }
+  .member-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .member-name {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .member-badges {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .member-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .member-detail {
+    font-size: 11px;
+    color: #777;
+  }
+  .member-actions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
   }
 </style>

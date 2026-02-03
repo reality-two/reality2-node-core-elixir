@@ -4,7 +4,7 @@ defmodule Reality2.MixProject do
   def project do
     [
       app: :reality2,
-      version: "0.1.13",
+      version: "0.1.14",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -33,7 +33,6 @@ defmodule Reality2.MixProject do
   def application do
     [
       mod: {Reality2.Application, []},
-      # , :gun]
       extra_applications: [:logger, :runtime_tools, :os_mon, :geohash, :mnesia, :crypto]
     ]
   end

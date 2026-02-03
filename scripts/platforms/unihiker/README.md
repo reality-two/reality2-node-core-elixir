@@ -1,4 +1,4 @@
-# Reality2 / ai_reality2_transnet — Build on Debian Buster (glibc 2.28) arm64 using Podman on AMD (x86_64) Linux
+# Reality2 / reality2_transnet — Build on Debian Buster (glibc 2.28) arm64 using Podman on AMD (x86_64) Linux
 
 This is a single, end-to-end, copy/paste guide to build an Elixir project (including Rustler NIFs) in a Debian Buster arm64 environment on an AMD x86_64 Linux workstation using Podman. The purpose is to produce binaries compatible with Debian Buster devices (e.g., Unihiker) and avoid runtime errors such as `GLIBC_2.34 not found` by compiling inside a Buster userspace (glibc 2.28) and on the correct architecture (arm64/aarch64).
 

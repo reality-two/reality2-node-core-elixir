@@ -14,12 +14,12 @@ defmodule Reality2.Umbrella.MixProject do
           |> Enum.map(&String.to_atom/1)
       end
 
-    plugins = [:reality2, :reality2_web] ++ env_plugins
+    plugins = [:reality2, :reality2_web, :reality2_transnet, :reality2_wfs] ++ env_plugins
 
     [
       apps_path: "apps",
       apps: plugins,
-      version: "0.1.13",
+      version: "0.1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),

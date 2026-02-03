@@ -87,8 +87,8 @@ defmodule Reality2Web.MeshController do
 
     if node_id do
       # Check if this is an existing peer (update) or new peer
-      is_existing_peer = if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-        case apply(AiReality2Transnet.PeerManager, :get_peer, [node_id]) do
+      is_existing_peer = if Code.ensure_loaded?(Reality2Transnet.PeerManager) do
+        case apply(Reality2Transnet.PeerManager, :get_peer, [node_id]) do
           {:ok, existing_peer} ->
             # Get previous sentant count for comparison
             previous_count = length(Map.get(existing_peer, :sentants, []))
@@ -101,9 +101,9 @@ defmodule Reality2Web.MeshController do
       end
 
       # Register the peer if not already known
-      if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      if Code.ensure_loaded?(Reality2Transnet.PeerManager) do
         # Use synchronous call to ensure peer is registered before updating sentants
-        apply(AiReality2Transnet.PeerManager, :register_peer, [node_id, %{
+        apply(Reality2Transnet.PeerManager, :register_peer, [node_id, %{
           node_name: node_name,
           address: client_ip
         }])
@@ -112,14 +112,14 @@ defmodule Reality2Web.MeshController do
         Process.sleep(50)
 
         # Update peer's sentants
-        apply(AiReality2Transnet.PeerManager, :update_peer_sentants, [node_id, sentants])
+        apply(Reality2Transnet.PeerManager, :update_peer_sentants, [node_id, sentants])
 
         # Update peer's transport to wifi_hotspot
-        apply(AiReality2Transnet.PeerManager, :update_peer_transport, [node_id, :wifi_hotspot])
+        apply(Reality2Transnet.PeerManager, :update_peer_transport, [node_id, :wifi_hotspot])
 
         # Log final state for debugging
         Process.sleep(50)
-        case apply(AiReality2Transnet.PeerManager, :get_peer, [node_id]) do
+        case apply(Reality2Transnet.PeerManager, :get_peer, [node_id]) do
           {:ok, peer} ->
             stored_count = length(Map.get(peer, :sentants, []))
             Logger.info("[MeshController] Peer #{node_name} now has #{stored_count} sentants stored")
@@ -129,8 +129,8 @@ defmodule Reality2Web.MeshController do
       end
 
       # Register client with ConnectionManager so host can push updates
-      if Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) do
-        apply(AiReality2Transnet.ConnectionManager, :register_connected_client, [node_id, node_name, client_ip])
+      if Code.ensure_loaded?(Reality2Transnet.ConnectionManager) do
+        apply(Reality2Transnet.ConnectionManager, :register_connected_client, [node_id, node_name, client_ip])
       end
 
       # Update WFS routing table with client's sentants
@@ -211,9 +211,9 @@ defmodule Reality2Web.MeshController do
 
     if peer_node_id do
       # Register the new peer directly from the push notification
-      if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
+      if Code.ensure_loaded?(Reality2Transnet.PeerManager) do
         # Register peer (they're connected to the same host as us)
-        apply(AiReality2Transnet.PeerManager, :register_peer, [peer_node_id, %{
+        apply(Reality2Transnet.PeerManager, :register_peer, [peer_node_id, %{
           node_name: peer_node_name,
           address: "via_host"  # We don't have direct IP, route through host
         }])
@@ -221,12 +221,12 @@ defmodule Reality2Web.MeshController do
         Process.sleep(50)
 
         # Store their sentants
-        apply(AiReality2Transnet.PeerManager, :update_peer_sentants, [peer_node_id, sentants])
+        apply(Reality2Transnet.PeerManager, :update_peer_sentants, [peer_node_id, sentants])
       end
 
       # Refresh WFS topology
-      if Code.ensure_loaded?(AiReality2Wfs.Router) do
-        apply(AiReality2Wfs.Router, :refresh_topology, [])
+      if Code.ensure_loaded?(Reality2Wfs.Router) do
+        apply(Reality2Wfs.Router, :refresh_topology, [])
       end
 
       json(conn, %{status: "ok", received_sentants: length(sentants)})
@@ -264,8 +264,8 @@ defmodule Reality2Web.MeshController do
 
     Logger.debug("[MeshController] Received mesh message: type=#{type}, from=#{String.slice(src_node_id || "", 0..7)}...")
 
-    if Code.ensure_loaded?(AiReality2Transnet.MeshRouter) do
-      apply(AiReality2Transnet.MeshRouter, :handle_incoming, [message, :wifi_hotspot])
+    if Code.ensure_loaded?(Reality2Transnet.MeshRouter) do
+      apply(Reality2Transnet.MeshRouter, :handle_incoming, [message, :wifi_hotspot])
     end
 
     json(conn, %{status: "ok"})
@@ -282,8 +282,8 @@ defmodule Reality2Web.MeshController do
     mesh_info = get_mesh_info()
 
     # Include hive info so peers can identify our hive
-    hive_info = if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
-      case apply(AiReality2Transnet.HiveIdentity, :get_identity, []) do
+    hive_info = if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
+      case apply(Reality2Transnet.HiveIdentity, :get_identity, []) do
         {:ok, identity} ->
           %{
             hive_id: identity.hive_id,
@@ -366,7 +366,7 @@ defmodule Reality2Web.MeshController do
   defp get_mesh_info do
     if wifi_available?() do
       # Use apply/3 to avoid compile-time warning for cross-app module reference
-      case apply(AiReality2Transnet.ConnectionManager, :get_connection_status, []) do
+      case apply(Reality2Transnet.ConnectionManager, :get_connection_status, []) do
         {:ok, status} ->
           %{
             active: status.state in [:connected_as_client, :hosting_ap],
@@ -385,19 +385,19 @@ defmodule Reality2Web.MeshController do
   end
 
   defp bluetooth_available? do
-    Code.ensure_loaded?(AiReality2Transnet.Bluetooth) &&
-      Process.whereis(AiReality2Transnet.Bluetooth) != nil
+    Code.ensure_loaded?(Reality2Transnet.Bluetooth) &&
+      Process.whereis(Reality2Transnet.Bluetooth) != nil
   end
 
   defp wifi_available? do
-    Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) &&
-      Process.whereis(AiReality2Transnet.ConnectionManager) != nil
+    Code.ensure_loaded?(Reality2Transnet.ConnectionManager) &&
+      Process.whereis(Reality2Transnet.ConnectionManager) != nil
   end
 
   # Get stored sentants for a peer from PeerManager (for confirmation)
   defp get_stored_sentants_for_peer(peer_node_id) do
-    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      case apply(AiReality2Transnet.PeerManager, :get_peer, [peer_node_id]) do
+    if Code.ensure_loaded?(Reality2Transnet.PeerManager) do
+      case apply(Reality2Transnet.PeerManager, :get_peer, [peer_node_id]) do
         {:ok, peer} -> Map.get(peer, :sentants, [])
         _ -> []
       end
@@ -431,8 +431,8 @@ defmodule Reality2Web.MeshController do
     end)
 
     # Notify WFS Router of topology change
-    if Code.ensure_loaded?(AiReality2Wfs.Router) do
-      apply(AiReality2Wfs.Router, :refresh_topology, [])
+    if Code.ensure_loaded?(Reality2Wfs.Router) do
+      apply(Reality2Wfs.Router, :refresh_topology, [])
     end
 
     Logger.info("[MeshController] WFS routing table updated with #{length(peer_sentants)} entries from #{peer_node_name}")
@@ -443,8 +443,8 @@ defmodule Reality2Web.MeshController do
   defp notify_other_clients_of_new_registration(new_node_id, new_node_name, new_sentants) do
     require Logger
 
-    if Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) do
-      case apply(AiReality2Transnet.ConnectionManager, :get_connection_status, []) do
+    if Code.ensure_loaded?(Reality2Transnet.ConnectionManager) do
+      case apply(Reality2Transnet.ConnectionManager, :get_connection_status, []) do
         {:ok, %{connected_clients: clients}} when is_list(clients) and length(clients) > 0 ->
           # Filter out the newly registering client
           other_clients = Enum.reject(clients, fn c -> c.node_id == new_node_id end)

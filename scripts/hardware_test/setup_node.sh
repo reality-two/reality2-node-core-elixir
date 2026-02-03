@@ -23,7 +23,7 @@ echo "Working directory: $(pwd)"
 # Environment variables
 export R2_NODE_NAME="${NODE_NAME}"
 export MIX_ENV="${MIX_ENV}"
-export PLUGINS="ai.reality2.vars, ai.reality2.wfs, ai.reality2.transnet"
+export PLUGINS="ai.reality2.vars"
 export LOCKED="remote"
 
 echo "  R2_NODE_NAME: ${R2_NODE_NAME}"

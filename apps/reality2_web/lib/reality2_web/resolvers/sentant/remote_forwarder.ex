@@ -12,8 +12,8 @@ defmodule Reality2Web.SentantResolver.RemoteForwarder do
   @doc false
   def send_event_to_remote(node_id, sentant_id, event, parameters, passthrough, sender) do
     # Look up the peer's IP address from PeerManager
-    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      case apply(AiReality2Transnet.PeerManager, :get_peer, [node_id]) do
+    if Code.ensure_loaded?(Reality2Transnet.PeerManager) do
+      case apply(Reality2Transnet.PeerManager, :get_peer, [node_id]) do
         {:ok, peer} ->
           peer_address = Map.get(peer, :address)
           peer_name = Map.get(peer, :node_name, "Unknown")
@@ -53,8 +53,8 @@ defmodule Reality2Web.SentantResolver.RemoteForwarder do
       # Likely a BLE MAC address - try to use gateway IP if we're connected to a hotspot
       true ->
         # Try to get gateway IP from ConnectionManager (we're likely connected to their hotspot)
-        if Code.ensure_loaded?(AiReality2Transnet.ConnectionManager) do
-          case apply(AiReality2Transnet.ConnectionManager, :get_gateway_ip, []) do
+        if Code.ensure_loaded?(Reality2Transnet.ConnectionManager) do
+          case apply(Reality2Transnet.ConnectionManager, :get_gateway_ip, []) do
             {:ok, gateway_ip} ->
               {:ok, gateway_ip}
             _ ->

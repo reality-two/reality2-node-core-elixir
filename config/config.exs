@@ -47,7 +47,7 @@ config :logger, :console,
 config :phoenix, :json_library, Jason
 
 # Transient Networking configuration
-config :ai_reality2_transnet,
+config :reality2_transnet,
   # Bluetooth/GATT configuration
   r2_company_id: 0xFFFF,  # TODO: Replace with assigned company ID
   max_characteristic_size: 4096,

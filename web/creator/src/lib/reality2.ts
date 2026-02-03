@@ -192,6 +192,31 @@ export default class R2 {
   }
 
   /**
+   * Get all approved hive members (nodes and viewers).
+   */
+  hiveMembers(memberType: string | null = null, passthrough = {}, details: string = "nodeId nodeName nodePublicKey memberType approvedAt"): Promise<object> {
+    return this._graphql_post(this._hiveMembers(details, memberType), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
+  }
+
+  /**
+   * Clear stale entries from the hive directory.
+   * Removes entries not updated in over 1 hour.
+   */
+  hiveDirectoryClearStale(passthrough = {}): Promise<object> {
+    return this._graphql_post(this._hiveDirectoryClearStale(), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
+  }
+
+  /**
+   * Remove a member from the hive (key holder only).
+   */
+  hiveRemoveMember(nodeId: string, passthrough = {}): Promise<object> {
+    return this._graphql_post(this._hiveRemoveMember(), { nodeId })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
+  }
+
+  /**
    * Approve a join request (key holder).
    */
   hiveApproveJoinRequest(requestId: string, passthrough = {}, details: string = "certificate hivePublicInfo"): Promise<object> {
@@ -790,6 +815,31 @@ export default class R2 {
             hivePendingJoinRequests {
                 ${details}
             }
+        }`;
+  }
+
+  _hiveMembers(details: string, memberType: string | null): string {
+    if (memberType) {
+      return `{
+            hiveMembers(memberType: "${memberType}") {
+                ${details}
+            }
+        }`;
+    }
+    return `{
+            hiveMembers {
+                ${details}
+            }
+        }`;
+  }
+
+  _hiveDirectoryClearStale(): string {
+    return `mutation { hiveDirectoryClearStale }`;
+  }
+
+  _hiveRemoveMember(): string {
+    return `mutation HiveRemoveMember($nodeId: String!) {
+            hiveRemoveMember(nodeId: $nodeId)
         }`;
   }
 

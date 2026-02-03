@@ -372,7 +372,7 @@ defmodule Reality2.Automation.Actions do
   @doc false
   def send_via_wfs(name_or_id, message_map) do
     # Try to use WFS router if available
-    if Code.ensure_loaded?(AiReality2Wfs.Router) do
+    if Code.ensure_loaded?(Reality2Wfs.Router) do
       # Extract identifier for WFS Router
       identifier = case name_or_id do
         %{id: id} -> id
@@ -381,7 +381,7 @@ defmodule Reality2.Automation.Actions do
       end
 
       # Suppress compile-time warning - WFS is an optional plugin
-      router_module = AiReality2Wfs.Router
+      router_module = Reality2Wfs.Router
       sender = Map.get(message_map, :sender)
       case apply(router_module, :send_to_sentant, [
         identifier,

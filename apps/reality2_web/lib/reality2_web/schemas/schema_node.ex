@@ -121,6 +121,14 @@ defmodule Reality2Web.Schema.Node do
     field(:message, :string, description: "Human-readable status message")
   end
 
+  object :hive_member do
+    field(:node_id, non_null(:string), description: "Member's unique ID")
+    field(:node_name, non_null(:string), description: "Member's human-readable name")
+    field(:node_public_key, non_null(:string), description: "Member's Ed25519 public key (base64)")
+    field(:member_type, non_null(:string), description: "node or viewer")
+    field(:approved_at, non_null(:string), description: "ISO8601 timestamp when approved")
+  end
+
   # --- Queries ---
 
   object :node_queries do
@@ -154,6 +162,12 @@ defmodule Reality2Web.Schema.Node do
     field :hive_ble_join_request_status, :ble_join_result do
       arg(:peer_id, non_null(:id))
       resolve(&NodeResolver.ble_join_request_status/3)
+    end
+
+    @desc "Get all approved hive members (nodes and viewers)"
+    field :hive_members, list_of(:hive_member) do
+      arg(:member_type, :string, description: "Filter by type: node or viewer")
+      resolve(&NodeResolver.hive_members/3)
     end
   end
 
@@ -232,6 +246,17 @@ defmodule Reality2Web.Schema.Node do
       arg(:peer_id, non_null(:id))
       arg(:node_name, non_null(:string))
       resolve(&NodeResolver.ble_submit_join_request/3)
+    end
+
+    @desc "Clear stale entries from the hive directory (entries not updated in over 1 hour)"
+    field :hive_directory_clear_stale, :integer do
+      resolve(&NodeResolver.clear_stale_directory/3)
+    end
+
+    @desc "Remove a member from the hive (key holder only)"
+    field :hive_remove_member, :boolean do
+      arg(:node_id, non_null(:string))
+      resolve(&NodeResolver.remove_hive_member/3)
     end
   end
 end

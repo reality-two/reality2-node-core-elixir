@@ -228,37 +228,37 @@ For manual debugging, use these commands in the IEx shell:
 ### Peer Management
 ```elixir
 # List all discovered peers
-AiReality2Transnet.PeerManager.get_all_peers()
+Reality2Transnet.PeerManager.get_all_peers()
 
 # Get peer manager stats
-AiReality2Transnet.PeerManager.get_stats()
+Reality2Transnet.PeerManager.get_stats()
 
 # Get a specific peer by name
-AiReality2Transnet.PeerManager.get_peer_by_name("SBC1")
+Reality2Transnet.PeerManager.get_peer_by_name("SBC1")
 ```
 
 ### Hive Directory
 ```elixir
 # View the full directory
-AiReality2Transnet.HiveDirectory.get_directory()
+Reality2Transnet.HiveDirectory.get_directory()
 
 # Find a sentant across all nodes
-AiReality2Transnet.HiveDirectory.find_sentant_by_name("PingPong")
+Reality2Transnet.HiveDirectory.find_sentant_by_name("PingPong")
 
 # Get best transport to reach a node
-AiReality2Transnet.HiveDirectory.best_transport_for(node_id)
+Reality2Transnet.HiveDirectory.best_transport_for(node_id)
 ```
 
 ### Mesh Router
 ```elixir
 # View router stats
-AiReality2Transnet.MeshRouter.get_stats()
+Reality2Transnet.MeshRouter.get_stats()
 
 # List available transports
-AiReality2Transnet.MeshRouter.list_transports()
+Reality2Transnet.MeshRouter.list_transports()
 
 # Send a signal through the mesh
-AiReality2Transnet.MeshRouter.send_signal("source_id", "target_id", "ping", %{})
+Reality2Transnet.MeshRouter.send_signal("source_id", "target_id", "ping", %{})
 ```
 
 ### PNS Routing
@@ -291,7 +291,7 @@ Reality2.Bootstrap.get(:node_name)
 ### BLE Not Discovering Peers
 
 - Verify BLE adapter is present: `hciconfig` or `bluetoothctl show`
-- Check BLE is enabled in plugins: `PLUGINS` env var includes `ai.reality2.transnet`
+- Check BLE is enabled in plugins: `PLUGINS` env var includes `reality2.transnet`
 - Ensure devices are within range (~10m line of sight)
 - Check logs for `[Bluetooth]` or `[PeerManager]` messages
 - Restart BLE scanning:

@@ -107,8 +107,8 @@ defmodule Reality2Web.SentantResolver do
   # Optionally excludes sentants from a peer at the given IP address
   # Includes node_id and node_name for each sentant's origin node
   defp get_registered_client_sentants(exclude_ip) do
-    if Code.ensure_loaded?(AiReality2Transnet.PeerManager) do
-      case apply(AiReality2Transnet.PeerManager, :get_all_peers, []) do
+    if Code.ensure_loaded?(Reality2Transnet.PeerManager) do
+      case apply(Reality2Transnet.PeerManager, :get_all_peers, []) do
         peers when is_map(peers) ->
           # Debug: log all peers and their transport status
           Logger.info("[SentantResolver] get_registered_client_sentants called, exclude_ip: #{inspect(exclude_ip)}")
