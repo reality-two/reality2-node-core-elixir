@@ -40,7 +40,7 @@ defmodule AiReality2Transnet.CloudConnector do
   use GenServer
   require Logger
 
-  alias AiReality2Transnet.{HiveIdentity, HiveDirectory, PeerManager}
+  alias AiReality2Transnet.{HiveDirectory, PeerManager}
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Constants
@@ -50,7 +50,6 @@ defmodule AiReality2Transnet.CloudConnector do
   @reconnect_base_ms 1_000              # Initial reconnect delay: 1 second
   @reconnect_max_ms 300_000             # Max reconnect delay: 5 minutes
   @connection_timeout_ms 10_000         # Connection establishment timeout
-  @auth_timeout_ms 5_000                # Authentication handshake timeout
 
   defp log_prefix, do: "[CloudConnector:#{Reality2.Bootstrap.get(:node_name, "unknown")}]"
 

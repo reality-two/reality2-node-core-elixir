@@ -707,6 +707,46 @@ defmodule AiReality2Transnet.PeerManager do
     end
   end
 
+  def handle_cast({:update_reachability, node_id, transport, info}, state) do
+    case Map.get(state.peers, node_id) do
+      nil ->
+        # Peer not tracked yet — also update HiveDirectory directly
+        notify_hive_directory_reachability(node_id, transport, info)
+        {:noreply, state}
+
+      peer ->
+        now = DateTime.utc_now() |> DateTime.to_iso8601()
+        reach = Map.get(peer, :reachability, %{
+          ble: %{last_seen: nil, confidence: 0, rssi: nil},
+          wifi: %{last_seen: nil, confidence: 0, ip: nil},
+          lora: %{last_seen: nil, confidence: 0, via: nil},
+          internet: %{last_seen: nil, confidence: 0}
+        })
+
+        current_transport = Map.get(reach, transport, %{})
+        updated_transport = Map.merge(current_transport, %{
+          last_seen: now,
+          confidence: Map.get(info, :confidence, Map.get(current_transport, :confidence, 0))
+        })
+        |> maybe_put_reach(:rssi, Map.get(info, :rssi))
+        |> maybe_put_reach(:ip, Map.get(info, :ip))
+        |> maybe_put_reach(:via, Map.get(info, :via))
+
+        new_reach = Map.put(reach, transport, updated_transport)
+        updated_peer = %{peer | reachability: new_reach, last_seen: System.system_time(:millisecond)}
+
+        # Also update the primary transport field based on best reachability
+        updated_peer = update_primary_transport(updated_peer)
+
+        new_peers = Map.put(state.peers, node_id, updated_peer)
+
+        # Propagate to HiveDirectory
+        notify_hive_directory_reachability(node_id, transport, info)
+
+        {:noreply, %{state | peers: new_peers}}
+    end
+  end
+
   @impl true
   def handle_call({:get_peer, node_id}, _from, state) do
     # Synchronous lookup of peer info by node ID
@@ -871,52 +911,6 @@ defmodule AiReality2Transnet.PeerManager do
     end
   end
 
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Reachability Handlers
-  # -----------------------------------------------------------------------------------------------------------------------------------------
-
-  @impl true
-  def handle_cast({:update_reachability, node_id, transport, info}, state) do
-    case Map.get(state.peers, node_id) do
-      nil ->
-        # Peer not tracked yet — also update HiveDirectory directly
-        notify_hive_directory_reachability(node_id, transport, info)
-        {:noreply, state}
-
-      peer ->
-        now = DateTime.utc_now() |> DateTime.to_iso8601()
-        reach = Map.get(peer, :reachability, %{
-          ble: %{last_seen: nil, confidence: 0, rssi: nil},
-          wifi: %{last_seen: nil, confidence: 0, ip: nil},
-          lora: %{last_seen: nil, confidence: 0, via: nil},
-          internet: %{last_seen: nil, confidence: 0}
-        })
-
-        current_transport = Map.get(reach, transport, %{})
-        updated_transport = Map.merge(current_transport, %{
-          last_seen: now,
-          confidence: Map.get(info, :confidence, Map.get(current_transport, :confidence, 0))
-        })
-        |> maybe_put_reach(:rssi, Map.get(info, :rssi))
-        |> maybe_put_reach(:ip, Map.get(info, :ip))
-        |> maybe_put_reach(:via, Map.get(info, :via))
-
-        new_reach = Map.put(reach, transport, updated_transport)
-        updated_peer = %{peer | reachability: new_reach, last_seen: System.system_time(:millisecond)}
-
-        # Also update the primary transport field based on best reachability
-        updated_peer = update_primary_transport(updated_peer)
-
-        new_peers = Map.put(state.peers, node_id, updated_peer)
-
-        # Propagate to HiveDirectory
-        notify_hive_directory_reachability(node_id, transport, info)
-
-        {:noreply, %{state | peers: new_peers}}
-    end
-  end
-
-  @impl true
   def handle_call({:best_transport, node_id}, _from, state) do
     case Map.get(state.peers, node_id) do
       nil ->
@@ -937,7 +931,6 @@ defmodule AiReality2Transnet.PeerManager do
     end
   end
 
-  @impl true
   def handle_call({:get_reachability, node_id}, _from, state) do
     case Map.get(state.peers, node_id) do
       nil -> {:reply, {:error, :not_found}, state}

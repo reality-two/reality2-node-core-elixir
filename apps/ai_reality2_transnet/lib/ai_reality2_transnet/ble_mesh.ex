@@ -73,16 +73,10 @@ defmodule AiReality2Transnet.BLEMesh do
   # Sentant Model Opcodes (must match Rust)
   @opcode_sentant_event 0xC0_FFFF
   @opcode_sentant_signal 0xC1_FFFF
-  # Reserved for future use (query/reply pattern)
-  @_opcode_sentant_query 0xC2_FFFF
-  @_opcode_sentant_reply 0xC3_FFFF
   @opcode_sentant_presence 0xC4_FFFF
 
   # Maximum payload size for mesh messages
   @max_payload_size 380
-
-  # Default TTL (max hops) - reserved for future use
-  @_default_ttl 7
 
   # Presence announcement interval (ms)
   @presence_interval_ms 60_000

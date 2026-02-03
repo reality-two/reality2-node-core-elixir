@@ -46,9 +46,6 @@ defmodule AiReality2Transnet.HiveDirectory do
   @directory_filename "directory.json"
 
   # Confidence thresholds
-  @confidence_wifi_connected 255
-  @confidence_ble_seen 200
-  @confidence_lora_seen 120
   @confidence_minimum 5              # Below this, considered unreachable
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -263,6 +260,21 @@ defmodule AiReality2Transnet.HiveDirectory do
     GenServer.call(__MODULE__, :persist)
   end
 
+  @doc """
+  Clears stale entries from the directory.
+
+  Removes all nodes (except self) that:
+  - Have status :absent, OR
+  - Haven't been updated in over 1 hour
+
+  ## Returns
+  - `{:ok, removed_count}` - Number of entries removed
+  """
+  @spec clear_stale() :: {:ok, non_neg_integer()}
+  def clear_stale do
+    GenServer.call(__MODULE__, :clear_stale)
+  end
+
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # GenServer Callbacks
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -366,6 +378,37 @@ defmodule AiReality2Transnet.HiveDirectory do
   def handle_call(:persist, _from, state) do
     persist_directory(state.directory, state.data_dir)
     {:reply, :ok, %{state | dirty: false}}
+  end
+
+  @impl true
+  def handle_call(:clear_stale, _from, state) do
+    dir = state.directory
+    my_node_id = dir.my_node_id
+
+    # Cutoff: 1 hour ago
+    cutoff = DateTime.utc_now()
+    |> DateTime.add(-3600, :second)
+    |> DateTime.to_iso8601()
+
+    original_count = map_size(dir.nodes)
+
+    # Remove stale entries (but never remove self)
+    new_nodes = Enum.reject(dir.nodes, fn {node_id, entry} ->
+      node_id != my_node_id and (
+        entry.status == :absent or
+        compare_timestamps(Map.get(entry, :updated_at, ""), cutoff) == :lt
+      )
+    end)
+    |> Map.new()
+
+    removed_count = original_count - map_size(new_nodes)
+
+    new_dir = %{dir | nodes: new_nodes, directory_version: dir.directory_version + 1}
+    new_map = build_compressed_id_map(new_dir)
+
+    Logger.info("[HiveDirectory] Cleared #{removed_count} stale entries")
+
+    {:reply, {:ok, removed_count}, %{state | directory: new_dir, compressed_id_map: new_map, dirty: true}}
   end
 
   @impl true
@@ -912,10 +955,10 @@ defmodule AiReality2Transnet.HiveDirectory do
   end
 
   defp import_compressed_id(nil, node_id), do: HiveIdentity.compressed_id(node_id)
-  defp import_compressed_id("0x" <> hex, _node_id) do
+  defp import_compressed_id("0x" <> hex, node_id) do
     case Integer.parse(hex, 16) do
       {value, ""} -> <<value::32>>
-      _ -> HiveIdentity.compressed_id(_node_id)
+      _ -> HiveIdentity.compressed_id(node_id)
     end
   end
   defp import_compressed_id(cid, _node_id) when is_binary(cid) and byte_size(cid) == 4, do: cid

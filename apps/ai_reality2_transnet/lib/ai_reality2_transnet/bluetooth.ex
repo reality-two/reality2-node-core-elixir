@@ -69,6 +69,21 @@ defmodule AiReality2Transnet.Bluetooth do
   end
 
   @doc """
+  Pauses BLE scanning to free the adapter for GATT client connections.
+  Must call `resume_scanning/0` when done.
+  """
+  def pause_scanning do
+    GenServer.call(__MODULE__, :pause_scanning)
+  end
+
+  @doc """
+  Resumes BLE scanning after a pause.
+  """
+  def resume_scanning do
+    GenServer.call(__MODULE__, :resume_scanning)
+  end
+
+  @doc """
   Send a mutation to a peer node's Sentant.
 
   ## Parameters
@@ -124,6 +139,16 @@ defmodule AiReality2Transnet.Bluetooth do
   """
   def handle_incoming_mesh_message(encoded_message, source_info) do
     GenServer.cast(__MODULE__, {:incoming_mesh_message, encoded_message, source_info})
+  end
+
+  @doc """
+  Refresh the BLE beacon with current hive identity.
+
+  Call this after joining or leaving a hive to update the beacon's
+  compressed hive ID so other nodes see the correct hive membership.
+  """
+  def refresh_beacon do
+    GenServer.call(__MODULE__, :refresh_beacon)
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -192,6 +217,69 @@ defmodule AiReality2Transnet.Bluetooth do
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call(:pause_scanning, _from, state) do
+    case Map.get(state, :r2_watch) do
+      nil -> {:reply, :ok, state}
+      handle ->
+        AiReality2Transnet.Action.pause_watching(handle)
+        Logger.debug("#{log_prefix()} BLE scanning paused for GATT client operation")
+        {:reply, :ok, state}
+    end
+  end
+
+  @impl true
+  def handle_call(:refresh_beacon, _from, state) do
+    # Stop the old beacon if running
+    case Map.get(state, :r2_beacon) do
+      nil -> :ok
+      old_handle ->
+        AiReality2Transnet.Action.stop_broadcast(old_handle)
+        Logger.debug("#{log_prefix()} Stopped old beacon for refresh")
+    end
+
+    # Start a new beacon with current hive identity
+    node_id = Reality2.Bootstrap.get(:node_id)
+    node_name = Reality2.Bootstrap.get(:node_name)
+    adapter_name = Map.get(state, :adapter_name, "hci0")
+    hosting_priority = get_hosting_priority()
+
+    hive_compressed = case AiReality2Transnet.HiveIdentity.get_hive_compressed_id() do
+      {:ok, compressed} -> compressed
+      {:error, _} -> <<0, 0, 0, 0>>
+    end
+
+    case AiReality2Transnet.Action.start_broadcast(
+           @r2_company_id,
+           node_id,
+           hive_compressed,
+           -59,
+           node_name,
+           hosting_priority,
+           adapter_name
+         ) do
+      {:ok, h} ->
+        hive_hex = AiReality2Transnet.HiveIdentity.compressed_id_to_hex(hive_compressed)
+        Logger.info("#{log_prefix()} Beacon refreshed with hive: #{hive_hex}")
+        {:reply, :ok, Map.put(state, :r2_beacon, h)}
+
+      {:error, reason} ->
+        Logger.warning("#{log_prefix()} Beacon refresh failed: #{inspect(reason)}")
+        {:reply, {:error, reason}, Map.delete(state, :r2_beacon)}
+    end
+  end
+
+  @impl true
+  def handle_call(:resume_scanning, _from, state) do
+    case Map.get(state, :r2_watch) do
+      nil -> {:reply, :ok, state}
+      handle ->
+        AiReality2Transnet.Action.resume_watching(handle)
+        Logger.debug("#{log_prefix()} BLE scanning resumed")
+        {:reply, :ok, state}
+    end
   end
 
   @impl true
@@ -477,7 +565,7 @@ defmodule AiReality2Transnet.Bluetooth do
         node_name = request.node_name
         node_public_key_b64 = request.node_public_key
         ephemeral_public_key_b64 = request.ephemeral_public_key
-        signature_b64 = request.signature
+        _signature_b64 = request.signature
 
         Logger.info("#{log_prefix()} Hive join request from #{node_name} (#{node_id})")
 
@@ -535,15 +623,28 @@ defmodule AiReality2Transnet.Bluetooth do
         Logger.info("#{log_prefix()} Hive join result for BLE request #{request_id}: #{result.status}")
 
         # Build the plaintext result payload
+        # cert and hive_public_info must be JSON strings, not nested objects
+        cert_value = case Map.get(result, :certificate) do
+          nil -> nil
+          cert when is_map(cert) -> Jason.encode!(cert)
+          cert -> cert
+        end
+        hive_info_value = case Map.get(result, :hive_public_info) do
+          nil -> nil
+          info when is_map(info) -> Jason.encode!(info)
+          info -> info
+        end
+
         result_payload = %{
           action: "join_result",
           request_id: request_id,
           status: result.status,
           hive_id: Map.get(result, :hive_id),
-          cert: Map.get(result, :certificate),
-          hive_public_info: Map.get(result, :hive_public_info),
+          cert: cert_value,
+          hive_public_info: hive_info_value,
           message: Map.get(result, :message)
         }
+        Logger.debug("#{log_prefix()} Result payload to encrypt: #{inspect(result_payload)}")
 
         # Encrypt the result if we have the joiner's ephemeral public key
         response = case Map.get(ble_request, :ephemeral_public_key_b64) do
@@ -555,7 +656,9 @@ defmodule AiReality2Transnet.Bluetooth do
             case Base.decode64(eph_pub_b64) do
               {:ok, recipient_x25519_pub} ->
                 encrypted = AiReality2Transnet.GattProtocol.encrypt_join_result(result_payload, recipient_x25519_pub)
-                AiReality2Transnet.GattProtocol.encode_hive_join(encrypted)
+                encoded = AiReality2Transnet.GattProtocol.encode_hive_join(encrypted)
+                Logger.debug("#{log_prefix()} Encrypted response size: #{byte_size(encoded)} bytes")
+                encoded
 
               :error ->
                 Logger.warning("#{log_prefix()} Invalid ephemeral key, sending unencrypted")
@@ -767,18 +870,24 @@ defmodule AiReality2Transnet.Bluetooth do
     # Get current hosting priority (0-100) based on node capabilities
     hosting_priority = get_hosting_priority()
 
+    # Get compressed hive ID (4 bytes) for beacon - shows hive membership to peers
+    hive_compressed = case AiReality2Transnet.HiveIdentity.get_hive_compressed_id() do
+      {:ok, compressed} -> compressed
+      {:error, _} -> <<0, 0, 0, 0>>  # Not in a hive
+    end
+
     case AiReality2Transnet.Action.start_broadcast(
            @r2_company_id,
            node_id,
-           1,
-           2,
+           hive_compressed,
            -59,
            node_name,
            hosting_priority,
            adapter_name
          ) do
       {:ok, h} ->
-        Logger.info("Node ID: #{node_id} beacon started on #{adapter_name} (priority: #{hosting_priority})")
+        hive_hex = AiReality2Transnet.HiveIdentity.compressed_id_to_hex(hive_compressed)
+        Logger.info("Node ID: #{node_id} beacon started on #{adapter_name} (priority: #{hosting_priority}, hive: #{hive_hex})")
         {:ok, Map.put(state, :r2_beacon, h)}
 
       {:error, reason} ->

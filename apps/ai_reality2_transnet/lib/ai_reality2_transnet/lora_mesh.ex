@@ -840,7 +840,7 @@ defmodule AiReality2Transnet.LoRaMesh do
     node_name = Reality2.Bootstrap.get(:node_name, "unknown")
 
     # Use compressed ID from HiveIdentity
-    src_compressed = if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
+    _src_compressed = if Code.ensure_loaded?(AiReality2Transnet.HiveIdentity) do
       AiReality2Transnet.HiveIdentity.compressed_id(node_id)
     else
       hash16_to_binary(hash16(node_id))

@@ -132,7 +132,7 @@ defmodule Reality2.Automation do
         {name, id, sentant_name, automation_map, keys, state}
       ) do
     # Use PNS router for location-transparent routing
-    Actions.send_via_pns(name_or_id, details)
+    Actions.send_via_wfs(name_or_id, details)
     R2Process.deregister(id <> "|timers|" <> event)
     {:noreply, {name, id, sentant_name, automation_map, keys, state}}
   end
