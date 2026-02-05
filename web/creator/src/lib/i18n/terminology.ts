@@ -48,7 +48,6 @@ type TermKey =
   // Access
   | "viewer" | "Viewer"
   | "visitor" | "Visitor"
-  | "guest" | "Guest"
   // Status
   | "provisional" | "Provisional";
 
@@ -124,8 +123,6 @@ const TERMINOLOGY: Record<"standard" | "advanced", Record<TermKey, string>> = {
     Viewer: "Visitor",
     visitor: "visitor",
     Visitor: "Visitor",
-    guest: "guest",
-    Guest: "Guest",
     // Status
     provisional: "new",
     Provisional: "New",
@@ -201,8 +198,6 @@ const TERMINOLOGY: Record<"standard" | "advanced", Record<TermKey, string>> = {
     Viewer: "Viewer",
     visitor: "viewer",
     Visitor: "Viewer",
-    guest: "guest",
-    Guest: "Guest",
     // Status
     provisional: "provisional",
     Provisional: "Provisional",
