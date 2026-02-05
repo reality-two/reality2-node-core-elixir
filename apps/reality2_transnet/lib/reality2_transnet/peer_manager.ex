@@ -65,12 +65,12 @@ defmodule Reality2Transnet.PeerManager do
   - `last_seen` - Unix timestamp (milliseconds) of last beacon or interaction
   - `connection_state` - Connection lifecycle state (`:discovered`, `:sentants_exchanged`, etc.)
 
-  ## Hive Fields (Phase 2)
-  - `hive_id` - UUID of the Hive this peer belongs to (nil if unknown)
-  - `hive_public_key` - Public key of the peer's Hive (for signature verification)
-  - `node_cert` - Node certificate proving Hive membership (verified)
-  - `is_same_hive` - true if peer is in the same Hive as us
-  - `hive_verified` - true if we've verified the peer's Hive membership
+  ## Trust Group Fields (Phase 2)
+  - `trust_group_id` - UUID of the Trust Group this peer belongs to (nil if unknown)
+  - `trust_group_public_key` - Public key of the peer's Trust Group (for signature verification)
+  - `node_cert` - Node certificate proving Trust Group membership (verified)
+  - `is_same_trust_group` - true if peer is in the same Trust Group as us
+  - `trust_group_verified` - true if we've verified the peer's Trust Group membership
   """
   @type peer :: %{
     node_id: String.t(),
@@ -84,12 +84,12 @@ defmodule Reality2Transnet.PeerManager do
     discovered_at: integer(),
     last_seen: integer(),
     connection_state: atom(),
-    # Hive identity fields
-    hive_id: String.t() | nil,
-    hive_public_key: binary() | nil,
+    # Trust Group identity fields
+    trust_group_id: String.t() | nil,
+    trust_group_public_key: binary() | nil,
     node_cert: map() | nil,
-    is_same_hive: boolean(),
-    hive_verified: boolean()
+    is_same_trust_group: boolean(),
+    trust_group_verified: boolean()
   }
 
   @typedoc """
@@ -312,24 +312,24 @@ defmodule Reality2Transnet.PeerManager do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Hive-Aware Peer API (Phase 2)
+  # Trust Group-Aware Peer API (Phase 2)
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   @doc """
-  Gets all peers that belong to the same Hive as this node.
+  Gets all peers that belong to the same Trust Group as this node.
 
   These are trusted peers with verified certificates.
 
   ## Returns
-  Map of node_id => peer_info for same-Hive peers
+  Map of node_id => peer_info for same-Trust Group peers
   """
-  @spec get_hive_peers() :: map()
-  def get_hive_peers do
-    GenServer.call(__MODULE__, :get_hive_peers)
+  @spec get_trust_group_peers() :: map()
+  def get_trust_group_peers do
+    GenServer.call(__MODULE__, :get_trust_group_peers)
   end
 
   @doc """
-  Gets all peers from other Hives (foreign peers).
+  Gets all peers from other Trust Groups (foreign peers).
 
   These may be trusted via federation or untrusted.
 
@@ -342,44 +342,44 @@ defmodule Reality2Transnet.PeerManager do
   end
 
   @doc """
-  Gets all peers belonging to a specific Hive.
+  Gets all peers belonging to a specific Trust Group.
 
   ## Parameters
-  - `hive_id` - UUID of the Hive to filter by
+  - `trust_group_id` - UUID of the Trust Group to filter by
 
   ## Returns
-  Map of node_id => peer_info for peers in that Hive
+  Map of node_id => peer_info for peers in that Trust Group
   """
-  @spec get_peers_by_hive(String.t()) :: map()
-  def get_peers_by_hive(hive_id) do
-    GenServer.call(__MODULE__, {:get_peers_by_hive, hive_id})
+  @spec get_peers_by_trust_group(String.t()) :: map()
+  def get_peers_by_trust_group(trust_group_id) do
+    GenServer.call(__MODULE__, {:get_peers_by_trust_group, trust_group_id})
   end
 
   @doc """
-  Updates a peer's Hive identity information.
+  Updates a peer's Trust Group identity information.
 
-  Called when we receive Hive info from a peer (e.g., via presence announcement
+  Called when we receive Trust Group info from a peer (e.g., via presence announcement
   or certificate exchange). Verifies the certificate if provided.
 
   ## Parameters
   - `node_id` - UUID of the peer node
-  - `hive_info` - Map containing:
-    - `:hive_id` - Hive UUID
-    - `:hive_public_key` - Base64-encoded public key
+  - `trust_group_info` - Map containing:
+    - `:trust_group_id` - Trust Group UUID
+    - `:trust_group_public_key` - Base64-encoded public key
     - `:node_cert` - (optional) Node certificate for verification
 
   ## Returns
-  - `:ok` - Hive info updated
+  - `:ok` - Trust Group info updated
   - `{:error, :not_found}` - Peer not tracked
   - `{:error, :invalid_cert}` - Certificate verification failed
   """
-  @spec update_peer_hive_info(String.t(), map()) :: :ok | {:error, term()}
-  def update_peer_hive_info(node_id, hive_info) do
-    GenServer.call(__MODULE__, {:update_hive_info, node_id, hive_info})
+  @spec update_peer_trust_group_info(String.t(), map()) :: :ok | {:error, term()}
+  def update_peer_trust_group_info(node_id, trust_group_info) do
+    GenServer.call(__MODULE__, {:update_trust_group_info, node_id, trust_group_info})
   end
 
   @doc """
-  Checks if a peer has verified Hive membership.
+  Checks if a peer has verified Trust Group membership.
 
   ## Parameters
   - `node_id` - UUID of the peer node
@@ -391,7 +391,7 @@ defmodule Reality2Transnet.PeerManager do
   @spec peer_verified?(String.t()) :: boolean()
   def peer_verified?(node_id) do
     case get_peer(node_id) do
-      {:ok, peer} -> peer.hive_verified
+      {:ok, peer} -> peer.trust_group_verified
       _ -> false
     end
   end
@@ -525,12 +525,12 @@ defmodule Reality2Transnet.PeerManager do
         discovered_at: System.system_time(:millisecond),
         last_seen: System.system_time(:millisecond),
         connection_state: :discovered,     # Initial state in lifecycle
-        # Hive identity fields (populated later via update_peer_hive_info)
-        hive_id: nil,
-        hive_public_key: nil,
+        # Trust Group identity fields (populated later via update_peer_trust_group_info)
+        trust_group_id: nil,
+        trust_group_public_key: nil,
         node_cert: nil,
-        is_same_hive: false,
-        hive_verified: false,
+        is_same_trust_group: false,
+        trust_group_verified: false,
         # Per-transport reachability tracking
         reachability: %{
           ble: %{last_seen: DateTime.utc_now() |> DateTime.to_iso8601(), confidence: 200, rssi: Map.get(info, :rssi)},
@@ -555,6 +555,9 @@ defmodule Reality2Transnet.PeerManager do
     unless existing do
       name_info = if peer.node_name, do: " (#{peer.node_name})", else: ""
       Logger.info("#{log_prefix()} New peer discovered: #{String.slice(node_id, 0..7)}...#{name_info} (RSSI: #{peer.rssi})")
+
+      # Check for proximity prompting - notify key holder of very close devices
+      maybe_trigger_proximity_prompt(node_id, peer)
     end
 
     {:noreply, %{state | peers: new_peers, stats: new_stats}}
@@ -587,21 +590,21 @@ defmodule Reality2Transnet.PeerManager do
           Reality2Wfs.Router.refresh_topology()
         end
 
-        # Update HiveDirectory with peer's sentants
-        if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-           Process.whereis(Reality2Transnet.HiveDirectory) != nil do
+        # Update TrustGroupDirectory with peer's sentants
+        if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+           Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
           sentant_entries = Enum.map(sentants, fn s ->
             %{
               id: Map.get(s, :id) || Map.get(s, "id"),
               name: Map.get(s, :name) || Map.get(s, "name", "")
             }
           end)
-          Reality2Transnet.HiveDirectory.register_node(node_id, %{
+          Reality2Transnet.TrustGroupDirectory.register_node(node_id, %{
             sentants: sentant_entries
           })
 
           # Also update WiFi reachability since sentant exchange happens over WiFi
-          Reality2Transnet.HiveDirectory.update_reachability(node_id, :wifi, %{confidence: 255})
+          Reality2Transnet.TrustGroupDirectory.update_reachability(node_id, :wifi, %{confidence: 255})
         end
 
         {:noreply, %{state | peers: new_peers}}
@@ -710,8 +713,8 @@ defmodule Reality2Transnet.PeerManager do
   def handle_cast({:update_reachability, node_id, transport, info}, state) do
     case Map.get(state.peers, node_id) do
       nil ->
-        # Peer not tracked yet — also update HiveDirectory directly
-        notify_hive_directory_reachability(node_id, transport, info)
+        # Peer not tracked yet — also update TrustGroupDirectory directly
+        notify_trust_group_directory_reachability(node_id, transport, info)
         {:noreply, state}
 
       peer ->
@@ -740,8 +743,8 @@ defmodule Reality2Transnet.PeerManager do
 
         new_peers = Map.put(state.peers, node_id, updated_peer)
 
-        # Propagate to HiveDirectory
-        notify_hive_directory_reachability(node_id, transport, info)
+        # Propagate to TrustGroupDirectory
+        notify_trust_group_directory_reachability(node_id, transport, info)
 
         {:noreply, %{state | peers: new_peers}}
     end
@@ -812,53 +815,53 @@ defmodule Reality2Transnet.PeerManager do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Hive-Aware Handlers
+  # Trust Group-Aware Handlers
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   @impl true
-  def handle_call(:get_hive_peers, _from, state) do
-    # Filter to peers in the same Hive (verified)
-    hive_peers = state.peers
-      |> Enum.filter(fn {_id, peer} -> peer.is_same_hive and peer.hive_verified end)
+  def handle_call(:get_trust_group_peers, _from, state) do
+    # Filter to peers in the same Trust Group (verified)
+    trust_group_peers = state.peers
+      |> Enum.filter(fn {_id, peer} -> peer.is_same_trust_group and peer.trust_group_verified end)
       |> Map.new()
 
-    {:reply, hive_peers, state}
+    {:reply, trust_group_peers, state}
   end
 
   @impl true
   def handle_call(:get_foreign_peers, _from, state) do
-    # Filter to peers NOT in the same Hive
+    # Filter to peers NOT in the same Trust Group
     foreign_peers = state.peers
-      |> Enum.filter(fn {_id, peer} -> not peer.is_same_hive end)
+      |> Enum.filter(fn {_id, peer} -> not peer.is_same_trust_group end)
       |> Map.new()
 
     {:reply, foreign_peers, state}
   end
 
   @impl true
-  def handle_call({:get_peers_by_hive, hive_id}, _from, state) do
-    # Filter to peers belonging to a specific Hive
+  def handle_call({:get_peers_by_trust_group, trust_group_id}, _from, state) do
+    # Filter to peers belonging to a specific Trust Group
     matching_peers = state.peers
-      |> Enum.filter(fn {_id, peer} -> peer.hive_id == hive_id end)
+      |> Enum.filter(fn {_id, peer} -> peer.trust_group_id == trust_group_id end)
       |> Map.new()
 
     {:reply, matching_peers, state}
   end
 
   @impl true
-  def handle_call({:update_hive_info, node_id, hive_info}, _from, state) do
+  def handle_call({:update_trust_group_info, node_id, trust_group_info}, _from, state) do
     case Map.get(state.peers, node_id) do
       nil ->
         {:reply, {:error, :not_found}, state}
 
       peer ->
-        # Extract hive info
-        hive_id = Map.get(hive_info, :hive_id)
-        hive_public_key_b64 = Map.get(hive_info, :hive_public_key)
-        node_cert = Map.get(hive_info, :node_cert)
+        # Extract trust group info
+        trust_group_id = Map.get(trust_group_info, :trust_group_id)
+        trust_group_public_key_b64 = Map.get(trust_group_info, :trust_group_public_key)
+        node_cert = Map.get(trust_group_info, :node_cert)
 
         # Decode public key if provided
-        hive_public_key = case hive_public_key_b64 do
+        trust_group_public_key = case trust_group_public_key_b64 do
           nil -> nil
           b64 when is_binary(b64) ->
             case Base.decode64(b64) do
@@ -868,19 +871,19 @@ defmodule Reality2Transnet.PeerManager do
           key when is_binary(key) -> key  # Already decoded
         end
 
-        # Get our own Hive ID to check if same Hive
-        our_hive_id = case Reality2Transnet.HiveIdentity.get_hive_id() do
+        # Get our own Trust Group ID to check if same Trust Group
+        our_trust_group_id = case Reality2Transnet.TrustGroup.get_trust_group_id() do
           {:ok, id} -> id
           _ -> nil
         end
 
-        is_same_hive = hive_id != nil and hive_id == our_hive_id
+        is_same_trust_group = trust_group_id != nil and trust_group_id == our_trust_group_id
 
         # Verify certificate if provided
-        {hive_verified, verified_cert} = if node_cert && hive_public_key do
-          case Reality2Transnet.HiveIdentity.verify_node_cert(node_cert, hive_public_key) do
+        {trust_group_verified, verified_cert} = if node_cert && trust_group_public_key do
+          case Reality2Transnet.TrustGroup.verify_node_cert(node_cert, trust_group_public_key) do
             {:ok, _cert_data} ->
-              Logger.debug("#{log_prefix()} Verified Hive certificate for peer #{String.slice(node_id, 0..7)}...")
+              Logger.debug("#{log_prefix()} Verified Trust Group certificate for peer #{String.slice(node_id, 0..7)}...")
               {true, node_cert}
             {:error, reason} ->
               Logger.warning("#{log_prefix()} Invalid certificate for peer #{String.slice(node_id, 0..7)}...: #{inspect(reason)}")
@@ -891,20 +894,20 @@ defmodule Reality2Transnet.PeerManager do
           {false, nil}
         end
 
-        # Update peer with Hive info
+        # Update peer with Trust Group info
         updated_peer = %{peer |
-          hive_id: hive_id,
-          hive_public_key: hive_public_key,
+          trust_group_id: trust_group_id,
+          trust_group_public_key: trust_group_public_key,
           node_cert: verified_cert,
-          is_same_hive: is_same_hive,
-          hive_verified: hive_verified,
+          is_same_trust_group: is_same_trust_group,
+          trust_group_verified: trust_group_verified,
           last_seen: System.system_time(:millisecond)
         }
 
         new_peers = Map.put(state.peers, node_id, updated_peer)
 
-        if is_same_hive and hive_verified do
-          Logger.info("#{log_prefix()} Peer #{String.slice(node_id, 0..7)}... joined our Hive (verified)")
+        if is_same_trust_group and trust_group_verified do
+          Logger.info("#{log_prefix()} Peer #{String.slice(node_id, 0..7)}... joined our Trust Group (verified)")
         end
 
         {:reply, :ok, %{state | peers: new_peers}}
@@ -1033,10 +1036,45 @@ defmodule Reality2Transnet.PeerManager do
     %{peer | transport: best_transport}
   end
 
-  defp notify_hive_directory_reachability(node_id, transport, info) do
-    if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-       Process.whereis(Reality2Transnet.HiveDirectory) != nil do
-      Reality2Transnet.HiveDirectory.update_reachability(node_id, transport, info)
+  defp notify_trust_group_directory_reachability(node_id, transport, info) do
+    if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+       Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
+      Reality2Transnet.TrustGroupDirectory.update_reachability(node_id, transport, info)
+    end
+  end
+
+  # RSSI thresholds for proximity detection
+  # Very close: RSSI > -50 (within ~1 meter)
+  @proximity_rssi_threshold -50
+
+  # Trigger proximity prompt for key holders when a very close device is detected
+  defp maybe_trigger_proximity_prompt(node_id, peer) do
+    rssi = peer.rssi
+
+    # Only prompt if RSSI indicates very close proximity
+    if rssi && rssi > @proximity_rssi_threshold do
+      # Check if this node is a key holder (only key holders can approve joins)
+      if Code.ensure_loaded?(Reality2Transnet.TrustGroup) and
+         function_exported?(Reality2Transnet.TrustGroup, :is_key_holder?, 0) do
+        case Reality2Transnet.TrustGroup.is_key_holder?() do
+          true ->
+            Logger.info("#{log_prefix()} Proximity prompt: #{peer.node_name || node_id} is very close (RSSI: #{rssi})")
+
+            # Broadcast proximity event to UI via PubSub
+            Phoenix.PubSub.broadcast(Reality2.PubSub, "trust_group:proximity", {
+              :proximity_device_detected, node_id, %{
+                node_id: node_id,
+                node_name: peer.node_name,
+                rssi: rssi,
+                proximity: :very_close,
+                timestamp: System.system_time(:second)
+              }
+            })
+
+          _ ->
+            :ok  # Not a key holder, skip prompt
+        end
+      end
     end
   end
 end

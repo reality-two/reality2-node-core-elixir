@@ -1,6 +1,6 @@
-defmodule Reality2Transnet.HiveMembers do
+defmodule Reality2Transnet.TrustGroupMembers do
   @moduledoc """
-  Persistent storage for approved hive members.
+  Persistent storage for approved trust group members.
 
   Stores both node members (Reality2 nodes) and viewer members (phones, tablets,
   or other devices that can view but not host sentants).
@@ -12,7 +12,7 @@ defmodule Reality2Transnet.HiveMembers do
 
   ## Persistence
 
-  Members are persisted to `hive_data/members.json` and reloaded on boot.
+  Members are persisted to `trust_group_data/members.json` and reloaded on boot.
 
   **Author**
   - Dr. Roy C. Davies
@@ -31,7 +31,7 @@ defmodule Reality2Transnet.HiveMembers do
   @typedoc "Member type — node or viewer device"
   @type member_type :: :node | :viewer
 
-  @typedoc "A hive member entry"
+  @typedoc "A trust group member entry"
   @type member :: %{
     node_id: String.t(),
     node_name: String.t(),
@@ -50,7 +50,7 @@ defmodule Reality2Transnet.HiveMembers do
   end
 
   @doc """
-  Add a new approved member to the hive.
+  Add a new approved member to the trust group.
 
   ## Parameters
 
@@ -73,7 +73,7 @@ defmodule Reality2Transnet.HiveMembers do
   end
 
   @doc """
-  Remove a member from the hive.
+  Remove a member from the trust group.
 
   ## Parameters
 
@@ -89,7 +89,7 @@ defmodule Reality2Transnet.HiveMembers do
   end
 
   @doc """
-  List all approved hive members.
+  List all approved trust group members.
 
   ## Returns
 
@@ -151,15 +151,15 @@ defmodule Reality2Transnet.HiveMembers do
 
     state = case load_members(data_dir) do
       {:ok, members} ->
-        Logger.info("[HiveMembers] Loaded #{map_size(members)} approved members")
+        Logger.info("[TrustGroupMembers] Loaded #{map_size(members)} approved members")
         members
 
       {:error, :not_found} ->
-        Logger.info("[HiveMembers] No existing members file, starting fresh")
+        Logger.info("[TrustGroupMembers] No existing members file, starting fresh")
         %{}
 
       {:error, reason} ->
-        Logger.warning("[HiveMembers] Failed to load members: #{inspect(reason)}, starting fresh")
+        Logger.warning("[TrustGroupMembers] Failed to load members: #{inspect(reason)}, starting fresh")
         %{}
     end
 
@@ -186,7 +186,7 @@ defmodule Reality2Transnet.HiveMembers do
       # Persist immediately on member changes for durability
       persist_members(new_members, state.data_dir)
 
-      Logger.info("[HiveMembers] Added #{member_type} member: #{node_name} (#{truncate_id(node_id)})")
+      Logger.info("[TrustGroupMembers] Added #{member_type} member: #{node_name} (#{truncate_id(node_id)})")
       {:reply, {:ok, member}, %{new_state | dirty: false}}
     end
   end
@@ -204,7 +204,7 @@ defmodule Reality2Transnet.HiveMembers do
         # Persist immediately on member changes
         persist_members(new_members, state.data_dir)
 
-        Logger.info("[HiveMembers] Removed member: #{member.node_name} (#{truncate_id(node_id)})")
+        Logger.info("[TrustGroupMembers] Removed member: #{member.node_name} (#{truncate_id(node_id)})")
         {:reply, :ok, %{new_state | dirty: false}}
     end
   end
@@ -259,8 +259,8 @@ defmodule Reality2Transnet.HiveMembers do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   defp get_data_dir do
-    Application.get_env(:reality2_transnet, :hive_data_dir, ".hive")
-    |> Path.join("hive_data")
+    Application.get_env(:reality2_transnet, :trust_group_data_dir, ".r2")
+    |> Path.join("trust_group_data")
   end
 
   defp members_path(data_dir) do
@@ -280,14 +280,14 @@ defmodule Reality2Transnet.HiveMembers do
       {:ok, json} ->
         File.write!(path, json)
         File.chmod(path, 0o600)
-        Logger.debug("[HiveMembers] Persisted #{map_size(members)} members to #{path}")
+        Logger.debug("[TrustGroupMembers] Persisted #{map_size(members)} members to #{path}")
 
       {:error, reason} ->
-        Logger.error("[HiveMembers] Failed to encode members: #{inspect(reason)}")
+        Logger.error("[TrustGroupMembers] Failed to encode members: #{inspect(reason)}")
     end
   rescue
     e ->
-      Logger.error("[HiveMembers] Failed to persist: #{inspect(e)}")
+      Logger.error("[TrustGroupMembers] Failed to persist: #{inspect(e)}")
   end
 
   defp export_member(member) do

@@ -60,6 +60,33 @@ export type SignalData = {
   parameters?: Record<string, unknown>;
 };
 
+export type JoinRequestNotification = {
+  status?: string;
+  requestId?: string;
+  nodeId?: string;
+  nodeName?: string;
+  nodePublicKey?: string;
+  submittedAt?: number;
+  source?: string;
+};
+
+export type ProximityNotification = {
+  status?: string;
+  nodeId?: string;
+  nodeName?: string;
+  rssi?: number;
+  proximity?: string;
+  timestamp?: number;
+};
+
+export type BackupPromptNotification = {
+  status?: string;
+  deviceName?: string;
+  trustGroupName?: string;
+  trustGroupId?: string;
+  timestamp?: number;
+};
+
 export type WebSocketMessage = {
   topic: string;
   event: string;

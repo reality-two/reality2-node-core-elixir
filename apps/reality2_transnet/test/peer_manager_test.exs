@@ -80,12 +80,12 @@ defmodule Reality2Transnet.PeerManagerTest do
       assert is_integer(peer.last_seen)
       assert peer.last_seen >= peer.discovered_at
 
-      # Hive fields default to nil/false
-      assert peer.hive_id == nil
-      assert peer.hive_public_key == nil
+      # TrustGroup fields default to nil/false
+      assert peer.trust_group_id == nil
+      assert peer.trust_group_public_key == nil
       assert peer.node_cert == nil
-      assert peer.is_same_hive == false
-      assert peer.hive_verified == false
+      assert peer.is_same_trust_group == false
+      assert peer.trust_group_verified == false
 
       # Reachability initialized with BLE data
       assert peer.reachability.ble.confidence == 200
@@ -447,7 +447,7 @@ defmodule Reality2Transnet.PeerManagerTest do
     end
 
     test "does not crash for unknown peer" do
-      # Should silently handle or propagate to HiveDirectory only
+      # Should silently handle or propagate to TrustGroupDirectory only
       PeerManager.update_reachability("ghost-peer", :ble, %{confidence: 100})
       flush_casts()
 
@@ -491,11 +491,11 @@ defmodule Reality2Transnet.PeerManagerTest do
   end
 
   # ---------------------------------------------------------------------------
-  # 5. Hive-aware peer filtering
+  # 5. TrustGroup-aware peer filtering
   # ---------------------------------------------------------------------------
 
-  describe "get_hive_peers/0 — same hive, verified" do
-    test "returns only peers with is_same_hive=true AND hive_verified=true" do
+  describe "get_trust_group_peers/0 — same trust group, verified" do
+    test "returns only peers with is_same_trust_group=true AND trust_group_verified=true" do
       # Register 3 peers
       id_same_verified = TestNodeFactory.generate_uuid()
       id_same_unverified = TestNodeFactory.generate_uuid()
@@ -506,11 +506,11 @@ defmodule Reality2Transnet.PeerManagerTest do
       end
       flush_casts()
 
-      # Manually set hive fields via the state (use update_reachability + internal state)
-      # Since update_peer_hive_info calls HiveIdentity which may not be available,
+      # Manually set trust group fields via the state (use update_reachability + internal state)
+      # Since update_peer_trust_group_info calls TrustGroupIdentity which may not be available,
       # we inject state by sending a raw message to set the fields.
-      # Instead, let's test through the GenServer's handle_call for update_hive_info.
-      # But that calls HiveIdentity.get_hive_id() and verify_node_cert().
+      # Instead, let's test through the GenServer's handle_call for update_trust_group_info.
+      # But that calls TrustGroupIdentity.get_trust_group_id() and verify_node_cert().
       # In integration mode those should be available. If not, we test the filter
       # logic by directly manipulating state.
 
@@ -518,37 +518,37 @@ defmodule Reality2Transnet.PeerManagerTest do
       :sys.replace_state(PeerManager, fn state ->
         peers = state.peers
         |> Map.update!(id_same_verified, fn p ->
-          %{p | is_same_hive: true, hive_verified: true, hive_id: "hive-A"}
+          %{p | is_same_trust_group: true, trust_group_verified: true, trust_group_id: "trust-group-A"}
         end)
         |> Map.update!(id_same_unverified, fn p ->
-          %{p | is_same_hive: true, hive_verified: false, hive_id: "hive-A"}
+          %{p | is_same_trust_group: true, trust_group_verified: false, trust_group_id: "trust-group-A"}
         end)
         |> Map.update!(id_foreign, fn p ->
-          %{p | is_same_hive: false, hive_verified: true, hive_id: "hive-B"}
+          %{p | is_same_trust_group: false, trust_group_verified: true, trust_group_id: "trust-group-B"}
         end)
 
         %{state | peers: peers}
       end)
 
-      hive_peers = PeerManager.get_hive_peers()
+      trust_group_peers = PeerManager.get_trust_group_peers()
 
-      assert Map.has_key?(hive_peers, id_same_verified)
-      refute Map.has_key?(hive_peers, id_same_unverified)
-      refute Map.has_key?(hive_peers, id_foreign)
+      assert Map.has_key?(trust_group_peers, id_same_verified)
+      refute Map.has_key?(trust_group_peers, id_same_unverified)
+      refute Map.has_key?(trust_group_peers, id_foreign)
     end
 
-    test "returns empty map when no hive peers exist" do
+    test "returns empty map when no trust group peers exist" do
       node_id = TestNodeFactory.generate_uuid()
       PeerManager.register_peer(node_id, %{rssi: -60})
       flush_casts()
 
-      # Default: is_same_hive=false, hive_verified=false
-      assert PeerManager.get_hive_peers() == %{}
+      # Default: is_same_trust_group=false, trust_group_verified=false
+      assert PeerManager.get_trust_group_peers() == %{}
     end
   end
 
   describe "get_foreign_peers/0" do
-    test "returns peers where is_same_hive is false" do
+    test "returns peers where is_same_trust_group is false" do
       id_same = TestNodeFactory.generate_uuid()
       id_foreign = TestNodeFactory.generate_uuid()
 
@@ -558,21 +558,21 @@ defmodule Reality2Transnet.PeerManagerTest do
 
       :sys.replace_state(PeerManager, fn state ->
         peers = Map.update!(state.peers, id_same, fn p ->
-          %{p | is_same_hive: true, hive_verified: true}
+          %{p | is_same_trust_group: true, trust_group_verified: true}
         end)
         %{state | peers: peers}
       end)
 
       foreign = PeerManager.get_foreign_peers()
 
-      # id_foreign has is_same_hive=false (default)
+      # id_foreign has is_same_trust_group=false (default)
       assert Map.has_key?(foreign, id_foreign)
       refute Map.has_key?(foreign, id_same)
     end
   end
 
-  describe "get_peers_by_hive/1 — filter by hive_id" do
-    test "returns only peers matching the given hive_id" do
+  describe "get_peers_by_trust_group/1 — filter by trust_group_id" do
+    test "returns only peers matching the given trust_group_id" do
       id_a1 = TestNodeFactory.generate_uuid()
       id_a2 = TestNodeFactory.generate_uuid()
       id_b = TestNodeFactory.generate_uuid()
@@ -585,25 +585,25 @@ defmodule Reality2Transnet.PeerManagerTest do
 
       :sys.replace_state(PeerManager, fn state ->
         peers = state.peers
-        |> Map.update!(id_a1, fn p -> %{p | hive_id: "hive-A"} end)
-        |> Map.update!(id_a2, fn p -> %{p | hive_id: "hive-A"} end)
-        |> Map.update!(id_b, fn p -> %{p | hive_id: "hive-B"} end)
-        # id_none keeps hive_id: nil
+        |> Map.update!(id_a1, fn p -> %{p | trust_group_id: "trust-group-A"} end)
+        |> Map.update!(id_a2, fn p -> %{p | trust_group_id: "trust-group-A"} end)
+        |> Map.update!(id_b, fn p -> %{p | trust_group_id: "trust-group-B"} end)
+        # id_none keeps trust_group_id: nil
 
         %{state | peers: peers}
       end)
 
-      hive_a_peers = PeerManager.get_peers_by_hive("hive-A")
-      assert map_size(hive_a_peers) == 2
-      assert Map.has_key?(hive_a_peers, id_a1)
-      assert Map.has_key?(hive_a_peers, id_a2)
+      trust_group_a_peers = PeerManager.get_peers_by_trust_group("trust-group-A")
+      assert map_size(trust_group_a_peers) == 2
+      assert Map.has_key?(trust_group_a_peers, id_a1)
+      assert Map.has_key?(trust_group_a_peers, id_a2)
 
-      hive_b_peers = PeerManager.get_peers_by_hive("hive-B")
-      assert map_size(hive_b_peers) == 1
-      assert Map.has_key?(hive_b_peers, id_b)
+      trust_group_b_peers = PeerManager.get_peers_by_trust_group("trust-group-B")
+      assert map_size(trust_group_b_peers) == 1
+      assert Map.has_key?(trust_group_b_peers, id_b)
 
-      # Non-existent hive returns empty
-      assert PeerManager.get_peers_by_hive("hive-Z") == %{}
+      # Non-existent trust group returns empty
+      assert PeerManager.get_peers_by_trust_group("trust-group-Z") == %{}
     end
   end
 
@@ -935,7 +935,7 @@ defmodule Reality2Transnet.PeerManagerTest do
 
       :sys.replace_state(PeerManager, fn state ->
         peers = Map.update!(state.peers, node_id, fn p ->
-          %{p | hive_verified: true}
+          %{p | trust_group_verified: true}
         end)
         %{state | peers: peers}
       end)

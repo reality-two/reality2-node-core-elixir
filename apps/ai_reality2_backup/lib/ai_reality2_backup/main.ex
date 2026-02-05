@@ -136,25 +136,25 @@ defmodule AiReality2Backup.Main do
   def sendto(_sentant_id, command_and_parameters) do
     sentant_name = R2Map.get(command_and_parameters, :name, "")
 
-    # Legacy key support for migration - if provided, use old Hive key
+    # Legacy key support for migration - if provided, use old TrustGroup key
     keys = R2Map.get(command_and_parameters, :keys, %{})
-    old_hive_key = R2Map.get(keys, :old_hive_key, nil)
+    old_trust_group_key = R2Map.get(keys, :old_trust_group_key, nil)
 
     parameters = R2Map.get(command_and_parameters, :parameters, %{})
     data = parameters |> R2Map.delete(:result)
 
     case R2Map.get(command_and_parameters, :command) do
       "store" ->
-        # Encrypt with current Hive key and store
+        # Encrypt with current TrustGroup key and store
         encrypt_and_store(sentant_name, data)
 
       "retrieve" ->
-        # Retrieve and decrypt with current Hive key
+        # Retrieve and decrypt with current TrustGroup key
         retrieve_and_decrypt(sentant_name)
 
       "retrieve_migrate" ->
-        # Retrieve using old Hive key, re-encrypt with current, and store
-        retrieve_and_migrate(sentant_name, old_hive_key)
+        # Retrieve using old TrustGroup key, re-encrypt with current, and store
+        retrieve_and_migrate(sentant_name, old_trust_group_key)
 
       "delete" ->
         # Delete an entry from the database
@@ -168,10 +168,10 @@ defmodule AiReality2Backup.Main do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Private Functions - All encryption now uses Hive-derived keys
+  # Private Functions - All encryption now uses TrustGroup-derived keys
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # Store data encrypted with the current Hive key
+  # Store data encrypted with the current TrustGroup key
   defp encrypt_and_store("", _data), do: {:error, :name}
 
   defp encrypt_and_store(name, data) do
@@ -199,7 +199,7 @@ defmodule AiReality2Backup.Main do
     end
   end
 
-  # Retrieve and decrypt data using current Hive key
+  # Retrieve and decrypt data using current TrustGroup key
   defp retrieve_and_decrypt(""), do: {:error, :name}
 
   defp retrieve_and_decrypt(name) do
@@ -239,11 +239,11 @@ defmodule AiReality2Backup.Main do
     end
   end
 
-  # Retrieve data encrypted with old Hive, re-encrypt with current Hive, and store
-  defp retrieve_and_migrate("", _old_hive_key), do: {:error, :name}
-  defp retrieve_and_migrate(_name, nil), do: {:error, :old_hive_key}
+  # Retrieve data encrypted with old TrustGroup, re-encrypt with current TrustGroup, and store
+  defp retrieve_and_migrate("", _old_trust_group_key), do: {:error, :name}
+  defp retrieve_and_migrate(_name, nil), do: {:error, :old_trust_group_key}
 
-  defp retrieve_and_migrate(name, old_hive_key) do
+  defp retrieve_and_migrate(name, old_trust_group_key) do
     purpose = "backup:#{name}"
 
     do_read = fn ->
@@ -255,8 +255,8 @@ defmodule AiReality2Backup.Main do
         try do
           encrypted_data = Base.decode64!(encrypted_data_b64)
 
-          # Migrate: decrypt with old key, re-encrypt with current Hive key
-          case Crypto.migrate_from_old_hive(encrypted_data, purpose, old_hive_key) do
+          # Migrate: decrypt with old key, re-encrypt with current TrustGroup key
+          case Crypto.migrate_from_old_trust_group(encrypted_data, purpose, old_trust_group_key) do
             {:ok, re_encrypted_data} ->
               # Store the re-encrypted data
               do_write = fn ->

@@ -701,7 +701,7 @@ defmodule Reality2Transnet.LoRaMesh do
     end
   end
 
-  # Handle incoming presence: update reachability via PeerManager and HiveDirectory
+  # Handle incoming presence: update reachability via PeerManager and TrustGroupDirectory
   defp handle_presence(message) do
     # Try to decode the new presence format
     if Code.ensure_loaded?(Reality2Transnet.Transports.LoRaTransport) do
@@ -714,16 +714,16 @@ defmodule Reality2Transnet.LoRaMesh do
           if Code.ensure_loaded?(Reality2Transnet.PeerManager) and src_node_id != nil do
             Reality2Transnet.PeerManager.update_reachability(src_node_id, :lora, %{
               confidence: 120,
-              hive_compressed: Map.get(presence, :hive_compressed),
+              trust_group_compressed: Map.get(presence, :trust_group_compressed),
               dir_version: Map.get(presence, :dir_version, 0)
             })
           end
 
-          # Update HiveDirectory reachability
-          if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-             Process.whereis(Reality2Transnet.HiveDirectory) != nil and
+          # Update TrustGroupDirectory reachability
+          if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+             Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil and
              src_node_id != nil do
-            Reality2Transnet.HiveDirectory.update_reachability(src_node_id, :lora, %{
+            Reality2Transnet.TrustGroupDirectory.update_reachability(src_node_id, :lora, %{
               confidence: 120
             })
           end
@@ -739,9 +739,9 @@ defmodule Reality2Transnet.LoRaMesh do
     cond do
       # New format: message may have src_compressed field
       is_map_key(message, :src_compressed) and is_binary(message.src_compressed) ->
-        if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-           Process.whereis(Reality2Transnet.HiveDirectory) != nil do
-          case Reality2Transnet.HiveDirectory.resolve_compressed_id(message.src_compressed) do
+        if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+           Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
+          case Reality2Transnet.TrustGroupDirectory.resolve_compressed_id(message.src_compressed) do
             {:ok, node_id} -> node_id
             _ -> nil
           end
@@ -839,16 +839,16 @@ defmodule Reality2Transnet.LoRaMesh do
     node_id = Reality2.Bootstrap.get(:node_id)
     node_name = Reality2.Bootstrap.get(:node_name, "unknown")
 
-    # Use compressed ID from HiveIdentity
-    _src_compressed = if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
-      Reality2Transnet.HiveIdentity.compressed_id(node_id)
+    # Use compressed ID from TrustGroup
+    _src_compressed = if Code.ensure_loaded?(Reality2Transnet.TrustGroup) do
+      Reality2Transnet.TrustGroup.compressed_id(node_id)
     else
       hash16_to_binary(hash16(node_id))
     end
 
-    # Get hive compressed ID
-    hive_compressed = if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
-      case Reality2Transnet.HiveIdentity.get_hive_compressed_id() do
+    # Get trust group compressed ID
+    trust_group_compressed = if Code.ensure_loaded?(Reality2Transnet.TrustGroup) do
+      case Reality2Transnet.TrustGroup.get_trust_group_compressed_id() do
         {:ok, cid} -> cid
         _ -> <<0, 0, 0, 0>>
       end
@@ -863,16 +863,16 @@ defmodule Reality2Transnet.LoRaMesh do
     end
 
     # Get directory version
-    dir_version = if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-                     Process.whereis(Reality2Transnet.HiveDirectory) != nil do
-      Reality2Transnet.HiveDirectory.get_version()
+    dir_version = if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+                     Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
+      Reality2Transnet.TrustGroupDirectory.get_version()
     else
       0
     end
 
     # Build presence payload using the new format
     presence_info = %{
-      hive_compressed: hive_compressed,
+      trust_group_compressed: trust_group_compressed,
       capabilities: %{has_wifi: true, has_ble: true, is_relay: true},
       sentant_count: sentant_count,
       hosting_priority: 0,

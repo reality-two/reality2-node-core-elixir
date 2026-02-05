@@ -68,14 +68,14 @@ defmodule Reality2Transnet.GattProtocol do
   @network_command_char_uuid "00001236-0000-1000-8000-00805f9b34fb"
   # Minimal node info
   @node_info_char_uuid "00001237-0000-1000-8000-00805f9b34fb"
-  # Hive join requests/responses
-  @hive_join_char_uuid "00001238-0000-1000-8000-00805f9b34fb"
+  # Trust group join requests/responses
+  @trust_group_join_char_uuid "00001238-0000-1000-8000-00805f9b34fb"
 
   def service_uuid, do: @reality2_service_uuid
   def join_offer_uuid, do: @join_offer_char_uuid
   def network_command_uuid, do: @network_command_char_uuid
   def node_info_uuid, do: @node_info_char_uuid
-  def hive_join_uuid, do: @hive_join_char_uuid
+  def trust_group_join_uuid, do: @trust_group_join_char_uuid
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Encoding Functions
@@ -329,11 +329,11 @@ defmodule Reality2Transnet.GattProtocol do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Hive Join GATT Functions
+  # Trust Group Join GATT Functions
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   @doc """
-  Encodes a hive join request for GATT transmission.
+  Encodes a trust group join request for GATT transmission.
 
   ## Parameters
   - `params` - Map with :action and action-specific fields
@@ -341,15 +341,15 @@ defmodule Reality2Transnet.GattProtocol do
   ## Returns
   JSON string ready for GATT write
   """
-  @spec encode_hive_join(map()) :: String.t()
-  def encode_hive_join(params) do
+  @spec encode_trust_group_join(map()) :: String.t()
+  def encode_trust_group_join(params) do
     Jason.encode!(params)
   end
 
   @doc """
   Constructs the canonical signable string for a join request.
 
-  Used by both the joiner (to sign) and the hive owner (to verify).
+  Used by both the joiner (to sign) and the trust group owner (to verify).
   """
   @spec join_request_signable(String.t(), String.t(), String.t(), String.t()) :: String.t()
   def join_request_signable(node_id, node_name, node_public_key_b64, ephemeral_public_key_b64) do
@@ -428,7 +428,7 @@ defmodule Reality2Transnet.GattProtocol do
   end
 
   @doc """
-  Decodes a hive join message received via GATT.
+  Decodes a trust group join message received via GATT.
 
   ## Parameters
   - `data` - Binary data from GATT read/write/notify
@@ -437,8 +437,8 @@ defmodule Reality2Transnet.GattProtocol do
   - `{:ok, message}` - Successfully decoded with :action field
   - `{:error, reason}` - Failed to decode
   """
-  @spec decode_hive_join(binary() | list()) :: {:ok, map()} | {:error, String.t()}
-  def decode_hive_join(data) do
+  @spec decode_trust_group_join(binary() | list()) :: {:ok, map()} | {:error, String.t()}
+  def decode_trust_group_join(data) do
     with {:ok, json} <- safe_to_string(data),
          {:ok, decoded} <- Jason.decode(json) do
       case decoded do
@@ -465,25 +465,25 @@ defmodule Reality2Transnet.GattProtocol do
           {:ok, %{
             action: :join_result,
             status: Map.get(msg, "status"),
-            hive_id: Map.get(msg, "hive_id"),
+            trust_group_id: Map.get(msg, "trustGroupId"),
             cert: Map.get(msg, "cert"),
-            hive_public_info: Map.get(msg, "hive_public_info"),
+            trust_group_public_info: Map.get(msg, "trustGroupPublicInfo"),
             message: Map.get(msg, "message")
           }}
 
         _ ->
-          {:error, "unknown_hive_join_action"}
+          {:error, "unknown_trust_group_join_action"}
       end
     else
-      {:error, reason} -> {:error, "hive_join_decode_failed: #{inspect(reason)}"}
+      {:error, reason} -> {:error, "trust_group_join_decode_failed: #{inspect(reason)}"}
     end
   rescue
-    error -> {:error, "hive_join_decode_exception: #{inspect(error)}"}
+    error -> {:error, "trust_group_join_decode_exception: #{inspect(error)}"}
   end
 
   @doc """
-  Handles a GATT write for hive join requests.
-  Called on the hive owner when a remote device writes a join request.
+  Handles a GATT write for trust group join requests.
+  Called on the trust group owner when a remote device writes a join request.
 
   ## Parameters
   - `data` - Binary data written by the client
@@ -492,21 +492,21 @@ defmodule Reality2Transnet.GattProtocol do
   - `{:ok, result}` - Request processed
   - `{:error, reason}` - Failed to process
   """
-  @spec handle_hive_join_write(binary()) :: {:ok, map()} | {:error, String.t()}
-  def handle_hive_join_write(data) do
-    Logger.debug("[GATT Protocol] Received hive join write: #{byte_size(data)} bytes")
+  @spec handle_trust_group_join_write(binary()) :: {:ok, map()} | {:error, String.t()}
+  def handle_trust_group_join_write(data) do
+    Logger.debug("[GATT Protocol] Received trust group join write: #{byte_size(data)} bytes")
 
-    case decode_hive_join(data) do
+    case decode_trust_group_join(data) do
       {:ok, %{action: :join_request} = request} ->
-        Logger.info("[GATT Protocol] Hive join request from node: #{request.node_name} (#{request.node_id})")
+        Logger.info("[GATT Protocol] Trust group join request from node: #{request.node_name} (#{request.node_id})")
         {:ok, request}
 
       {:ok, other} ->
-        Logger.warning("[GATT Protocol] Unexpected hive join action: #{inspect(other)}")
+        Logger.warning("[GATT Protocol] Unexpected trust group join action: #{inspect(other)}")
         {:error, "unexpected_action"}
 
       {:error, reason} ->
-        Logger.error("[GATT Protocol] Hive join decode failed: #{reason}")
+        Logger.error("[GATT Protocol] Trust group join decode failed: #{reason}")
         {:error, reason}
     end
   end

@@ -1,9 +1,9 @@
 defmodule Reality2Transnet.JoinRequests do
   @moduledoc """
-  Ephemeral storage for pending hive join requests.
+  Ephemeral storage for pending trust group join requests.
   Requests expire after 10 minutes.
 
-  Part of the hive join protocol alongside HiveIdentity and HiveJoinBle.
+  Part of the trust group join protocol alongside TrustGroup and TrustGroupJoinBle.
 
   **Author**
   - Dr. Roy C. Davies
@@ -38,7 +38,7 @@ defmodule Reality2Transnet.JoinRequests do
       status: :pending,
       submitted_at: now,
       certificate: nil,
-      hive_public_info: nil
+      trust_group_public_info: nil
     }
 
     Agent.get_and_update(__MODULE__, fn state ->
@@ -89,15 +89,15 @@ defmodule Reality2Transnet.JoinRequests do
     end)
   end
 
-  @doc "Mark a request as approved and store the certificate + hive info."
-  def set_result(id, certificate, hive_public_info) do
+  @doc "Mark a request as approved and store the certificate + trust group info."
+  def set_result(id, certificate, trust_group_public_info) do
     Agent.get_and_update(__MODULE__, fn state ->
       case Map.get(state, id) do
         nil ->
           {:not_found, state}
 
         req ->
-          updated = %{req | status: :approved, certificate: certificate, hive_public_info: hive_public_info}
+          updated = %{req | status: :approved, certificate: certificate, trust_group_public_info: trust_group_public_info}
           {{:ok, updated}, Map.put(state, id, updated)}
       end
     end)

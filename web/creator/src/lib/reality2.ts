@@ -5,6 +5,9 @@ import type {
   SignalData,
   WebSocketMessage,
   SocketState,
+  JoinRequestNotification,
+  ProximityNotification,
+  BackupPromptNotification,
 } from "./types";
 import {
   DEFAULT_PORT,
@@ -88,9 +91,9 @@ export default class R2 {
   }
 
   /**
-   * Retrieve this node's identity and hive information.
+   * Retrieve this node's identity and trust group information.
    */
-  nodeInfo(passthrough = {}, details: string = "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId version buildId"): Promise<object> {
+  nodeInfo(passthrough = {}, details: string = "nodeId nodeName trustGroupId trustGroupName trustGroupMode trustGroupCompressedId version buildId"): Promise<object> {
     return this._graphql_post(this._nodeInfo(details), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
@@ -98,161 +101,201 @@ export default class R2 {
   /**
    * Retrieve discovered peers from the mesh.
    */
-  peers(passthrough = {}, details: string = "nodeId nodeName transport address rssi connectionState hiveId isSameHive hiveVerified sentantCount lastSeen reachability { ble { lastSeen confidence rssi } wifi { lastSeen confidence ip } lora { lastSeen confidence } }"): Promise<object> {
+  peers(passthrough = {}, details: string = "nodeId nodeName transport address rssi connectionState trustGroupId isSameTrustGroup trustGroupVerified sentantCount lastSeen reachability { ble { lastSeen confidence rssi } wifi { lastSeen confidence ip } lora { lastSeen confidence } }"): Promise<object> {
     return this._graphql_post(this._peers(details), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Retrieve the hive directory.
+   * Retrieve the trust group directory.
    */
-  hiveDirectory(passthrough = {}, details: string = "hiveId hiveName myNodeId directoryVersion nodes { nodeId name status hiveId sentants { id name } reachability { ble { lastSeen confidence rssi } wifi { lastSeen confidence ip } lora { lastSeen confidence } } updatedAt }"): Promise<object> {
-    return this._graphql_post(this._hiveDirectory(details), {})
+  trustGroupDirectory(passthrough = {}, details: string = "trustGroupId trustGroupName myNodeId directoryVersion nodes { nodeId name status trustGroupId sentants { id name } reachability { ble { lastSeen confidence rssi } wifi { lastSeen confidence ip } lora { lastSeen confidence } } updatedAt }"): Promise<object> {
+    return this._graphql_post(this._trustGroupDirectory(details), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Create (or reset) a hive with the given name.
+   * Create (or reset) a trust group with the given name.
    */
-  hiveCreate(name: string, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
-    return this._graphql_post(this._hiveCreate(details), { name })
+  trustGroupCreate(name: string, passthrough = {}, details: string = "trustGroupId trustGroupName trustGroupMode isProvisional"): Promise<object> {
+    return this._graphql_post(this._trustGroupCreate(details), { name })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Mark the current provisional hive as established.
+   * Mark the current provisional trust group as established.
    */
-  hiveMarkEstablished(passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
-    return this._graphql_post(this._hiveMarkEstablished(details), {})
+  trustGroupMarkEstablished(passthrough = {}, details: string = "trustGroupId trustGroupName trustGroupMode isProvisional"): Promise<object> {
+    return this._graphql_post(this._trustGroupMarkEstablished(details), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Generate a 4-character join code for other nodes.
    */
-  hiveGenerateJoinCode(passthrough = {}, details: string = "code expiresIn"): Promise<object> {
-    return this._graphql_post(this._hiveGenerateJoinCode(details), {})
+  trustGroupGenerateJoinCode(passthrough = {}, details: string = "code expiresIn"): Promise<object> {
+    return this._graphql_post(this._trustGroupGenerateJoinCode(details), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Export the hive key encrypted with a passphrase.
+   * Export the trust group key encrypted with a passphrase.
    */
-  hiveExportKey(passphrase: string, passthrough = {}, details: string = "encryptedData"): Promise<object> {
-    return this._graphql_post(this._hiveExportKey(details), { passphrase })
+  trustGroupExportKey(passphrase: string, passthrough = {}, details: string = "encryptedData"): Promise<object> {
+    return this._graphql_post(this._trustGroupExportKey(details), { passphrase })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Import an encrypted hive key.
+   * Import an encrypted trust group key.
    */
-  hiveImportKey(encryptedData: string, passphrase: string, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
-    return this._graphql_post(this._hiveImportKey(details), { encryptedData, passphrase })
+  trustGroupImportKey(encryptedData: string, passphrase: string, passthrough = {}, details: string = "trustGroupId trustGroupName trustGroupMode isProvisional"): Promise<object> {
+    return this._graphql_post(this._trustGroupImportKey(details), { encryptedData, passphrase })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Get this node's public key (base64-encoded).
    */
-  hiveGetPublicKey(passthrough = {}): Promise<object> {
-    return this._graphql_post(this._hiveGetPublicKey(), {})
+  trustGroupGetPublicKey(passthrough = {}): Promise<object> {
+    return this._graphql_post(this._trustGroupGetPublicKey(), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Process a join request (called on key holder node).
    */
-  hiveProcessJoinRequest(code: string, nodeName: string, nodePublicKey: string, passthrough = {}, details: string = "certificate hivePublicInfo"): Promise<object> {
-    return this._graphql_post(this._hiveProcessJoinRequest(details), { code, nodeName, nodePublicKey })
+  trustGroupProcessJoinRequest(code: string, nodeName: string, nodePublicKey: string, passthrough = {}, details: string = "certificate trustGroupPublicInfo"): Promise<object> {
+    return this._graphql_post(this._trustGroupProcessJoinRequest(details), { code, nodeName, nodePublicKey })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Finalize joining a hive as a member (called on joining node).
+   * Finalize joining a trust group as a member (called on joining node).
    */
-  hiveJoinAsMember(hivePublicInfo: object, certificate: object, passthrough = {}, details: string = "hiveId hiveName hiveMode isProvisional"): Promise<object> {
-    return this._graphql_post(this._hiveJoinAsMember(details), { hivePublicInfo: JSON.stringify(hivePublicInfo), certificate: JSON.stringify(certificate) })
+  trustGroupJoinAsMember(trustGroupPublicInfo: object, certificate: object, passthrough = {}, details: string = "trustGroupId trustGroupName trustGroupMode isProvisional"): Promise<object> {
+    return this._graphql_post(this._trustGroupJoinAsMember(details), { trustGroupPublicInfo: JSON.stringify(trustGroupPublicInfo), certificate: JSON.stringify(certificate) })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Submit a join request to a key holder node.
    */
-  hiveSubmitJoinRequest(nodeName: string, nodePublicKey: string, passthrough = {}, details: string = "id nodeName nodePublicKey status submittedAt"): Promise<object> {
-    return this._graphql_post(this._hiveSubmitJoinRequest(details), { nodeName, nodePublicKey })
+  trustGroupSubmitJoinRequest(nodeName: string, nodePublicKey: string, passthrough = {}, details: string = "id nodeName nodePublicKey status submittedAt"): Promise<object> {
+    return this._graphql_post(this._trustGroupSubmitJoinRequest(details), { nodeName, nodePublicKey })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Get pending join requests (key holder).
    */
-  hivePendingJoinRequests(passthrough = {}, details: string = "id nodeName nodePublicKey status submittedAt"): Promise<object> {
-    return this._graphql_post(this._hivePendingJoinRequests(details), {})
+  trustGroupPendingJoinRequests(passthrough = {}, details: string = "id nodeName nodePublicKey status submittedAt"): Promise<object> {
+    return this._graphql_post(this._trustGroupPendingJoinRequests(details), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Get all approved hive members (nodes and viewers).
+   * Get all approved trust group members (nodes and viewers).
    */
-  hiveMembers(memberType: string | null = null, passthrough = {}, details: string = "nodeId nodeName nodePublicKey memberType approvedAt"): Promise<object> {
-    return this._graphql_post(this._hiveMembers(details, memberType), {})
+  trustGroupMembers(memberType: string | null = null, passthrough = {}, details: string = "nodeId nodeName nodePublicKey memberType approvedAt"): Promise<object> {
+    return this._graphql_post(this._trustGroupMembers(details, memberType), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Clear stale entries from the hive directory.
+   * Clear stale entries from the trust group directory.
    * Removes entries not updated in over 1 hour.
    */
-  hiveDirectoryClearStale(passthrough = {}): Promise<object> {
-    return this._graphql_post(this._hiveDirectoryClearStale(), {})
+  trustGroupDirectoryClearStale(passthrough = {}): Promise<object> {
+    return this._graphql_post(this._trustGroupDirectoryClearStale(), {})
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Remove a member from the hive (key holder only).
+   * Remove a member from the trust group (key holder only).
    */
-  hiveRemoveMember(nodeId: string, passthrough = {}): Promise<object> {
-    return this._graphql_post(this._hiveRemoveMember(), { nodeId })
+  trustGroupRemoveMember(nodeId: string, passthrough = {}): Promise<object> {
+    return this._graphql_post(this._trustGroupRemoveMember(), { nodeId })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
+  }
+
+  /**
+   * List known trust group key holders.
+   */
+  keyHolders(passthrough = {}, details: string = "nodeId nodeName deviceName registeredAt lastSeen isLocal"): Promise<object> {
+    return this._graphql_post(this._keyHolders(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
+  }
+
+  /**
+   * List trusted groups (inter-group federation).
+   */
+  trustedGroups(passthrough = {}, details: string = "trustGroupId name publicKey permissions establishedAt expiresAt sentantFilter status"): Promise<object> {
+    return this._graphql_post(this._trustedGroups(details), {})
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
+  }
+
+  /**
+   * Generate a trust token to share with another trust group.
+   */
+  trustGenerateToken(permissions: string[] = ["read_only"], passthrough = {}, details: string = "token trustGroupId trustGroupName expiresAt expiresIn"): Promise<object> {
+    return this._graphql_post(this._trustGenerateToken(details), { permissions })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
+  }
+
+  /**
+   * Establish trust with another trust group.
+   */
+  trustEstablish(trustGroupId: string, trustGroupPublicKey: string, trustGroupName?: string, permissions: string[] = ["read_only"], passthrough = {}): Promise<object> {
+    return this._graphql_post(this._trustEstablish(), { trustGroupId, trustGroupPublicKey, trustGroupName, permissions })
+      .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
+  }
+
+  /**
+   * Revoke trust with another trust group.
+   */
+  trustRevoke(trustGroupId: string, passthrough = {}): Promise<object> {
+    return this._graphql_post(this._trustRevoke(), { trustGroupId })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Approve a join request (key holder).
    */
-  hiveApproveJoinRequest(requestId: string, passthrough = {}, details: string = "certificate hivePublicInfo"): Promise<object> {
-    return this._graphql_post(this._hiveApproveJoinRequest(details), { requestId })
+  trustGroupApproveJoinRequest(requestId: string, passthrough = {}, details: string = "certificate trustGroupPublicInfo"): Promise<object> {
+    return this._graphql_post(this._trustGroupApproveJoinRequest(details), { requestId })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Deny a join request (key holder).
    */
-  hiveDenyJoinRequest(requestId: string, passthrough = {}): Promise<object> {
-    return this._graphql_post(this._hiveDenyJoinRequest(), { requestId })
+  trustGroupDenyJoinRequest(requestId: string, passthrough = {}): Promise<object> {
+    return this._graphql_post(this._trustGroupDenyJoinRequest(), { requestId })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
    * Check status of a join request (joiner polls this on key holder).
    */
-  hiveJoinRequestStatus(requestId: string, passthrough = {}, details: string = "status certificate hivePublicInfo"): Promise<object> {
-    return this._graphql_post(this._hiveJoinRequestStatus(details), { requestId })
+  trustGroupJoinRequestStatus(requestId: string, passthrough = {}, details: string = "status certificate trustGroupPublicInfo"): Promise<object> {
+    return this._graphql_post(this._trustGroupJoinRequestStatus(details), { requestId })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Submit a hive join request via BLE GATT (called on the joiner node).
+   * Submit a trust group join request via BLE GATT (called on the joiner node).
    */
-  hiveBleSubmitJoinRequest(peerId: string, nodeName: string, passthrough = {}, details: string = "status hiveId message"): Promise<object> {
-    return this._graphql_post(this._hiveBleSubmitJoinRequest(details), { peerId, nodeName })
+  trustGroupBleSubmitJoinRequest(peerId: string, nodeName: string, passthrough = {}, details: string = "status trustGroupId message"): Promise<object> {
+    return this._graphql_post(this._trustGroupBleSubmitJoinRequest(details), { peerId, nodeName })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
   /**
-   * Check the status of a BLE-based hive join request.
+   * Check the status of a BLE-based trust group join request.
    */
-  hiveBleJoinRequestStatus(peerId: string, passthrough = {}, details: string = "status hiveId message"): Promise<object> {
-    return this._graphql_post(this._hiveBleJoinRequestStatus(details), { peerId })
+  trustGroupBleJoinRequestStatus(peerId: string, passthrough = {}, details: string = "status trustGroupId message"): Promise<object> {
+    return this._graphql_post(this._trustGroupBleJoinRequestStatus(details), { peerId })
       .then((data: GraphQLResponse) => ({ ...passthrough, ...data }));
   }
 
@@ -341,6 +384,101 @@ export default class R2 {
    */
   unsubscribe(id: string, signal: string): void {
     const key = id + "|" + signal;
+    if (this._sockets[key]) {
+      if (this._sockets[key].timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+      if (this._sockets[key].ws) {
+        this._sockets[key].ws.close();
+      }
+      delete this._sockets[key];
+    }
+  }
+
+  /**
+   * Subscribe to join request notifications (key holder only)
+   *
+   * Creates a persistent WebSocket connection to listen for incoming join requests.
+   * The callback will be invoked each time a new join request arrives.
+   *
+   * @param callback - Function to call when a join request is received
+   *
+   * @example
+   * ```typescript
+   * r2.onJoinRequestReceived((data) => {
+   *   console.log("Join request from:", data.nodeName);
+   * });
+   * ```
+   */
+  onJoinRequestReceived(callback: (data: JoinRequestNotification) => void = () => {}): void {
+    this._subscribeJoinRequests(callback);
+  }
+
+  /**
+   * Unsubscribe from join request notifications
+   */
+  unsubscribeJoinRequests(): void {
+    const key = "trust_group:join_requests";
+    if (this._sockets[key]) {
+      if (this._sockets[key].timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+      if (this._sockets[key].ws) {
+        this._sockets[key].ws.close();
+      }
+      delete this._sockets[key];
+    }
+  }
+
+  /**
+   * Subscribe to proximity device notifications (key holder only)
+   *
+   * Creates a persistent WebSocket connection to listen for nearby devices.
+   * The callback will be invoked when a device comes very close (RSSI > -50dBm).
+   *
+   * @param callback - Function to call when a proximity event is received
+   */
+  onProximityDeviceDetected(callback: (data: ProximityNotification) => void = () => {}): void {
+    this._subscribeProximity(callback);
+  }
+
+  /**
+   * Unsubscribe from proximity notifications
+   */
+  unsubscribeProximity(): void {
+    const key = "trust_group:proximity";
+    if (this._sockets[key]) {
+      if (this._sockets[key].timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+      if (this._sockets[key].ws) {
+        this._sockets[key].ws.close();
+      }
+      delete this._sockets[key];
+    }
+  }
+
+  /**
+   * Subscribe to backup prompt notifications (key holder only)
+   *
+   * Creates a persistent WebSocket connection to listen for backup prompts.
+   * The callback will be invoked when the first device is approved, prompting
+   * the key holder to back up their trust group key.
+   *
+   * @param callback - Function to call when a backup prompt is received
+   */
+  onBackupPromptReceived(callback: (data: BackupPromptNotification) => void = () => {}): void {
+    this._subscribeBackupPrompt(callback);
+  }
+
+  /**
+   * Unsubscribe from backup prompt notifications
+   */
+  unsubscribeBackupPrompt(): void {
+    const key = "trust_group:backup_prompt";
     if (this._sockets[key]) {
       if (this._sockets[key].timer) {
         clearInterval(this._sockets[key].timer);
@@ -643,6 +781,89 @@ export default class R2 {
       }
     };
   }
+
+  _subscribeJoinRequests(callback: (data: JoinRequestNotification) => void): void {
+    const key = "trust_group:join_requests";
+
+    let join_message = {
+      topic: "__absinthe__:control",
+      event: "phx_join",
+      payload: {},
+      ref: 0,
+    };
+
+    let subscribe = {
+      topic: "__absinthe__:control",
+      event: "doc",
+      payload: {
+        query: this._joinRequestReceivedSubscription(),
+        variables: {},
+      },
+      ref: 0,
+    };
+
+    let heartbeat = {
+      topic: "phoenix",
+      event: "heartbeat",
+      payload: {},
+      ref: 0,
+    };
+
+    this._sockets[key] = {
+      ws: new WebSocket(this._graphql_webs_url),
+      connected: false,
+      timer: null,
+    };
+
+    this._sockets[key].ws.onopen = () => {
+      setTimeout(() => {
+        this._sockets[key].ws.send(JSON.stringify(join_message));
+      }, WEBSOCKET_INIT_DELAY_MS);
+    };
+
+    this._sockets[key].ws.onmessage = (event: MessageEvent) => {
+      let data = JSON.parse(event.data);
+      let payload = data.payload;
+
+      if (this._sockets[key].connected) {
+        if (payload.result) {
+          let result = payload.result;
+          if (result.hasOwnProperty("data")) {
+            let notification = result.data.joinRequestReceived;
+            callback(notification);
+          }
+        }
+      } else {
+        if (data.event == "phx_reply" && data.payload.status == "ok") {
+          console.log("Join request subscription connected");
+          this._sockets[key].ws.send(JSON.stringify(subscribe));
+          this._sockets[key].connected = true;
+
+          this._sockets[key].timer = setInterval(() => {
+            this._sockets[key].ws.send(JSON.stringify(heartbeat));
+          }, WEBSOCKET_HEARTBEAT_INTERVAL_MS);
+
+          callback({ status: "connected" });
+        }
+      }
+    };
+
+    this._sockets[key].ws.onclose = () => {
+      console.log("Join request subscription closed");
+      if (this._sockets[key]?.timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+    };
+
+    this._sockets[key].ws.onerror = (error: Event) => {
+      console.error("Join request subscription error:", error);
+      if (this._sockets[key]?.timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+    };
+  }
   // ----------------------------------------------------------------------------------------------------
 
   // ----------------------------------------------------------------------------------------------------
@@ -664,9 +885,9 @@ export default class R2 {
         }`;
   }
 
-  _hiveDirectory(details: string): string {
+  _trustGroupDirectory(details: string): string {
     return `{
-            hiveDirectory {
+            trustGroupDirectory {
                 ${details}
             }
         }`;
@@ -740,145 +961,387 @@ export default class R2 {
         }`;
   }
 
-  _hiveCreate(details: string): string {
-    return `mutation HiveCreate($name: String!) {
-            hiveCreate(name: $name) {
+  _trustGroupCreate(details: string): string {
+    return `mutation TrustGroupCreate($name: String!) {
+            trustGroupCreate(name: $name) {
                 ${details}
             }
         }`;
   }
 
-  _hiveMarkEstablished(details: string): string {
-    return `mutation HiveMarkEstablished {
-            hiveMarkEstablished {
+  _trustGroupMarkEstablished(details: string): string {
+    return `mutation TrustGroupMarkEstablished {
+            trustGroupMarkEstablished {
                 ${details}
             }
         }`;
   }
 
-  _hiveGenerateJoinCode(details: string): string {
-    return `mutation HiveGenerateJoinCode {
-            hiveGenerateJoinCode {
+  _trustGroupGenerateJoinCode(details: string): string {
+    return `mutation TrustGroupGenerateJoinCode {
+            trustGroupGenerateJoinCode {
                 ${details}
             }
         }`;
   }
 
-  _hiveExportKey(details: string): string {
-    return `mutation HiveExportKey($passphrase: String!) {
-            hiveExportKey(passphrase: $passphrase) {
+  _trustGroupExportKey(details: string): string {
+    return `mutation TrustGroupExportKey($passphrase: String!) {
+            trustGroupExportKey(passphrase: $passphrase) {
                 ${details}
             }
         }`;
   }
 
-  _hiveImportKey(details: string): string {
-    return `mutation HiveImportKey($encryptedData: String!, $passphrase: String!) {
-            hiveImportKey(encryptedData: $encryptedData, passphrase: $passphrase) {
+  _trustGroupImportKey(details: string): string {
+    return `mutation TrustGroupImportKey($encryptedData: String!, $passphrase: String!) {
+            trustGroupImportKey(encryptedData: $encryptedData, passphrase: $passphrase) {
                 ${details}
             }
         }`;
   }
 
-  _hiveGetPublicKey(): string {
-    return `mutation HiveGetPublicKey {
-            hiveGetPublicKey
+  _trustGroupGetPublicKey(): string {
+    return `mutation TrustGroupGetPublicKey {
+            trustGroupGetPublicKey
         }`;
   }
 
-  _hiveProcessJoinRequest(details: string): string {
-    return `mutation HiveProcessJoinRequest($code: String!, $nodeName: String!, $nodePublicKey: String!) {
-            hiveProcessJoinRequest(code: $code, nodeName: $nodeName, nodePublicKey: $nodePublicKey) {
+  _trustGroupProcessJoinRequest(details: string): string {
+    return `mutation TrustGroupProcessJoinRequest($code: String!, $nodeName: String!, $nodePublicKey: String!) {
+            trustGroupProcessJoinRequest(code: $code, nodeName: $nodeName, nodePublicKey: $nodePublicKey) {
                 ${details}
             }
         }`;
   }
 
-  _hiveJoinAsMember(details: string): string {
-    return `mutation HiveJoinAsMember($hivePublicInfo: Json!, $certificate: Json!) {
-            hiveJoinAsMember(hivePublicInfo: $hivePublicInfo, certificate: $certificate) {
+  _trustGroupJoinAsMember(details: string): string {
+    return `mutation TrustGroupJoinAsMember($trustGroupPublicInfo: Json!, $certificate: Json!) {
+            trustGroupJoinAsMember(trustGroupPublicInfo: $trustGroupPublicInfo, certificate: $certificate) {
                 ${details}
             }
         }`;
   }
 
-  _hiveSubmitJoinRequest(details: string): string {
-    return `mutation HiveSubmitJoinRequest($nodeName: String!, $nodePublicKey: String!) {
-            hiveSubmitJoinRequest(nodeName: $nodeName, nodePublicKey: $nodePublicKey) {
+  _trustGroupSubmitJoinRequest(details: string): string {
+    return `mutation TrustGroupSubmitJoinRequest($nodeName: String!, $nodePublicKey: String!) {
+            trustGroupSubmitJoinRequest(nodeName: $nodeName, nodePublicKey: $nodePublicKey) {
                 ${details}
             }
         }`;
   }
 
-  _hivePendingJoinRequests(details: string): string {
+  _trustGroupPendingJoinRequests(details: string): string {
     return `{
-            hivePendingJoinRequests {
+            trustGroupPendingJoinRequests {
                 ${details}
             }
         }`;
   }
 
-  _hiveMembers(details: string, memberType: string | null): string {
+  _trustGroupMembers(details: string, memberType: string | null): string {
     if (memberType) {
       return `{
-            hiveMembers(memberType: "${memberType}") {
+            trustGroupMembers(memberType: "${memberType}") {
                 ${details}
             }
         }`;
     }
     return `{
-            hiveMembers {
+            trustGroupMembers {
                 ${details}
             }
         }`;
   }
 
-  _hiveDirectoryClearStale(): string {
-    return `mutation { hiveDirectoryClearStale }`;
+  _trustGroupDirectoryClearStale(): string {
+    return `mutation { trustGroupDirectoryClearStale }`;
   }
 
-  _hiveRemoveMember(): string {
-    return `mutation HiveRemoveMember($nodeId: String!) {
-            hiveRemoveMember(nodeId: $nodeId)
+  _trustGroupRemoveMember(): string {
+    return `mutation TrustGroupRemoveMember($nodeId: String!) {
+            trustGroupRemoveMember(nodeId: $nodeId)
         }`;
   }
 
-  _hiveApproveJoinRequest(details: string): string {
-    return `mutation HiveApproveJoinRequest($requestId: String!) {
-            hiveApproveJoinRequest(requestId: $requestId) {
+  _keyHolders(details: string): string {
+    return `{
+            keyHolders {
                 ${details}
             }
         }`;
   }
 
-  _hiveDenyJoinRequest(): string {
-    return `mutation HiveDenyJoinRequest($requestId: String!) {
-            hiveDenyJoinRequest(requestId: $requestId)
-        }`;
-  }
-
-  _hiveJoinRequestStatus(details: string): string {
-    return `query HiveJoinRequestStatus($requestId: String!) {
-            hiveJoinRequestStatus(requestId: $requestId) {
+  _trustedGroups(details: string): string {
+    return `{
+            trustedGroups {
                 ${details}
             }
         }`;
   }
 
-  _hiveBleSubmitJoinRequest(details: string): string {
-    return `mutation HiveBleSubmitJoinRequest($peerId: ID!, $nodeName: String!) {
-            hiveBleSubmitJoinRequest(peerId: $peerId, nodeName: $nodeName) {
+  _trustGenerateToken(details: string): string {
+    return `mutation TrustGenerateToken($permissions: [String]) {
+            trustGenerateToken(permissions: $permissions) {
                 ${details}
             }
         }`;
   }
 
-  _hiveBleJoinRequestStatus(details: string): string {
-    return `query HiveBleJoinRequestStatus($peerId: ID!) {
-            hiveBleJoinRequestStatus(peerId: $peerId) {
+  _trustEstablish(): string {
+    return `mutation TrustEstablish($trustGroupId: String!, $trustGroupPublicKey: String!, $trustGroupName: String, $permissions: [String]) {
+            trustEstablish(trustGroupId: $trustGroupId, trustGroupPublicKey: $trustGroupPublicKey, trustGroupName: $trustGroupName, permissions: $permissions) {
+                trustGroupId
+                name
+                status
+            }
+        }`;
+  }
+
+  _trustRevoke(): string {
+    return `mutation TrustRevoke($trustGroupId: String!) {
+            trustRevoke(trustGroupId: $trustGroupId)
+        }`;
+  }
+
+  _trustGroupApproveJoinRequest(details: string): string {
+    return `mutation TrustGroupApproveJoinRequest($requestId: String!) {
+            trustGroupApproveJoinRequest(requestId: $requestId) {
                 ${details}
             }
         }`;
+  }
+
+  _trustGroupDenyJoinRequest(): string {
+    return `mutation TrustGroupDenyJoinRequest($requestId: String!) {
+            trustGroupDenyJoinRequest(requestId: $requestId)
+        }`;
+  }
+
+  _trustGroupJoinRequestStatus(details: string): string {
+    return `query TrustGroupJoinRequestStatus($requestId: String!) {
+            trustGroupJoinRequestStatus(requestId: $requestId) {
+                ${details}
+            }
+        }`;
+  }
+
+  _trustGroupBleSubmitJoinRequest(details: string): string {
+    return `mutation TrustGroupBleSubmitJoinRequest($peerId: ID!, $nodeName: String!) {
+            trustGroupBleSubmitJoinRequest(peerId: $peerId, nodeName: $nodeName) {
+                ${details}
+            }
+        }`;
+  }
+
+  _trustGroupBleJoinRequestStatus(details: string): string {
+    return `query TrustGroupBleJoinRequestStatus($peerId: ID!) {
+            trustGroupBleJoinRequestStatus(peerId: $peerId) {
+                ${details}
+            }
+        }`;
+  }
+
+  _joinRequestReceivedSubscription(): string {
+    return `subscription JoinRequestReceived {
+            joinRequestReceived {
+                requestId
+                nodeId
+                nodeName
+                nodePublicKey
+                submittedAt
+                source
+            }
+        }`;
+  }
+
+  _proximityDeviceDetectedSubscription(): string {
+    return `subscription ProximityDeviceDetected {
+            proximityDeviceDetected {
+                nodeId
+                nodeName
+                rssi
+                proximity
+                timestamp
+            }
+        }`;
+  }
+
+  _backupPromptReceivedSubscription(): string {
+    return `subscription BackupPromptReceived {
+            backupPromptReceived {
+                deviceName
+                trustGroupName
+                trustGroupId
+                timestamp
+            }
+        }`;
+  }
+
+  _subscribeBackupPrompt(callback: (data: BackupPromptNotification) => void): void {
+    const key = "trust_group:backup_prompt";
+
+    let join_message = {
+      topic: "__absinthe__:control",
+      event: "phx_join",
+      payload: {},
+      ref: 0,
+    };
+
+    let subscribe = {
+      topic: "__absinthe__:control",
+      event: "doc",
+      payload: {
+        query: this._backupPromptReceivedSubscription(),
+        variables: {},
+      },
+      ref: 0,
+    };
+
+    let heartbeat = {
+      topic: "phoenix",
+      event: "heartbeat",
+      payload: {},
+      ref: 0,
+    };
+
+    this._sockets[key] = {
+      ws: new WebSocket(this._graphql_webs_url),
+      connected: false,
+      timer: null,
+    };
+
+    this._sockets[key].ws.onopen = () => {
+      setTimeout(() => {
+        this._sockets[key].ws.send(JSON.stringify(join_message));
+      }, WEBSOCKET_INIT_DELAY_MS);
+    };
+
+    this._sockets[key].ws.onmessage = (event: MessageEvent) => {
+      let data = JSON.parse(event.data);
+      let payload = data.payload;
+
+      if (this._sockets[key].connected) {
+        if (payload.result) {
+          let result = payload.result;
+          if (result.hasOwnProperty("data")) {
+            let notification = result.data.backupPromptReceived;
+            callback(notification);
+          }
+        }
+      } else {
+        if (data.event == "phx_reply" && data.payload.status == "ok") {
+          console.log("Backup prompt subscription connected");
+          this._sockets[key].ws.send(JSON.stringify(subscribe));
+          this._sockets[key].connected = true;
+
+          this._sockets[key].timer = setInterval(() => {
+            this._sockets[key].ws.send(JSON.stringify(heartbeat));
+          }, WEBSOCKET_HEARTBEAT_INTERVAL_MS);
+
+          callback({ status: "connected" });
+        }
+      }
+    };
+
+    this._sockets[key].ws.onclose = () => {
+      console.log("Backup prompt subscription closed");
+      if (this._sockets[key]?.timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+    };
+
+    this._sockets[key].ws.onerror = (error: Event) => {
+      console.error("Backup prompt subscription error:", error);
+      if (this._sockets[key]?.timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+    };
+  }
+
+  _subscribeProximity(callback: (data: ProximityNotification) => void): void {
+    const key = "trust_group:proximity";
+
+    let join_message = {
+      topic: "__absinthe__:control",
+      event: "phx_join",
+      payload: {},
+      ref: 0,
+    };
+
+    let subscribe = {
+      topic: "__absinthe__:control",
+      event: "doc",
+      payload: {
+        query: this._proximityDeviceDetectedSubscription(),
+        variables: {},
+      },
+      ref: 0,
+    };
+
+    let heartbeat = {
+      topic: "phoenix",
+      event: "heartbeat",
+      payload: {},
+      ref: 0,
+    };
+
+    this._sockets[key] = {
+      ws: new WebSocket(this._graphql_webs_url),
+      connected: false,
+      timer: null,
+    };
+
+    this._sockets[key].ws.onopen = () => {
+      setTimeout(() => {
+        this._sockets[key].ws.send(JSON.stringify(join_message));
+      }, WEBSOCKET_INIT_DELAY_MS);
+    };
+
+    this._sockets[key].ws.onmessage = (event: MessageEvent) => {
+      let data = JSON.parse(event.data);
+      let payload = data.payload;
+
+      if (this._sockets[key].connected) {
+        if (payload.result) {
+          let result = payload.result;
+          if (result.hasOwnProperty("data")) {
+            let notification = result.data.proximityDeviceDetected;
+            callback(notification);
+          }
+        }
+      } else {
+        if (data.event == "phx_reply" && data.payload.status == "ok") {
+          console.log("Proximity subscription connected");
+          this._sockets[key].ws.send(JSON.stringify(subscribe));
+          this._sockets[key].connected = true;
+
+          this._sockets[key].timer = setInterval(() => {
+            this._sockets[key].ws.send(JSON.stringify(heartbeat));
+          }, WEBSOCKET_HEARTBEAT_INTERVAL_MS);
+
+          callback({ status: "connected" });
+        }
+      }
+    };
+
+    this._sockets[key].ws.onclose = () => {
+      console.log("Proximity subscription closed");
+      if (this._sockets[key]?.timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+    };
+
+    this._sockets[key].ws.onerror = (error: Event) => {
+      console.error("Proximity subscription error:", error);
+      if (this._sockets[key]?.timer) {
+        clearInterval(this._sockets[key].timer);
+        this._sockets[key].timer = null;
+      }
+    };
   }
   // ----------------------------------------------------------------------------------------------------
 }

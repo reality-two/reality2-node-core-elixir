@@ -25,12 +25,12 @@ defmodule Reality2.Application do
       %{id: :WFS_Peers, start: {Reality2.Metadata, :start_link, [:WFS_Peers]}},
       {Finch, name: Reality2.HTTPClient},
       # HTTP client for transient network peers with relaxed SSL (accepts self-signed certs)
-      # SECURITY TODO: Replace verify: :verify_none with Hive-based certificate pinning.
+      # SECURITY TODO: Replace verify: :verify_none with TrustGroup-based certificate pinning.
       # Plan:
-      # 1. When a node joins a Hive, the Hive CA cert is stored locally.
-      # 2. Each node's self-signed cert is signed by the Hive CA during join.
+      # 1. When a node joins a TrustGroup, the TrustGroup CA cert is stored locally.
+      # 2. Each node's self-signed cert is signed by the TrustGroup CA during join.
       # 3. Configure this pool with verify: :verify_peer and cacertfile pointing
-      #    to the Hive CA cert, so only nodes in the same Hive are trusted.
+      #    to the TrustGroup CA cert, so only nodes in the same TrustGroup are trusted.
       # 4. Until then, verify: :verify_none is required because nodes use
       #    self-signed certs with no shared CA.
       {Finch,

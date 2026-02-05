@@ -244,7 +244,7 @@ defmodule Reality2Wfs.Router do
         handle_broadcast_all(event, params, passthrough, sender, state)
 
       {:local_only, sentant_identifier} ->
-        # No node prefix — search local first, then hive peers (Gap 1 fix)
+        # No node prefix — search local first, then trust group peers (Gap 1 fix)
         handle_local_then_hive(sentant_identifier, event, params, passthrough, sender, state)
 
       {:all_nodes, sentant_identifier} ->
@@ -255,23 +255,23 @@ defmodule Reality2Wfs.Router do
         # "node|sentant" - route to specific node
         handle_specific_node(node_part, sentant_part, event, params, passthrough, sender, state)
 
-      {:specific_node_or_hive, part1, part2} ->
-        # Could be node|sentant or hive|sentant — try node first
+      {:specific_node_or_trust_group, part1, part2} ->
+        # Could be node|sentant or trust_group|sentant — try node first
         case handle_specific_node(part1, part2, event, params, passthrough, sender, state) do
           {:reply, {:error, :node_not_found}, _} ->
-            # Not a node — try as hive
-            handle_hive_sentant(part1, part2, event, params, passthrough, sender, state)
+            # Not a node — try as trust group
+            handle_trust_group_sentant(part1, part2, event, params, passthrough, sender, state)
           result ->
             result
         end
 
-      {:hive_sentant, hive_identifier, sentant_name} ->
-        # "hive|sentant" - route to nearest matching sentant in hive
-        handle_hive_sentant(hive_identifier, sentant_name, event, params, passthrough, sender, state)
+      {:trust_group_sentant, trust_group_identifier, sentant_name} ->
+        # "trust_group|sentant" - route to nearest matching sentant in trust group
+        handle_trust_group_sentant(trust_group_identifier, sentant_name, event, params, passthrough, sender, state)
 
-      {:hive_node_sentant, hive_identifier, node_part, sentant_part} ->
-        # "hive|node|sentant" - route to specific node in specific hive
-        handle_hive_node_sentant(hive_identifier, node_part, sentant_part, event, params, passthrough, sender, state)
+      {:trust_group_node_sentant, trust_group_identifier, node_part, sentant_part} ->
+        # "trust_group|node|sentant" - route to specific node in specific trust group
+        handle_trust_group_node_sentant(trust_group_identifier, node_part, sentant_part, event, params, passthrough, sender, state)
 
       :reply_to_sender ->
         # "@sender" - reply to the sender
@@ -366,8 +366,8 @@ defmodule Reality2Wfs.Router do
         # Target specific node
         locate_on_node(node_part, sentant_part, state)
 
-      {:specific_node_or_hive, node_part, sentant_part} ->
-        # Could be node|sentant or hive|sentant — try node first
+      {:specific_node_or_trust_group, node_part, sentant_part} ->
+        # Could be node|sentant or trust_group|sentant — try node first
         case locate_on_node(node_part, sentant_part, state) do
           {:reply, {:error, :node_not_found}, _} ->
             {:reply, {:error, :not_found}, state}
@@ -377,21 +377,6 @@ defmodule Reality2Wfs.Router do
 
       _ ->
         {:reply, {:error, :not_found}, state}
-    end
-  end
-
-  defp locate_on_node(node_part, sentant_part, state) do
-    case resolve_node_identifier(node_part) do
-      {:local, _node_id} ->
-        sentant_id = resolve_sentant_on_node(sentant_part, :local)
-        {:reply, {:ok, :local, sentant_id}, state}
-
-      {:remote, node_id} ->
-        sentant_id = resolve_sentant_on_node(sentant_part, {:remote, node_id})
-        {:reply, {:ok, {:remote, node_id}, sentant_id}, state}
-
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
     end
   end
 
@@ -414,6 +399,28 @@ defmodule Reality2Wfs.Router do
     {:reply, table, state}
   end
 
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Private Helpers - Locate
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  defp locate_on_node(node_part, sentant_part, state) do
+    case resolve_node_identifier(node_part) do
+      {:local, _node_id} ->
+        sentant_id = resolve_sentant_on_node(sentant_part, :local)
+        {:reply, {:ok, :local, sentant_id}, state}
+
+      {:remote, node_id} ->
+        sentant_id = resolve_sentant_on_node(sentant_part, {:remote, node_id})
+        {:reply, {:ok, {:remote, node_id}, sentant_id}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Private Helpers - Broadcast
+  # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # Handle "*" - broadcast to ALL sentants on ALL known nodes
   defp handle_broadcast_all(event, params, passthrough, sender, state) do
@@ -481,8 +488,8 @@ defmodule Reality2Wfs.Router do
     end
   end
 
-  # Handle bare-name routing: local first, then hive directory (Gap 1 fix)
-  # Falls through to hive peers when local lookup fails
+  # Handle bare-name routing: local first, then trust group directory (Gap 1 fix)
+  # Falls through to trust group peers when local lookup fails
   defp handle_local_then_hive(sentant_identifier, event, params, passthrough, sender, state) do
     sentant_id = normalize_identifier(sentant_identifier)
 
@@ -492,7 +499,7 @@ defmodule Reality2Wfs.Router do
       new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
       {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
     else
-      # Not found locally — search hive directory for nearest peer with this sentant
+      # Not found locally — search trust group directory for nearest peer with this sentant
       sentant_name = case sentant_identifier do
         %{name: n} -> n
         str when is_binary(str) -> str
@@ -501,43 +508,43 @@ defmodule Reality2Wfs.Router do
 
       case find_in_hive_directory(sentant_name) do
         {:ok, node_id, _entry} ->
-          # Found on a hive peer — route via best transport
+          # Found on a trust group peer — route via best transport
           result = send_to_remote_with_transport(node_id, sentant_name, event, params, passthrough, sender)
           new_stats = Map.update!(state.stats, :remote_sends, &(&1 + 1))
           {:reply, {:ok, {:remote, node_id}, result}, %{state | stats: new_stats}}
 
         {:error, :not_found} ->
-          Logger.debug("[PNS Router] Sentant '#{sentant_name}' not found locally or in hive directory")
+          Logger.debug("[PNS Router] Sentant '#{sentant_name}' not found locally or in trust group directory")
           {:reply, {:error, :not_found}, state}
       end
     end
   end
 
-  # Handle "hive|sentant" — route to nearest matching sentant in hive
-  defp handle_hive_sentant(hive_identifier, sentant_name, event, params, passthrough, sender, state) do
-    case find_in_hive_directory_by_hive(hive_identifier, sentant_name) do
+  # Handle "trust_group|sentant" — route to nearest matching sentant in trust group
+  defp handle_trust_group_sentant(trust_group_identifier, sentant_name, event, params, passthrough, sender, state) do
+    case find_in_trust_group_directory(trust_group_identifier, sentant_name) do
       {:ok, node_id, _entry} ->
         result = send_to_remote_with_transport(node_id, sentant_name, event, params, passthrough, sender)
         new_stats = Map.update!(state.stats, :remote_sends, &(&1 + 1))
         {:reply, {:ok, {:remote, node_id}, result}, %{state | stats: new_stats}}
 
       {:error, :not_found} ->
-        # Check if the target is actually local (our hive)
+        # Check if the target is actually local (our trust group)
         sentant_id = normalize_identifier(sentant_name)
         if is_local_sentant?(sentant_id) do
           result = send_to_local(sentant_id, event, params, passthrough, sender)
           new_stats = Map.update!(state.stats, :local_sends, &(&1 + 1))
           {:reply, {:ok, :local, result}, %{state | stats: new_stats}}
         else
-          Logger.debug("[PNS Router] Sentant '#{sentant_name}' not found in hive '#{hive_identifier}'")
+          Logger.debug("[PNS Router] Sentant '#{sentant_name}' not found in trust group '#{trust_group_identifier}'")
           {:reply, {:error, :not_found}, state}
         end
     end
   end
 
-  # Handle "hive|node|sentant" — route to specific node in hive
-  defp handle_hive_node_sentant(_hive_identifier, node_part, sentant_part, event, params, passthrough, sender, state) do
-    # Resolve the node within the hive context, then route normally
+  # Handle "trust_group|node|sentant" — route to specific node in trust group
+  defp handle_trust_group_node_sentant(_trust_group_identifier, node_part, sentant_part, event, params, passthrough, sender, state) do
+    # Resolve the node within the trust group context, then route normally
     handle_specific_node(node_part, sentant_part, event, params, passthrough, sender, state)
   end
 
@@ -694,8 +701,8 @@ defmodule Reality2Wfs.Router do
   # - "sentant" -> {:local_only, sentant}
   # - "*|sentant" -> {:all_nodes, sentant}
   # - "node|sentant" -> {:specific_node, node, sentant}
-  # - "hive_name|sentant" -> {:hive_sentant, hive_id_or_name, sentant}
-  # - "hive|node|sentant" -> {:hive_node_sentant, hive, node, sentant}
+  # - "trust_group_name|sentant" -> {:trust_group_sentant, trust_group_id_or_name, sentant}
+  # - "trust_group|node|sentant" -> {:trust_group_node_sentant, trust_group, node, sentant}
   # - "@sender" -> {:reply_to_sender} (resolved via sender context)
   defp parse_path("*"), do: :broadcast_all
   defp parse_path("@sender"), do: :reply_to_sender
@@ -705,19 +712,19 @@ defmodule Reality2Wfs.Router do
         {:all_nodes, sentant_part}
 
       [part1, part2, part3] ->
-        # Three-part: hive|node|sentant
-        {:hive_node_sentant, part1, part2, part3}
+        # Three-part: trust_group|node|sentant
+        {:trust_group_node_sentant, part1, part2, part3}
 
       [part1, part2] ->
-        # Two-part: could be node|sentant or hive|sentant
-        # Determine if part1 is a known node (by name or UUID) or a hive identifier
+        # Two-part: could be node|sentant or trust_group|sentant
+        # Determine if part1 is a known node (by name or UUID) or a trust group identifier
         case classify_identifier(part1) do
           :local_node -> {:specific_node, part1, part2}
           :known_peer -> {:specific_node, part1, part2}
-          :hive -> {:hive_sentant, part1, part2}
+          :trust_group -> {:trust_group_sentant, part1, part2}
           :unknown ->
-            # Could be either — try node first, fall back to hive
-            {:specific_node_or_hive, part1, part2}
+            # Could be either — try node first, fall back to trust group
+            {:specific_node_or_trust_group, part1, part2}
         end
 
       [sentant_only] ->
@@ -729,7 +736,7 @@ defmodule Reality2Wfs.Router do
   defp parse_path(%{name: _} = map), do: {:local_only, map}
   defp parse_path(other), do: {:local_only, other}
 
-  # Classify an identifier as local node, known peer, hive, or unknown
+  # Classify an identifier as local node, known peer, trust group, or unknown
   defp classify_identifier(identifier) do
     local_node_id = Reality2.Bootstrap.get(:node_id)
     local_node_name = Reality2.Bootstrap.get(:node_name)
@@ -746,9 +753,9 @@ defmodule Reality2Wfs.Router do
       uuid?(identifier) and peer_exists?(identifier) ->
         :known_peer
 
-      # Check if it's a hive identifier (name or UUID matches our hive or a trusted hive)
-      is_hive_identifier?(identifier) ->
-        :hive
+      # Check if it's a trust group identifier (name or UUID matches our trust group or a trusted one)
+      is_trust_group_identifier?(identifier) ->
+        :trust_group
 
       true ->
         :unknown
@@ -766,14 +773,14 @@ defmodule Reality2Wfs.Router do
     end
   end
 
-  defp is_hive_identifier?(identifier) do
-    if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-       Process.whereis(Reality2Transnet.HiveDirectory) != nil do
-      # Check if it matches our hive name or ID
-      case Reality2Transnet.HiveDirectory.get_directory() do
-        %{hive_id: hive_id, hive_name: hive_name} ->
-          identifier == hive_id or identifier == hive_name or
-          Reality2Transnet.HiveDirectory.hive_trusted?(identifier)
+  defp is_trust_group_identifier?(identifier) do
+    if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+       Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
+      # Check if it matches our trust group name or ID
+      case Reality2Transnet.TrustGroupDirectory.get_directory() do
+        %{trust_group_id: trust_group_id, trust_group_name: trust_group_name} ->
+          identifier == trust_group_id or identifier == trust_group_name or
+          Reality2Transnet.TrustGroupDirectory.trust_group_trusted?(identifier)
         _ -> false
       end
     else
@@ -907,14 +914,14 @@ defmodule Reality2Wfs.Router do
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Hive Directory Integration (Gap 1, Gap 4, Gap 6, Gap 8 fixes)
+  # TrustGroup Directory Integration (Gap 1, Gap 4, Gap 6, Gap 8 fixes)
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
-  # Search hive directory for nearest peer with a sentant of the given name
+  # Search trust group directory for nearest peer with a sentant of the given name
   defp find_in_hive_directory(sentant_name) do
-    if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-       Process.whereis(Reality2Transnet.HiveDirectory) != nil do
-      case Reality2Transnet.HiveDirectory.find_sentant_by_name(sentant_name) do
+    if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+       Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
+      case Reality2Transnet.TrustGroupDirectory.find_sentant_by_name(sentant_name) do
         [{node_id, entry, _conf} | _] -> {:ok, node_id, entry}
         [] -> {:error, :not_found}
       end
@@ -927,11 +934,11 @@ defmodule Reality2Wfs.Router do
     end
   end
 
-  # Search hive directory for sentant in a specific hive
-  defp find_in_hive_directory_by_hive(hive_identifier, sentant_name) do
-    if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-       Process.whereis(Reality2Transnet.HiveDirectory) != nil do
-      case Reality2Transnet.HiveDirectory.find_sentant_in_hive(hive_identifier, sentant_name) do
+  # Search trust group directory for sentant in a specific trust group
+  defp find_in_trust_group_directory(trust_group_identifier, sentant_name) do
+    if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+       Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
+      case Reality2Transnet.TrustGroupDirectory.find_sentant_in_trust_group(trust_group_identifier, sentant_name) do
         [{node_id, entry, _conf} | _] -> {:ok, node_id, entry}
         [] -> {:error, :not_found}
       end

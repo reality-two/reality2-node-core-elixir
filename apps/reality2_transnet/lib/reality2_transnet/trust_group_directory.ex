@@ -1,15 +1,15 @@
-defmodule Reality2Transnet.HiveDirectory do
+defmodule Reality2Transnet.TrustGroupDirectory do
   @moduledoc """
-  Distributed, eventually-consistent Hive directory.
+  Distributed, eventually-consistent TrustGroup directory.
 
-  Maintains a local copy of the Hive directory that converges through gossip
+  Maintains a local copy of the TrustGroup directory that converges through gossip
   with peer nodes. No central coordinator — all nodes are equal peers.
 
   ## Data Model
 
   Each node maintains entries for:
-  - All nodes in its own Hive (Tier 1 — full directory)
-  - Nodes in trusted Hives (Tier 2 — shared sentants only)
+  - All nodes in its own TrustGroup (Tier 1 — full directory)
+  - Nodes in trusted TrustGroups (Tier 2 — shared sentants only)
   - Current cell/nearby peers (Tier 3 — presence only)
   - Heard-of nodes (Tier 4 — ephemeral, pruned aggressively)
 
@@ -22,7 +22,7 @@ defmodule Reality2Transnet.HiveDirectory do
 
   ## Persistence
 
-  Directory is persisted to `.hive/directory.json` and reloaded on boot
+  Directory is persisted to `.r2/directory.json` and reloaded on boot
   with confidence decay based on elapsed time.
 
   **Author**
@@ -33,7 +33,7 @@ defmodule Reality2Transnet.HiveDirectory do
   use GenServer
   require Logger
 
-  alias Reality2Transnet.HiveIdentity
+  alias Reality2Transnet.TrustGroup
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Constants
@@ -76,8 +76,8 @@ defmodule Reality2Transnet.HiveDirectory do
     }
   }
 
-  @typedoc "Trust relationship with another Hive"
-  @type trusted_hive :: %{
+  @typedoc "Trust relationship with another TrustGroup"
+  @type trusted_trust_group :: %{
     name: String.t(),
     public_key: String.t(),
     trust_ring: non_neg_integer(),
@@ -202,18 +202,18 @@ defmodule Reality2Transnet.HiveDirectory do
   end
 
   @doc """
-  Finds all nodes belonging to a specific hive that have a sentant with the given name.
+  Finds all nodes belonging to a specific trust_group that have a sentant with the given name.
 
   ## Parameters
-  - `hive_identifier` - Hive UUID or Hive name
+  - `trust_group_identifier` - TrustGroup UUID or TrustGroup name
   - `sentant_name` - Name of the sentant to find
 
   ## Returns
   - List of `{node_id, node_entry, best_confidence}` tuples, sorted descending by confidence
   """
-  @spec find_sentant_in_hive(String.t(), String.t()) :: [{String.t(), node_entry(), non_neg_integer()}]
-  def find_sentant_in_hive(hive_identifier, sentant_name) do
-    GenServer.call(__MODULE__, {:find_sentant_in_hive, hive_identifier, sentant_name})
+  @spec find_sentant_in_trust_group(String.t(), String.t()) :: [{String.t(), node_entry(), non_neg_integer()}]
+  def find_sentant_in_trust_group(trust_group_identifier, sentant_name) do
+    GenServer.call(__MODULE__, {:find_sentant_in_trust_group, trust_group_identifier, sentant_name})
   end
 
   @doc """
@@ -229,27 +229,27 @@ defmodule Reality2Transnet.HiveDirectory do
   end
 
   @doc """
-  Adds a trusted hive relationship.
+  Adds a trusted trust_group relationship.
   """
-  @spec add_trusted_hive(String.t(), map()) :: :ok
-  def add_trusted_hive(hive_id, trust_info) do
-    GenServer.cast(__MODULE__, {:add_trusted_hive, hive_id, trust_info})
+  @spec add_trusted_trust_group(String.t(), map()) :: :ok
+  def add_trusted_trust_group(trust_group_id, trust_info) do
+    GenServer.cast(__MODULE__, {:add_trusted_trust_group, trust_group_id, trust_info})
   end
 
   @doc """
-  Gets all trusted hives.
+  Gets all trusted trust_groups.
   """
-  @spec get_trusted_hives() :: map()
-  def get_trusted_hives do
-    GenServer.call(__MODULE__, :get_trusted_hives)
+  @spec get_trusted_trust_groups() :: map()
+  def get_trusted_trust_groups do
+    GenServer.call(__MODULE__, :get_trusted_trust_groups)
   end
 
   @doc """
-  Checks if a hive is trusted (Ring 0 or Ring 1).
+  Checks if a trust_group is trusted (Ring 0 or Ring 1).
   """
-  @spec hive_trusted?(String.t()) :: boolean()
-  def hive_trusted?(hive_id) do
-    GenServer.call(__MODULE__, {:hive_trusted?, hive_id})
+  @spec trust_group_trusted?(String.t()) :: boolean()
+  def trust_group_trusted?(trust_group_id) do
+    GenServer.call(__MODULE__, {:trust_group_trusted?, trust_group_id})
   end
 
   @doc """
@@ -286,12 +286,12 @@ defmodule Reality2Transnet.HiveDirectory do
     # Load existing directory or create empty one
     state = case load_directory(data_dir) do
       {:ok, loaded} ->
-        Logger.info("[HiveDirectory] Loaded directory: #{map_size(loaded.nodes)} nodes, version #{loaded.directory_version}")
+        Logger.info("[TrustGroupDirectory] Loaded directory: #{map_size(loaded.nodes)} nodes, version #{loaded.directory_version}")
         # Decay confidence based on time since last persist
         decay_all_confidence(loaded)
 
       {:error, _} ->
-        Logger.info("[HiveDirectory] Creating new directory")
+        Logger.info("[TrustGroupDirectory] Creating new directory")
         new_directory()
     end
 
@@ -350,8 +350,8 @@ defmodule Reality2Transnet.HiveDirectory do
   end
 
   @impl true
-  def handle_call({:find_sentant_in_hive, hive_identifier, sentant_name}, _from, state) do
-    results = do_find_sentant_in_hive(state.directory, hive_identifier, sentant_name)
+  def handle_call({:find_sentant_in_trust_group, trust_group_identifier, sentant_name}, _from, state) do
+    results = do_find_sentant_in_trust_group(state.directory, trust_group_identifier, sentant_name)
     {:reply, results, state}
   end
 
@@ -362,15 +362,15 @@ defmodule Reality2Transnet.HiveDirectory do
   end
 
   @impl true
-  def handle_call(:get_trusted_hives, _from, state) do
-    {:reply, state.directory.trusted_hives, state}
+  def handle_call(:get_trusted_trust_groups, _from, state) do
+    {:reply, state.directory.trusted_trust_groups, state}
   end
 
   @impl true
-  def handle_call({:hive_trusted?, hive_id}, _from, state) do
-    # Same hive is always trusted (Ring 0)
-    is_same = hive_id == state.directory.hive_id
-    is_trusted = Map.has_key?(state.directory.trusted_hives, hive_id)
+  def handle_call({:trust_group_trusted?, trust_group_id}, _from, state) do
+    # Same trust_group is always trusted (Ring 0)
+    is_same = trust_group_id == state.directory.trust_group_id
+    is_trusted = Map.has_key?(state.directory.trusted_trust_groups, trust_group_id)
     {:reply, is_same or is_trusted, state}
   end
 
@@ -406,7 +406,7 @@ defmodule Reality2Transnet.HiveDirectory do
     new_dir = %{dir | nodes: new_nodes, directory_version: dir.directory_version + 1}
     new_map = build_compressed_id_map(new_dir)
 
-    Logger.info("[HiveDirectory] Cleared #{removed_count} stale entries")
+    Logger.info("[TrustGroupDirectory] Cleared #{removed_count} stale entries")
 
     {:reply, {:ok, removed_count}, %{state | directory: new_dir, compressed_id_map: new_map, dirty: true}}
   end
@@ -469,7 +469,7 @@ defmodule Reality2Transnet.HiveDirectory do
     |> maybe_update(:certificate, Map.get(node_info, :certificate))
     |> maybe_update(:status, Map.get(node_info, :status))
     |> maybe_update(:sentants, Map.get(node_info, :sentants))
-    |> maybe_update(:hive_id, Map.get(node_info, :hive_id))
+    |> maybe_update(:trust_group_id, Map.get(node_info, :trust_group_id))
     |> Map.put(:updated_at, now)
 
     new_nodes = Map.put(dir.nodes, node_id, updated_entry)
@@ -480,10 +480,10 @@ defmodule Reality2Transnet.HiveDirectory do
   end
 
   @impl true
-  def handle_cast({:add_trusted_hive, hive_id, trust_info}, state) do
+  def handle_cast({:add_trusted_trust_group, trust_group_id, trust_info}, state) do
     dir = state.directory
-    new_trusted = Map.put(dir.trusted_hives, hive_id, trust_info)
-    new_dir = %{dir | trusted_hives: new_trusted, directory_version: dir.directory_version + 1}
+    new_trusted = Map.put(dir.trusted_trust_groups, trust_group_id, trust_info)
+    new_dir = %{dir | trusted_trust_groups: new_trusted, directory_version: dir.directory_version + 1}
     {:noreply, %{state | directory: new_dir, dirty: true}}
   end
 
@@ -526,34 +526,34 @@ defmodule Reality2Transnet.HiveDirectory do
     my_node_id = Reality2.Bootstrap.get(:node_id, UUID.uuid4())
     my_node_name = Reality2.Bootstrap.get(:node_name, "unknown")
 
-    hive_id = case HiveIdentity.get_hive_id() do
+    trust_group_id = case TrustGroup.get_trust_group_id() do
       {:ok, id} -> id
       _ -> nil
     end
 
-    hive_name = case HiveIdentity.get_identity() do
+    trust_group_name = case TrustGroup.get_identity() do
       {:ok, identity} -> identity.name
-      _ -> "DefaultHive"
+      _ -> "DefaultTrustGroup"
     end
 
     %{
-      hive_id: hive_id,
-      hive_name: hive_name,
+      trust_group_id: trust_group_id,
+      trust_group_name: trust_group_name,
       my_node_id: my_node_id,
       directory_version: 1,
       nodes: %{
         my_node_id => %{
           name: my_node_name,
-          compressed_id: HiveIdentity.compressed_id(my_node_id),
+          compressed_id: TrustGroup.compressed_id(my_node_id),
           certificate: nil,
           status: :active,
           updated_at: DateTime.utc_now() |> DateTime.to_iso8601(),
           sentants: [],
-          hive_id: hive_id,
+          trust_group_id: trust_group_id,
           reachability: default_reachability()
         }
       },
-      trusted_hives: %{},
+      trusted_trust_groups: %{},
       foreign_nodes: %{}
     }
   end
@@ -563,9 +563,9 @@ defmodule Reality2Transnet.HiveDirectory do
     my_node_name = Reality2.Bootstrap.get(:node_name, "unknown")
     now = DateTime.utc_now() |> DateTime.to_iso8601()
 
-    hive_id = case HiveIdentity.get_hive_id() do
+    trust_group_id = case TrustGroup.get_trust_group_id() do
       {:ok, id} -> id
-      _ -> directory.hive_id
+      _ -> directory.trust_group_id
     end
 
     # Get current sentants
@@ -584,16 +584,16 @@ defmodule Reality2Transnet.HiveDirectory do
     current_entry = Map.get(directory.nodes, my_node_id, default_node_entry(my_node_id))
     updated_entry = %{current_entry |
       name: my_node_name,
-      compressed_id: HiveIdentity.compressed_id(my_node_id),
+      compressed_id: TrustGroup.compressed_id(my_node_id),
       status: :active,
       updated_at: now,
       sentants: sentants,
-      hive_id: hive_id
+      trust_group_id: trust_group_id
     }
 
     new_nodes = Map.put(directory.nodes, my_node_id, updated_entry)
     %{directory |
-      hive_id: hive_id,
+      trust_group_id: trust_group_id,
       my_node_id: my_node_id,
       nodes: new_nodes
     }
@@ -602,12 +602,12 @@ defmodule Reality2Transnet.HiveDirectory do
   defp default_node_entry(node_id) do
     %{
       name: nil,
-      compressed_id: HiveIdentity.compressed_id(node_id),
+      compressed_id: TrustGroup.compressed_id(node_id),
       certificate: nil,
       status: :active,
       updated_at: DateTime.utc_now() |> DateTime.to_iso8601(),
       sentants: [],
-      hive_id: nil,
+      trust_group_id: nil,
       reachability: default_reachability()
     }
   end
@@ -636,9 +636,9 @@ defmodule Reality2Transnet.HiveDirectory do
     # Also add any remote nodes we don't have
     new_nodes = Map.merge(remote_nodes, merged_nodes)
 
-    # Merge trusted hives
-    remote_trusted = Map.get(remote, :trusted_hives, %{}) |> ensure_string_keys()
-    merged_trusted = Map.merge(local.trusted_hives, remote_trusted, fn _hive_id, local_trust, remote_trust ->
+    # Merge trusted trust_groups
+    remote_trusted = Map.get(remote, :trusted_trust_groups, %{}) |> ensure_string_keys()
+    merged_trusted = Map.merge(local.trusted_trust_groups, remote_trusted, fn _trust_group_id, local_trust, remote_trust ->
       # LWW by established_at
       if compare_timestamps(local_trust[:established_at], remote_trust[:established_at]) == :gt do
         local_trust
@@ -649,7 +649,7 @@ defmodule Reality2Transnet.HiveDirectory do
 
     %{local |
       nodes: new_nodes,
-      trusted_hives: merged_trusted,
+      trusted_trust_groups: merged_trusted,
       directory_version: local.directory_version + 1
     }
   end
@@ -743,14 +743,14 @@ defmodule Reality2Transnet.HiveDirectory do
     |> Enum.sort_by(fn {_, _, conf} -> conf end, :desc)
   end
 
-  defp do_find_sentant_in_hive(directory, hive_identifier, sentant_name) do
-    # hive_identifier can be a UUID (hive_id) or a name
-    is_uuid = uuid?(hive_identifier)
+  defp do_find_sentant_in_trust_group(directory, trust_group_identifier, sentant_name) do
+    # trust_group_identifier can be a UUID (trust_group_id) or a name
+    is_uuid = uuid?(trust_group_identifier)
 
     directory.nodes
     |> Enum.filter(fn {_node_id, entry} ->
       entry.status == :active and
-      hive_matches?(entry, hive_identifier, is_uuid) and
+      trust_group_matches?(entry, trust_group_identifier, is_uuid) and
       Enum.any?(Map.get(entry, :sentants, []), fn s ->
         Map.get(s, :name) == sentant_name or Map.get(s, "name") == sentant_name
       end)
@@ -761,15 +761,15 @@ defmodule Reality2Transnet.HiveDirectory do
     |> Enum.sort_by(fn {_, _, conf} -> conf end, :desc)
   end
 
-  defp hive_matches?(entry, identifier, true = _is_uuid) do
-    Map.get(entry, :hive_id) == identifier
+  defp trust_group_matches?(entry, identifier, true = _is_uuid) do
+    Map.get(entry, :trust_group_id) == identifier
   end
 
-  defp hive_matches?(entry, identifier, false = _is_uuid) do
-    # Check if node's hive name matches
-    # For own hive nodes, check directory hive_name
-    # For foreign nodes, this would require hive_name in the entry
-    Map.get(entry, :hive_name) == identifier
+  defp trust_group_matches?(entry, identifier, false = _is_uuid) do
+    # Check if node's trust_group name matches
+    # For own trust_group nodes, check directory trust_group_name
+    # For foreign nodes, this would require trust_group_name in the entry
+    Map.get(entry, :trust_group_name) == identifier
   end
 
   defp best_confidence(entry) do
@@ -859,7 +859,7 @@ defmodule Reality2Transnet.HiveDirectory do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   defp get_data_dir do
-    Application.get_env(:reality2_transnet, :hive_data_dir, ".hive")
+    Application.get_env(:reality2_transnet, :trust_group_data_dir, ".r2")
   end
 
   defp directory_path(data_dir) do
@@ -876,14 +876,14 @@ defmodule Reality2Transnet.HiveDirectory do
       {:ok, json} ->
         File.write!(path, json)
         File.chmod(path, 0o600)
-        Logger.debug("[HiveDirectory] Persisted directory to #{path}")
+        Logger.debug("[TrustGroupDirectory] Persisted directory to #{path}")
 
       {:error, reason} ->
-        Logger.error("[HiveDirectory] Failed to encode directory: #{inspect(reason)}")
+        Logger.error("[TrustGroupDirectory] Failed to encode directory: #{inspect(reason)}")
     end
   rescue
     e ->
-      Logger.error("[HiveDirectory] Failed to persist: #{inspect(e)}")
+      Logger.error("[TrustGroupDirectory] Failed to persist: #{inspect(e)}")
   end
 
   defp export_directory(directory) do
@@ -891,14 +891,14 @@ defmodule Reality2Transnet.HiveDirectory do
     nodes = Map.new(directory.nodes, fn {node_id, entry} ->
       exported_entry = entry
       |> Map.update(:compressed_id, nil, fn
-        cid when is_binary(cid) and byte_size(cid) == 4 -> HiveIdentity.compressed_id_to_hex(cid)
+        cid when is_binary(cid) and byte_size(cid) == 4 -> TrustGroup.compressed_id_to_hex(cid)
         other -> other
       end)
       |> Map.update(:status, :active, &to_string/1)
       |> Map.update(:reachability, %{}, fn reach ->
         Map.new(reach, fn {transport, info} ->
           {transport, Map.update(info, :via, nil, fn
-            v when is_binary(v) and byte_size(v) == 4 -> HiveIdentity.compressed_id_to_hex(v)
+            v when is_binary(v) and byte_size(v) == 4 -> TrustGroup.compressed_id_to_hex(v)
             other -> other
           end)}
         end)
@@ -908,12 +908,12 @@ defmodule Reality2Transnet.HiveDirectory do
     end)
 
     %{
-      hive_id: directory.hive_id,
-      hive_name: directory.hive_name,
+      trust_group_id: directory.trust_group_id,
+      trust_group_name: directory.trust_group_name,
       my_node_id: directory.my_node_id,
       directory_version: directory.directory_version,
       nodes: nodes,
-      trusted_hives: directory.trusted_hives,
+      trusted_trust_groups: directory.trusted_trust_groups,
       persisted_at: DateTime.utc_now() |> DateTime.to_iso8601()
     }
   end
@@ -932,18 +932,18 @@ defmodule Reality2Transnet.HiveDirectory do
         |> Map.put(:status, import_status(Map.get(entry, :status, "active")))
         |> Map.put(:reachability, import_reachability(Map.get(entry, :reachability, %{})))
         |> Map.put_new(:sentants, [])
-        |> Map.put_new(:hive_id, nil)
+        |> Map.put_new(:trust_group_id, nil)
 
         {node_id, imported_entry}
       end)
 
       directory = %{
-        hive_id: Map.get(data, :hive_id),
-        hive_name: Map.get(data, :hive_name, "DefaultHive"),
+        trust_group_id: Map.get(data, :trust_group_id),
+        trust_group_name: Map.get(data, :trust_group_name, "DefaultTrustGroup"),
         my_node_id: Map.get(data, :my_node_id),
         directory_version: Map.get(data, :directory_version, 1),
         nodes: nodes,
-        trusted_hives: Map.get(data, :trusted_hives, %{}) |> ensure_string_keys(),
+        trusted_trust_groups: Map.get(data, :trusted_trust_groups, %{}) |> ensure_string_keys(),
         foreign_nodes: Map.get(data, :foreign_nodes, %{}) |> ensure_string_keys()
       }
 
@@ -954,15 +954,15 @@ defmodule Reality2Transnet.HiveDirectory do
     end
   end
 
-  defp import_compressed_id(nil, node_id), do: HiveIdentity.compressed_id(node_id)
+  defp import_compressed_id(nil, node_id), do: TrustGroup.compressed_id(node_id)
   defp import_compressed_id("0x" <> hex, node_id) do
     case Integer.parse(hex, 16) do
       {value, ""} -> <<value::32>>
-      _ -> HiveIdentity.compressed_id(node_id)
+      _ -> TrustGroup.compressed_id(node_id)
     end
   end
   defp import_compressed_id(cid, _node_id) when is_binary(cid) and byte_size(cid) == 4, do: cid
-  defp import_compressed_id(_, node_id), do: HiveIdentity.compressed_id(node_id)
+  defp import_compressed_id(_, node_id), do: TrustGroup.compressed_id(node_id)
 
   defp import_status("active"), do: :active
   defp import_status("absent"), do: :absent

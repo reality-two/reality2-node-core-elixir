@@ -1,8 +1,8 @@
-defmodule Reality2Transnet.HiveJoinBle do
+defmodule Reality2Transnet.TrustGroupJoinBle do
   @moduledoc """
-  Joiner-side BLE client for hive join requests.
+  Joiner-side BLE client for trust group join requests.
 
-  Handles submitting join requests to a remote hive owner via BLE GATT,
+  Handles submitting join requests to a remote trust group owner via BLE GATT,
   and polling for the result (approved/denied).
 
   ## Security
@@ -10,9 +10,9 @@ defmodule Reality2Transnet.HiveJoinBle do
   - Join requests include the joiner's Ed25519 public key and are signed
     to prove key ownership.
   - An ephemeral X25519 keypair is generated per request for ECDH encryption.
-  - The hive owner encrypts the join result (containing the certificate) so
+  - The trust group owner encrypts the join result (containing the certificate) so
     only the intended recipient can decrypt it.
-  - The joiner verifies the returned hive_id matches the expected peer's hive
+  - The joiner verifies the returned trust_group_id matches the expected peer's trust group
     before installing the certificate.
 
   **Author**
@@ -23,7 +23,7 @@ defmodule Reality2Transnet.HiveJoinBle do
   use GenServer, restart: :transient
   require Logger
 
-  @hive_join_uuid Reality2Transnet.GattProtocol.hive_join_uuid()
+  @trust_group_join_uuid Reality2Transnet.GattProtocol.trust_group_join_uuid()
 
   # Timeout for GATT operations
   @gatt_timeout_ms 15_000
@@ -35,14 +35,14 @@ defmodule Reality2Transnet.HiveJoinBle do
   def start_link(_opts), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
 
   @doc """
-  Submit a hive join request to a remote peer via BLE GATT.
+  Submit a trust group join request to a remote peer via BLE GATT.
 
   The request includes this node's Ed25519 public key (for certificate binding),
   an ephemeral X25519 public key (for result encryption), and an Ed25519 signature
   (proving key ownership).
 
   ## Parameters
-  - `peer_id` - The node ID of the hive owner peer
+  - `peer_id` - The node ID of the trust group owner peer
   - `node_name` - Our node's display name
 
   ## Returns
@@ -57,7 +57,7 @@ defmodule Reality2Transnet.HiveJoinBle do
   Check the status of a pending BLE join request by reading the remote GATT characteristic.
 
   ## Parameters
-  - `peer_id` - The node ID of the hive owner peer
+  - `peer_id` - The node ID of the trust group owner peer
 
   ## Returns
   - `{:ok, %{status: status, ...}}` - Current status
@@ -94,7 +94,7 @@ defmodule Reality2Transnet.HiveJoinBle do
           node_id, node_name, node_public_key_b64, ephemeral_public_key_b64
         )
 
-        payload = Reality2Transnet.GattProtocol.encode_hive_join(%{
+        payload = Reality2Transnet.GattProtocol.encode_trust_group_join(%{
           action: "join_request",
           node_id: node_id,
           node_name: node_name,
@@ -108,11 +108,11 @@ defmodule Reality2Transnet.HiveJoinBle do
         # Pause BLE scanning to free the adapter for GATT client connection
         pause_scanning(state)
 
-        # Write to remote peer's hive_join characteristic
+        # Write to remote peer's trust_group_join characteristic
         Reality2Transnet.Action.gatt_write_to_device(
           self(),
           address,
-          @hive_join_uuid,
+          @trust_group_join_uuid,
           :binary.bin_to_list(payload),
           adapter_name
         )
@@ -121,15 +121,15 @@ defmodule Reality2Transnet.HiveJoinBle do
         ref = make_ref()
         pending_ops = Map.put(state.pending_ops, {:write, peer_id}, {from, ref, :submit})
 
-        # Get the expected hive_id from the peer info for later verification
-        expected_hive_id = get_peer_hive_id(peer_id)
+        # Get the expected trust_group_id from the peer info for later verification
+        expected_trust_group_id = get_peer_trust_group_id(peer_id)
 
         pending_requests = Map.put(state.pending_requests, peer_id, %{
           address: address,
           status: :writing,
           submitted_at: System.system_time(:second),
           ephemeral_private_key: ephemeral_priv,
-          expected_hive_id: expected_hive_id
+          expected_trust_group_id: expected_trust_group_id
         })
 
         # Set a timeout
@@ -150,11 +150,11 @@ defmodule Reality2Transnet.HiveJoinBle do
         # Pause BLE scanning to free the adapter for GATT client connection
         pause_scanning(state)
 
-        # Read the remote peer's hive_join characteristic
+        # Read the remote peer's trust_group_join characteristic
         Reality2Transnet.Action.gatt_read_characteristic(
           self(),
           address,
-          @hive_join_uuid,
+          @trust_group_join_uuid,
           adapter_name
         )
 
@@ -192,7 +192,7 @@ defmodule Reality2Transnet.HiveJoinBle do
             Reality2Transnet.Action.gatt_read_characteristic(
               self(),
               address,
-              @hive_join_uuid,
+              @trust_group_join_uuid,
               adapter_name
             )
 
@@ -225,7 +225,7 @@ defmodule Reality2Transnet.HiveJoinBle do
         # Resume BLE scanning now that GATT read is complete
         state = maybe_resume_scanning(state)
 
-        case Reality2Transnet.GattProtocol.decode_hive_join(raw) do
+        case Reality2Transnet.GattProtocol.decode_trust_group_join(raw) do
           {:ok, %{action: :join_result_encrypted} = encrypted} ->
             # Decrypt using our ephemeral X25519 private key
             handle_encrypted_result(from, encrypted, peer_id, state, pending_ops)
@@ -238,7 +238,7 @@ defmodule Reality2Transnet.HiveJoinBle do
 
             GenServer.reply(from, {:ok, %{
               status: status,
-              hive_id: Map.get(result, :hive_id),
+              trust_group_id: Map.get(result, :trust_group_id),
               message: Map.get(result, :message)
             }})
             {:noreply, %{state | pending_ops: pending_ops}}
@@ -291,7 +291,7 @@ defmodule Reality2Transnet.HiveJoinBle do
   end
 
   def handle_info({:error, reason}, state) do
-    Logger.error("[HiveJoinBle] GATT error: #{inspect(reason)}")
+    Logger.error("[TrustGroupJoinBle] GATT error: #{inspect(reason)}")
 
     # Resume scanning since the GATT operation failed
     state = maybe_resume_scanning(state)
@@ -347,9 +347,9 @@ defmodule Reality2Transnet.HiveJoinBle do
     end
   end
 
-  defp get_peer_hive_id(peer_id) do
+  defp get_peer_trust_group_id(peer_id) do
     case Reality2Transnet.PeerManager.get_peer(peer_id) do
-      {:ok, peer} -> Map.get(peer, :hive_id)
+      {:ok, peer} -> Map.get(peer, :trust_group_id)
       _ -> nil
     end
   end
@@ -372,8 +372,8 @@ defmodule Reality2Transnet.HiveJoinBle do
 
   # Get this node's Ed25519 public key as base64 for the join request
   defp get_node_public_key_b64 do
-    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
-      case apply(Reality2Transnet.HiveIdentity, :get_public_key, []) do
+    if Code.ensure_loaded?(Reality2Transnet.TrustGroup) do
+      case apply(Reality2Transnet.TrustGroup, :get_public_key, []) do
         {:ok, public_key} -> Base.encode64(public_key)
         _ -> ""
       end
@@ -388,8 +388,8 @@ defmodule Reality2Transnet.HiveJoinBle do
       node_id, node_name, node_public_key_b64, ephemeral_public_key_b64
     )
 
-    if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
-      case apply(Reality2Transnet.HiveIdentity, :sign_data, [message]) do
+    if Code.ensure_loaded?(Reality2Transnet.TrustGroup) do
+      case apply(Reality2Transnet.TrustGroup, :sign_data, [message]) do
         {:ok, signature} -> Base.encode64(signature)
         _ -> ""
       end
@@ -410,8 +410,8 @@ defmodule Reality2Transnet.HiveJoinBle do
               # Convert to the expected format for apply_join_result
               result = %{
                 cert: Map.get(decrypted, :cert) || Map.get(decrypted, "cert"),
-                hive_id: Map.get(decrypted, :hive_id) || Map.get(decrypted, "hive_id"),
-                hive_public_info: Map.get(decrypted, :hive_public_info) || Map.get(decrypted, "hive_public_info"),
+                trust_group_id: Map.get(decrypted, :trust_group_id) || Map.get(decrypted, "trust_group_id"),
+                trust_group_public_info: Map.get(decrypted, :trust_group_public_info) || Map.get(decrypted, "trust_group_public_info"),
                 message: Map.get(decrypted, :message) || Map.get(decrypted, "message")
               }
               apply_join_result(result, peer_id, state)
@@ -419,46 +419,46 @@ defmodule Reality2Transnet.HiveJoinBle do
 
             GenServer.reply(from, {:ok, %{
               status: status,
-              hive_id: Map.get(decrypted, :hive_id) || Map.get(decrypted, "hive_id"),
+              trust_group_id: Map.get(decrypted, :trust_group_id) || Map.get(decrypted, "trust_group_id"),
               message: Map.get(decrypted, :message) || Map.get(decrypted, "message")
             }})
 
           {:error, reason} ->
-            Logger.error("[HiveJoinBle] Failed to decrypt join result: #{reason}")
+            Logger.error("[TrustGroupJoinBle] Failed to decrypt join result: #{reason}")
             GenServer.reply(from, {:error, "Failed to decrypt join result"})
         end
 
       _ ->
-        Logger.error("[HiveJoinBle] No ephemeral key found for peer #{peer_id}")
+        Logger.error("[TrustGroupJoinBle] No ephemeral key found for peer #{peer_id}")
         GenServer.reply(from, {:error, "No encryption key available"})
     end
 
     {:noreply, %{state | pending_ops: pending_ops}}
   end
 
-  # Apply an approved join result — verify hive_id and install certificate
-  defp apply_join_result(%{cert: cert, hive_id: hive_id} = result, peer_id, state) when not is_nil(cert) do
-    hive_public_info = Map.get(result, :hive_public_info)
+  # Apply an approved join result — verify trust_group_id and install certificate
+  defp apply_join_result(%{cert: cert, trust_group_id: trust_group_id} = result, peer_id, state) when not is_nil(cert) do
+    trust_group_public_info = Map.get(result, :trust_group_public_info)
 
-    # Verify the hive_id matches what we expected from the peer
-    expected_hive_id = case Map.get(state.pending_requests, peer_id) do
-      %{expected_hive_id: id} -> id
+    # Verify the trust_group_id matches what we expected from the peer
+    expected_trust_group_id = case Map.get(state.pending_requests, peer_id) do
+      %{expected_trust_group_id: id} -> id
       _ -> nil
     end
 
-    if expected_hive_id != nil and hive_id != nil and expected_hive_id != hive_id do
-      Logger.error("[HiveJoinBle] Hive ID mismatch! Expected #{expected_hive_id}, got #{hive_id}. Rejecting certificate.")
+    if expected_trust_group_id != nil and trust_group_id != nil and expected_trust_group_id != trust_group_id do
+      Logger.error("[TrustGroupJoinBle] Trust group ID mismatch! Expected #{expected_trust_group_id}, got #{trust_group_id}. Rejecting certificate.")
     else
-      if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
-        case apply(Reality2Transnet.HiveIdentity, :join_as_member, [cert, hive_public_info]) do
+      if Code.ensure_loaded?(Reality2Transnet.TrustGroup) do
+        case apply(Reality2Transnet.TrustGroup, :join_as_member, [cert, trust_group_public_info]) do
           {:ok, _} ->
-            Logger.info("[HiveJoinBle] Successfully joined hive #{hive_id}")
+            Logger.info("[TrustGroupJoinBle] Successfully joined trust group #{trust_group_id}")
 
           :ok ->
-            Logger.info("[HiveJoinBle] Successfully joined hive #{hive_id}")
+            Logger.info("[TrustGroupJoinBle] Successfully joined trust group #{trust_group_id}")
 
           {:error, reason} ->
-            Logger.error("[HiveJoinBle] Failed to join hive: #{inspect(reason)}")
+            Logger.error("[TrustGroupJoinBle] Failed to join trust group: #{inspect(reason)}")
         end
       end
     end

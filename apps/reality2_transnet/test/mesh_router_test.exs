@@ -724,25 +724,25 @@ defmodule Reality2Transnet.MeshRouterTest do
   end
 
   describe "presence payload handling" do
-    test "presence with hive info includes hive_id and hive_public_key" do
-      hive_id = TestNodeFactory.generate_uuid()
+    test "presence with trust_group info includes trust_group_id and trust_group_public_key" do
+      trust_group_id = TestNodeFactory.generate_uuid()
       public_key_b64 = Base.encode64(:crypto.strong_rand_bytes(32))
 
       payload =
         Jason.encode!(%{
           node_name: "TestNode",
           sentants: ["S1", "S2"],
-          hive_id: hive_id,
-          hive_public_key: public_key_b64
+          trust_group_id: trust_group_id,
+          trust_group_public_key: public_key_b64
         })
 
       {:ok, decoded} = Jason.decode(payload)
-      assert decoded["hive_id"] == hive_id
-      assert decoded["hive_public_key"] == public_key_b64
+      assert decoded["trust_group_id"] == trust_group_id
+      assert decoded["trust_group_public_key"] == public_key_b64
       assert decoded["sentants"] == ["S1", "S2"]
     end
 
-    test "presence without hive info still contains node_name and sentants" do
+    test "presence without trust_group info still contains node_name and sentants" do
       payload =
         Jason.encode!(%{
           node_name: "MinimalNode",
@@ -752,7 +752,7 @@ defmodule Reality2Transnet.MeshRouterTest do
       {:ok, decoded} = Jason.decode(payload)
       assert decoded["node_name"] == "MinimalNode"
       assert decoded["sentants"] == []
-      assert Map.get(decoded, "hive_id") == nil
+      assert Map.get(decoded, "trust_group_id") == nil
     end
   end
 end

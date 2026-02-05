@@ -12,7 +12,7 @@
   } = $props();
 
   let showJson = $state(false);
-  let collapsed = $state(false);
+  let collapsed = $state(true);
   let editMode = $state(false);
   let editBuffer = $state("");
   let parseError = $state("");

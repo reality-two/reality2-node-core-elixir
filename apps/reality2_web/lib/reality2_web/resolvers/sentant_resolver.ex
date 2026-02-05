@@ -360,7 +360,7 @@ defmodule Reality2Web.SentantResolver do
   #    from this node's identity (already done below).
   # 2. For forwarded cross-node calls, validate that the sender's node_id
   #    matches the source IP's registered peer identity in PeerManager.
-  # 3. Consider signing sender info with the sending node's Hive key so the
+  # 3. Consider signing sender info with the sending node's TrustGroup key so the
   #    recipient can verify authenticity.
 
   # Build sender info from provided input or create default from this node

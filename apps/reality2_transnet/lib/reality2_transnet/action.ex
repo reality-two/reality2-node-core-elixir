@@ -148,7 +148,7 @@ defmodule Reality2Transnet.Action do
   ## Parameters
   - `company_id` - Manufacturer/company identifier (e.g., 0xFFFF)
   - `uuid_str` - Beacon UUID string (typically the node ID)
-  - `hive_compressed` - 4-byte compressed hive ID binary, or <<0,0,0,0>> if not in a hive
+  - `trust_group_compressed` - 4-byte compressed trust group ID binary, or <<0,0,0,0>> if not in a trust group
   - `rssi_at_1m` - Calibrated RSSI at 1 meter (typically -59)
   - `node_name` - Human-readable node name for BLE device name (e.g., "R2Node_A3F7")
   - `hosting_priority` - WiFi hosting priority (0-100), stored in AltBeacon reserved byte

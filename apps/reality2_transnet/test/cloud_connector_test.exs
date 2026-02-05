@@ -2,9 +2,9 @@ defmodule Reality2Transnet.CloudConnectorTest do
   @moduledoc """
   Tests for the CloudConnector GenServer.
 
-  The CloudConnector manages persistent connections to cloud-hosted hive nodes
+  The CloudConnector manages persistent connections to cloud-hosted trust group nodes
   over WebSocket (or HTTP polling fallback). Since most functionality requires
-  the full Reality2 umbrella to be running (PeerManager, HiveDirectory, network
+  the full Reality2 umbrella to be running (PeerManager, TrustGroupDirectory, network
   access), these tests are tagged as integration tests and excluded by default.
 
   However, we can verify the mathematical properties of the reconnect backoff
@@ -523,7 +523,7 @@ defmodule Reality2Transnet.CloudConnectorTest do
     test "nil node_id skips registration" do
       # register_cloud_peer(nil, _url) -> :ok (no-op)
       # This is a guard clause: if node_id is nil, no PeerManager or
-      # HiveDirectory calls are made.
+      # TrustGroupDirectory calls are made.
       assert :ok == :ok
     end
 
@@ -544,7 +544,7 @@ defmodule Reality2Transnet.CloudConnectorTest do
     test "internet confidence is set to zero on disconnect" do
       # update_cloud_peer_disconnected/1 calls:
       #   PeerManager.update_reachability(node_id, :internet, %{confidence: 0})
-      #   HiveDirectory.update_reachability(node_id, :internet, %{confidence: 0})
+      #   TrustGroupDirectory.update_reachability(node_id, :internet, %{confidence: 0})
       disconnected_confidence = 0
       assert disconnected_confidence == 0
     end
@@ -591,7 +591,7 @@ defmodule Reality2Transnet.CloudConnectorTest do
 
     test "nil node_id skips peer update on disconnect" do
       # update_cloud_peer_disconnected is only called if conn.node_id is truthy
-      # When node_id is nil, no PeerManager/HiveDirectory calls are made
+      # When node_id is nil, no PeerManager/TrustGroupDirectory calls are made
       node_id = nil
       refute node_id
     end

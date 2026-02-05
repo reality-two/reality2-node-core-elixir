@@ -145,7 +145,7 @@ mix r2.hardware_test --phase 1 --verbose
 3. BLE discovery: PeerManager has >= 1 peer (polls for 30s)
 4. WiFi cell: peer has `wifi_hotspot` transport (polls for 60s)
 5. Sentant exchange: peer has non-empty sentants (polls for 30s)
-6. HiveDirectory has >= 2 nodes
+6. TrustGroupDirectory has >= 2 nodes
 7. Local PingPong responds to ping
 8. Cross-node PingPong: send via PNS to `"SBC1|PingPong"`
 
@@ -164,7 +164,7 @@ mix r2.hardware_test --phase 2 --verbose
 **Tests (6):**
 1. SBC2 reachable
 2. >= 2 peers in PeerManager (polls for 30s)
-3. >= 3 nodes in HiveDirectory
+3. >= 3 nodes in TrustGroupDirectory
 4. Send to SBC2 PingPong via PNS
 5. MeshRouter relay count > 0
 6. PeerManager stats show >= 2 current peers
@@ -183,7 +183,7 @@ mix r2.hardware_test --phase 3 --verbose
 
 **Tests (4):**
 1. Unihiker reachable
-2. 4 nodes in HiveDirectory
+2. 4 nodes in TrustGroupDirectory
 3. Broadcast `"*"` event delivered to all nodes
 4. Hive addressing resolves PingPong across multiple nodes
 
@@ -237,16 +237,16 @@ Reality2Transnet.PeerManager.get_stats()
 Reality2Transnet.PeerManager.get_peer_by_name("SBC1")
 ```
 
-### Hive Directory
+### Trust Group Directory
 ```elixir
 # View the full directory
-Reality2Transnet.HiveDirectory.get_directory()
+Reality2Transnet.TrustGroupDirectory.get_directory()
 
 # Find a sentant across all nodes
-Reality2Transnet.HiveDirectory.find_sentant_by_name("PingPong")
+Reality2Transnet.TrustGroupDirectory.find_sentant_by_name("PingPong")
 
 # Get best transport to reach a node
-Reality2Transnet.HiveDirectory.best_transport_for(node_id)
+Reality2Transnet.TrustGroupDirectory.best_transport_for(node_id)
 ```
 
 ### Mesh Router
@@ -317,7 +317,7 @@ Reality2.Bootstrap.get(:node_name)
 
 ### Cross-Node Events Not Delivered
 
-- Verify both nodes are in the same Hive: check `HiveDirectory.get_directory()`
+- Verify both nodes are in the same trust group: check `TrustGroupDirectory.get_directory()`
 - Check PNS routing table: `AiReality2Pns.Router.get_routing_table()`
 - Ensure sentant names match exactly (case-sensitive)
 - Check MeshRouter stats for send/receive counts

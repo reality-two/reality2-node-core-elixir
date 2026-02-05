@@ -1,9 +1,9 @@
-defmodule Reality2Transnet.HiveDirectoryTest do
+defmodule Reality2Transnet.TrustGroupDirectoryTest do
   @moduledoc """
-  Tests for HiveDirectory merge semantics, query logic, confidence decay,
+  Tests for TrustGroupDirectory merge semantics, query logic, confidence decay,
   persistence round-tripping, and pruning.
 
-  Because HiveDirectory.init/1 calls Reality2.Bootstrap, HiveIdentity, and
+  Because TrustGroupDirectory.init/1 calls Reality2.Bootstrap, TrustGroupIdentity, and
   Reality2.Sentants (unavailable in unit tests), these tests operate directly
   on the plain-map data structures that mirror the GenServer's internal state.
   Helper functions replicate the private logic so we can validate the
@@ -26,7 +26,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
   @prune_absent_days 7
 
   # ===========================================================================
-  # Helpers — pure-function replicas of HiveDirectory private logic
+  # Helpers — pure-function replicas of TrustGroupDirectory private logic
   # ===========================================================================
 
   # -- Timestamp comparison ---------------------------------------------------
@@ -53,8 +53,8 @@ defmodule Reality2Transnet.HiveDirectoryTest do
 
     new_nodes = Map.merge(remote_nodes, merged_nodes)
 
-    remote_trusted = Map.get(remote, :trusted_hives, %{}) |> ensure_string_keys()
-    merged_trusted = Map.merge(local.trusted_hives, remote_trusted, fn _hive_id, local_trust, remote_trust ->
+    remote_trusted = Map.get(remote, :trusted_trust_groups, %{}) |> ensure_string_keys()
+    merged_trusted = Map.merge(local.trusted_trust_groups, remote_trusted, fn _trust_group_id, local_trust, remote_trust ->
       if compare_timestamps(local_trust[:established_at], remote_trust[:established_at]) == :gt do
         local_trust
       else
@@ -64,7 +64,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
 
     %{local |
       nodes: new_nodes,
-      trusted_hives: merged_trusted,
+      trusted_trust_groups: merged_trusted,
       directory_version: local.directory_version + 1
     }
   end
@@ -218,12 +218,12 @@ defmodule Reality2Transnet.HiveDirectoryTest do
     end)
 
     %{
-      hive_id: directory.hive_id,
-      hive_name: directory.hive_name,
+      trust_group_id: directory.trust_group_id,
+      trust_group_name: directory.trust_group_name,
       my_node_id: directory.my_node_id,
       directory_version: directory.directory_version,
       nodes: nodes,
-      trusted_hives: directory.trusted_hives,
+      trusted_trust_groups: directory.trusted_trust_groups,
       persisted_at: DateTime.utc_now() |> DateTime.to_iso8601()
     }
   end
@@ -236,18 +236,18 @@ defmodule Reality2Transnet.HiveDirectoryTest do
       |> Map.put(:compressed_id, import_compressed_id(Map.get(entry, :compressed_id), node_id))
       |> Map.put(:status, import_status(Map.get(entry, :status, "active")))
       |> Map.put_new(:sentants, [])
-      |> Map.put_new(:hive_id, nil)
+      |> Map.put_new(:trust_group_id, nil)
 
       {node_id, imported_entry}
     end)
 
     %{
-      hive_id: Map.get(data, :hive_id),
-      hive_name: Map.get(data, :hive_name, "DefaultHive"),
+      trust_group_id: Map.get(data, :trust_group_id),
+      trust_group_name: Map.get(data, :trust_group_name, "DefaultTrustGroup"),
       my_node_id: Map.get(data, :my_node_id),
       directory_version: Map.get(data, :directory_version, 1),
       nodes: nodes,
-      trusted_hives: Map.get(data, :trusted_hives, %{}) |> ensure_string_keys(),
+      trusted_trust_groups: Map.get(data, :trusted_trust_groups, %{}) |> ensure_string_keys(),
       foreign_nodes: Map.get(data, :foreign_nodes, %{}) |> ensure_string_keys()
     }
   end
@@ -326,7 +326,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
         nodes: %{
           peer_id => TestNodeFactory.build_node_entry(%{node_id: peer_id, name: "NewName", updated_at: new_ts})
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -348,7 +348,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
         nodes: %{
           peer_id => TestNodeFactory.build_node_entry(%{node_id: peer_id, name: "RemoteOld", updated_at: old_ts})
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -373,7 +373,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
         nodes: %{
           peer_id => TestNodeFactory.build_node_entry(%{node_id: peer_id, status: :active, updated_at: new_ts})
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -395,7 +395,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
         nodes: %{
           peer_id => TestNodeFactory.build_node_entry(%{node_id: peer_id, status: :revoked, updated_at: old_ts})
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -430,7 +430,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
             updated_at: new_ts
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -463,7 +463,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
             reachability: build_reach(%{wifi: %{last_seen: ts, confidence: 200, ip: "10.0.0.2"}})
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -495,7 +495,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
             reachability: build_reach(%{wifi: %{last_seen: ts, confidence: 200, ip: "10.0.0.2"}})
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -521,7 +521,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
             name: "BrandNewPeer"
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -530,69 +530,69 @@ defmodule Reality2Transnet.HiveDirectoryTest do
     end
   end
 
-  describe "merge semantics — trusted hives" do
-    test "trusted hives get merged using LWW by established_at" do
+  describe "merge semantics — trusted trust groups" do
+    test "trusted trust groups get merged using LWW by established_at" do
       my_id = TestNodeFactory.generate_uuid()
-      hive_a_id = TestNodeFactory.generate_uuid()
+      trust_group_a_id = TestNodeFactory.generate_uuid()
 
       old_ts = ts_offset(-600)
       new_ts = ts_offset(-30)
 
       local = TestNodeFactory.build_directory(%{my_node_id: my_id})
-      local = put_in(local, [:trusted_hives, hive_a_id],
+      local = put_in(local, [:trusted_trust_groups, trust_group_a_id],
         %{name: "OldTrust", established_at: old_ts, trust_ring: 1, permissions: ["read"]})
 
       remote = %{
         nodes: %{},
-        trusted_hives: %{
-          hive_a_id => %{name: "NewTrust", established_at: new_ts, trust_ring: 2, permissions: ["read", "write"]}
+        trusted_trust_groups: %{
+          trust_group_a_id => %{name: "NewTrust", established_at: new_ts, trust_ring: 2, permissions: ["read", "write"]}
         }
       }
 
       merged = merge_directories(local, remote)
-      assert merged.trusted_hives[hive_a_id].name == "NewTrust"
-      assert merged.trusted_hives[hive_a_id].trust_ring == 2
+      assert merged.trusted_trust_groups[trust_group_a_id].name == "NewTrust"
+      assert merged.trusted_trust_groups[trust_group_a_id].trust_ring == 2
     end
 
-    test "local trusted hive kept when established_at is newer" do
+    test "local trusted trust group kept when established_at is newer" do
       my_id = TestNodeFactory.generate_uuid()
-      hive_a_id = TestNodeFactory.generate_uuid()
+      trust_group_a_id = TestNodeFactory.generate_uuid()
 
       old_ts = ts_offset(-600)
       new_ts = ts_offset(-30)
 
       local = TestNodeFactory.build_directory(%{my_node_id: my_id})
-      local = put_in(local, [:trusted_hives, hive_a_id],
+      local = put_in(local, [:trusted_trust_groups, trust_group_a_id],
         %{name: "LocalTrust", established_at: new_ts, trust_ring: 1, permissions: ["read"]})
 
       remote = %{
         nodes: %{},
-        trusted_hives: %{
-          hive_a_id => %{name: "RemoteTrust", established_at: old_ts, trust_ring: 2, permissions: ["read", "write"]}
+        trusted_trust_groups: %{
+          trust_group_a_id => %{name: "RemoteTrust", established_at: old_ts, trust_ring: 2, permissions: ["read", "write"]}
         }
       }
 
       merged = merge_directories(local, remote)
-      assert merged.trusted_hives[hive_a_id].name == "LocalTrust"
+      assert merged.trusted_trust_groups[trust_group_a_id].name == "LocalTrust"
     end
 
-    test "new remote trusted hive gets added" do
+    test "new remote trusted trust group gets added" do
       my_id = TestNodeFactory.generate_uuid()
-      hive_b_id = TestNodeFactory.generate_uuid()
+      trust_group_b_id = TestNodeFactory.generate_uuid()
 
       local = TestNodeFactory.build_directory(%{my_node_id: my_id})
-      refute Map.has_key?(local.trusted_hives, hive_b_id)
+      refute Map.has_key?(local.trusted_trust_groups, trust_group_b_id)
 
       remote = %{
         nodes: %{},
-        trusted_hives: %{
-          hive_b_id => %{name: "NewHive", established_at: ts_offset(-10), trust_ring: 1, permissions: ["read"]}
+        trusted_trust_groups: %{
+          trust_group_b_id => %{name: "NewTrustGroup", established_at: ts_offset(-10), trust_ring: 1, permissions: ["read"]}
         }
       }
 
       merged = merge_directories(local, remote)
-      assert Map.has_key?(merged.trusted_hives, hive_b_id)
-      assert merged.trusted_hives[hive_b_id].name == "NewHive"
+      assert Map.has_key?(merged.trusted_trust_groups, trust_group_b_id)
+      assert merged.trusted_trust_groups[trust_group_b_id].name == "NewTrustGroup"
     end
   end
 
@@ -601,7 +601,7 @@ defmodule Reality2Transnet.HiveDirectoryTest do
       my_id = TestNodeFactory.generate_uuid()
       local = TestNodeFactory.build_directory(%{my_node_id: my_id, directory_version: 5})
 
-      remote = %{nodes: %{}, trusted_hives: %{}}
+      remote = %{nodes: %{}, trusted_trust_groups: %{}}
       merged = merge_directories(local, remote)
       assert merged.directory_version == 6
     end
@@ -942,21 +942,21 @@ defmodule Reality2Transnet.HiveDirectoryTest do
       assert imported.nodes[peer_id].status == :revoked
     end
 
-    test "trusted_hives survive roundtrip" do
+    test "trusted_trust_groups survive roundtrip" do
       my_id = TestNodeFactory.generate_uuid()
-      hive_id = TestNodeFactory.generate_uuid()
+      trust_group_id = TestNodeFactory.generate_uuid()
 
       dir = TestNodeFactory.build_directory(%{my_node_id: my_id})
-      dir = put_in(dir, [:trusted_hives, hive_id],
-        %{name: "TrustedHive", established_at: ts_offset(-100), trust_ring: 1, permissions: ["read"]})
+      dir = put_in(dir, [:trusted_trust_groups, trust_group_id],
+        %{name: "TrustedTrustGroup", established_at: ts_offset(-100), trust_ring: 1, permissions: ["read"]})
 
       exported = export_directory(dir)
       {:ok, json} = Jason.encode(exported)
       {:ok, decoded} = Jason.decode(json, keys: :atoms)
       imported = import_directory(decoded)
 
-      assert Map.has_key?(imported.trusted_hives, hive_id)
-      assert imported.trusted_hives[hive_id].name == "TrustedHive"
+      assert Map.has_key?(imported.trusted_trust_groups, trust_group_id)
+      assert imported.trusted_trust_groups[trust_group_id].name == "TrustedTrustGroup"
     end
 
     test "directory_version is preserved" do

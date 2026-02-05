@@ -6,7 +6,7 @@ defmodule Mix.Tasks.R2.HardwareTest do
 
     Phase 1: Laptop + 1 SBC (BLE discovery, WiFi cell, sentant exchange)
     Phase 2: + SBC2 (multi-peer mesh, relay)
-    Phase 3: + Unihiker (4-node mesh, broadcast, hive addressing)
+    Phase 3: + Unihiker (4-node mesh, broadcast, trust group addressing)
     Phase 4: LoRa transport
     Phase 5: Cloud connectivity
 
@@ -296,9 +296,9 @@ defmodule Mix.Tasks.R2.HardwareTest do
         end
       end),
 
-      # 6. HiveDirectory has >= 2 nodes
-      test("HiveDirectory has >= 2 nodes", fn ->
-        directory = Reality2Transnet.HiveDirectory.get_directory()
+      # 6. TrustGroupDirectory has >= 2 nodes
+      test("TrustGroupDirectory has >= 2 nodes", fn ->
+        directory = Reality2Transnet.TrustGroupDirectory.get_directory()
         node_count = if is_map(directory), do: map_size(directory), else: 0
         verbose(verbose?, "Directory has #{node_count} node(s)")
         if node_count >= 2, do: :ok, else: {:error, "only #{node_count} node(s)"}
@@ -374,9 +374,9 @@ defmodule Mix.Tasks.R2.HardwareTest do
         end
       end),
 
-      # 3. >= 3 nodes in HiveDirectory
-      test(">= 3 nodes in HiveDirectory", fn ->
-        directory = Reality2Transnet.HiveDirectory.get_directory()
+      # 3. >= 3 nodes in TrustGroupDirectory
+      test(">= 3 nodes in TrustGroupDirectory", fn ->
+        directory = Reality2Transnet.TrustGroupDirectory.get_directory()
         node_count = if is_map(directory), do: map_size(directory), else: 0
         verbose(verbose?, "Directory has #{node_count} node(s)")
         if node_count >= 3, do: :ok, else: {:error, "only #{node_count} node(s)"}
@@ -444,8 +444,8 @@ defmodule Mix.Tasks.R2.HardwareTest do
       end),
 
       # 2. 4 nodes in directory
-      test("4 nodes in HiveDirectory", fn ->
-        directory = Reality2Transnet.HiveDirectory.get_directory()
+      test("4 nodes in TrustGroupDirectory", fn ->
+        directory = Reality2Transnet.TrustGroupDirectory.get_directory()
         node_count = if is_map(directory), do: map_size(directory), else: 0
         verbose(verbose?, "Directory has #{node_count} node(s)")
         if node_count >= 4, do: :ok, else: {:error, "only #{node_count} node(s)"}
@@ -463,8 +463,8 @@ defmodule Mix.Tasks.R2.HardwareTest do
         end
       end),
 
-      # 4. Hive addressing resolves
-      test("Hive addressing resolves PingPong", fn ->
+      # 4. TrustGroup addressing resolves
+      test("Trust group addressing resolves PingPong", fn ->
         case Reality2Wfs.Router.locate("*|PingPong") do
           {:ok, :multiple, locations} when is_list(locations) ->
             verbose(verbose?, "PingPong found at #{length(locations)} location(s)")

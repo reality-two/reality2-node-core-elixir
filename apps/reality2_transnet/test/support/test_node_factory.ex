@@ -1,11 +1,11 @@
 defmodule Reality2Transnet.TestNodeFactory do
   @moduledoc """
   Factory for building consistent test data: node entries, peer records,
-  mesh messages, and hive identities.
+  mesh messages, and trust group identities.
   """
 
   @doc """
-  Builds a node entry suitable for HiveDirectory.
+  Builds a node entry suitable for TrustGroupDirectory.
   """
   def build_node_entry(overrides \\ %{}) do
     node_id = Map.get(overrides, :node_id, generate_uuid())
@@ -17,7 +17,7 @@ defmodule Reality2Transnet.TestNodeFactory do
       status: :active,
       updated_at: DateTime.utc_now() |> DateTime.to_iso8601(),
       sentants: [],
-      hive_id: nil,
+      trust_group_id: nil,
       reachability: default_reachability()
     }, Map.drop(overrides, [:node_id]))
   end
@@ -41,11 +41,11 @@ defmodule Reality2Transnet.TestNodeFactory do
       discovered_at: now,
       last_seen: now,
       connection_state: :discovered,
-      hive_id: nil,
-      hive_public_key: nil,
+      trust_group_id: nil,
+      trust_group_public_key: nil,
       node_cert: nil,
-      is_same_hive: false,
-      hive_verified: false,
+      is_same_trust_group: false,
+      trust_group_verified: false,
       reachability: %{
         ble: %{last_seen: DateTime.utc_now() |> DateTime.to_iso8601(), confidence: 200, rssi: -60},
         wifi: %{last_seen: nil, confidence: 0, ip: nil},
@@ -80,25 +80,25 @@ defmodule Reality2Transnet.TestNodeFactory do
   end
 
   @doc """
-  Builds a minimal directory state for HiveDirectory tests.
+  Builds a minimal directory state for TrustGroupDirectory tests.
   """
   def build_directory(overrides \\ %{}) do
     my_node_id = Map.get(overrides, :my_node_id, generate_uuid())
-    hive_id = Map.get(overrides, :hive_id, generate_uuid())
+    trust_group_id = Map.get(overrides, :trust_group_id, generate_uuid())
 
     Map.merge(%{
-      hive_id: hive_id,
-      hive_name: "TestHive",
+      trust_group_id: trust_group_id,
+      trust_group_name: "TestTrustGroup",
       my_node_id: my_node_id,
       directory_version: 1,
       nodes: %{
         my_node_id => build_node_entry(%{
           node_id: my_node_id,
           name: "Self",
-          hive_id: hive_id
+          trust_group_id: trust_group_id
         })
       },
-      trusted_hives: %{},
+      trusted_trust_groups: %{},
       foreign_nodes: %{}
     }, overrides)
   end
@@ -118,7 +118,7 @@ defmodule Reality2Transnet.TestNodeFactory do
   """
   def build_presence_info(overrides \\ %{}) do
     Map.merge(%{
-      hive_compressed: <<0xA3, 0xF7, 0xB2, 0xC1>>,
+      trust_group_compressed: <<0xA3, 0xF7, 0xB2, 0xC1>>,
       capabilities: %{has_wifi: true, has_ble: true, is_relay: false, is_bridge: false,
                       is_anchor: false, is_sensor: false, is_mobile: false, is_cloud: false},
       sentant_count: 5,

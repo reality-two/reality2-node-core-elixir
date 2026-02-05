@@ -59,7 +59,7 @@ defmodule Reality2Transnet.Transports.LoRaTransportTest do
         assert decoded.type == @tag_type
         assert decoded.payload == "hello-#{@tag_type}"
 
-        # Without HiveDirectory running, src_node_id resolves to compressed hex
+        # Without TrustGroupDirectory running, src_node_id resolves to compressed hex
         expected_src = "compressed:" <> compressed_hex(msg.src_node_id)
         assert decoded.src_node_id == expected_src
       end
@@ -227,7 +227,7 @@ defmodule Reality2Transnet.Transports.LoRaTransportTest do
   # 6. encode_presence / decode_presence roundtrip (16-byte payload)
   #
   # Presence binary layout (16 bytes):
-  #   hive_compressed:  4 bytes
+  #   trust_group_compressed:  4 bytes
   #   capabilities:     1 byte
   #   sentant_count:    1 byte
   #   hosting_priority: 1 byte
@@ -247,7 +247,7 @@ defmodule Reality2Transnet.Transports.LoRaTransportTest do
 
       {:ok, decoded} = LoRaTransport.decode_presence(encoded)
 
-      assert decoded.hive_compressed == info.hive_compressed
+      assert decoded.trust_group_compressed == info.trust_group_compressed
       assert decoded.sentant_count == info.sentant_count
       assert decoded.hosting_priority == info.hosting_priority
       assert decoded.node_name_hash == info.node_name_hash
@@ -260,7 +260,7 @@ defmodule Reality2Transnet.Transports.LoRaTransportTest do
 
     test "roundtrips with all-zero fields" do
       info = %{
-        hive_compressed: <<0, 0, 0, 0>>,
+        trust_group_compressed: <<0, 0, 0, 0>>,
         capabilities: %{},
         sentant_count: 0,
         hosting_priority: 0,
@@ -394,8 +394,8 @@ defmodule Reality2Transnet.Transports.LoRaTransportTest do
       info = TestNodeFactory.build_presence_info(%{capabilities: cloud_only})
       encoded = LoRaTransport.encode_presence(info)
 
-      # Capabilities byte is at offset 4 (after 4-byte hive_compressed)
-      <<_hive::binary-size(4), cap_byte::8, _rest::binary>> = encoded
+      # Capabilities byte is at offset 4 (after 4-byte trust_group_compressed)
+      <<_trust_group::binary-size(4), cap_byte::8, _rest::binary>> = encoded
       assert cap_byte == 0x80
     end
 
@@ -416,7 +416,7 @@ defmodule Reality2Transnet.Transports.LoRaTransportTest do
         info = TestNodeFactory.build_presence_info(%{capabilities: caps})
         encoded = LoRaTransport.encode_presence(info)
 
-        <<_hive::binary-size(4), cap_byte::8, _rest::binary>> = encoded
+        <<_trust_group::binary-size(4), cap_byte::8, _rest::binary>> = encoded
         assert (cap_byte &&& expected_bit) == expected_bit,
                "Expected #{flag} at bit #{expected_bit}, got cap_byte=#{cap_byte}"
       end

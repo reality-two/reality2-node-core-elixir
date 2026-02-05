@@ -11,9 +11,9 @@ defmodule Reality2Wfs.RouterTest do
     - "@sender"              -> :reply_to_sender
     - "sentant_name"         -> {:local_only, "sentant_name"}
     - "*|sentant_name"       -> {:all_nodes, "sentant_name"}
-    - "node|sentant"         -> {:specific_node, ...} or {:specific_node_or_hive, ...}
-    - "hive|sentant"         -> {:hive_sentant, ...}
-    - "hive|node|sentant"    -> {:hive_node_sentant, ...}
+    - "node|sentant"         -> {:specific_node, ...} or {:specific_node_or_trust_group, ...}
+    - "trust_group|sentant"  -> {:trust_group_sentant, ...}
+    - "trust_group|node|sentant" -> {:trust_group_node_sentant, ...}
     - %{id: uuid}            -> {:local_only, %{id: uuid}}
     - %{name: "Name"}        -> {:local_only, %{name: "Name"}}
   """
@@ -107,7 +107,7 @@ defmodule Reality2Wfs.RouterTest do
       assert String.split("R2Node_A3F7|Zen Quote", "|") == ["R2Node_A3F7", "Zen Quote"]
     end
 
-    test "hive-pipe-node-pipe-sentant yields three-element list" do
+    test "trust-group-pipe-node-pipe-sentant yields three-element list" do
       assert String.split("MyHive|R2Node_A3F7|Zen Quote", "|") == ["MyHive", "R2Node_A3F7", "Zen Quote"]
     end
 
@@ -250,7 +250,7 @@ defmodule Reality2Wfs.RouterTest do
     end
   end
 
-  describe "parse_path classification: two-part paths (node|sentant or hive|sentant)" do
+  describe "parse_path classification: two-part paths (node|sentant or trust_group|sentant)" do
     test "two-part path is split into part1 and part2" do
       # parse_path("NodeA|SentantB") -> depends on classify_identifier("NodeA")
       parts = String.split("NodeA|SentantB", "|")
@@ -274,18 +274,18 @@ defmodule Reality2Wfs.RouterTest do
       parts = String.split("R2Node_A3F7|Zen Quote", "|")
       assert ["R2Node_A3F7", "Zen Quote"] = parts
       # classify_identifier("R2Node_A3F7") determines if this is
-      # :local_node, :known_peer, :hive, or :unknown
+      # :local_node, :known_peer, :trust_group, or :unknown
     end
   end
 
-  describe "parse_path classification: three-part paths (hive|node|sentant)" do
-    test "three-part path classifies as hive_node_sentant" do
-      # parse_path("MyHive|NodeA|SentantB") -> {:hive_node_sentant, "MyHive", "NodeA", "SentantB"}
+  describe "parse_path classification: three-part paths (trust_group|node|sentant)" do
+    test "three-part path classifies as trust_group_node_sentant" do
+      # parse_path("MyHive|NodeA|SentantB") -> {:trust_group_node_sentant, "MyHive", "NodeA", "SentantB"}
       parts = String.split("MyHive|NodeA|SentantB", "|")
       assert ["MyHive", "NodeA", "SentantB"] = parts
     end
 
-    test "three UUIDs yield hive_node_sentant" do
+    test "three UUIDs yield trust_group_node_sentant" do
       hive = "00000000-0000-0000-0000-000000000001"
       node = "00000000-0000-0000-0000-000000000002"
       sentant = "00000000-0000-0000-0000-000000000003"
@@ -308,30 +308,30 @@ defmodule Reality2Wfs.RouterTest do
   #   1. local node name/id -> :local_node
   #   2. known peer by name (WFS_NodeNames) -> :known_peer
   #   3. known peer by UUID (uuid? + peer_exists?) -> :known_peer
-  #   4. hive identifier -> :hive
-  #   5. fallthrough -> :unknown (try node first, then hive)
+  #   4. trust group identifier -> :trust_group
+  #   5. fallthrough -> :unknown (try node first, then trust group)
 
   describe "classify_identifier routing decisions" do
     test ":local_node -> {:specific_node, part1, part2}" do
       # When part1 matches local node name or ID, routes as specific_node
       # with local resolution
       classification = :local_node
-      assert classification in [:local_node, :known_peer, :hive, :unknown]
+      assert classification in [:local_node, :known_peer, :trust_group, :unknown]
     end
 
     test ":known_peer -> {:specific_node, part1, part2}" do
       classification = :known_peer
-      assert classification in [:local_node, :known_peer, :hive, :unknown]
+      assert classification in [:local_node, :known_peer, :trust_group, :unknown]
     end
 
-    test ":hive -> {:hive_sentant, part1, part2}" do
-      classification = :hive
-      assert classification in [:local_node, :known_peer, :hive, :unknown]
+    test ":trust_group -> {:trust_group_sentant, part1, part2}" do
+      classification = :trust_group
+      assert classification in [:local_node, :known_peer, :trust_group, :unknown]
     end
 
-    test ":unknown -> {:specific_node_or_hive, part1, part2} (try node then hive)" do
+    test ":unknown -> {:specific_node_or_trust_group, part1, part2} (try node then trust_group)" do
       classification = :unknown
-      assert classification in [:local_node, :known_peer, :hive, :unknown]
+      assert classification in [:local_node, :known_peer, :trust_group, :unknown]
     end
   end
 
@@ -543,10 +543,10 @@ defmodule Reality2Wfs.RouterTest do
     end
 
     @tag :specification
-    test "local only: bare name searches local node first, then hive directory" do
+    test "local only: bare name searches local node first, then trust group directory" do
       # Input: "Zen Quote"
       # Expected parse result: {:local_only, "Zen Quote"}
-      # Behavior: normalize_identifier -> is_local_sentant? -> find_in_hive_directory
+      # Behavior: normalize_identifier -> is_local_sentant? -> find_in_trust_group_directory
       path = "Zen Quote"
       refute String.contains?(path, "|")
     end
@@ -567,17 +567,17 @@ defmodule Reality2Wfs.RouterTest do
       # Expected parse result: depends on classify_identifier("R2Node_A3F7")
       #   :local_node -> {:specific_node, ...}
       #   :known_peer -> {:specific_node, ...}
-      #   :hive -> {:hive_sentant, ...}
-      #   :unknown -> {:specific_node_or_hive, ...}
+      #   :trust_group -> {:trust_group_sentant, ...}
+      #   :unknown -> {:specific_node_or_trust_group, ...}
       [node_part, sentant_part] = String.split("R2Node_A3F7|Zen Quote", "|")
       assert node_part == "R2Node_A3F7"
       assert sentant_part == "Zen Quote"
     end
 
     @tag :specification
-    test "hive node sentant: 'hive|node|sentant' routes through hive to specific node" do
+    test "trust_group node sentant: 'trust_group|node|sentant' routes through trust_group to specific node" do
       # Input: "MyHive|R2Node_A3F7|Zen Quote"
-      # Expected parse result: {:hive_node_sentant, "MyHive", "R2Node_A3F7", "Zen Quote"}
+      # Expected parse result: {:trust_group_node_sentant, "MyHive", "R2Node_A3F7", "Zen Quote"}
       # Behavior: delegates to handle_specific_node with node_part and sentant_part
       [hive, node, sentant] = String.split("MyHive|R2Node_A3F7|Zen Quote", "|")
       assert hive == "MyHive"

@@ -38,7 +38,7 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
   require Logger
   import Bitwise
 
-  alias Reality2Transnet.{HiveIdentity, HiveDirectory}
+  alias Reality2Transnet.{TrustGroup, TrustGroupDirectory}
 
   @max_payload_size 200
   @header_size 8
@@ -164,7 +164,7 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
   @doc """
   Decodes a LoRa wire format binary into a MeshRouter-compatible message.
 
-  Resolves compressed source ID to full UUID via HiveDirectory lookup table.
+  Resolves compressed source ID to full UUID via TrustGroupDirectory lookup table.
   """
   @spec decode_message(binary()) :: {:ok, map()} | {:error, :invalid_format}
   def decode_message(<<msg_id::16, ttl_class::8, src_compressed::binary-size(4), payload::binary>>) do
@@ -214,7 +214,7 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
   Encodes a presence announcement for LoRa transmission.
 
   Payload format (up to 26 bytes):
-    hive_compressed:  32 bits
+    trust_group_compressed:  32 bits
     capabilities:      8 bits
     sentant_count:     8 bits
     hosting_priority:  8 bits
@@ -226,7 +226,7 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
   """
   @spec encode_presence(map()) :: binary()
   def encode_presence(info) do
-    hive_compressed = Map.get(info, :hive_compressed, <<0, 0, 0, 0>>)
+    trust_group_compressed = Map.get(info, :trust_group_compressed, <<0, 0, 0, 0>>)
     capabilities = encode_capabilities(Map.get(info, :capabilities, %{}))
     sentant_count = min(Map.get(info, :sentant_count, 0), 255)
     hosting_priority = min(Map.get(info, :hosting_priority, 0), 255)
@@ -237,7 +237,7 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
     backlog_count = Map.get(info, :backlog_count, 0) |> min(0xFFFF)
 
     <<
-      hive_compressed::binary-size(4),
+      trust_group_compressed::binary-size(4),
       capabilities::8,
       sentant_count::8,
       hosting_priority::8,
@@ -254,7 +254,7 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
   """
   @spec decode_presence(binary()) :: {:ok, map()} | {:error, :invalid_format}
   def decode_presence(<<
-    hive_compressed::binary-size(4),
+    trust_group_compressed::binary-size(4),
     capabilities::8,
     sentant_count::8,
     hosting_priority::8,
@@ -265,7 +265,7 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
     backlog_count::16
   >>) do
     {:ok, %{
-      hive_compressed: hive_compressed,
+      trust_group_compressed: trust_group_compressed,
       capabilities: decode_capabilities(capabilities),
       sentant_count: sentant_count,
       hosting_priority: hosting_priority,
@@ -293,19 +293,19 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
     if byte_size(node_id) == 4 do
       node_id
     else
-      HiveIdentity.compressed_id(node_id)
+      TrustGroup.compressed_id(node_id)
     end
   end
 
   defp resolve_compressed_id(compressed) when is_binary(compressed) and byte_size(compressed) == 4 do
-    # Try HiveDirectory lookup first
-    if Code.ensure_loaded?(HiveDirectory) and Process.whereis(HiveDirectory) != nil do
-      case HiveDirectory.resolve_compressed_id(compressed) do
+    # Try TrustGroupDirectory lookup first
+    if Code.ensure_loaded?(TrustGroupDirectory) and Process.whereis(TrustGroupDirectory) != nil do
+      case TrustGroupDirectory.resolve_compressed_id(compressed) do
         {:ok, node_id} -> node_id
-        {:error, _} -> "compressed:" <> HiveIdentity.compressed_id_to_hex(compressed)
+        {:error, _} -> "compressed:" <> TrustGroup.compressed_id_to_hex(compressed)
       end
     else
-      "compressed:" <> HiveIdentity.compressed_id_to_hex(compressed)
+      "compressed:" <> TrustGroup.compressed_id_to_hex(compressed)
     end
   end
 

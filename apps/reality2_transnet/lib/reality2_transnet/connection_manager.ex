@@ -1559,7 +1559,7 @@ defmodule Reality2Transnet.ConnectionManager do
 
     _my_sentants = get_local_sentants()  # Reserved for future bidirectional exchange
 
-    # Build GraphQL query for sentantAll and nodeInfo (for hive identity)
+    # Build GraphQL query for sentantAll and nodeInfo (for trust group identity)
     graphql_query = """
     {
       sentantAll {
@@ -1575,8 +1575,8 @@ defmodule Reality2Transnet.ConnectionManager do
       nodeInfo {
         nodeId
         nodeName
-        hiveId
-        hiveName
+        trustGroupId
+        trustGroupName
       }
     }
     """
@@ -1609,12 +1609,12 @@ defmodule Reality2Transnet.ConnectionManager do
             # Update WFS routing table with host's sentants
             update_wfs_routing_table(host_node_id, host_ip, host_sentants)
 
-            # Update peer's hive info if nodeInfo was returned
+            # Update peer's trust group info if nodeInfo was returned
             case Map.get(data, "nodeInfo") do
-              %{"hiveId" => hive_id} when is_binary(hive_id) ->
-                Logger.info("#{log_prefix()} Peer hive: #{hive_id}")
-                Reality2Transnet.PeerManager.update_peer_hive_info(host_node_id, %{
-                  hive_id: hive_id
+              %{"trustGroupId" => trust_group_id} when is_binary(trust_group_id) ->
+                Logger.info("#{log_prefix()} Peer trust group: #{trust_group_id}")
+                Reality2Transnet.PeerManager.update_peer_trust_group_info(host_node_id, %{
+                  trust_group_id: trust_group_id
                 })
               _ -> :ok
             end

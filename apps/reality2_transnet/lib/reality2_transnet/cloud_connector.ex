@@ -1,8 +1,8 @@
 defmodule Reality2Transnet.CloudConnector do
   @moduledoc """
-  Manages persistent connections to cloud-hosted hive nodes.
+  Manages persistent connections to cloud-hosted trust group nodes.
 
-  A hive may contain nodes running in the cloud (e.g., backup servers,
+  A trust group may contain nodes running in the cloud (e.g., backup servers,
   analytics processors, always-on coordinators). These cloud nodes are
   reachable over the internet via WebSocket connections, unlike local
   nodes which use BLE, WiFi, or LoRa.
@@ -11,16 +11,16 @@ defmodule Reality2Transnet.CloudConnector do
 
   Cloud nodes serve several purposes:
   - **Remote backup** — mirrors sentant state and data from edge nodes
-  - **Always-on relay** — bridges between partitioned subgroups of the hive
+  - **Always-on relay** — bridges between partitioned subgroups of the trust group
   - **Analytics/compute** — offloads processing from constrained edge devices
-  - **Gateway** — connects hive to external systems and APIs
+  - **Gateway** — connects trust group to external systems and APIs
 
   ## Connection Lifecycle
 
   1. **Boot**: Reads configured cloud endpoints from config
   2. **Connect**: Establishes WebSocket connections with exponential backoff
-  3. **Authenticate**: Sends hive identity + node certificate for mutual trust
-  4. **Sync**: Triggers HiveDirectory merge on connection
+  3. **Authenticate**: Sends trust group identity + node certificate for mutual trust
+  4. **Sync**: Triggers TrustGroupDirectory merge on connection
   5. **Relay**: Bidirectionally forwards mesh messages over WebSocket
   6. **Monitor**: Heartbeat pings, reconnects on disconnect
 
@@ -40,7 +40,7 @@ defmodule Reality2Transnet.CloudConnector do
   use GenServer
   require Logger
 
-  alias Reality2Transnet.{HiveDirectory, PeerManager}
+  alias Reality2Transnet.{TrustGroupDirectory, PeerManager}
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
   # Constants
@@ -270,7 +270,7 @@ defmodule Reality2Transnet.CloudConnector do
         new_connections = Map.put(state.connections, url, new_conn)
         new_stats = Map.update!(state.stats, :connections_established, &(&1 + 1))
 
-        # Register cloud peer in PeerManager and HiveDirectory
+        # Register cloud peer in PeerManager and TrustGroupDirectory
         # Pass the URL so the peer's IP/host can be extracted for WiFi bridge routing
         register_cloud_peer(conn.node_id, url)
 
@@ -379,8 +379,8 @@ defmodule Reality2Transnet.CloudConnector do
   @impl true
   def handle_info({:directory_sync_response, _url, remote_dir}, state) do
     # Merge received directory from cloud node
-    if Code.ensure_loaded?(HiveDirectory) and Process.whereis(HiveDirectory) != nil do
-      HiveDirectory.merge_directory(remote_dir)
+    if Code.ensure_loaded?(TrustGroupDirectory) and Process.whereis(TrustGroupDirectory) != nil do
+      TrustGroupDirectory.merge_directory(remote_dir)
     end
     {:noreply, state}
   end
@@ -548,19 +548,19 @@ defmodule Reality2Transnet.CloudConnector do
       end
     end
 
-    # Register in HiveDirectory
-    if Code.ensure_loaded?(HiveDirectory) and Process.whereis(HiveDirectory) != nil do
-      HiveDirectory.register_node(node_id, %{
+    # Register in TrustGroupDirectory
+    if Code.ensure_loaded?(TrustGroupDirectory) and Process.whereis(TrustGroupDirectory) != nil do
+      TrustGroupDirectory.register_node(node_id, %{
         name: "cloud:#{String.slice(node_id, 0..7)}",
         status: :active
       })
 
-      HiveDirectory.update_reachability(node_id, :internet, %{
+      TrustGroupDirectory.update_reachability(node_id, :internet, %{
         confidence: 200
       })
 
       if cloud_ip do
-        HiveDirectory.update_reachability(node_id, :wifi, %{
+        TrustGroupDirectory.update_reachability(node_id, :wifi, %{
           confidence: 180,
           ip: cloud_ip
         })
@@ -573,8 +573,8 @@ defmodule Reality2Transnet.CloudConnector do
       PeerManager.update_reachability(node_id, :internet, %{confidence: 0})
     end
 
-    if Code.ensure_loaded?(HiveDirectory) and Process.whereis(HiveDirectory) != nil do
-      HiveDirectory.update_reachability(node_id, :internet, %{confidence: 0})
+    if Code.ensure_loaded?(TrustGroupDirectory) and Process.whereis(TrustGroupDirectory) != nil do
+      TrustGroupDirectory.update_reachability(node_id, :internet, %{confidence: 0})
     end
   end
 
@@ -583,8 +583,8 @@ defmodule Reality2Transnet.CloudConnector do
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   defp sync_directory_with_cloud(ws_pid) do
-    if Code.ensure_loaded?(HiveDirectory) and Process.whereis(HiveDirectory) != nil do
-      dir = HiveDirectory.get_directory()
+    if Code.ensure_loaded?(TrustGroupDirectory) and Process.whereis(TrustGroupDirectory) != nil do
+      dir = TrustGroupDirectory.get_directory()
       payload = Jason.encode!(%{type: "directory_sync", directory: export_for_sync(dir)})
       send_ws_message(ws_pid, payload)
     end
@@ -593,14 +593,14 @@ defmodule Reality2Transnet.CloudConnector do
   defp export_for_sync(directory) do
     # Export a sync-safe version of the directory (no binary compressed IDs)
     %{
-      hive_id: directory.hive_id,
-      hive_name: directory.hive_name,
+      trust_group_id: directory.trust_group_id,
+      trust_group_name: directory.trust_group_name,
       my_node_id: directory.my_node_id,
       directory_version: directory.directory_version,
       nodes: Map.new(directory.nodes, fn {id, entry} ->
         {id, Map.drop(entry, [:compressed_id])}
       end),
-      trusted_hives: directory.trusted_hives
+      trusted_trust_groups: directory.trusted_trust_groups
     }
   end
 

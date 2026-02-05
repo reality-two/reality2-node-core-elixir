@@ -666,27 +666,27 @@ defmodule Reality2Transnet.MeshRouter do
           sentants: sentants
         })
 
-        # Update Hive info if present
-        hive_id = Map.get(payload, "hive_id")
-        if hive_id do
-          hive_info = %{
-            hive_id: hive_id,
-            hive_public_key: Map.get(payload, "hive_public_key"),
+        # Update Trust Group info if present
+        trust_group_id = Map.get(payload, "trust_group_id")
+        if trust_group_id do
+          trust_group_info = %{
+            trust_group_id: trust_group_id,
+            trust_group_public_key: Map.get(payload, "trust_group_public_key"),
             node_cert: Map.get(payload, "node_cert")
           }
 
-          case Reality2Transnet.PeerManager.update_peer_hive_info(node_id, hive_info) do
+          case Reality2Transnet.PeerManager.update_peer_trust_group_info(node_id, trust_group_info) do
             :ok ->
-              Logger.debug("#{log_prefix()} Updated Hive info for peer #{String.slice(node_id, 0..7)}... (Hive: #{String.slice(hive_id, 0..7)}...)")
+              Logger.debug("#{log_prefix()} Updated Trust Group info for peer #{String.slice(node_id, 0..7)}... (Trust Group: #{String.slice(trust_group_id, 0..7)}...)")
 
             {:error, reason} ->
-              Logger.warning("#{log_prefix()} Failed to update Hive info for #{String.slice(node_id, 0..7)}...: #{inspect(reason)}")
+              Logger.warning("#{log_prefix()} Failed to update Trust Group info for #{String.slice(node_id, 0..7)}...: #{inspect(reason)}")
           end
         end
 
-        # Register in HiveDirectory for hive-level addressing
-        if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-           Process.whereis(Reality2Transnet.HiveDirectory) != nil do
+        # Register in TrustGroupDirectory for trust group-level addressing
+        if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+           Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
           sentant_entries = Enum.map(sentants, fn s ->
             %{
               id: (if is_map(s), do: Map.get(s, "id") || Map.get(s, :id), else: nil),
@@ -694,10 +694,10 @@ defmodule Reality2Transnet.MeshRouter do
             }
           end)
 
-          Reality2Transnet.HiveDirectory.register_node(node_id, %{
+          Reality2Transnet.TrustGroupDirectory.register_node(node_id, %{
             name: node_name,
             sentants: sentant_entries,
-            hive_id: hive_id
+            trust_group_id: trust_group_id
           })
         end
 
@@ -796,9 +796,9 @@ defmodule Reality2Transnet.MeshRouter do
     end
     sentant_names = Enum.map(sentants_data, fn s -> Map.get(s, :name, "") end)
 
-    # Update HiveDirectory with our current sentants
-    if Code.ensure_loaded?(Reality2Transnet.HiveDirectory) and
-       Process.whereis(Reality2Transnet.HiveDirectory) != nil do
+    # Update TrustGroupDirectory with our current sentants
+    if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) and
+       Process.whereis(Reality2Transnet.TrustGroupDirectory) != nil do
       now = DateTime.utc_now() |> DateTime.to_iso8601()
       sentant_entries = Enum.map(sentants_data, fn s ->
         %{
@@ -807,18 +807,18 @@ defmodule Reality2Transnet.MeshRouter do
           updated_at: now
         }
       end)
-      Reality2Transnet.HiveDirectory.update_self(%{sentants: sentant_entries, name: my_node_name})
+      Reality2Transnet.TrustGroupDirectory.update_self(%{sentants: sentant_entries, name: my_node_name})
     end
 
-    # Get Hive identity info
-    hive_info = case Reality2Transnet.HiveIdentity.get_identity() do
+    # Get Trust Group identity info
+    trust_group_info = case Reality2Transnet.TrustGroup.get_identity() do
       {:ok, identity} ->
         %{
-          hive_id: identity.hive_id,
-          hive_name: identity.name,
-          hive_public_key: Base.encode64(identity.public_key),
-          hive_created_at: DateTime.to_iso8601(identity.created_at),
-          hive_provisional: identity.provisional,
+          trust_group_id: identity.trust_group_id,
+          trust_group_name: identity.name,
+          trust_group_public_key: Base.encode64(identity.public_key),
+          trust_group_created_at: DateTime.to_iso8601(identity.created_at),
+          trust_group_provisional: identity.provisional,
           node_cert: identity.node_cert  # nil for key holders, cert for members
         }
       _ ->
@@ -833,7 +833,7 @@ defmodule Reality2Transnet.MeshRouter do
       payload: Jason.encode!(Map.merge(%{
         node_name: my_node_name,
         sentants: sentant_names
-      }, hive_info))
+      }, trust_group_info))
     }
 
     # Broadcast via non-LoRa transports only (Gap 9 fix)

@@ -3,11 +3,11 @@ defmodule Reality2.Helpers.CryptoTest do
   Unit tests for Reality2.Helpers.Crypto module.
 
   These tests focus on the pure cryptographic functions that can be tested in isolation:
-  - decrypt_with_old_hive/3 - Decryption using a private key (no HiveIdentity dependency)
+  - decrypt_with_old_hive/3 - Decryption using a private key (no TrustGroup dependency)
   - Key derivation from private keys
   - Encryption/decryption roundtrips
 
-  Note: encrypt/2, decrypt/2, and migrate_from_old_hive/3 require a running HiveIdentity
+  Note: encrypt/2, decrypt/2, and migrate_from_old_hive/3 require a running TrustGroup
   GenServer, so these tests only verify they fail appropriately when the GenServer is unavailable.
 
   ## Known Issues
@@ -22,10 +22,10 @@ defmodule Reality2.Helpers.CryptoTest do
   alias Reality2.Helpers.Crypto
 
   describe "encrypt/2 and decrypt/2" do
-    test "fails when HiveIdentity is not running" do
-      # HiveIdentity module is not available, so get_hive_key returns an error
-      assert {:error, :hive_not_available} = Crypto.encrypt("test data", "test:purpose")
-      assert {:error, :hive_not_available} = Crypto.decrypt(<<1, 2, 3>>, "test:purpose")
+    test "fails when TrustGroup is not running" do
+      # TrustGroup module is not available, so get_hive_key returns an error
+      assert {:error, :trust_group_not_available} = Crypto.encrypt("test data", "test:purpose")
+      assert {:error, :trust_group_not_available} = Crypto.decrypt(<<1, 2, 3>>, "test:purpose")
     end
   end
 
@@ -37,7 +37,7 @@ defmodule Reality2.Helpers.CryptoTest do
 
       # Derive the key the same way the module does
       purpose = "test:roundtrip"
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
 
@@ -62,7 +62,7 @@ defmodule Reality2.Helpers.CryptoTest do
       purpose = "test:empty"
 
       # Derive key and encrypt empty string
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
 
@@ -81,7 +81,7 @@ defmodule Reality2.Helpers.CryptoTest do
       purpose = "test:unicode"
 
       # Derive key and encrypt unicode string
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
 
@@ -129,7 +129,7 @@ defmodule Reality2.Helpers.CryptoTest do
       purpose = "test:corrupted"
 
       # Create valid encrypted data
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
 
@@ -168,7 +168,7 @@ defmodule Reality2.Helpers.CryptoTest do
       decrypt_purpose = "test:purpose_b"
 
       # Encrypt with one purpose
-      info = "hive-data-key:" <> encrypt_purpose
+      info = "trust-group-data-key:" <> encrypt_purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
 
@@ -194,7 +194,7 @@ defmodule Reality2.Helpers.CryptoTest do
       plaintext = "Same data"
 
       # Encrypt with purpose1
-      info1 = "hive-data-key:" <> purpose1
+      info1 = "trust-group-data-key:" <> purpose1
       derived1 = :crypto.mac(:hmac, :sha256, private_key, info1)
       encoded_key1 = Base.encode64(derived1)
       key1 = Base.decode64!(encoded_key1)
@@ -203,7 +203,7 @@ defmodule Reality2.Helpers.CryptoTest do
       encrypted1 = iv1 <> tag1 <> ciphertext1
 
       # Encrypt with purpose2
-      info2 = "hive-data-key:" <> purpose2
+      info2 = "trust-group-data-key:" <> purpose2
       derived2 = :crypto.mac(:hmac, :sha256, private_key, info2)
       encoded_key2 = Base.encode64(derived2)
       key2 = Base.decode64!(encoded_key2)
@@ -236,7 +236,7 @@ defmodule Reality2.Helpers.CryptoTest do
       plaintext = <<0, 1, 2, 3, 255, 254, 253>>
 
       # Encrypt
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
       key = Base.decode64!(encoded_key)
@@ -250,14 +250,14 @@ defmodule Reality2.Helpers.CryptoTest do
   end
 
   describe "migrate_from_old_hive/3" do
-    test "fails when HiveIdentity is not running for re-encryption" do
-      # Create valid old hive encrypted data
+    test "fails when TrustGroup is not running for re-encryption" do
+      # Create valid old trust_group encrypted data
       old_private_key = :crypto.strong_rand_bytes(32)
       old_private_key_b64 = Base.encode64(old_private_key)
       purpose = "test:migrate"
 
       # Encrypt with old key
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, old_private_key, info)
       encoded_key = Base.encode64(derived)
 
@@ -267,9 +267,9 @@ defmodule Reality2.Helpers.CryptoTest do
       {ciphertext, tag} = :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, plaintext, "", 16, true)
       encrypted = iv <> tag <> ciphertext
 
-      # Migration decrypts successfully but fails when trying to get new hive key
-      # because HiveIdentity module is not available
-      assert {:error, :hive_not_available} =
+      # Migration decrypts successfully but fails when trying to get new trust_group key
+      # because TrustGroup module is not available
+      assert {:error, :trust_group_not_available} =
                Crypto.migrate_from_old_hive(encrypted, purpose, old_private_key_b64)
     end
 
@@ -303,7 +303,7 @@ defmodule Reality2.Helpers.CryptoTest do
       plaintext = "test"
 
       # Encrypt twice with same key and purpose
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
 
@@ -331,7 +331,7 @@ defmodule Reality2.Helpers.CryptoTest do
       # Key 1
       key1 = :crypto.strong_rand_bytes(32)
       key1_b64 = Base.encode64(key1)
-      info1 = "hive-data-key:" <> purpose
+      info1 = "trust-group-data-key:" <> purpose
       derived1 = :crypto.mac(:hmac, :sha256, key1, info1)
       encoded_key1 = Base.encode64(derived1)
       decoded_key1 = Base.decode64!(encoded_key1)
@@ -342,7 +342,7 @@ defmodule Reality2.Helpers.CryptoTest do
       # Key 2
       key2 = :crypto.strong_rand_bytes(32)
       key2_b64 = Base.encode64(key2)
-      info2 = "hive-data-key:" <> purpose
+      info2 = "trust-group-data-key:" <> purpose
       derived2 = :crypto.mac(:hmac, :sha256, key2, info2)
       encoded_key2 = Base.encode64(derived2)
       decoded_key2 = Base.decode64!(encoded_key2)
@@ -373,7 +373,7 @@ defmodule Reality2.Helpers.CryptoTest do
       # 1MB of data
       plaintext = String.duplicate("A", 1_048_576)
 
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
       key = Base.decode64!(encoded_key)
@@ -390,7 +390,7 @@ defmodule Reality2.Helpers.CryptoTest do
       purpose = "test:special!@#$%^&*()_+-=[]{}|;':,.<>?/~`"
       plaintext = "data"
 
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
       key = Base.decode64!(encoded_key)
@@ -407,7 +407,7 @@ defmodule Reality2.Helpers.CryptoTest do
       purpose = ""
       plaintext = "data"
 
-      info = "hive-data-key:" <> purpose
+      info = "trust-group-data-key:" <> purpose
       derived = :crypto.mac(:hmac, :sha256, private_key, info)
       encoded_key = Base.encode64(derived)
       key = Base.decode64!(encoded_key)

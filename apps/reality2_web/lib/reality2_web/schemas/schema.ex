@@ -31,5 +31,6 @@ defmodule Reality2Web.Schema do
 
   subscription do
     import_fields(:sentant_subscriptions)
+    import_fields(:node_subscriptions)
   end
 end

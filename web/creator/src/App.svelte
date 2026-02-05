@@ -198,13 +198,13 @@
   async function fetchHiveData() {
     try {
       const [infoResult, peersResult, dirResult]: any[] = await Promise.all([
-        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode hiveCompressedId isProvisional version buildId"),
+        r2.nodeInfo({}, "nodeId nodeName trustGroupId trustGroupName trustGroupMode trustGroupCompressedId isProvisional version buildId"),
         r2.peers(),
-        r2.hiveDirectory(),
+        r2.trustGroupDirectory(),
       ]);
       hiveNodeInfo = infoResult?.data?.nodeInfo ?? null;
       hivePeers = peersResult?.data?.peers ?? [];
-      hiveDirectory = dirResult?.data?.hiveDirectory ?? null;
+      hiveDirectory = dirResult?.data?.trustGroupDirectory ?? null;
     } catch (err) {
       showStatus("Hive fetch error: " + (err as Error).message);
     }
@@ -223,7 +223,7 @@
   async function handleBrowseNode() {
     try {
       const [nodeInfoResult, sentantsResult]: any[] = await Promise.all([
-        r2.nodeInfo({}, "nodeId nodeName hiveId hiveName hiveMode version buildId"),
+        r2.nodeInfo({}, "nodeId nodeName trustGroupId trustGroupName trustGroupMode version buildId"),
         r2.sentantAll({}, "id name swarm description events { event parameters } signals nodeId nodeName"),
       ]);
 

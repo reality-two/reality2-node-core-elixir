@@ -81,7 +81,7 @@ defmodule Reality2.Automation do
       parameters
     end
 
-    # Get the data from the Sentant Database (if there is any), decrypted with Hive key
+    # Get the data from the Sentant Database (if there is any), decrypted with TrustGroup key
     data = get_data(id)
 
     case R2Map.get(args, :event) do
@@ -148,7 +148,7 @@ defmodule Reality2.Automation do
   # ---------------------------------------------------------------------------------------------------------------------------------------------
 
   # ---------------------------------------------------------------------------------------------------------------------------------------------
-  # Get the data from the Data Table in Mnesia (decrypted with Hive key)
+  # Get the data from the Data Table in Mnesia (decrypted with TrustGroup key)
   # ---------------------------------------------------------------------------------------------------------------------------------------------
   defp get_data(id) do
     do_read = fn id ->
@@ -159,7 +159,7 @@ defmodule Reality2.Automation do
     case Mnesia.transaction(do_read, [id]) do
       {:atomic, [{:data, ^id, stored_data}]} ->
         try do
-          # Try Hive-based decryption first
+          # Try TrustGroup-based decryption first
           data_string =
             case Base.decode64(stored_data) do
               {:ok, encrypted_data} ->

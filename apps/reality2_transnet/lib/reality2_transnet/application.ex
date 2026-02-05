@@ -9,12 +9,12 @@ defmodule Reality2Transnet.Application do
   Reality2Transnet.Application (one_for_one)
   ├── Main                        - Plugin interface
   ├── JoinRequests                - Ephemeral storage for pending join requests
-  ├── HiveMembers                 - Persistent storage for approved members
-  ├── HiveIdentity                - Cryptographic Hive identity (Ed25519)
-  ├── HiveDirectory               - Distributed eventually-consistent hive directory
+  ├── TrustGroupMembers                 - Persistent storage for approved members
+  ├── TrustGroup                - Cryptographic trust group identity (Ed25519)
+  ├── TrustGroupDirectory               - Distributed eventually-consistent trust group directory
   ├── PeerManager                 - Shared peer state (critical, isolated)
   ├── MeshRouter                  - Transport-agnostic message routing
-  ├── CloudConnector              - Persistent connections to cloud hive nodes
+  ├── CloudConnector              - Persistent connections to cloud trust group nodes
   ├── ConnectionSupervisor        - Data layer (rest_for_one) [STARTS FIRST]
   │   ├── ConnectionManager       - WiFi hotspot/client management
   │   └── ConnectionAssessor      - Quality assessment (depends on Manager)
@@ -63,33 +63,33 @@ defmodule Reality2Transnet.Application do
         restart: :transient
       },
 
-      # JoinRequests - ephemeral storage for pending hive join requests
+      # JoinRequests - ephemeral storage for pending trust group join requests
       %{
         id: Reality2Transnet.JoinRequests,
         start: {Reality2Transnet.JoinRequests, :start_link, [[]]},
         restart: :permanent
       },
 
-      # HiveMembers - persistent storage for approved hive members
+      # TrustGroupMembers - persistent storage for approved trust group members
       %{
-        id: Reality2Transnet.HiveMembers,
-        start: {Reality2Transnet.HiveMembers, :start_link, [[]]},
+        id: Reality2Transnet.TrustGroupMembers,
+        start: {Reality2Transnet.TrustGroupMembers, :start_link, [[]]},
         restart: :permanent
       },
 
-      # HiveIdentity - cryptographic identity for the Hive
-      # MUST start before PeerManager since peers need Hive context
+      # TrustGroup - cryptographic identity for the trust group
+      # MUST start before PeerManager since peers need trust group context
       %{
-        id: Reality2Transnet.HiveIdentity,
-        start: {Reality2Transnet.HiveIdentity, :start_link, [[]]},
+        id: Reality2Transnet.TrustGroup,
+        start: {Reality2Transnet.TrustGroup, :start_link, [[]]},
         restart: :permanent
       },
 
-      # HiveDirectory - distributed eventually-consistent hive directory
-      # MUST start after HiveIdentity (needs hive_id), before PeerManager
+      # TrustGroupDirectory - distributed eventually-consistent trust group directory
+      # MUST start after TrustGroup (needs trust_group_id), before PeerManager
       %{
-        id: Reality2Transnet.HiveDirectory,
-        start: {Reality2Transnet.HiveDirectory, :start_link, [[]]},
+        id: Reality2Transnet.TrustGroupDirectory,
+        start: {Reality2Transnet.TrustGroupDirectory, :start_link, [[]]},
         restart: :permanent
       },
 
@@ -109,7 +109,7 @@ defmodule Reality2Transnet.Application do
         restart: :permanent
       },
 
-      # CloudConnector - persistent connections to cloud-hosted hive nodes
+      # CloudConnector - persistent connections to cloud-hosted trust group nodes
       # Enables backup, relay, and analytics via internet (GSM, wired, WiFi-to-internet)
       # Starts after MeshRouter so it can relay messages immediately on connect
       %{
@@ -136,10 +136,24 @@ defmodule Reality2Transnet.Application do
         restart: :permanent
       },
 
-      # HiveJoinBle - joiner-side BLE GATT client for hive join requests
+      # TrustGroupJoinBle - joiner-side BLE GATT client for trust group join requests
       %{
-        id: Reality2Transnet.HiveJoinBle,
-        start: {Reality2Transnet.HiveJoinBle, :start_link, [[]]},
+        id: Reality2Transnet.TrustGroupJoinBle,
+        start: {Reality2Transnet.TrustGroupJoinBle, :start_link, [[]]},
+        restart: :permanent
+      },
+
+      # KeyHolders - tracks known trust group key holders for visibility and coordination
+      %{
+        id: Reality2Transnet.KeyHolders,
+        start: {Reality2Transnet.KeyHolders, :start_link, [[]]},
+        restart: :permanent
+      },
+
+      # InterGroupTrust - inter-trust-group federation management
+      %{
+        id: Reality2Transnet.InterGroupTrust,
+        start: {Reality2Transnet.InterGroupTrust, :start_link, [[]]},
         restart: :permanent
       }
     ]

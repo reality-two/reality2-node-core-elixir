@@ -2,8 +2,8 @@ defmodule Reality2Transnet.Transports.InternetTransport do
   @moduledoc """
   Internet transport adapter implementing the Transport behaviour.
 
-  Routes mesh messages to cloud-hosted hive nodes via the CloudConnector.
-  Used when hive members include nodes running in the cloud (backup servers,
+  Routes mesh messages to cloud-hosted trust group nodes via the CloudConnector.
+  Used when trust group members include nodes running in the cloud (backup servers,
   analytics processors, always-on coordinators, etc.).
 
   ## Characteristics

@@ -26,6 +26,19 @@ defmodule Reality2Web.PubSubSubscriber do
     # Subscribe to sentant signals
     Phoenix.PubSub.subscribe(Reality2.PubSub, "sentant:signals")
     Logger.info("[Reality2Web.PubSubSubscriber] Subscribed to sentant:signals")
+
+    # Subscribe to trust group join requests (for key holder notifications)
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "trust_group:join_requests")
+    Logger.info("[Reality2Web.PubSubSubscriber] Subscribed to trust_group:join_requests")
+
+    # Subscribe to proximity events (for key holder proximity prompts)
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "trust_group:proximity")
+    Logger.info("[Reality2Web.PubSubSubscriber] Subscribed to trust_group:proximity")
+
+    # Subscribe to backup prompts (for key holder first-device notification)
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "trust_group:backup_prompt")
+    Logger.info("[Reality2Web.PubSubSubscriber] Subscribed to trust_group:backup_prompt")
+
     {:ok, %{}}
   end
 
@@ -53,6 +66,69 @@ defmodule Reality2Web.PubSubSubscriber do
       Reality2Web.Endpoint,
       subscription_data,
       await_signal: id <> "|" <> event
+    )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:trust_group_join_request_received, request_id, data}, state) do
+    # A new join request has arrived - notify key holder UI
+    subscription_data = %{
+      request_id: request_id,
+      node_id: Map.get(data, :node_id),
+      node_name: Map.get(data, :node_name),
+      node_public_key: Map.get(data, :node_public_key),
+      submitted_at: Map.get(data, :submitted_at),
+      source: Atom.to_string(Map.get(data, :source, :unknown))
+    }
+
+    # Publish to GraphQL subscribers
+    Absinthe.Subscription.publish(
+      Reality2Web.Endpoint,
+      subscription_data,
+      join_request_received: "trust_group:join_requests"
+    )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:proximity_device_detected, node_id, data}, state) do
+    # A very close device was detected - notify key holder UI for proximity prompting
+    subscription_data = %{
+      node_id: node_id,
+      node_name: Map.get(data, :node_name),
+      rssi: Map.get(data, :rssi),
+      proximity: Atom.to_string(Map.get(data, :proximity, :unknown)),
+      timestamp: Map.get(data, :timestamp)
+    }
+
+    # Publish to GraphQL subscribers
+    Absinthe.Subscription.publish(
+      Reality2Web.Endpoint,
+      subscription_data,
+      proximity_device_detected: "trust_group:proximity"
+    )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:first_device_approved, data}, state) do
+    # First device approved - prompt key holder to backup their key
+    subscription_data = %{
+      device_name: Map.get(data, :device_name),
+      trust_group_name: Map.get(data, :trust_group_name),
+      trust_group_id: Map.get(data, :trust_group_id),
+      timestamp: Map.get(data, :timestamp)
+    }
+
+    # Publish to GraphQL subscribers
+    Absinthe.Subscription.publish(
+      Reality2Web.Endpoint,
+      subscription_data,
+      backup_prompt_received: "trust_group:backup_prompt"
     )
 
     {:noreply, state}

@@ -283,21 +283,21 @@ defmodule Reality2.Helpers do
   # -------------------------------------------------------------------------------------------------------------------------------------------
 
   # -------------------------------------------------------------------------------------------------------------------------------------------
-  # Hive-based encryption - all data is encrypted with keys derived from the Hive identity.
-  # If a node changes Hives, old data becomes unreadable unless migrated.
+  # TrustGroup-based encryption - all data is encrypted with keys derived from the TrustGroup identity.
+  # If a node changes TrustGroups, old data becomes unreadable unless migrated.
   # -------------------------------------------------------------------------------------------------------------------------------------------
   defmodule Crypto do
     @moduledoc """
-    Hive-based encryption for Reality2.
+    TrustGroup-based encryption for Reality2.
 
-    All encryption uses keys derived from the Hive identity. This ensures:
-    - Data is tied to the Hive, not just the device
-    - If a device changes Hives, old data becomes unreadable
-    - Migration functions allow transitioning data between Hives
+    All encryption uses keys derived from the TrustGroup identity. This ensures:
+    - Data is tied to the TrustGroup, not just the device
+    - If a device changes TrustGroups, old data becomes unreadable
+    - Migration functions allow transitioning data between TrustGroups
     """
 
     @doc """
-    Encrypts data using a Hive-derived key.
+    Encrypts data using a TrustGroup-derived key.
 
     ## Parameters
     - `data` - String data to encrypt
@@ -305,11 +305,11 @@ defmodule Reality2.Helpers do
 
     ## Returns
     - `{:ok, encrypted_binary}` - Encrypted data
-    - `{:error, :hive_not_available}` - HiveIdentity not loaded
+    - `{:error, :trust_group_not_available}` - TrustGroup not loaded
     - `{:error, :not_key_holder}` - Only key holders can encrypt
     """
     def encrypt(data, purpose) when is_binary(data) and is_binary(purpose) do
-      with {:ok, key} <- get_hive_key(purpose) do
+      with {:ok, key} <- get_trust_group_key(purpose) do
         {:ok, do_encrypt(data, key)}
       end
     end
@@ -324,53 +324,53 @@ defmodule Reality2.Helpers do
     ## Returns
     - `{:ok, decrypted_string}` - Decrypted data
     - `{:error, :decryption_failed}` - Wrong key or corrupted data
-    - `{:error, :hive_not_available}` - HiveIdentity not loaded
+    - `{:error, :trust_group_not_available}` - TrustGroup not loaded
     """
     def decrypt(data, purpose) when is_binary(data) and is_binary(purpose) do
-      with {:ok, key} <- get_hive_key(purpose) do
+      with {:ok, key} <- get_trust_group_key(purpose) do
         do_decrypt(data, key)
       end
     end
 
     @doc """
-    Migrates encrypted data from an old Hive to the current Hive.
+    Migrates encrypted data from an old TrustGroup to the current TrustGroup.
 
-    Use this when a device joins a new Hive but needs to preserve old data.
-    Requires the old Hive's private key (from backup).
+    Use this when a device joins a new TrustGroup but needs to preserve old data.
+    Requires the old TrustGroup's private key (from backup).
 
     ## Parameters
-    - `encrypted_data` - Data encrypted with old Hive key
+    - `encrypted_data` - Data encrypted with old TrustGroup key
     - `purpose` - Key derivation purpose
-    - `old_hive_private_key` - Base64-encoded private key from old Hive
+    - `old_trust_group_private_key` - Base64-encoded private key from old TrustGroup
 
     ## Returns
-    - `{:ok, re_encrypted_data}` - Data re-encrypted with current Hive key
+    - `{:ok, re_encrypted_data}` - Data re-encrypted with current TrustGroup key
     - `{:error, reason}` - Migration failed
     """
-    def migrate_from_old_hive(encrypted_data, purpose, old_hive_private_key) do
-      with {:ok, old_key} <- derive_key_from_private(old_hive_private_key, purpose),
+    def migrate_from_old_trust_group(encrypted_data, purpose, old_trust_group_private_key) do
+      with {:ok, old_key} <- derive_key_from_private(old_trust_group_private_key, purpose),
            {:ok, plaintext} <- do_decrypt(encrypted_data, old_key),
-           {:ok, new_key} <- get_hive_key(purpose) do
+           {:ok, new_key} <- get_trust_group_key(purpose) do
         {:ok, do_encrypt(plaintext, new_key)}
       end
     end
 
     @doc """
-    Decrypts data using an old Hive's private key.
+    Decrypts data using an old TrustGroup's private key.
 
-    Use this to read data from a previous Hive without re-encrypting.
+    Use this to read data from a previous TrustGroup without re-encrypting.
 
     ## Parameters
-    - `encrypted_data` - Data encrypted with old Hive key
+    - `encrypted_data` - Data encrypted with old TrustGroup key
     - `purpose` - Key derivation purpose
-    - `old_hive_private_key` - Base64-encoded private key from old Hive
+    - `old_trust_group_private_key` - Base64-encoded private key from old TrustGroup
 
     ## Returns
     - `{:ok, plaintext}` - Decrypted data
     - `{:error, reason}` - Decryption failed
     """
-    def decrypt_with_old_hive(encrypted_data, purpose, old_hive_private_key) do
-      with {:ok, old_key} <- derive_key_from_private(old_hive_private_key, purpose) do
+    def decrypt_with_old_trust_group(encrypted_data, purpose, old_trust_group_private_key) do
+      with {:ok, old_key} <- derive_key_from_private(old_trust_group_private_key, purpose) do
         do_decrypt(encrypted_data, old_key)
       end
     end
@@ -379,18 +379,18 @@ defmodule Reality2.Helpers do
     # Private Implementation
     # -----------------------------------------------------------------------------------------------------------------------------------------
 
-    defp get_hive_key(purpose) do
-      if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
-        apply(Reality2Transnet.HiveIdentity, :derive_data_key, [purpose])
+    defp get_trust_group_key(purpose) do
+      if Code.ensure_loaded?(Reality2Transnet.TrustGroup) do
+        apply(Reality2Transnet.TrustGroup, :derive_data_key, [purpose])
       else
-        {:error, :hive_not_available}
+        {:error, :trust_group_not_available}
       end
     end
 
     defp derive_key_from_private(private_key_b64, purpose) do
       case Base.decode64(private_key_b64) do
         {:ok, private_key} when byte_size(private_key) == 32 ->
-          info = "hive-data-key:" <> purpose
+          info = "trust-group-data-key:" <> purpose
           derived = :crypto.mac(:hmac, :sha256, private_key, info)
           {:ok, Base.encode64(derived)}
 

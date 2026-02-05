@@ -1,9 +1,9 @@
 defmodule Reality2Transnet.Integration.DirectoryMergeTest do
   @moduledoc """
-  Integration tests for HiveDirectory merge semantics.
+  Integration tests for TrustGroupDirectory merge semantics.
 
   These tests verify the CRDT-inspired merge logic that ensures
-  distributed directory convergence across hive nodes.
+  distributed directory convergence across trust group nodes.
 
   Run with: mix test --include integration
   """
@@ -14,7 +14,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
   alias Reality2Transnet.TestNodeFactory
 
   # ---------------------------------------------------------------------------
-  # Helpers — simulate merge logic from HiveDirectory (private functions)
+  # Helpers — simulate merge logic from TrustGroupDirectory (private functions)
   # These mirror the actual implementation for testability
   # ---------------------------------------------------------------------------
 
@@ -28,8 +28,8 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
 
     new_nodes = Map.merge(remote_nodes, merged_nodes)
 
-    remote_trusted = Map.get(remote, :trusted_hives, %{})
-    merged_trusted = Map.merge(local.trusted_hives, remote_trusted, fn _hive_id, local_trust, remote_trust ->
+    remote_trusted = Map.get(remote, :trusted_trust_groups, %{})
+    merged_trusted = Map.merge(local.trusted_trust_groups, remote_trusted, fn _trust_group_id, local_trust, remote_trust ->
       if compare_timestamps(local_trust[:established_at], remote_trust[:established_at]) == :gt do
         local_trust
       else
@@ -39,7 +39,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
 
     %{local |
       nodes: new_nodes,
-      trusted_hives: merged_trusted,
+      trusted_trust_groups: merged_trusted,
       directory_version: local.directory_version + 1
     }
   end
@@ -137,7 +137,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
             node_id: peer_id, name: "NewName", updated_at: new_ts
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -162,7 +162,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
             node_id: peer_id, name: "RemoteName", updated_at: old_ts
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -186,7 +186,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
             node_id: peer_id, status: :revoked, updated_at: "2025-01-01T00:00:00Z"
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -208,7 +208,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
             node_id: peer_id, status: :active, updated_at: "2025-06-01T00:00:00Z"
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -233,7 +233,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
             node_id: my_id, sentants: remote_sentants, updated_at: "2025-12-01T00:00:00Z"
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -269,7 +269,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
             }
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -304,7 +304,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
             }
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -326,7 +326,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
             node_id: new_peer_id, name: "NewPeer"
           })
         },
-        trusted_hives: %{}
+        trusted_trust_groups: %{}
       }
 
       merged = merge_directories(local, remote)
@@ -335,47 +335,47 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
     end
   end
 
-  describe "trusted_hives merge" do
-    test "both local and remote trusted hives are included" do
+  describe "trusted_trust_groups merge" do
+    test "both local and remote trusted trust groups are included" do
       my_id = TestNodeFactory.generate_uuid()
-      hive_a = TestNodeFactory.generate_uuid()
-      hive_b = TestNodeFactory.generate_uuid()
+      trust_group_a = TestNodeFactory.generate_uuid()
+      trust_group_b = TestNodeFactory.generate_uuid()
 
       local = TestNodeFactory.build_directory(%{my_node_id: my_id})
-      local = %{local | trusted_hives: %{
-        hive_a => %{name: "HiveA", established_at: "2025-01-01T00:00:00Z"}
+      local = %{local | trusted_trust_groups: %{
+        trust_group_a => %{name: "TrustGroupA", established_at: "2025-01-01T00:00:00Z"}
       }}
 
       remote = %{
         nodes: %{},
-        trusted_hives: %{
-          hive_b => %{name: "HiveB", established_at: "2025-02-01T00:00:00Z"}
+        trusted_trust_groups: %{
+          trust_group_b => %{name: "TrustGroupB", established_at: "2025-02-01T00:00:00Z"}
         }
       }
 
       merged = merge_directories(local, remote)
-      assert Map.has_key?(merged.trusted_hives, hive_a)
-      assert Map.has_key?(merged.trusted_hives, hive_b)
+      assert Map.has_key?(merged.trusted_trust_groups, trust_group_a)
+      assert Map.has_key?(merged.trusted_trust_groups, trust_group_b)
     end
 
-    test "conflicting trusted hives use LWW by established_at" do
+    test "conflicting trusted trust groups use LWW by established_at" do
       my_id = TestNodeFactory.generate_uuid()
-      hive_id = TestNodeFactory.generate_uuid()
+      trust_group_id = TestNodeFactory.generate_uuid()
 
       local = TestNodeFactory.build_directory(%{my_node_id: my_id})
-      local = %{local | trusted_hives: %{
-        hive_id => %{name: "LocalName", established_at: "2025-06-01T00:00:00Z"}
+      local = %{local | trusted_trust_groups: %{
+        trust_group_id => %{name: "LocalName", established_at: "2025-06-01T00:00:00Z"}
       }}
 
       remote = %{
         nodes: %{},
-        trusted_hives: %{
-          hive_id => %{name: "RemoteName", established_at: "2025-01-01T00:00:00Z"}
+        trusted_trust_groups: %{
+          trust_group_id => %{name: "RemoteName", established_at: "2025-01-01T00:00:00Z"}
         }
       }
 
       merged = merge_directories(local, remote)
-      assert merged.trusted_hives[hive_id].name == "LocalName"
+      assert merged.trusted_trust_groups[trust_group_id].name == "LocalName"
     end
   end
 
@@ -385,7 +385,7 @@ defmodule Reality2Transnet.Integration.DirectoryMergeTest do
       local = TestNodeFactory.build_directory(%{my_node_id: my_id})
       initial_version = local.directory_version
 
-      remote = %{nodes: %{}, trusted_hives: %{}}
+      remote = %{nodes: %{}, trusted_trust_groups: %{}}
       merged = merge_directories(local, remote)
 
       assert merged.directory_version == initial_version + 1

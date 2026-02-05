@@ -142,10 +142,10 @@ defmodule Reality2Transnet.Bluetooth do
   end
 
   @doc """
-  Refresh the BLE beacon with current hive identity.
+  Refresh the BLE beacon with current trust group identity.
 
-  Call this after joining or leaving a hive to update the beacon's
-  compressed hive ID so other nodes see the correct hive membership.
+  Call this after joining or leaving a trust group to update the beacon's
+  compressed trust group ID so other nodes see the correct trust group membership.
   """
   def refresh_beacon do
     GenServer.call(__MODULE__, :refresh_beacon)
@@ -240,29 +240,26 @@ defmodule Reality2Transnet.Bluetooth do
         Logger.debug("#{log_prefix()} Stopped old beacon for refresh")
     end
 
-    # Start a new beacon with current hive identity
+    # Start a new beacon with current trust group identity
     node_id = Reality2.Bootstrap.get(:node_id)
     node_name = Reality2.Bootstrap.get(:node_name)
     adapter_name = Map.get(state, :adapter_name, "hci0")
     hosting_priority = get_hosting_priority()
 
-    hive_compressed = case Reality2Transnet.HiveIdentity.get_hive_compressed_id() do
-      {:ok, compressed} -> compressed
-      {:error, _} -> <<0, 0, 0, 0>>
-    end
+    trust_group_compressed = get_trust_group_compressed_id_safe()
 
     case Reality2Transnet.Action.start_broadcast(
            @r2_company_id,
            node_id,
-           hive_compressed,
+           trust_group_compressed,
            -59,
            node_name,
            hosting_priority,
            adapter_name
          ) do
       {:ok, h} ->
-        hive_hex = Reality2Transnet.HiveIdentity.compressed_id_to_hex(hive_compressed)
-        Logger.info("#{log_prefix()} Beacon refreshed with hive: #{hive_hex}")
+        trust_group_hex = Reality2Transnet.TrustGroup.compressed_id_to_hex(trust_group_compressed)
+        Logger.info("#{log_prefix()} Beacon refreshed with trust group: #{trust_group_hex}")
         {:reply, :ok, Map.put(state, :r2_beacon, h)}
 
       {:error, reason} ->
@@ -553,13 +550,13 @@ defmodule Reality2Transnet.Bluetooth do
     {:noreply, state}
   end
 
-  # Hive Join GATT write - a remote node is requesting to join our hive
+  # Trust Group Join GATT write - a remote node is requesting to join our trust group
   def handle_info({:gatt_write, "hive_join", data}, state) do
-    Logger.info("#{log_prefix()} Hive join GATT write received")
+    Logger.info("#{log_prefix()} Trust group join GATT write received")
 
     raw = if is_list(data), do: :binary.list_to_bin(data), else: data
 
-    case Reality2Transnet.GattProtocol.handle_hive_join_write(raw) do
+    case Reality2Transnet.GattProtocol.handle_trust_group_join_write(raw) do
       {:ok, %{action: :join_request} = request} ->
         node_id = request.node_id
         node_name = request.node_name
@@ -567,7 +564,7 @@ defmodule Reality2Transnet.Bluetooth do
         ephemeral_public_key_b64 = request.ephemeral_public_key
         _signature_b64 = request.signature
 
-        Logger.info("#{log_prefix()} Hive join request from #{node_name} (#{node_id})")
+        Logger.info("#{log_prefix()} Trust group join request from #{node_name} (#{node_id})")
 
         # Verify the request signature to prove the requester holds the private key
         case verify_join_request_signature(request) do
@@ -575,18 +572,30 @@ defmodule Reality2Transnet.Bluetooth do
             # Submit with the actual Ed25519 public key (base64-encoded)
             case Reality2Transnet.JoinRequests.submit(node_name, node_public_key_b64) do
               {:error, :rate_limited} ->
-                Logger.warning("#{log_prefix()} Hive join rate limited for #{node_name}")
+                Logger.warning("#{log_prefix()} Trust group join rate limited for #{node_name}")
                 write_join_ack(state, %{action: "join_request_ack", status: "rate_limited"})
                 {:noreply, state}
 
               %{id: request_id} = join_request ->
                 # Store mapping with the ephemeral key for encrypting the result
                 ble_join_requests = Map.get(state, :ble_join_requests, %{})
+                submitted_at = System.system_time(:second)
                 ble_join_requests = Map.put(ble_join_requests, request_id, %{
                   node_id: node_id,
                   node_name: node_name,
                   ephemeral_public_key_b64: ephemeral_public_key_b64,
-                  submitted_at: System.system_time(:second)
+                  submitted_at: submitted_at
+                })
+
+                # Broadcast to notify key holder UI of new join request
+                Phoenix.PubSub.broadcast(Reality2.PubSub, "trust_group:join_requests", {
+                  :trust_group_join_request_received, request_id, %{
+                    node_id: node_id,
+                    node_name: node_name,
+                    node_public_key: node_public_key_b64,
+                    submitted_at: submitted_at,
+                    source: :ble
+                  }
                 })
 
                 write_join_ack(state, %{
@@ -599,19 +608,19 @@ defmodule Reality2Transnet.Bluetooth do
             end
 
           {:error, reason} ->
-            Logger.warning("#{log_prefix()} Hive join signature verification failed: #{reason}")
+            Logger.warning("#{log_prefix()} Trust group join signature verification failed: #{reason}")
             write_join_ack(state, %{action: "join_request_ack", status: "invalid_signature"})
             {:noreply, state}
         end
 
       {:error, reason} ->
-        Logger.error("#{log_prefix()} Hive join GATT write error: #{reason}")
+        Logger.error("#{log_prefix()} Trust group join GATT write error: #{reason}")
         {:noreply, state}
     end
   end
 
-  # PubSub: Hive join request approved/denied - write result back to GATT
-  def handle_info({:hive_join_result, request_id, result}, state) do
+  # PubSub: Trust group join request approved/denied - write result back to GATT
+  def handle_info({:trust_group_join_result, request_id, result}, state) do
     ble_join_requests = Map.get(state, :ble_join_requests, %{})
 
     case Map.get(ble_join_requests, request_id) do
@@ -620,16 +629,16 @@ defmodule Reality2Transnet.Bluetooth do
         {:noreply, state}
 
       ble_request ->
-        Logger.info("#{log_prefix()} Hive join result for BLE request #{request_id}: #{result.status}")
+        Logger.info("#{log_prefix()} Trust group join result for BLE request #{request_id}: #{result.status}")
 
         # Build the plaintext result payload
-        # cert and hive_public_info must be JSON strings, not nested objects
+        # cert and trust_group_public_info must be JSON strings, not nested objects
         cert_value = case Map.get(result, :certificate) do
           nil -> nil
           cert when is_map(cert) -> Jason.encode!(cert)
           cert -> cert
         end
-        hive_info_value = case Map.get(result, :hive_public_info) do
+        trust_group_info_value = case Map.get(result, :trust_group_public_info) do
           nil -> nil
           info when is_map(info) -> Jason.encode!(info)
           info -> info
@@ -639,9 +648,9 @@ defmodule Reality2Transnet.Bluetooth do
           action: "join_result",
           request_id: request_id,
           status: result.status,
-          hive_id: Map.get(result, :hive_id),
+          trust_group_id: Map.get(result, :trust_group_id),
           cert: cert_value,
-          hive_public_info: hive_info_value,
+          trust_group_public_info: trust_group_info_value,
           message: Map.get(result, :message)
         }
         Logger.debug("#{log_prefix()} Result payload to encrypt: #{inspect(result_payload)}")
@@ -650,26 +659,26 @@ defmodule Reality2Transnet.Bluetooth do
         response = case Map.get(ble_request, :ephemeral_public_key_b64) do
           nil ->
             # Fallback: send unencrypted (shouldn't happen with updated joiner)
-            Reality2Transnet.GattProtocol.encode_hive_join(result_payload)
+            Reality2Transnet.GattProtocol.encode_trust_group_join(result_payload)
 
           eph_pub_b64 ->
             case Base.decode64(eph_pub_b64) do
               {:ok, recipient_x25519_pub} ->
                 encrypted = Reality2Transnet.GattProtocol.encrypt_join_result(result_payload, recipient_x25519_pub)
-                encoded = Reality2Transnet.GattProtocol.encode_hive_join(encrypted)
+                encoded = Reality2Transnet.GattProtocol.encode_trust_group_join(encrypted)
                 Logger.debug("#{log_prefix()} Encrypted response size: #{byte_size(encoded)} bytes")
                 encoded
 
               :error ->
                 Logger.warning("#{log_prefix()} Invalid ephemeral key, sending unencrypted")
-                Reality2Transnet.GattProtocol.encode_hive_join(result_payload)
+                Reality2Transnet.GattProtocol.encode_trust_group_join(result_payload)
             end
         end
 
         if handle = Map.get(state, :gatt_handle) do
           Reality2Transnet.Action.gatt_write_characteristic(
             handle,
-            Reality2Transnet.GattProtocol.hive_join_uuid(),
+            Reality2Transnet.GattProtocol.trust_group_join_uuid(),
             :binary.bin_to_list(response)
           )
         end
@@ -870,24 +879,22 @@ defmodule Reality2Transnet.Bluetooth do
     # Get current hosting priority (0-100) based on node capabilities
     hosting_priority = get_hosting_priority()
 
-    # Get compressed hive ID (4 bytes) for beacon - shows hive membership to peers
-    hive_compressed = case Reality2Transnet.HiveIdentity.get_hive_compressed_id() do
-      {:ok, compressed} -> compressed
-      {:error, _} -> <<0, 0, 0, 0>>  # Not in a hive
-    end
+    # Get compressed trust group ID (4 bytes) for beacon - shows trust group membership to peers
+    # Use safe call to handle case where TrustGroup hasn't started yet
+    trust_group_compressed = get_trust_group_compressed_id_safe()
 
     case Reality2Transnet.Action.start_broadcast(
            @r2_company_id,
            node_id,
-           hive_compressed,
+           trust_group_compressed,
            -59,
            node_name,
            hosting_priority,
            adapter_name
          ) do
       {:ok, h} ->
-        hive_hex = Reality2Transnet.HiveIdentity.compressed_id_to_hex(hive_compressed)
-        Logger.info("Node ID: #{node_id} beacon started on #{adapter_name} (priority: #{hosting_priority}, hive: #{hive_hex})")
+        trust_group_hex = Reality2Transnet.TrustGroup.compressed_id_to_hex(trust_group_compressed)
+        Logger.info("Node ID: #{node_id} beacon started on #{adapter_name} (priority: #{hosting_priority}, trust group: #{trust_group_hex})")
         {:ok, Map.put(state, :r2_beacon, h)}
 
       {:error, reason} ->
@@ -897,6 +904,26 @@ defmodule Reality2Transnet.Bluetooth do
   end
 
   defp start_beacon({:error, reason}), do: {:error, reason}
+
+  # Safely get compressed trust group ID, handling case where TrustGroup isn't started yet
+  defp get_trust_group_compressed_id_safe do
+    # Check if TrustGroup process is registered before calling it
+    case GenServer.whereis(Reality2Transnet.TrustGroup) do
+      nil ->
+        Logger.debug("#{log_prefix()} TrustGroup not yet started, using empty trust group ID")
+        <<0, 0, 0, 0>>
+
+      _pid ->
+        case Reality2Transnet.TrustGroup.get_trust_group_compressed_id() do
+          {:ok, compressed} -> compressed
+          {:error, _} -> <<0, 0, 0, 0>>
+        end
+    end
+  rescue
+    _ ->
+      Logger.debug("#{log_prefix()} TrustGroup call failed, using empty trust group ID")
+      <<0, 0, 0, 0>>
+  end
 
   # Get hosting priority from Wifi module if available, otherwise return basic priority
   defp get_hosting_priority do
@@ -963,9 +990,9 @@ defmodule Reality2Transnet.Bluetooth do
   defp subscribe_to_pubsub({:ok, state}) do
     # Subscribe to sentant signals from Reality2.PubSub (shared across all apps)
     Phoenix.PubSub.subscribe(Reality2.PubSub, "sentant:signals")
-    # Subscribe to hive join results so we can relay them over GATT
-    Phoenix.PubSub.subscribe(Reality2.PubSub, "hive:join_results")
-    Logger.debug("Subscribed to sentant:signals and hive:join_results PubSub topics")
+    # Subscribe to trust group join results so we can relay them over GATT
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "trust_group:join_results")
+    Logger.debug("Subscribed to sentant:signals and trust_group:join_results PubSub topics")
     {:ok, state}
   end
 
@@ -1270,7 +1297,7 @@ defmodule Reality2Transnet.Bluetooth do
   defp truncate_if_needed(json, _max_size), do: json
 
   # -----------------------------------------------------------------------------------------------------------------------------------------
-  # Hive Join Security Helpers
+  # Trust Group Join Security Helpers
   # -----------------------------------------------------------------------------------------------------------------------------------------
 
   # Verify the Ed25519 signature on a join request to prove key ownership
@@ -1305,12 +1332,12 @@ defmodule Reality2Transnet.Bluetooth do
 
   # Write a join ack/error to the GATT characteristic
   defp write_join_ack(state, payload) do
-    ack = Reality2Transnet.GattProtocol.encode_hive_join(payload)
+    ack = Reality2Transnet.GattProtocol.encode_trust_group_join(payload)
 
     if handle = Map.get(state, :gatt_handle) do
       Reality2Transnet.Action.gatt_write_characteristic(
         handle,
-        Reality2Transnet.GattProtocol.hive_join_uuid(),
+        Reality2Transnet.GattProtocol.trust_group_join_uuid(),
         :binary.bin_to_list(ack)
       )
     end

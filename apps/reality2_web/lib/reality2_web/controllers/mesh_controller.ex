@@ -16,9 +16,9 @@ defmodule Reality2Web.MeshController do
   # Plan:
   # 1. Add a shared-secret HMAC plug that validates a signature header on all
   #    POST endpoints (/register, /peer_update, /message).
-  # 2. The secret is derived from the Hive identity — only nodes in the same
-  #    Hive can communicate. Use HiveIdentity.derive_data_key("mesh:auth") to
-  #    produce a per-Hive HMAC key.
+  # 2. The secret is derived from the TrustGroup identity — only nodes in the same
+  #    TrustGroup can communicate. Use TrustGroup.derive_data_key("mesh:auth") to
+  #    produce a per-TrustGroup HMAC key.
   # 3. Each request must include an X-Mesh-Signature header containing
   #    HMAC-SHA256(request_body, shared_key). Replay protection via msg_id or
   #    timestamp window.
@@ -281,14 +281,14 @@ defmodule Reality2Web.MeshController do
     node_id = Reality2.Bootstrap.get(:node_id)
     mesh_info = get_mesh_info()
 
-    # Include hive info so peers can identify our hive
-    hive_info = if Code.ensure_loaded?(Reality2Transnet.HiveIdentity) do
-      case apply(Reality2Transnet.HiveIdentity, :get_identity, []) do
+    # Include trust group info so peers can identify our trust group
+    trust_group_info = if Code.ensure_loaded?(Reality2Transnet.TrustGroup) do
+      case apply(Reality2Transnet.TrustGroup, :get_identity, []) do
         {:ok, identity} ->
           %{
-            hive_id: identity.hive_id,
-            hive_name: identity.name,
-            hive_public_key: Base.encode64(identity.public_key),
+            trust_group_id: identity.trust_group_id,
+            trust_group_name: identity.name,
+            trust_group_public_key: Base.encode64(identity.public_key),
             node_cert: identity.node_cert
           }
         _ -> %{}
@@ -307,7 +307,7 @@ defmodule Reality2Web.MeshController do
         sentants: Reality2.Metadata.all(:SentantIDs) |> map_size()
       },
       mesh_info: mesh_info,
-      hive: hive_info,
+      trust_group: trust_group_info,
       timestamp: System.system_time(:millisecond)
     }
 
