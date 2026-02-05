@@ -2,7 +2,7 @@
 // Standard mode uses friendly bee-themed terms, Advanced mode uses technical terms
 //
 // Hierarchy:
-//   Meadow (network of devices)
+//   Group (trusted group of devices)
 //     └── Hive (single device)
 //           └── Bees (agents)
 //                 └── Swarm (grouped bees)
@@ -54,8 +54,8 @@ type TermKey =
 const TERMINOLOGY: Record<"standard" | "advanced", Record<TermKey, string>> = {
   standard: {
     // Infrastructure - friendly terms
-    meadow: "meadow",
-    Meadow: "Meadow",
+    meadow: "group",
+    Meadow: "Group",
     hive: "hive",
     Hive: "Hive",
     hives: "hives",
