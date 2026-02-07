@@ -619,15 +619,16 @@ defmodule Reality2Transnet.TrustGroupDirectory do
     end
 
     current_entry = Map.get(directory.nodes, my_node_id, default_node_entry(my_node_id))
-    updated_entry = %{current_entry |
-      name: my_node_name,
-      compressed_id: TrustGroup.compressed_id(my_node_id),
-      status: :active,
-      updated_at: now,
-      sentants: sentants,
-      classes: classes,
-      trust_group_id: trust_group_id
-    }
+    updated_entry = current_entry
+      |> Map.merge(%{
+        name: my_node_name,
+        compressed_id: TrustGroup.compressed_id(my_node_id),
+        status: :active,
+        updated_at: now,
+        sentants: sentants,
+        classes: classes,
+        trust_group_id: trust_group_id
+      })
 
     new_nodes = Map.put(directory.nodes, my_node_id, updated_entry)
     %{directory |
@@ -740,19 +741,19 @@ defmodule Reality2Transnet.TrustGroupDirectory do
 
     # Take newer fields for everything else
     if compare_timestamps(local_ts, remote_ts) == :gt do
-      %{local_entry |
+      Map.merge(local_entry, %{
         status: merged_status,
         sentants: merged_sentants,
         classes: merged_classes,
         reachability: merged_reach
-      }
+      })
     else
-      %{remote_entry |
+      Map.merge(remote_entry, %{
         status: merged_status,
         sentants: merged_sentants,
         classes: merged_classes,
         reachability: merged_reach
-      }
+      })
     end
   end
 
