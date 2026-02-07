@@ -6,6 +6,15 @@ defmodule Reality2Web.Schema.Node do
 
   alias Reality2Web.NodeResolver
 
+  # --- Node classes (aggregate events/signals per sentant class) ---
+
+  object :node_class do
+    field(:class, non_null(:string), description: "Sentant class in reverse-DNS notation")
+    field(:events, list_of(:string), description: "Aggregate events across all sentants of this class")
+    field(:signals, list_of(:string), description: "Aggregate signals across all sentants of this class")
+    field(:sentant_count, :integer, description: "Number of sentants of this class on this node")
+  end
+
   # --- Node identity ---
 
   object :node_info do
@@ -163,6 +172,14 @@ defmodule Reality2Web.Schema.Node do
 
   # --- Subscription types ---
 
+  object :watched_signal_output do
+    field(:class, non_null(:string), description: "Sentant class that emitted the signal")
+    field(:event, non_null(:string), description: "Signal event name")
+    field(:parameters, :json, description: "Signal parameters")
+    field(:sentant_name, :string, description: "Name of the sentant that emitted the signal")
+    field(:source_node_id, :string, description: "Node UUID where the signal originated")
+  end
+
   object :join_request_notification do
     field(:request_id, non_null(:string), description: "Unique request ID")
     field(:node_id, :string, description: "Requesting node's UUID (if available)")
@@ -193,6 +210,16 @@ defmodule Reality2Web.Schema.Node do
     @desc "Get this node's identity and trust group information"
     field :node_info, :node_info do
       resolve(&NodeResolver.node_info/3)
+    end
+
+    @desc "Get the distinct sentant classes on this node with aggregate events/signals"
+    field :node_classes, list_of(:node_class) do
+      resolve(&NodeResolver.node_classes/3)
+    end
+
+    @desc "Get the union of sentant classes across all nodes in the trust group"
+    field :trust_group_classes, list_of(:node_class) do
+      resolve(&NodeResolver.trust_group_classes/3)
     end
 
     @desc "Get discovered peers from the mesh"
@@ -370,6 +397,22 @@ defmodule Reality2Web.Schema.Node do
     field :backup_prompt_received, :backup_prompt_notification do
       config(fn _args, _ctx ->
         {:ok, topic: "trust_group:backup_prompt"}
+      end)
+    end
+
+    @desc "Subscribe to signals forwarded from watched classes on remote nodes"
+    field :watched_signal, :watched_signal_output do
+      arg(:class, :string, description: "Filter by sentant class (optional)")
+      arg(:signal, :string, description: "Filter by signal name (optional)")
+
+      config(fn args, _ctx ->
+        topic = case {Map.get(args, :class), Map.get(args, :signal)} do
+          {nil, nil} -> "watched:signals:*"
+          {class, nil} -> "watched:signals:#{class}"
+          {nil, signal} -> "watched:signals:*:#{signal}"
+          {class, signal} -> "watched:signals:#{class}:#{signal}"
+        end
+        {:ok, topic: topic}
       end)
     end
   end

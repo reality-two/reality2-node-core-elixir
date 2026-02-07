@@ -48,6 +48,8 @@ defmodule Reality2Web.Router do
     post "/register", MeshController, :register
     post "/peer_update", MeshController, :peer_update
     post "/message", MeshController, :message
+    post "/watch", MeshController, :watch
+    post "/unwatch", MeshController, :unwatch
   end
 
   if Mix.env() == :dev do

@@ -492,6 +492,11 @@ defmodule Reality2Transnet.Bluetooth do
       Logger.info("Peer #{node_name} (#{String.slice(id, 0..7)}...) registered with PeerManager (priority: #{hosting_priority})")
     end
 
+    # Renew watches piggybacked on BLE beacon
+    if Code.ensure_loaded?(Reality2Transnet.WatchManager) do
+      Reality2Transnet.WatchManager.renew(id)
+    end
+
     {:noreply, state}
   end
 
@@ -1175,6 +1180,7 @@ defmodule Reality2Transnet.Bluetooth do
         %{
           id: Map.get(sentant, :id),
           name: Map.get(sentant, :name),
+          class: Map.get(sentant, :class, "ai.reality2.default"),
           events:
             Map.get(sentant, :events, [])
             |> Enum.map(fn event ->

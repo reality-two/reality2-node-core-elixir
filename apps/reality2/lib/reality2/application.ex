@@ -23,6 +23,7 @@ defmodule Reality2.Application do
       %{id: :WFS_Routes, start: {Reality2.Metadata, :start_link, [:WFS_Routes]}},
       %{id: :WFS_NodeNames, start: {Reality2.Metadata, :start_link, [:WFS_NodeNames]}},
       %{id: :WFS_Peers, start: {Reality2.Metadata, :start_link, [:WFS_Peers]}},
+      %{id: :SentantClasses, start: {Reality2.Metadata, :start_link, [:SentantClasses]}},
       {Finch, name: Reality2.HTTPClient},
       # HTTP client for transient network peers with relaxed SSL (accepts self-signed certs)
       # SECURITY TODO: Replace verify: :verify_none with TrustGroup-based certificate pinning.
@@ -43,6 +44,7 @@ defmodule Reality2.Application do
           ]
         }
       },
+      Reality2.NodeClassRegistry,
       %{id: :Autostart, start: {Reality2.Autostart, :start_link, [Reality2.Autostart]}}
     ]
 

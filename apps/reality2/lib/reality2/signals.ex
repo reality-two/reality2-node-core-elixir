@@ -62,8 +62,43 @@ defmodule Reality2.Signals do
           {:sentant_signal, signal_data}
         )
 
+        # Forward to remote watchers via WatchManager if available
+        class = Map.get(sentant, :class) || Map.get(sentant, "class") || "ai.reality2.default"
+        if Code.ensure_loaded?(Reality2Transnet.WatchManager) do
+          watchers = Reality2Transnet.WatchManager.watchers_for(class, event)
+          if watchers != [] do
+            forward_to_watchers(watchers, signal_data, class)
+          end
+        end
+
       {:error, _reason} ->
         false
     end
+  end
+
+  # Forward a signal to remote watcher nodes via MeshRouter
+  defp forward_to_watchers(watchers, signal_data, class) do
+    require Logger
+
+    Enum.each(watchers, fn watcher ->
+      if Code.ensure_loaded?(Reality2Transnet.MeshRouter) do
+        # Use MeshRouter to send the signal to the watcher's node
+        Reality2Transnet.MeshRouter.send_signal(
+          signal_data.id,
+          "#{watcher.watcher_node_id}|__watched_signal",
+          signal_data.event,
+          Map.merge(signal_data.parameters || %{}, %{
+            __watched: true,
+            __class: class,
+            __source_node_id: Reality2.Bootstrap.get(:node_id),
+            __sentant_name: get_in(signal_data, [:sentant, :name])
+          })
+        )
+      end
+    end)
+  rescue
+    e ->
+      require Logger
+      Logger.warning("[Signals] Failed to forward to watchers: #{Exception.message(e)}")
   end
 end

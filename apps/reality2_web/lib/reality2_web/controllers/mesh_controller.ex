@@ -35,10 +35,21 @@ defmodule Reality2Web.MeshController do
     node_id = Reality2.Bootstrap.get(:node_id)
     sentants = get_public_sentant_info()
 
+    # Include per-class aggregate from NodeClassRegistry
+    classes = if Code.ensure_loaded?(Reality2.NodeClassRegistry) do
+      Reality2.NodeClassRegistry.class_directory()
+      |> Enum.map(fn {class, info} ->
+        %{class: class, events: info.events, signals: info.signals, sentant_count: info.sentant_count}
+      end)
+    else
+      []
+    end
+
     response = %{
       node_id: node_id,
       sentant_count: length(sentants),
       sentants: sentants,
+      classes: classes,
       timestamp: System.system_time(:millisecond)
     }
 
@@ -126,6 +137,11 @@ defmodule Reality2Web.MeshController do
           {:error, _} ->
             Logger.warning("[MeshController] Could not verify peer registration for #{node_name}")
         end
+      end
+
+      # Renew watches piggybacked on WiFi registration
+      if Code.ensure_loaded?(Reality2Transnet.WatchManager) do
+        Reality2Transnet.WatchManager.renew(node_id)
       end
 
       # Register client with ConnectionManager so host can push updates
@@ -264,8 +280,15 @@ defmodule Reality2Web.MeshController do
 
     Logger.debug("[MeshController] Received mesh message: type=#{type}, from=#{String.slice(src_node_id || "", 0..7)}...")
 
-    if Code.ensure_loaded?(Reality2Transnet.MeshRouter) do
-      apply(Reality2Transnet.MeshRouter, :handle_incoming, [message, :wifi_hotspot])
+    case type do
+      :watched_signal ->
+        # Handle watched signal delivery on the receiving node
+        handle_watched_signal(payload, src_node_id)
+
+      _ ->
+        if Code.ensure_loaded?(Reality2Transnet.MeshRouter) do
+          apply(Reality2Transnet.MeshRouter, :handle_incoming, [message, :wifi_hotspot])
+        end
     end
 
     json(conn, %{status: "ok"})
@@ -304,7 +327,10 @@ defmodule Reality2Web.MeshController do
       capabilities: %{
         bluetooth: bluetooth_available?(),
         wifi_mesh: wifi_available?(),
-        sentants: Reality2.Metadata.all(:SentantIDs) |> map_size()
+        sentants: Reality2.Metadata.all(:SentantIDs) |> map_size(),
+        class_count: if(Code.ensure_loaded?(Reality2.NodeClassRegistry),
+          do: Reality2.NodeClassRegistry.list_classes() |> length(),
+          else: 0)
       },
       mesh_info: mesh_info,
       trust_group: trust_group_info,
@@ -314,9 +340,121 @@ defmodule Reality2Web.MeshController do
     json(conn, response)
   end
 
+  @doc """
+  POST /mesh/watch - Register a watch for cross-node signal subscription.
+
+  ## Request Body
+  ```json
+  {
+    "node_id": "watcher-node-uuid",
+    "class": "com.acme.sensor",
+    "signal": "temperature_reading"
+  }
+  ```
+  """
+  def watch(conn, params) do
+    require Logger
+
+    watcher_node_id = Map.get(params, "node_id")
+    class = Map.get(params, "class")
+    signal = Map.get(params, "signal")
+
+    if watcher_node_id && class && signal do
+      if Code.ensure_loaded?(Reality2Transnet.WatchManager) do
+        {:ok, watch_id} = Reality2Transnet.WatchManager.watch(watcher_node_id, class, signal, :wifi)
+        Logger.info("[MeshController] Watch created: #{watcher_node_id} -> #{class}/#{signal}")
+        json(conn, %{status: "ok", watch_id: watch_id})
+      else
+        conn |> put_status(:service_unavailable) |> json(%{error: "WatchManager not available"})
+      end
+    else
+      conn |> put_status(:bad_request) |> json(%{error: "node_id, class, and signal are required"})
+    end
+  end
+
+  @doc """
+  POST /mesh/unwatch - Remove a cross-node signal watch.
+
+  ## Request Body
+  ```json
+  {
+    "node_id": "watcher-node-uuid",
+    "class": "com.acme.sensor",
+    "signal": "temperature_reading"
+  }
+  ```
+  """
+  def unwatch(conn, params) do
+    require Logger
+
+    watcher_node_id = Map.get(params, "node_id")
+    class = Map.get(params, "class")
+    signal = Map.get(params, "signal")
+
+    if watcher_node_id && class && signal do
+      if Code.ensure_loaded?(Reality2Transnet.WatchManager) do
+        Reality2Transnet.WatchManager.unwatch(watcher_node_id, class, signal)
+        Logger.info("[MeshController] Watch removed: #{watcher_node_id} -> #{class}/#{signal}")
+        json(conn, %{status: "ok"})
+      else
+        conn |> put_status(:service_unavailable) |> json(%{error: "WatchManager not available"})
+      end
+    else
+      conn |> put_status(:bad_request) |> json(%{error: "node_id, class, and signal are required"})
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # Private Helpers
   # ---------------------------------------------------------------------------
+
+  defp handle_watched_signal(payload, src_node_id) do
+    require Logger
+
+    # Decode payload if it's a JSON string
+    signal_data = case payload do
+      p when is_binary(p) ->
+        case Jason.decode(p) do
+          {:ok, decoded} -> decoded
+          _ -> %{}
+        end
+      p when is_map(p) -> p
+      _ -> %{}
+    end
+
+    class = Map.get(signal_data, "class") || Map.get(signal_data, :class)
+    event = Map.get(signal_data, "event") || Map.get(signal_data, :event)
+    parameters = Map.get(signal_data, "parameters") || Map.get(signal_data, :parameters, %{})
+    sentant_name = Map.get(signal_data, "sentant_name") || Map.get(signal_data, :sentant_name)
+
+    Logger.debug("[MeshController] Watched signal received: #{class}/#{event} from #{String.slice(src_node_id || "", 0..7)}...")
+
+    watched_signal = %{
+      class: class,
+      event: event,
+      parameters: parameters,
+      sentant_name: sentant_name,
+      source_node_id: src_node_id
+    }
+
+    # Broadcast to PubSub for GraphQL subscription and local consumers
+    Phoenix.PubSub.broadcast(
+      Reality2.PubSub,
+      "watched:signals",
+      {:watched_signal, watched_signal}
+    )
+
+    # Also send as __watched_signal event to all local sentants
+    Reality2.Sentants.sendto_all(%{
+      event: "__watched_signal",
+      parameters: Map.merge(parameters, %{
+        class: class,
+        event: event,
+        sentant_name: sentant_name,
+        source_node_id: src_node_id
+      })
+    })
+  end
 
   defp get_public_sentant_info do
     case Reality2.Sentants.read_all(:definition) do
@@ -325,6 +463,7 @@ defmodule Reality2Web.MeshController do
           %{
             id: Map.get(sentant, :id),
             name: Map.get(sentant, :name),
+            class: Map.get(sentant, :class, "ai.reality2.default"),
             events: get_events_with_parameters(Map.get(sentant, :events, [])),
             signals: get_signal_names(Map.get(sentant, :signals, []))
           }
@@ -484,6 +623,7 @@ defmodule Reality2Web.MeshController do
   defp parse_message_type("signal"), do: :signal
   defp parse_message_type("presence"), do: :presence
   defp parse_message_type("data"), do: :data
+  defp parse_message_type("watched_signal"), do: :watched_signal
   defp parse_message_type(_), do: :event
 
   defp push_registration_notification(client_ip, notification) do

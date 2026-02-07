@@ -229,6 +229,16 @@ defmodule Reality2Transnet.TrustGroupDirectory do
   end
 
   @doc """
+  Returns the union of classes across all active nodes in the trust group.
+
+  Events/signals per class are the union from all members providing that class.
+  """
+  @spec trust_group_classes() :: [map()]
+  def trust_group_classes do
+    GenServer.call(__MODULE__, :trust_group_classes)
+  end
+
+  @doc """
   Adds a trusted trust_group relationship.
   """
   @spec add_trusted_trust_group(String.t(), map()) :: :ok
@@ -298,6 +308,9 @@ defmodule Reality2Transnet.TrustGroupDirectory do
     # Populate our own entry
     state = update_self_entry(state)
 
+    # Subscribe to class changes so we update our own entry
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "node:classes")
+
     # Schedule periodic tasks
     schedule_persist()
     schedule_decay()
@@ -364,6 +377,12 @@ defmodule Reality2Transnet.TrustGroupDirectory do
   @impl true
   def handle_call(:get_trusted_trust_groups, _from, state) do
     {:reply, state.directory.trusted_trust_groups, state}
+  end
+
+  @impl true
+  def handle_call(:trust_group_classes, _from, state) do
+    result = do_trust_group_classes(state.directory)
+    {:reply, result, state}
   end
 
   @impl true
@@ -509,6 +528,14 @@ defmodule Reality2Transnet.TrustGroupDirectory do
   end
 
   @impl true
+  def handle_info({:classes_updated, _class_list}, state) do
+    # Node classes changed - update our own entry
+    dir = update_self_entry(state.directory)
+    new_map = build_compressed_id_map(dir)
+    {:noreply, %{state | directory: dir, compressed_id_map: new_map, dirty: true}}
+  end
+
+  @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
   end
@@ -581,6 +608,16 @@ defmodule Reality2Transnet.TrustGroupDirectory do
       _ -> []
     end
 
+    # Get classes from NodeClassRegistry if available
+    classes = if Code.ensure_loaded?(Reality2.NodeClassRegistry) do
+      Reality2.NodeClassRegistry.class_directory()
+      |> Enum.map(fn {class, info} ->
+        %{class: class, events: info.events, signals: info.signals}
+      end)
+    else
+      []
+    end
+
     current_entry = Map.get(directory.nodes, my_node_id, default_node_entry(my_node_id))
     updated_entry = %{current_entry |
       name: my_node_name,
@@ -588,6 +625,7 @@ defmodule Reality2Transnet.TrustGroupDirectory do
       status: :active,
       updated_at: now,
       sentants: sentants,
+      classes: classes,
       trust_group_id: trust_group_id
     }
 
@@ -607,6 +645,7 @@ defmodule Reality2Transnet.TrustGroupDirectory do
       status: :active,
       updated_at: DateTime.utc_now() |> DateTime.to_iso8601(),
       sentants: [],
+      classes: [],
       trust_group_id: nil,
       reachability: default_reachability()
     }
@@ -683,6 +722,17 @@ defmodule Reality2Transnet.TrustGroupDirectory do
       end
     end
 
+    # Classes: same as sentants — owning node is authoritative
+    merged_classes = if node_id == my_node_id do
+      Map.get(local_entry, :classes, [])
+    else
+      if compare_timestamps(local_ts, remote_ts) == :gt do
+        Map.get(local_entry, :classes, [])
+      else
+        Map.get(remote_entry, :classes, [])
+      end
+    end
+
     # Reachability: keep local observations, treat remote as hints (lower confidence)
     local_reach = Map.get(local_entry, :reachability, default_reachability())
     remote_reach = Map.get(remote_entry, :reachability, default_reachability())
@@ -693,12 +743,14 @@ defmodule Reality2Transnet.TrustGroupDirectory do
       %{local_entry |
         status: merged_status,
         sentants: merged_sentants,
+        classes: merged_classes,
         reachability: merged_reach
       }
     else
       %{remote_entry |
         status: merged_status,
         sentants: merged_sentants,
+        classes: merged_classes,
         reachability: merged_reach
       }
     end
@@ -804,6 +856,38 @@ defmodule Reality2Transnet.TrustGroupDirectory do
           [{transport, info, _conf} | _] -> {:ok, transport, info}
         end
     end
+  end
+
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+  # Private — Trust Group Classes
+  # -----------------------------------------------------------------------------------------------------------------------------------------
+
+  defp do_trust_group_classes(directory) do
+    # Aggregate classes from all active nodes
+    directory.nodes
+    |> Enum.filter(fn {_node_id, entry} -> entry.status == :active end)
+    |> Enum.flat_map(fn {_node_id, entry} -> Map.get(entry, :classes, []) end)
+    |> Enum.reduce(%{}, fn class_entry, acc ->
+      class = Map.get(class_entry, :class) || Map.get(class_entry, "class", "")
+      events = Map.get(class_entry, :events) || Map.get(class_entry, "events", [])
+      signals = Map.get(class_entry, :signals) || Map.get(class_entry, "signals", [])
+
+      existing = Map.get(acc, class, %{events: MapSet.new(), signals: MapSet.new()})
+
+      updated = %{
+        events: MapSet.union(existing.events, MapSet.new(events)),
+        signals: MapSet.union(existing.signals, MapSet.new(signals))
+      }
+
+      Map.put(acc, class, updated)
+    end)
+    |> Enum.map(fn {class, info} ->
+      %{
+        class: class,
+        events: MapSet.to_list(info.events),
+        signals: MapSet.to_list(info.signals)
+      }
+    end)
   end
 
   # -----------------------------------------------------------------------------------------------------------------------------------------

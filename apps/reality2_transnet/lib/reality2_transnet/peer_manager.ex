@@ -697,6 +697,11 @@ defmodule Reality2Transnet.PeerManager do
             Reality2.Metadata.delete(:WFS_NodeNames, peer.node_name)
           end
 
+          # Clean up watches for this peer
+          if Code.ensure_loaded?(Reality2Transnet.WatchManager) do
+            Reality2Transnet.WatchManager.remove_all_for_node(node_id)
+          end
+
           Logger.info("#{log_prefix()} Peer removed: #{String.slice(node_id, 0..7)}...")
 
           # Notify WFS Router that peer is gone
@@ -968,7 +973,7 @@ defmodule Reality2Transnet.PeerManager do
         end
       end)
 
-    # Log each removal, emit event, and clean up WFS_NodeNames mapping
+    # Log each removal, emit event, and clean up WFS_NodeNames mapping + watches
     Enum.each(stale_peers, fn {node_id, peer} ->
       Logger.info("#{log_prefix()} Removing stale peer: #{String.slice(node_id, 0..7)}... (timeout)")
 
@@ -986,6 +991,11 @@ defmodule Reality2Transnet.PeerManager do
 
       if peer.node_name do
         Reality2.Metadata.delete(:WFS_NodeNames, peer.node_name)
+      end
+
+      # Clean up watches for this peer
+      if Code.ensure_loaded?(Reality2Transnet.WatchManager) do
+        Reality2Transnet.WatchManager.remove_all_for_node(node_id)
       end
     end)
 

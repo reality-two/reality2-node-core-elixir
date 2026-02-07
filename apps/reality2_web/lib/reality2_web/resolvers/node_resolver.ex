@@ -37,6 +37,53 @@ defmodule Reality2Web.NodeResolver do
   end
 
   # -------------------------------------------------------------------------
+  # nodeClasses — aggregate sentant classes on this node
+  # -------------------------------------------------------------------------
+
+  def node_classes(_, _, _) do
+    if Code.ensure_loaded?(Reality2.NodeClassRegistry) do
+      directory = Reality2.NodeClassRegistry.class_directory()
+      result = Enum.map(directory, fn {class, info} ->
+        %{
+          class: class,
+          events: info.events,
+          signals: info.signals,
+          sentant_count: info.sentant_count
+        }
+      end)
+      {:ok, result}
+    else
+      {:ok, []}
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # trustGroupClasses — union of classes across all trust group nodes
+  # -------------------------------------------------------------------------
+
+  def trust_group_classes(_, _, _) do
+    if Code.ensure_loaded?(Reality2Transnet.TrustGroupDirectory) do
+      case apply(Reality2Transnet.TrustGroupDirectory, :trust_group_classes, []) do
+        classes when is_list(classes) ->
+          result = Enum.map(classes, fn c ->
+            %{
+              class: Map.get(c, :class),
+              events: Map.get(c, :events, []),
+              signals: Map.get(c, :signals, []),
+              sentant_count: nil
+            }
+          end)
+          {:ok, result}
+
+        _ ->
+          {:ok, []}
+      end
+    else
+      {:ok, []}
+    end
+  end
+
+  # -------------------------------------------------------------------------
   # peers — discovered peers from the mesh (PeerManager)
   # -------------------------------------------------------------------------
 

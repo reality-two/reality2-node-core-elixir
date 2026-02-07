@@ -94,15 +94,27 @@ defmodule Reality2Transnet.GattProtocol do
   def encode_node_info(node_id) do
     node_name = Reality2.Bootstrap.get(:node_name, "R2Node")
 
+    # Include per-class aggregate if NodeClassRegistry is available
+    classes = if Code.ensure_loaded?(Reality2.NodeClassRegistry) do
+      Reality2.NodeClassRegistry.class_directory()
+      |> Enum.map(fn {class, info} ->
+        %{class: class, events: info.events, signals: info.signals}
+      end)
+    else
+      []
+    end
+
     payload = %{
       node_id: node_id,
       node_name: node_name,
-      version: "0.1.13",
+      version: "0.1.14",
       capabilities: %{
         bluetooth: true,
         wifi_hotspot: wifi_available?(),
-        sentant_count: Reality2.Metadata.all(:SentantIDs) |> map_size()
+        sentant_count: Reality2.Metadata.all(:SentantIDs) |> map_size(),
+        class_count: length(classes)
       },
+      classes: classes,
       timestamp: System.system_time(:millisecond),
       message: "Use WiFi HTTP for Sentant queries - connect to hotspot first"
     }

@@ -114,6 +114,7 @@ defmodule Reality2Web.Schema.Sentant do
   object :sentant do
     field(:id, non_null(:uuid4), description: "Sentant ID")
     field(:name, non_null(:string), description: "Sentant name")
+    field(:class, :string, description: "Sentant class in reverse-DNS notation (e.g. com.acme.weather-station)")
     field(:swarm, :string, description: "Swarm this sentant belongs to")
     field(:description, :string, description: "Sentant description")
     field(:events, list_of(:sentant_event), description: "Public events")

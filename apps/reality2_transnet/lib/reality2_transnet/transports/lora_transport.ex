@@ -235,6 +235,7 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
     dir_version = Map.get(info, :dir_version, 0) |> min(0xFFFF)
     energy_state = Map.get(info, :energy_state, 255)
     backlog_count = Map.get(info, :backlog_count, 0) |> min(0xFFFF)
+    class_count = min(Map.get(info, :class_count, 0), 255)
 
     <<
       trust_group_compressed::binary-size(4),
@@ -245,7 +246,8 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
       cell_hint::16,
       dir_version::16,
       energy_state::8,
-      backlog_count::16
+      backlog_count::16,
+      class_count::8
     >>
   end
 
@@ -253,6 +255,34 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
   Decodes a presence payload.
   """
   @spec decode_presence(binary()) :: {:ok, map()} | {:error, :invalid_format}
+  # New format with class_count byte (16 bytes)
+  def decode_presence(<<
+    trust_group_compressed::binary-size(4),
+    capabilities::8,
+    sentant_count::8,
+    hosting_priority::8,
+    node_name_hash::16,
+    cell_hint::16,
+    dir_version::16,
+    energy_state::8,
+    backlog_count::16,
+    class_count::8
+  >>) do
+    {:ok, %{
+      trust_group_compressed: trust_group_compressed,
+      capabilities: decode_capabilities(capabilities),
+      sentant_count: sentant_count,
+      hosting_priority: hosting_priority,
+      node_name_hash: node_name_hash,
+      cell_hint: cell_hint,
+      dir_version: dir_version,
+      energy_state: energy_state,
+      backlog_count: backlog_count,
+      class_count: class_count
+    }}
+  end
+
+  # Old format without class_count (15 bytes) - backward compatible
   def decode_presence(<<
     trust_group_compressed::binary-size(4),
     capabilities::8,
@@ -273,13 +303,14 @@ defmodule Reality2Transnet.Transports.LoRaTransport do
       cell_hint: cell_hint,
       dir_version: dir_version,
       energy_state: energy_state,
-      backlog_count: backlog_count
+      backlog_count: backlog_count,
+      class_count: 0
     }}
   end
 
   # Legacy 2-byte presence
   def decode_presence(<<sentant_count::16>>) do
-    {:ok, %{sentant_count: sentant_count, capabilities: %{}, dir_version: 0}}
+    {:ok, %{sentant_count: sentant_count, capabilities: %{}, dir_version: 0, class_count: 0}}
   end
 
   def decode_presence(_), do: {:error, :invalid_format}

@@ -101,6 +101,14 @@ defmodule Reality2Transnet.Application do
         restart: :permanent
       },
 
+      # WatchManager - lease-based cross-node signal watches
+      # Manages remote signal subscriptions with transport-piggybacked renewal
+      %{
+        id: Reality2Transnet.WatchManager,
+        start: {Reality2Transnet.WatchManager, :start_link, [[]]},
+        restart: :permanent
+      },
+
       # MeshRouter - transport-agnostic message routing
       # Routes messages through available transports (BLE, WiFi, LoRa, Internet)
       %{

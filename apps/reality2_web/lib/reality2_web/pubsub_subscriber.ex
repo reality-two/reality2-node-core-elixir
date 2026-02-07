@@ -39,6 +39,10 @@ defmodule Reality2Web.PubSubSubscriber do
     Phoenix.PubSub.subscribe(Reality2.PubSub, "trust_group:backup_prompt")
     Logger.info("[Reality2Web.PubSubSubscriber] Subscribed to trust_group:backup_prompt")
 
+    # Subscribe to watched signals (cross-node signal forwarding)
+    Phoenix.PubSub.subscribe(Reality2.PubSub, "watched:signals")
+    Logger.info("[Reality2Web.PubSubSubscriber] Subscribed to watched:signals")
+
     {:ok, %{}}
   end
 
@@ -130,6 +134,34 @@ defmodule Reality2Web.PubSubSubscriber do
       subscription_data,
       backup_prompt_received: "trust_group:backup_prompt"
     )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:watched_signal, signal_data}, state) do
+    # A watched signal was received from a remote node - dispatch to GraphQL subscribers
+    class = Map.get(signal_data, :class, "*")
+    event = Map.get(signal_data, :event, "*")
+
+    # Publish to all matching topic patterns so subscribers with different
+    # filter combinations (class only, signal only, both, neither) all receive it
+    topics = [
+      {"watched:signals:*", true},
+      {"watched:signals:#{class}", class != "*"},
+      {"watched:signals:*:#{event}", event != "*"},
+      {"watched:signals:#{class}:#{event}", class != "*" && event != "*"}
+    ]
+
+    Enum.each(topics, fn {topic, should_publish} ->
+      if should_publish do
+        Absinthe.Subscription.publish(
+          Reality2Web.Endpoint,
+          signal_data,
+          watched_signal: topic
+        )
+      end
+    end)
 
     {:noreply, state}
   end

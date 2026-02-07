@@ -144,6 +144,10 @@ defmodule Reality2.Sentants do
                     Reality2.Metadata.set(:SentantNames, id, name)
                     Reality2.Metadata.set(:SentantIDs, name, id)
 
+                    # Store class in metadata for aggregation
+                    class = R2Map.get(sentant_map, "class", "ai.reality2.default")
+                    Reality2.Metadata.set(:SentantClasses, id, class)
+
                     add_plugins_to_sentant(id, sentant_map)
                     add_automations_to_sentant(id, sentant_map)
 
@@ -154,6 +158,7 @@ defmodule Reality2.Sentants do
 
                     # Broadcast to sentants topic so listeners (e.g., Bluetooth GATT) can refresh
                     Phoenix.PubSub.broadcast(Reality2.PubSub, "sentants", {:sentants, :created, %{id: id, name: name}})
+                    Phoenix.PubSub.broadcast(Reality2.PubSub, "sentant:classes", {:class_changed, %{id: id, class: class}})
 
                     {:ok, id}
 
@@ -167,6 +172,10 @@ defmodule Reality2.Sentants do
                 # Remove plugins from Sentant
                 remove_plugins_from_sentant(existing_id)
 
+                # Update class in metadata
+                class = R2Map.get(sentant_map, "class", "ai.reality2.default")
+                Reality2.Metadata.set(:SentantClasses, existing_id, class)
+
                 # Add the updated automations and plugins to the Sentant
                 add_plugins_to_sentant(existing_id, sentant_map)
                 add_automations_to_sentant(existing_id, sentant_map)
@@ -178,6 +187,7 @@ defmodule Reality2.Sentants do
 
                 # Broadcast to sentants topic so listeners (e.g., Bluetooth GATT) can refresh
                 Phoenix.PubSub.broadcast(Reality2.PubSub, "sentants", {:sentants, :updated, %{id: existing_id, name: name}})
+                Phoenix.PubSub.broadcast(Reality2.PubSub, "sentant:classes", {:class_changed, %{id: existing_id, class: class}})
 
                 {:ok, existing_id}
             end
@@ -422,8 +432,12 @@ defmodule Reality2.Sentants do
                 {:error, :existance}
 
               name ->
+                # Capture class before deleting metadata
+                class = Reality2.Metadata.get(:SentantClasses, id)
+
                 Reality2.Metadata.delete(:SentantNames, id)
                 Reality2.Metadata.delete(:SentantIDs, name)
+                Reality2.Metadata.delete(:SentantClasses, id)
 
                 sendto_all(%{
                   event: "__internal",
@@ -432,6 +446,7 @@ defmodule Reality2.Sentants do
 
                 # Broadcast to sentants topic so listeners (e.g., Bluetooth GATT) can refresh
                 Phoenix.PubSub.broadcast(Reality2.PubSub, "sentants", {:sentants, :deleted, %{id: id, name: name}})
+                Phoenix.PubSub.broadcast(Reality2.PubSub, "sentant:classes", {:class_changed, %{id: id, class: class}})
 
                 {:ok, id}
             end
