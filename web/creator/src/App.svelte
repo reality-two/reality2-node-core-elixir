@@ -41,11 +41,18 @@
     updateSentantFromContent,
     updateSwarmFromContent,
     setLiveSwarmGroups,
+    getLiveSwarmGroups,
   } from "./lib/stores/canvas-store.svelte";
   import { sentantToYaml, swarmToYaml } from "./lib/models/serializer";
   import { replaceVariables, getVariableCount } from "./lib/stores/variables-store.svelte";
   import VariablesPanel from "./lib/components/VariablesPanel.svelte";
+  import { Demo3D } from "./lib/3d";
   import type { HiveGroupModel, LiveSwarmGroupModel } from "./lib/models/canvas";
+  import {
+    mapHiveNodeInfoToNodeInfo,
+    mapHivePeersToPeers,
+    mapLiveSentantModelsToLiveSentants,
+  } from "./lib/utils/3d-data-mapper";
 
   const r2 = new R2(window.location.hostname, parseInt(DEFAULT_PORT), true);
 
@@ -58,6 +65,7 @@
   let showHivePanel = $state(false);
   let showLibraryPanel = $state(false);
   let showVariablesPanel = $state(false);
+  let show3DView = $state(false);
 
   // Hive panel data
   let hiveNodeInfo = $state<any>(null);
@@ -65,6 +73,13 @@
   let hiveDirectory = $state<any>(null);
 
   let liveSentantCount = $derived(getLiveSentants().length);
+
+  // 3D view data mapping (reactive)
+  let mapped3DNodeInfo = $derived(mapHiveNodeInfoToNodeInfo(hiveNodeInfo));
+  let mapped3DPeers = $derived(mapHivePeersToPeers(hivePeers, hiveNodeInfo?.trustGroupId));
+  let mapped3DSentants = $derived(
+    mapLiveSentantModelsToLiveSentants(getLiveSentants(), getLiveSwarmGroups())
+  );
 
   // The item being edited (drill-in view)
   let editingSentant = $derived(
@@ -512,12 +527,44 @@
     editingNodeId = null;
     showStatus("Canvas cleared");
   }
+
+  // --- 3D View handlers ---
+
+  function handle3DSentantClick(sentant: any) {
+    // Find the matching live sentant and open its editor
+    const liveNode = getLiveSentants().find(ls => ls.id === sentant.id);
+    if (liveNode) {
+      editingNodeId = liveNode._nodeId;
+      show3DView = false;
+    } else {
+      showStatus(`Selected: ${sentant.name}`);
+    }
+  }
+
+  function handle3DPeerClick(peer: any) {
+    // Show peer info via status message
+    const signal = peer.rssi ? `${peer.rssi} dBm` : 'Unknown';
+    showStatus(`Peer: ${peer.name || peer.nodeId} via ${peer.transport} (${signal})`);
+  }
+
+  function handle3DHiveClick() {
+    // Open hive panel when clicking the central hive
+    handleOpenHive();
+    show3DView = false;
+  }
+
+  async function handle3DRefresh() {
+    // Refresh both hive data and browse node data
+    await Promise.all([fetchHiveData(), handleBrowseNode()]);
+    showStatus("3D view refreshed");
+  }
 </script>
 
 <main>
   <Toolbar
     mode={toolbarMode}
     {editingName}
+    {r2}
     onBack={handleBackToCanvas}
     onAddSentant={() => addSentant()}
     onAddSwarm={() => addSwarm()}
@@ -533,6 +580,7 @@
     onUnload={handleUnload}
     onRefreshHive={fetchHiveData}
     onLoadVariables={handleOpenVariables}
+    on3DView={() => { console.log('3D View clicked, setting show3DView=true'); show3DView = true; }}
     {liveSentantCount}
     variableCount={getVariableCount()}
   />
@@ -578,6 +626,20 @@
 
   {#if statusMessage}
     <div class="toast">{statusMessage}</div>
+  {/if}
+
+  {#if show3DView}
+    <Demo3D
+      nodeInfo={mapped3DNodeInfo}
+      sentants={mapped3DSentants}
+      peers={mapped3DPeers}
+      mode="auto"
+      onClose={() => show3DView = false}
+      onSentantClick={handle3DSentantClick}
+      onPeerClick={handle3DPeerClick}
+      onHiveClick={handle3DHiveClick}
+      onRefresh={handle3DRefresh}
+    />
   {/if}
 </main>
 

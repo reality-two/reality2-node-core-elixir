@@ -1,0 +1,25 @@
+{
+  "persisted_at": "2026-02-04T02:17:22.650705Z",
+  "members": [
+    {
+      "node_name": "R2Viewer_1939",
+      "certificate": {
+        "expires_at": 1801707442,
+        "issued_at": 1770171442,
+        "node_name": "R2Viewer_1939",
+        "node_public_key": "D/VVm5cOnldYF4OB4Dz+KGn7fk6EsAk+O1q2BWGj4NU=",
+        "permissions": [
+          "full"
+        ],
+        "signature": "V22JSWOWMBJ8GEcQI4YtA6gCF//yjYTqhoR/ZZkm06q7wTebDn3DCJr4I/FrslfhXUBNDTmEh2WplkWCv/MlDg==",
+        "trust_group_id": "7131ba5a-b926-5f84-9bf0-0ed3ab5fdce3",
+        "type": "node_cert",
+        "version": 1
+      },
+      "node_id": "1f1328616a800092e431ef0b42c48fab",
+      "node_public_key": "D/VVm5cOnldYF4OB4Dz+KGn7fk6EsAk+O1q2BWGj4NU=",
+      "member_type": "viewer",
+      "approved_at": "2026-02-04T02:17:22.650630Z"
+    }
+  ]
+}

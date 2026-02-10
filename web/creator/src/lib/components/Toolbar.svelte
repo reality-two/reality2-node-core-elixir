@@ -1,10 +1,13 @@
 <script lang="ts">
   import { getAdvancedMode, toggleAdvancedMode } from "../stores/preferences-store.svelte";
   import { t } from "../i18n/terminology";
+  import MeshHealthIndicator from "./MeshHealthIndicator.svelte";
+  import type R2 from "../reality2";
 
   let {
     mode = "canvas",
     editingName = "",
+    r2,
     onBack,
     onAddSentant,
     onAddSwarm,
@@ -20,11 +23,13 @@
     onRefreshHive,
     onLibrary,
     onLoadVariables,
+    on3DView,
     liveSentantCount = 0,
     variableCount = 0,
   }: {
     mode?: "canvas" | "editing" | "live" | "hive" | "swarm" | "library" | "variables";
     editingName?: string;
+    r2?: R2;
     onBack?: () => void;
     onAddSentant: () => void;
     onAddSwarm?: () => void;
@@ -40,6 +45,7 @@
     onDeleteSwarm?: () => void;
     onRefreshHive?: () => void;
     onLoadVariables?: () => void;
+    on3DView?: () => void;
     liveSentantCount?: number;
     variableCount?: number;
   } = $props();
@@ -89,7 +95,16 @@
       <i class="trash icon"></i> Clear
     </button>
 
+    <button class="item" onclick={on3DView} title="Open 3D Meadow visualization (demo)">
+      <i class="cube icon"></i> 3D View
+    </button>
+
     <div class="right menu">
+      {#if r2}
+        <div class="item" style="padding-right: 8px;">
+          <MeshHealthIndicator {r2} />
+        </div>
+      {/if}
       <button
         class="item"
         onclick={toggleAdvancedMode}

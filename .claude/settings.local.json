@@ -162,7 +162,17 @@
       "Bash(gh auth:*)",
       "Bash(git merge:*)",
       "Bash(lsmod:*)",
-      "Bash(dmesg:*)"
+      "Bash(dmesg:*)",
+      "Bash(npm run check:*)",
+      "Bash(MIX_ENV=dev mix run:*)",
+      "Bash(for i in 1 2 3)",
+      "Bash(do echo \"=== Run $i ===\")",
+      "WebFetch(domain:hexdocs.pm)",
+      "WebFetch(domain:docs.nerves-hub.org)",
+      "WebFetch(domain:gist.github.com)",
+      "Bash(git reset:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout 15 npm run dev)"
     ]
   }
 }

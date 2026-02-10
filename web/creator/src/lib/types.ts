@@ -107,6 +107,37 @@ export type LoadResult = {
   data: Sentant[] | Sentant | [];
 };
 
+// 3D Visualization Types
+
+export type NodeInfo = {
+  id: string;
+  name: string;
+  publicKey?: string;
+  trustGroupId?: string;
+  trustGroupName?: string;
+  isKeyHolder?: boolean;
+};
+
+export type Peer = {
+  nodeId: string;
+  name?: string;
+  publicKey?: string;
+  transport: string;
+  rssi?: number;
+  sameTrustGroup?: boolean;
+  lastSeen?: number;
+};
+
+export type LiveSentant = Sentant & {
+  state?: Record<string, unknown>;
+  swarm?: string;
+  lastSignal?: {
+    name: string;
+    data: unknown;
+    timestamp: number;
+  };
+};
+
 // File System Access API types (for browser file picker)
 export interface FileSystemFileHandle {
   getFile(): Promise<File>;

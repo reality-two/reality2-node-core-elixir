@@ -1,0 +1,60 @@
+{
+  "nodes": {
+    "3da2e3b6-6641-46b4-b84c-de49933158c5": {
+      "name": "R2Node_EAC2",
+      "status": "active",
+      "certificate": null,
+      "sentants": [
+        {
+          "id": "d7cc9721-1c7f-4143-980d-b01d016684fa",
+          "name": "Genderize",
+          "updated_at": "2026-02-04T02:21:31.793747Z"
+        },
+        {
+          "id": "1ded8ff4-c0b9-4f8f-b394-4dc99e8f7e78",
+          "name": "Zen Quote",
+          "updated_at": "2026-02-04T02:21:31.793747Z"
+        }
+      ],
+      "reachability": {
+        "wifi": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "lora": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "internet": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "ble": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        }
+      },
+      "trust_group_id": "7131ba5a-b926-5f84-9bf0-0ed3ab5fdce3",
+      "compressed_id": "0xB4E1EA98",
+      "updated_at": "2026-02-04T02:21:31.793788Z"
+    }
+  },
+  "trust_group_id": "7131ba5a-b926-5f84-9bf0-0ed3ab5fdce3",
+  "my_node_id": "3da2e3b6-6641-46b4-b84c-de49933158c5",
+  "trust_group_name": "DefaultTrustGroup",
+  "directory_version": 50,
+  "trusted_trust_groups": {},
+  "persisted_at": "2026-02-04T02:22:31.838307Z"
+}

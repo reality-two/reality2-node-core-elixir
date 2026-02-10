@@ -1,0 +1,103 @@
+{
+  "nodes": {
+    "3da2e3b6-6641-46b4-b84c-de49933158c5": {
+      "name": "R2Node_EAC2",
+      "status": "active",
+      "certificate": null,
+      "sentants": [
+        {
+          "id": "e7d887b5-9da2-4d71-aa7e-93e4e286c25d",
+          "name": "Zen Quote",
+          "updated_at": "2026-02-06T00:57:51.962249Z"
+        }
+      ],
+      "reachability": {
+        "wifi": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "lora": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "internet": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "ble": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        }
+      },
+      "trust_group_id": "7131ba5a-b926-5f84-9bf0-0ed3ab5fdce3",
+      "compressed_id": "0xB4E1EA98",
+      "updated_at": "2026-02-06T00:57:51.962294Z"
+    },
+    "928a0ffa-36f1-4140-8ea4-da8ee553fbc2": {
+      "name": "R2Node_476E",
+      "status": "absent",
+      "certificate": null,
+      "sentants": [
+        {
+          "id": null,
+          "name": "Transnet Test"
+        },
+        {
+          "id": null,
+          "name": "Zen Quote"
+        }
+      ],
+      "reachability": {
+        "wifi": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "lora": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "internet": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        },
+        "ble": {
+          "ip": null,
+          "via": null,
+          "confidence": 0,
+          "rssi": null,
+          "last_seen": null
+        }
+      },
+      "trust_group_id": null,
+      "compressed_id": "0x75D23273",
+      "updated_at": "2026-02-05T09:20:19.667000Z"
+    }
+  },
+  "trust_group_id": "7131ba5a-b926-5f84-9bf0-0ed3ab5fdce3",
+  "trust_group_name": "DefaultTrustGroup",
+  "my_node_id": "3da2e3b6-6641-46b4-b84c-de49933158c5",
+  "directory_version": 296,
+  "trusted_trust_groups": {},
+  "persisted_at": "2026-02-06T00:58:51.995140Z"
+}
