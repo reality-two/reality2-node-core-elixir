@@ -51,6 +51,9 @@ mix.lock
 .hive/
 .hive_old/
 
+# Trust group identity and directory files (contain private keys)
+.r2/
+
 # Stray compiled beam files
 *.beam
 

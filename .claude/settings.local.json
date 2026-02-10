@@ -158,7 +158,11 @@
       "Bash(docker logs:*)",
       "Bash(ss:*)",
       "Bash(netstat:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(gh auth:*)",
+      "Bash(git merge:*)",
+      "Bash(lsmod:*)",
+      "Bash(dmesg:*)"
     ]
   }
 }
